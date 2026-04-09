@@ -41,6 +41,9 @@ testem.log
 .DS_Store
 Thumbs.db
 .env
+/public
+/artifacts/saju-web/public/assets
+/artifacts/saju-web/public/index.html
 
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
