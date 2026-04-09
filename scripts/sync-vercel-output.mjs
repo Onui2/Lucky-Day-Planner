@@ -16,10 +16,6 @@ async function copyDirectoryContents(fromDir, toDir) {
 }
 
 async function syncForVercel() {
-  if (!process.env.VERCEL) {
-    return;
-  }
-
   await rm(rootPublic, { recursive: true, force: true });
   await mkdir(rootPublic, { recursive: true });
   await copyDirectoryContents(distRoot, rootPublic);

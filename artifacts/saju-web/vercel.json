@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "outputDirectory": "public",
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/:match*",
+      "destination": "/index.html"
+    }
+  ]
+}

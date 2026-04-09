@@ -5,7 +5,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { sendPasswordResetEmail } from "../lib/email";
+import { sendPasswordResetEmail } from "../lib/email.js";
 import {
   clearSession,
   getOidcConfig,
@@ -15,7 +15,7 @@ import {
   SESSION_COOKIE,
   SESSION_TTL,
   type SessionData,
-} from "../lib/auth";
+} from "../lib/auth.js";
 
 const BCRYPT_ROUNDS = 12;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1시간

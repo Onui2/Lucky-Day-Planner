@@ -1,20 +1,20 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import authRouter from "./auth";
-import sajuRouter from "./saju";
-import fortuneRouter from "./fortune";
-import manseryokRouter from "./manseryok";
-import savedSajuRouter from "./savedSaju";
-import inquiriesRouter from "./inquiries";
-import usersRouter from "./users";
-import yearFortuneRouter from "./year-fortune";
-import nameRouter from "./name";
-import zodiacRouter from "./zodiac";
-import accountRouter from "./account";
-import dreamRouter from "./dream";
-import calendarRouter from "./calendar";
-import loveFortuneRouter from "./love-fortune";
-import daeunMonthlyRouter from "./daeun-monthly";
+import healthRouter from "./health.js";
+import authRouter from "./auth.js";
+import sajuRouter from "./saju.js";
+import fortuneRouter from "./fortune.js";
+import manseryokRouter from "./manseryok.js";
+import savedSajuRouter from "./savedSaju.js";
+import inquiriesRouter from "./inquiries.js";
+import usersRouter from "./users.js";
+import yearFortuneRouter from "./year-fortune.js";
+import nameRouter from "./name.js";
+import zodiacRouter from "./zodiac.js";
+import accountRouter from "./account.js";
+import dreamRouter from "./dream.js";
+import calendarRouter from "./calendar.js";
+import loveFortuneRouter from "./love-fortune.js";
+import daeunMonthlyRouter from "./daeun-monthly.js";
 
 const router: IRouter = Router();
 

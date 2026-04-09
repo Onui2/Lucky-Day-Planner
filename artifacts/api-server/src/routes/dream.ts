@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { searchDream, POPULAR_KEYWORDS, CATEGORIES } from "../lib/dream";
+import { searchDream, POPULAR_KEYWORDS, CATEGORIES } from "../lib/dream.js";
 
 const router: IRouter = Router();
 
