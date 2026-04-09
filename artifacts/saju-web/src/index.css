@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --font-sans: 'Noto Sans KR', sans-serif;
+  --font-serif: 'Noto Serif KR', serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+:root {
+  /* Midnight Aurora Theme — deep navy with rich purple/teal aurora */
+  --background: 222 55% 8%;         /* deep midnight navy */
+  --foreground: 40 35% 96%;         /* warm bright off-white */
+
+  --card: 228 50% 13%;              /* clearly-distinct deep navy-blue */
+  --card-foreground: 40 35% 96%;
+
+  --popover: 228 50% 13%;
+  --popover-foreground: 40 35% 96%;
+
+  --primary: 46 72% 56%;            /* warm gold */
+  --primary-foreground: 222 55% 8%;
+
+  --secondary: 245 42% 22%;         /* indigo */
+  --secondary-foreground: 40 35% 96%;
+
+  --muted: 245 40% 19%;
+  --muted-foreground: 240 22% 74%;  /* clearly readable */
+
+  --accent: 268 78% 62%;            /* bright violet */
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 46 72% 56% / 0.18;
+  --input: 245 40% 22%;
+  --ring: 46 72% 56%;
+
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased text-foreground;
+    background-color: hsl(222, 55%, 8%);
+
+    /* Aurora / cosmic night sky — five layered radial gradients */
+    background-image:
+      /* Violet aurora — upper-left */
+      radial-gradient(ellipse 80% 60% at 12% 0%,   hsl(268 72% 30% / 0.70), transparent 70%),
+      /* Deep sapphire — upper-right */
+      radial-gradient(ellipse 60% 50% at 90% 6%,   hsl(218 90% 28% / 0.55), transparent 65%),
+      /* Teal shimmer — lower-right */
+      radial-gradient(ellipse 65% 48% at 92% 96%,  hsl(196 80% 24% / 0.45), transparent 65%),
+      /* Indigo warmth — lower-left */
+      radial-gradient(ellipse 70% 42% at 8% 100%,  hsl(248 65% 26% / 0.50), transparent 65%),
+      /* Subtle gold centre glow */
+      radial-gradient(ellipse 45% 35% at 50% 50%,  hsl(46 65% 36% / 0.12),  transparent 70%);
+
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-tight;
+  }
+
+  /* native <select> 드롭다운 — 배경 고정 (반투명 방지) */
+  select {
+    background-color: hsl(245, 40%, 20%);
+    color: hsl(40, 35%, 96%);
+  }
+  select option {
+    background-color: hsl(228, 50%, 14%);
+    color: hsl(40, 35%, 96%);
+  }
+  select option:hover,
+  select option:checked {
+    background-color: hsl(245, 55%, 28%);
+  }
+
+  /* Radix UI Select 드롭다운 — 배경 완전 불투명 강제 */
+  [data-radix-popper-content-wrapper] [role="listbox"],
+  [data-radix-select-content] {
+    background-color: hsl(228, 50%, 12%) !important;
+    backdrop-filter: none !important;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: hsl(228 52% 15% / 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(46 72% 56% / 0.22);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.50),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-[#F5EDD8] via-[#E8C84A] to-[#B98A10] text-transparent bg-clip-text;
+  }
+}

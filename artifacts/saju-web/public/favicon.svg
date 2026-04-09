@@ -1,0 +1,49 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGrad" cx="40%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#1a2a45"/>
+      <stop offset="100%" stop-color="#0a1220"/>
+    </radialGradient>
+    <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#d4af38" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#d4af38" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="180" height="180" rx="38" fill="url(#bgGrad)"/>
+
+  <!-- Subtle glow in center -->
+  <circle cx="90" cy="90" r="72" fill="url(#glowGrad)"/>
+
+  <!-- Outer gold ring -->
+  <circle cx="90" cy="90" r="74" stroke="#d4af38" stroke-width="2.5" fill="none" opacity="0.6"/>
+
+  <!-- Inner gold ring (thin) -->
+  <circle cx="90" cy="90" r="68" stroke="#d4af38" stroke-width="1" fill="none" opacity="0.3"/>
+
+  <!-- 命 character -->
+  <text
+    x="90" y="120"
+    text-anchor="middle"
+    font-family="'Noto Serif KR', 'Noto Serif SC', 'SimSun', serif"
+    font-size="90"
+    font-weight="700"
+    fill="#d4af38"
+    filter="url(#glow)"
+    opacity="0.95"
+  >命</text>
+
+  <!-- Small decorative dots at cardinal points on the ring -->
+  <circle cx="90" cy="16" r="3" fill="#d4af38" opacity="0.7"/>
+  <circle cx="90" cy="164" r="3" fill="#d4af38" opacity="0.7"/>
+  <circle cx="16" cy="90" r="3" fill="#d4af38" opacity="0.7"/>
+  <circle cx="164" cy="90" r="3" fill="#d4af38" opacity="0.7"/>
+</svg>

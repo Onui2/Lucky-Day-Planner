@@ -1,0 +1,20 @@
+packages:
+  "framer-motion": "For elegant page transitions, staggering list items, and premium component animations"
+  "recharts": "To visualize the Five Elements (오행) balance in a beautiful radar chart"
+  "date-fns": "For elegant calendar and date manipulation"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility function to efficiently merge Tailwind CSS classes"
+  "@radix-ui/react-slot": "Required for proper composition in Shadcn-like UI components"
+
+images:
+  - path: "artifacts/saju-web/public/images/mystical-bg.png"
+    description: "A dark mystical background with subtle glowing gold dust, deep purple nebula, and abstract Korean traditional patterns (Dancheong) faintly visible in the backdrop. Highly elegant, minimal, and premium."
+    aspect_ratio: "16:9"
+  - path: "artifacts/saju-web/public/images/saju-hero.png"
+    description: "Elegant 3D abstract representation of the four pillars of destiny (사주팔자), with floating golden Korean calligraphy characters in a dark ethereal void with subtle purple lighting."
+    aspect_ratio: "3:4"
+
+notes:
+  - "Importing React Query hooks directly from @workspace/api-client-react as per implementation notes."
+  - "Using Noto Serif KR for headings to give a premium, traditional Korean aesthetic."
+  - "Design follows a 'Mystical Elegant Dark' theme with deep purples and warm gold."
