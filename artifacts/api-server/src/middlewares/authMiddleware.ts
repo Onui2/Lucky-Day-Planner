@@ -1,29 +1,30 @@
 import * as oidc from "openid-client";
-import { type Request, type Response, type NextFunction } from "express";
-import type { AuthUser } from "@workspace/api-zod";
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { type NextFunction, type Request, type Response } from "express";
 import {
   clearSession,
   getOidcConfig,
-  getSessionId,
   getSession,
+  getSessionId,
   updateSession,
   type SessionData,
 } from "../lib/auth.js";
 
+interface SessionUser {
+  id: string;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  profileImageUrl?: string | null;
+  role?: string | null;
+}
+
 declare global {
   namespace Express {
-    interface User extends AuthUser {}
+    interface User extends SessionUser {}
 
     interface Request {
-      isAuthenticated(): this is AuthedRequest;
-
-      user?: User | undefined;
-    }
-
-    export interface AuthedRequest {
-      user: User;
+      isAuthenticated(): this is Request & { user: User };
+      user?: User;
     }
   }
 }
@@ -33,21 +34,22 @@ async function refreshIfExpired(
   session: SessionData,
 ): Promise<SessionData | null> {
   const now = Math.floor(Date.now() / 1000);
-  if (!session.expires_at || now <= session.expires_at) return session;
+  if (!session.expires_at || now <= session.expires_at) {
+    return session;
+  }
 
-  if (!session.refresh_token) return null;
+  if (!session.refresh_token) {
+    return null;
+  }
 
   try {
     const config = await getOidcConfig();
-    const tokens = await oidc.refreshTokenGrant(
-      config,
-      session.refresh_token,
-    );
+    const tokens = await oidc.refreshTokenGrant(config, session.refresh_token);
+    const expiresIn = tokens.expiresIn();
     session.access_token = tokens.access_token;
     session.refresh_token = tokens.refresh_token ?? session.refresh_token;
-    session.expires_at = tokens.expiresIn()
-      ? now + tokens.expiresIn()!
-      : session.expires_at;
+    session.expires_at =
+      typeof expiresIn === "number" ? now + expiresIn : session.expires_at;
     await updateSession(sid, session);
     return session;
   } catch {
@@ -59,10 +61,12 @@ export async function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction,
-) {
-  req.isAuthenticated = function (this: Request) {
+): Promise<void> {
+  req.isAuthenticated = function (this: Request): this is Request & {
+    user: Express.User;
+  } {
     return this.user != null;
-  } as Request["isAuthenticated"];
+  };
 
   const sid = getSessionId(req);
   if (!sid) {
@@ -84,15 +88,10 @@ export async function authMiddleware(
     return;
   }
 
-  // DB에서 최신 역할을 항상 조회 — 관리자 승격/해제가 즉시 반영됨
-  const [dbUser] = await db
-    .select({ role: usersTable.role })
-    .from(usersTable)
-    .where(eq(usersTable.id, refreshed.user.id));
-
   req.user = {
     ...refreshed.user,
-    role: dbUser?.role ?? refreshed.user.role ?? "user",
+    role: refreshed.user.role ?? "user",
   };
+
   next();
 }
