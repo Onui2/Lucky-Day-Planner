@@ -3,7 +3,7 @@ import { Router, type Request, type Response } from "express";
 import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "../lib/email.js";
 import {
@@ -26,16 +26,30 @@ const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 const router = Router();
 
 function getOrigin(req: Request): string {
-  const proto = req.headers["x-forwarded-proto"] || "https";
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const protoHeader = Array.isArray(forwardedProto)
+    ? forwardedProto[0]
+    : forwardedProto?.split(",")[0];
+  const proto = protoHeader?.trim() || req.protocol || "http";
   const host =
     req.headers["x-forwarded-host"] || req.headers["host"] || "localhost";
   return `${proto}://${host}`;
 }
 
+function shouldUseSecureCookies(req: Request): boolean {
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const protoHeader = Array.isArray(forwardedProto)
+    ? forwardedProto[0]
+    : forwardedProto?.split(",")[0];
+
+  return (protoHeader?.trim() || req.protocol || "http") === "https";
+}
+
 function setSessionCookie(res: Response, sid: string) {
+  const secure = shouldUseSecureCookies(res.req);
   res.cookie(SESSION_COOKIE, sid, {
     httpOnly: true,
-    secure: true,
+    secure,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL,
@@ -43,9 +57,10 @@ function setSessionCookie(res: Response, sid: string) {
 }
 
 function setOidcCookie(res: Response, name: string, value: string) {
+  const secure = shouldUseSecureCookies(res.req);
   res.cookie(name, value, {
     httpOnly: true,
-    secure: true,
+    secure,
     sameSite: "lax",
     path: "/",
     maxAge: OIDC_COOKIE_TTL,

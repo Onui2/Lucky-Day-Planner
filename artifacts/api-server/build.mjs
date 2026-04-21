@@ -5,6 +5,8 @@ import { rm, readFile } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const distDir = path.resolve(__dirname, "dist");
+const vercelApiBundle = path.resolve(__dirname, "..", "saju-web", "api", "_app.mjs");
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times without risking some
@@ -12,6 +14,7 @@ const __dirname = path.dirname(__filename);
 const allowlist = [
   "@google/generative-ai",
   "axios",
+  "bcryptjs",
   "connect-pg-simple",
   "cookie-parser",
   "cors",
@@ -40,8 +43,8 @@ const allowlist = [
 ];
 
 async function buildAll() {
-  const distDir = path.resolve(__dirname, "dist");
   await rm(distDir, { recursive: true, force: true });
+  await rm(vercelApiBundle, { force: true });
 
   console.log("building server...");
   const pkgPath = path.resolve(__dirname, "package.json");
@@ -57,15 +60,15 @@ async function buildAll() {
   );
 
   const sharedOptions = {
-    platform: "node" as const,
+    platform: "node",
     bundle: true,
-    format: "cjs" as const,
+    format: "cjs",
     define: {
       "process.env.NODE_ENV": '"production"',
     },
     minify: true,
     external: externals,
-    logLevel: "info" as const,
+    logLevel: "info",
   };
 
   await esbuild({
@@ -78,6 +81,21 @@ async function buildAll() {
     ...sharedOptions,
     entryPoints: [path.resolve(__dirname, "src/vercel.ts")],
     outfile: path.resolve(distDir, "vercel-app.cjs"),
+  });
+
+  console.log("building vercel api bundle...");
+  await esbuild({
+    entryPoints: [path.resolve(__dirname, "src/app.ts")],
+    platform: "node",
+    bundle: true,
+    format: "esm",
+    outfile: vercelApiBundle,
+    define: {
+      "process.env.NODE_ENV": '"production"',
+    },
+    minify: true,
+    external: externals,
+    logLevel: "info",
   });
 }
 

@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { clearSession, getSessionId } from "../lib/auth.js";
 
 const router = Router();
