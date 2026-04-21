@@ -1,5 +1,5 @@
 import * as oidc from "openid-client";
-import { type NextFunction, type Request, type Response } from "express";
+import { type Request, type Response } from "express";
 import {
   clearSession,
   getOidcConfig,
@@ -18,16 +18,10 @@ interface SessionUser {
   role?: string | null;
 }
 
-declare global {
-  namespace Express {
-    interface User extends SessionUser {}
-
-    interface Request {
-      isAuthenticated(): this is Request & { user: User };
-      user?: User;
-    }
-  }
-}
+type AuthAwareRequest = Request & {
+  isAuthenticated?: () => boolean;
+  user?: SessionUser;
+};
 
 async function refreshIfExpired(
   sid: string,
@@ -60,15 +54,17 @@ async function refreshIfExpired(
 export async function authMiddleware(
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: (error?: unknown) => void,
 ): Promise<void> {
-  req.isAuthenticated = function (this: Request): this is Request & {
-    user: Express.User;
-  } {
+  const authReq = req as AuthAwareRequest;
+
+  authReq.isAuthenticated = function (
+    this: AuthAwareRequest,
+  ): this is AuthAwareRequest & { user: SessionUser } {
     return this.user != null;
   };
 
-  const sid = getSessionId(req);
+  const sid = getSessionId(authReq);
   if (!sid) {
     next();
     return;
@@ -88,7 +84,7 @@ export async function authMiddleware(
     return;
   }
 
-  req.user = {
+  authReq.user = {
     ...refreshed.user,
     role: refreshed.user.role ?? "user",
   };
