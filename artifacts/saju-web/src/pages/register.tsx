@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@workspace/replit-auth-web";
-import { getSupabaseClient, isSupabaseEnabled } from "@/lib/supabase-auth";
+import { registerWithPassword } from "@/lib/auth-client";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -68,52 +68,19 @@ export default function RegisterPage() {
     setSubmitting(true);
 
     try {
-      if (isSupabaseEnabled()) {
-        const client = getSupabaseClient();
-        const { data, error: signUpError } = await client!.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: {
-              first_name: name.trim() || undefined,
-              full_name: name.trim() || undefined,
-            },
-            emailRedirectTo: `${window.location.origin}${BASE}/login`,
-          },
-        });
-
-        if (signUpError) {
-          setError(signUpError.message);
-          return;
-        }
-
-        if (data.session) {
-          await refreshUser();
-          navigate("/");
-          return;
-        }
-
-        setSuccessMessage("가입이 완료되었습니다. 이메일 인증 후 로그인해 주세요.");
-        return;
-      }
-
-      const response = await fetch(`${BASE}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password, name: name.trim() }),
-        credentials: "include",
+      await registerWithPassword({
+        email: email.trim(),
+        password,
+        name: name.trim(),
       });
-      const data = (await response.json()) as Record<string, unknown>;
-
-      if (!response.ok) {
-        setError((data.error as string) ?? "회원가입에 실패했습니다.");
-        return;
-      }
-
       await refreshUser();
       navigate("/");
-    } catch {
-      setError("가입 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } catch (registerError) {
+      setError(
+        registerError instanceof Error
+          ? registerError.message
+          : "가입 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     } finally {
       setSubmitting(false);
     }

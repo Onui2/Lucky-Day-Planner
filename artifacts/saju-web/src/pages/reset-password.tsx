@@ -14,13 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  getSupabaseClient,
-  isSupabaseEnabled,
-  type Session,
-  updateSupabasePassword,
-} from "@/lib/supabase-auth";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
+  resetPasswordWithToken,
+  verifyResetPasswordToken,
+} from "@/lib/auth-client";
 
 type PageState = "verifying" | "valid" | "invalid" | "submitting" | "done";
 
@@ -38,57 +34,19 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isSupabaseEnabled()) {
-      const client = getSupabaseClient();
-
-      let cancelled = false;
-
-      void client!.auth.getSession().then(({ data }) => {
-        if (cancelled) return;
-        setPageState(data.session ? "valid" : "invalid");
-        if (!data.session) {
-          setInvalidMessage("비밀번호 재설정 세션이 없습니다. 메일의 링크를 다시 열어 주세요.");
-        }
-      });
-
-      const {
-        data: { subscription },
-      } = client!.auth.onAuthStateChange((event: string, session: Session | null) => {
-        if (cancelled) return;
-
-        if (event === "PASSWORD_RECOVERY" || session) {
-          setPageState("valid");
-          return;
-        }
-
-        if (!session) {
-          setPageState("invalid");
-          setInvalidMessage("비밀번호 재설정 세션이 만료되었습니다.");
-        }
-      });
-
-      return () => {
-        cancelled = true;
-        subscription.unsubscribe();
-      };
-    }
-
     if (!token) {
       setPageState("invalid");
       setInvalidMessage("재설정 토큰이 없습니다.");
       return;
     }
 
-    void fetch(`${BASE}/api/auth/reset-password/verify?token=${encodeURIComponent(token)}`)
-      .then((response) => response.json())
-      .then((data: Record<string, unknown>) => {
+    void verifyResetPasswordToken(token)
+      .then((data) => {
         if (data.valid) {
           setPageState("valid");
         } else {
           setPageState("invalid");
-          setInvalidMessage(
-            (data.error as string) ?? "재설정 링크가 만료되었거나 유효하지 않습니다.",
-          );
+          setInvalidMessage(data.error ?? "재설정 링크가 만료되었거나 유효하지 않습니다.");
         }
       })
       .catch(() => {
@@ -116,26 +74,7 @@ export default function ResetPasswordPage() {
     setPageState("submitting");
 
     try {
-      if (isSupabaseEnabled()) {
-        await updateSupabasePassword(password);
-        const client = getSupabaseClient();
-        await client!.auth.signOut();
-      } else {
-        const response = await fetch(`${BASE}/api/auth/reset-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, password }),
-        });
-
-        const data = (await response.json()) as Record<string, unknown>;
-
-        if (!response.ok) {
-          setPageState("valid");
-          setError((data.error as string) ?? "비밀번호 변경에 실패했습니다.");
-          return;
-        }
-      }
-
+      await resetPasswordWithToken({ token, password });
       setPageState("done");
     } catch (resetError) {
       setPageState("valid");
@@ -155,7 +94,7 @@ export default function ResetPasswordPage() {
       <div
         className="fixed inset-0 z-[-1] opacity-40 mix-blend-screen pointer-events-none"
         style={{
-          backgroundImage: `url(${BASE}/images/mystical-bg.png)`,
+          backgroundImage: `url(${import.meta.env.BASE_URL.replace(/\/+$/, "")}/images/mystical-bg.png)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

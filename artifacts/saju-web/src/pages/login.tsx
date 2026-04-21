@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@workspace/replit-auth-web";
-import { getSupabaseClient, isSupabaseEnabled } from "@/lib/supabase-auth";
+import { loginWithPassword } from "@/lib/auth-client";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -49,37 +49,15 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      if (isSupabaseEnabled()) {
-        const client = getSupabaseClient();
-        const { error: signInError } = await client!.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-
-        if (signInError) {
-          setError(signInError.message);
-          return;
-        }
-      } else {
-        const response = await fetch(`${BASE}/api/auth/login-local`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim(), password }),
-          credentials: "include",
-        });
-
-        const data = (await response.json()) as Record<string, unknown>;
-
-        if (!response.ok) {
-          setError((data.error as string) ?? "로그인에 실패했습니다.");
-          return;
-        }
-      }
-
+      await loginWithPassword({ email: email.trim(), password });
       await refreshUser();
       navigate(returnTo);
-    } catch {
-      setError("로그인 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error
+          ? loginError.message
+          : "로그인 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     } finally {
       setSubmitting(false);
     }

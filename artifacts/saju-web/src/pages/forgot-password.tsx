@@ -12,12 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  getSupabaseClient,
-  isSupabaseEnabled,
-} from "@/lib/supabase-auth";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { requestPasswordReset } from "@/lib/auth-client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -37,36 +32,14 @@ export default function ForgotPasswordPage() {
     setSubmitting(true);
 
     try {
-      if (isSupabaseEnabled()) {
-        const client = getSupabaseClient();
-        const { error: resetError } = await client!.auth.resetPasswordForEmail(
-          email.trim(),
-          {
-            redirectTo: `${window.location.origin}${BASE}/reset-password`,
-          },
-        );
-
-        if (resetError) {
-          setError(resetError.message);
-          return;
-        }
-      } else {
-        const response = await fetch(`${BASE}/api/auth/forgot-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim() }),
-        });
-
-        if (!response.ok) {
-          const data = (await response.json()) as Record<string, unknown>;
-          setError((data.error as string) ?? "요청 처리 중 오류가 발생했습니다.");
-          return;
-        }
-      }
-
+      await requestPasswordReset(email.trim());
       setDone(true);
-    } catch {
-      setError("요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -77,7 +50,7 @@ export default function ForgotPasswordPage() {
       <div
         className="fixed inset-0 z-[-1] opacity-40 mix-blend-screen pointer-events-none"
         style={{
-          backgroundImage: `url(${BASE}/images/mystical-bg.png)`,
+          backgroundImage: `url(${import.meta.env.BASE_URL.replace(/\/+$/, "")}/images/mystical-bg.png)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

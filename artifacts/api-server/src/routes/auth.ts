@@ -10,6 +10,7 @@ import {
   clearSession,
   getOidcConfig,
   getOidcClientId,
+  getSession,
   getSessionId,
   createSession,
   isOidcEnabled,
@@ -240,7 +241,17 @@ router.get("/callback", async (req: Request, res: Response) => {
 
 router.get("/logout", async (req: Request, res: Response) => {
   const sid = getSessionId(req);
+  const session = sid ? await getSession(sid) : null;
   await clearSession(res, sid);
+
+  const hadOidcSession = Boolean(
+    session?.access_token || session?.refresh_token,
+  );
+
+  if (!hadOidcSession || !isOidcEnabled()) {
+    res.redirect("/");
+    return;
+  }
 
   try {
     const clientId = getOidcClientId();
