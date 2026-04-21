@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight, Star, Info
 } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
+import { useResolvedProfile } from "@/lib/resolved-profile";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
 const ELEM_BG:   Record<string,string>  = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
@@ -123,7 +124,7 @@ function CategoryCard({ label, score, text, icon: Icon, barColor }: CategoryCard
 }
 
 export default function MonthlyFortunePage() {
-  const { profile } = useUser();
+  const { profile, hasCachedProfile } = useResolvedProfile();
   const [profileOpen, setProfileOpen] = useState(false);
   const now = new Date();
   const [year, setYear]   = useState(now.getFullYear());
@@ -156,7 +157,7 @@ export default function MonthlyFortunePage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="glass-panel border border-primary/20 rounded-2xl p-8 text-center space-y-4">
           <Sparkles className="w-12 h-12 text-primary/50 mx-auto" />
-          <p className="text-muted-foreground">월운을 보려면 먼저 사주 정보를 등록해주세요.</p>
+          <p className="text-muted-foreground">월운을 보려면 먼저 사주를 계산하거나 프로필을 등록해주세요.</p>
           <Button onClick={() => setProfileOpen(true)} className="bg-primary/20 text-primary hover:bg-primary/30 border border-primary/40">
             내 사주 등록하기
           </Button>
@@ -198,6 +199,11 @@ export default function MonthlyFortunePage() {
           {/* 결과 */}
           {data && (
             <motion.div key={`${year}-${month}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+              {hasCachedProfile && (
+                <div className="glass-panel border border-primary/20 rounded-2xl p-4 text-sm text-muted-foreground">
+                  최근 계산한 사주 기준으로 월운을 분석하고 있습니다. 저장 프로필로 바꾸면 다른 메뉴에서도 그대로 이어집니다.
+                </div>
+              )}
               {/* 세운/월건 카드 */}
               <div className="glass-panel border border-white/10 rounded-2xl p-5">
                 <div className="grid grid-cols-3 gap-4 text-center">

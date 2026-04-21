@@ -3,11 +3,10 @@ import { useGetManseryokMonth } from "@workspace/api-client-react";
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Lock, Hash, Palette, Compass, Gem } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem } from "lucide-react";
 import { getElementStyles, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { useUser, getElementRelation } from "@/contexts/UserContext";
-import { useAuth } from "@workspace/replit-auth-web";
+import { getElementRelation } from "@/contexts/UserContext";
 import { Link } from "wouter";
 import {
   getStemLucky,
@@ -15,6 +14,7 @@ import {
   ELEM_COLOR as SAJU_ELEM_COLOR_MAP,
   ELEM_BG as SAJU_ELEM_BG,
 } from "@/lib/sajuLucky";
+import { useResolvedProfile } from "@/lib/resolved-profile";
 
 const STEM_HANJA: Record<string, string> = {
   갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸',
@@ -151,22 +151,12 @@ interface SelectedDay {
 
 export default function ManseryokPage() {
   const today = new Date();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
-
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selected, setSelected] = useState<SelectedDay | null>(null);
-  const { profile, profileReady } = useUser();
+  const { profile, profileReady, hasCachedProfile } = useResolvedProfile();
 
   const isCurrentMonth =
     format(currentDate, "yyyy-MM") === format(today, "yyyy-MM");
-
-  useEffect(() => {
-    if (!isAdmin && !isCurrentMonth) {
-      setCurrentDate(new Date());
-      setSelected(null);
-    }
-  }, [isAdmin]);
 
   const yearStr = format(currentDate, "yyyy");
   const monthStr = format(currentDate, "MM");
@@ -255,8 +245,8 @@ export default function ManseryokPage() {
       ) : profileReady ? (
         <div className="mb-5 p-4 rounded-2xl border border-primary/15 bg-primary/3 flex items-center gap-3 text-sm text-muted-foreground">
           <UserCircle2 className="w-5 h-5 shrink-0" />
-          <span>내 사주를 등록하면 오행 기운 분석이 달력에 표시됩니다.</span>
-          <Link href="/saju" className="ml-auto text-primary font-medium hover:underline shrink-0">사주 등록하기 →</Link>
+          <span>{hasCachedProfile ? "최근 계산한 사주 기준으로 개인화 분석을 이어 볼 수 있습니다. 저장 프로필을 만들면 계속 유지됩니다." : "내 사주를 등록하거나 먼저 사주를 계산하면 오행 기운 분석이 달력에 표시됩니다."}</span>
+          <Link href="/saju" className="ml-auto text-primary font-medium hover:underline shrink-0">사주 보기 →</Link>
         </div>
       ) : null}
 
@@ -288,13 +278,9 @@ export default function ManseryokPage() {
       <Card className="glass-panel border-primary/20 p-4 md:p-6">
         {/* 월 이동 헤더 */}
         <div className="flex items-center justify-between mb-6">
-          {isAdmin ? (
-            <Button variant="outline" size="icon" onClick={prevMonth} className="rounded-full">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-          ) : (
-            <div className="w-9 h-9" />
-          )}
+          <Button variant="outline" size="icon" onClick={prevMonth} className="rounded-full">
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
 
           <div className="text-center">
             <h2 className="text-2xl md:text-3xl font-serif font-bold text-foreground">
@@ -305,13 +291,7 @@ export default function ManseryokPage() {
                 {toGanziHanja(data.yearGanzi[0], data.yearGanzi[1])} {toGanziHanja(data.monthGanzi[0], data.monthGanzi[1])}
               </p>
             )}
-            {!isAdmin && (
-              <div className="flex items-center justify-center gap-1 mt-1 text-[10px] text-muted-foreground/60">
-                <Lock className="w-2.5 h-2.5" />
-                <span>현재 월만 조회 가능</span>
-              </div>
-            )}
-            {isAdmin && !isCurrentMonth && (
+            {!isCurrentMonth && (
               <button
                 onClick={() => { setCurrentDate(new Date()); setSelected(null); }}
                 className="mt-1 px-3 py-0.5 rounded-full text-xs font-medium bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
@@ -321,13 +301,9 @@ export default function ManseryokPage() {
             )}
           </div>
 
-          {isAdmin ? (
-            <Button variant="outline" size="icon" onClick={nextMonth} className="rounded-full">
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          ) : (
-            <div className="w-9 h-9" />
-          )}
+          <Button variant="outline" size="icon" onClick={nextMonth} className="rounded-full">
+            <ChevronRight className="w-5 h-5" />
+          </Button>
         </div>
 
         {isLoading ? (

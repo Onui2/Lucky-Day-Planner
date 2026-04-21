@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Loader2, Sparkles, ChevronDown, ChevronUp, Star, TrendingUp, Calendar } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
+import { useResolvedProfile } from "@/lib/resolved-profile";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
 const ELEM_BG: Record<string,string>    = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
@@ -125,7 +126,7 @@ function PeriodCard({ period, birthYear, isActive, expanded, onToggle }: {
 }
 
 export default function DaeunPage() {
-  const { profile } = useUser();
+  const { profile, hasCachedProfile } = useResolvedProfile();
   const [profileOpen, setProfileOpen] = useState(false);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
@@ -156,7 +157,7 @@ export default function DaeunPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="glass-panel border border-primary/20 rounded-2xl p-8 text-center space-y-4">
           <Sparkles className="w-12 h-12 text-primary/50 mx-auto" />
-          <p className="text-muted-foreground">대운을 보려면 먼저 사주 정보를 등록해주세요.</p>
+          <p className="text-muted-foreground">대운을 보려면 먼저 사주를 계산하거나 프로필을 등록해주세요.</p>
           <Button onClick={() => setProfileOpen(true)} className="bg-primary/20 text-primary hover:bg-primary/30 border border-primary/40">
             내 사주 등록하기
           </Button>
@@ -180,6 +181,11 @@ export default function DaeunPage() {
       {/* 대운 결과 */}
       {data && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          {hasCachedProfile && (
+            <div className="glass-panel border border-primary/20 rounded-2xl p-4 text-sm text-muted-foreground">
+              최근 계산한 사주 기준으로 대운을 계산하고 있습니다. 프로필로 저장하면 이후에도 그대로 이어집니다.
+            </div>
+          )}
           {/* 기본 정보 카드 */}
           <div className="glass-panel border border-white/10 rounded-2xl p-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

@@ -7,14 +7,14 @@ import { ko } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { Loader2, TrendingUp, Heart, Briefcase, Activity, UserCircle2, Compass, Clock, Palette, Hash, Star, CalendarDays, Gem, Utensils, ChevronLeft, ChevronRight } from "lucide-react";
 import { getElementStyles } from "@/lib/utils";
-import { useUser, getElementRelation } from "@/contexts/UserContext";
-import { useAuth } from "@workspace/replit-auth-web";
+import { getElementRelation } from "@/contexts/UserContext";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   getStemLucky,
   ELEM_KOR as SAJU_ELEM_KOR, ELEM_COLOR as SAJU_ELEM_COLOR, ELEM_BG as SAJU_ELEM_BG,
 } from "@/lib/sajuLucky";
+import { useResolvedProfile } from "@/lib/resolved-profile";
 
 const ELEM_KOR: Record<string, string> = { 목: "木", 화: "火", 토: "土", 금: "金", 수: "水" };
 const ELEM_COLOR: Record<string, string> = { 목: "text-green-400", 화: "text-red-400", 토: "text-yellow-400", 금: "text-gray-300", 수: "text-blue-400" };
@@ -44,11 +44,9 @@ const DOW_KOR = ["일", "월", "화", "수", "목", "금", "토"];
 function DateNavPicker({
   date,
   onDateChange,
-  isAdmin,
 }: {
   date: string;
   onDateChange: (d: string) => void;
-  isAdmin: boolean;
 }) {
   const dateObj = new Date(date + "T00:00:00");
   const [calMonth, setCalMonth] = useState(new Date(date + "T00:00:00"));
@@ -62,7 +60,6 @@ function DateNavPicker({
   }
 
   function goNext() {
-    if (!isAdmin && dateObj >= TODAY_DATE) return;
     const next = addDays(dateObj, 1);
     onDateChange(format(next, "yyyy-MM-dd"));
   }
@@ -72,7 +69,6 @@ function DateNavPicker({
   }
 
   function pickDay(d: Date) {
-    if (!isAdmin && d > TODAY_DATE) return;
     onDateChange(format(d, "yyyy-MM-dd"));
     setOpen(false);
   }
@@ -124,13 +120,7 @@ function DateNavPicker({
             </span>
             <button
               onClick={() => setCalMonth(m => addDays(endOfMonth(m), 1))}
-              disabled={!isAdmin && startOfMonth(calMonth) >= startOfMonth(TODAY_DATE)}
-              className={cn(
-                "w-7 h-7 flex items-center justify-center rounded-lg transition-colors",
-                !isAdmin && startOfMonth(calMonth) >= startOfMonth(TODAY_DATE)
-                  ? "opacity-25 cursor-not-allowed"
-                  : "hover:bg-primary/15 text-foreground/70 hover:text-foreground"
-              )}
+              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-primary/15 text-foreground/70 hover:text-foreground"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -155,17 +145,14 @@ function DateNavPicker({
               const key = format(d, "yyyy-MM-dd");
               const isSelected = key === date;
               const isTodayCell = key === TODAY;
-              const disabled = !isAdmin && d > TODAY_DATE;
               const dow = getDay(d);
               return (
                 <button
                   key={key}
-                  disabled={disabled}
                   onClick={() => pickDay(d)}
                   className={cn(
                     "h-8 w-full flex items-center justify-center rounded-lg text-sm transition-colors",
-                    disabled && "opacity-30 cursor-not-allowed",
-                    !disabled && "hover:bg-primary/15",
+                    "hover:bg-primary/15",
                     isSelected && "bg-primary text-white font-semibold",
                     !isSelected && isTodayCell && "border border-primary/50 text-primary font-semibold",
                     !isSelected && dow === 0 && "text-rose-400",
@@ -183,13 +170,7 @@ function DateNavPicker({
       {/* 다음 날 */}
       <button
         onClick={goNext}
-        disabled={!isAdmin && isToday}
-        className={cn(
-          "w-9 h-9 flex items-center justify-center rounded-xl transition-colors",
-          (!isAdmin && isToday)
-            ? "text-muted-foreground/30 cursor-not-allowed"
-            : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-        )}
+        className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors text-muted-foreground hover:bg-primary/10 hover:text-primary"
         title="다음 날"
       >
         <ChevronRight className="w-4 h-4" />
@@ -211,9 +192,7 @@ function DateNavPicker({
 export default function DailyFortunePage() {
   const [date, setDate] = useState(TODAY);
   const { data, isLoading, error } = useGetDailyFortune({ date });
-  const { profile, profileReady } = useUser();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const { profile, profileReady, hasCachedProfile } = useResolvedProfile();
 
   // 명시적 색상 매핑 (Tailwind 동적 클래스 미지원 우회)
   const BAR_BG: Record<string, string> = {
@@ -273,7 +252,7 @@ export default function DailyFortunePage() {
         <h1 className="text-4xl md:text-5xl font-serif font-bold text-gradient-gold mb-4">오늘의 일진 (日辰)</h1>
         <p className="text-muted-foreground text-lg mb-8">매일매일 달라지는 그날의 기운을 확인하세요.</p>
 
-        <DateNavPicker date={date} onDateChange={setDate} isAdmin={isAdmin} />
+        <DateNavPicker date={date} onDateChange={setDate} />
       </div>
 
       {isLoading ? (
@@ -386,8 +365,8 @@ export default function DailyFortunePage() {
           ) : profileReady && !profile ? (
             <div className="p-4 rounded-2xl border border-primary/15 bg-primary/3 flex items-center gap-3 text-sm text-muted-foreground">
               <UserCircle2 className="w-5 h-5 shrink-0" />
-              <span>내 사주를 등록하면 오늘의 기운이 내 일간과 어떻게 작용하는지 개인화 분석을 볼 수 있습니다.</span>
-              <Link href="/saju" className="ml-auto text-primary font-medium hover:underline shrink-0">등록하기 →</Link>
+              <span>{hasCachedProfile ? "최근 분석한 사주 기준 개인화가 준비되어 있습니다. 저장 프로필을 만들면 모든 메뉴에서 계속 이어집니다." : "내 사주를 등록하거나 먼저 사주를 계산하면 오늘의 기운이 내 일간과 어떻게 작용하는지 개인화 분석을 볼 수 있습니다."}</span>
+              <Link href="/saju" className="ml-auto text-primary font-medium hover:underline shrink-0">사주 보기 →</Link>
             </div>
           ) : null}
 

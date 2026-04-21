@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
-import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Lock, LogIn, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send } from "lucide-react";
 import { getDayPillarAnalysis } from "@/data/dayPillarAnalysis";
 
 // ─── 한자 변환 ───────────────────────────────────────────
@@ -144,8 +144,7 @@ export default function SajuPage() {
   const [inquiryMessage, setInquiryMessage] = useState("");
   const [inquiryDone, setInquiryDone] = useState(false);
 
-  const { isAuthenticated, login, user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const { isAuthenticated } = useAuth();
   const { profile } = useUser();
   const { mutate: calculateSaju, data: result, isPending, error } = useCalculateSaju();
   const saveMut = useSaveSaju();
@@ -172,22 +171,25 @@ export default function SajuPage() {
   useEffect(() => {
     if (!result) return;
     setDisplayResult(result);
-    if (profile) {
-      try {
-        // 내 프로필과 일치하는 분석 결과만 캐시에 저장
-        const bi = result.birthInfo;
-        if (!bi) return;
-        const isOwnProfile =
-          bi.year  === profile.birthYear  &&
-          bi.month === profile.birthMonth &&
-          bi.day   === profile.birthDay   &&
-          bi.gender === profile.gender;
-        if (isOwnProfile) {
-          localStorage.setItem(SAJU_CACHE_KEY, JSON.stringify({ key: makeCacheKey(profile), result, ts: Date.now() }));
-          setCachedTs(null);
-        }
-      } catch {}
-    }
+    try {
+      const bi = result.birthInfo;
+      if (!bi) return;
+
+      const fallbackKey = `v3/${bi.year}/${bi.month}/${bi.day}/${bi.hour ?? -1}/${bi.gender ?? "male"}/${bi.calendarType ?? "solar"}`;
+      localStorage.setItem(SAJU_CACHE_KEY, JSON.stringify({ key: fallbackKey, result, ts: Date.now() }));
+
+      if (!profile) return;
+
+      const isOwnProfile =
+        bi.year === profile.birthYear &&
+        bi.month === profile.birthMonth &&
+        bi.day === profile.birthDay &&
+        bi.gender === profile.gender;
+
+      if (isOwnProfile) {
+        setCachedTs(null);
+      }
+    } catch {}
   }, [result]);
 
   const loadCached = () => {
@@ -439,32 +441,12 @@ export default function SajuPage() {
             </motion.div>
           )}
 
-          {/* 비관리자 + 프로필 없음: 프로필 등록 안내 */}
-          {!isAdmin && !profile && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl mx-auto"
-            >
-              <div className="glass-panel border border-primary/25 rounded-2xl p-8 text-center">
-                <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto mb-4">
-                  <UserCircle2 className="w-6 h-6 text-primary/70" />
-                </div>
-                <h3 className="text-lg font-serif font-semibold mb-2">프로필을 먼저 등록해주세요</h3>
-                <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                  사주팔자는 본인 사주만 조회 가능합니다.<br />
-                  상단 메뉴의 <span className="text-primary font-medium">내 프로필</span>에서 생년월일을 등록하면<br />
-                  바로 사주 분석을 이용할 수 있습니다.
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* 관리자 전용: 자유 입력 폼 */}
-          {isAdmin && <Card className="max-w-2xl mx-auto glass-panel border-primary/30">
+          <Card className="max-w-2xl mx-auto glass-panel border-primary/30">
             <CardHeader>
-              <CardTitle className="text-center text-3xl font-serif text-primary mb-2">정보 입력</CardTitle>
-              <CardDescription className="text-center">정확한 분석을 위해 생년월일시를 입력해주세요.</CardDescription>
+              <CardTitle className="text-center text-3xl font-serif text-primary mb-2">
+                {profile ? "다른 사주 직접 입력" : "정보 입력"}
+              </CardTitle>
+              <CardDescription className="text-center">정확한 분석을 위해 생년월일시를 입력해주세요. 시간은 모를 경우 비워둘 수 있습니다.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-8">
@@ -528,7 +510,7 @@ export default function SajuPage() {
                 </Button>
               </form>
             </CardContent>
-          </Card>}
+          </Card>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -738,7 +720,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 일주 심층 분석 카드 (사주팔자 바로 아래) ── */}
-          {isAuthenticated && r?.dayPillar && (() => {
+          {r?.dayPillar && (() => {
             const stem   = r.dayPillar?.heavenlyStem;
             const branch = r.dayPillar?.earthlyBranch;
             const analysis = stem && branch ? getDayPillarAnalysis(stem, branch) : undefined;
@@ -766,42 +748,8 @@ export default function SajuPage() {
             );
           })()}
 
-          {/* ── 로그인 게이트 ── */}
-          {!isAuthenticated && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <Card className="glass-panel border-primary/40 overflow-hidden">
-                <CardContent className="flex flex-col items-center justify-center py-16 gap-6 text-center relative">
-                  {/* 블러 힌트 배경 */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/60 to-background/90 backdrop-blur-sm pointer-events-none rounded-xl" />
-                  {/* 잠금 아이콘 */}
-                  <div className="relative z-10 flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
-                      <Lock className="w-8 h-8 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-serif font-bold text-primary mb-2">전체 분석 잠금</h3>
-                      <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
-                        신강/신약, 용신 분석, 대운, 세운, 일간 심층 분석,<br />
-                        직업 적성, 조심할 것들 등 상세 분석을 보시려면<br />
-                        로그인이 필요합니다.
-                      </p>
-                    </div>
-                    <Button
-                      onClick={login}
-                      className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-full font-medium shadow-lg shadow-primary/20"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      로그인 후 전체 분석 보기
-                    </Button>
-                    <p className="text-xs text-muted-foreground/60">무료로 이용하실 수 있습니다</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
           {/* ── 신강/신약 ── */}
-          {isAuthenticated && visibleSections.singang && r.sinGangYak && (
+          {visibleSections.singang && r.sinGangYak && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }}>
               <SectionHeader icon="⚖️" title="사주 강약 (신강/신약)" />
               <Card className="glass-panel border-primary/30">
@@ -845,7 +793,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 용신 분석 ── */}
-          {isAuthenticated && visibleSections.yongsin && r.yongsin && (
+          {visibleSections.yongsin && r.yongsin && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.08 }}>
               <SectionHeader icon="🔮" title="용신 분석 (用神)" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -883,7 +831,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 격국 (格局) ── */}
-          {isAuthenticated && visibleSections.geokguk && r.geokguk && (
+          {visibleSections.geokguk && r.geokguk && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.07 }}>
               <SectionHeader icon="🏛️" title="격국 분석 (格局)" />
               <Card className="glass-panel border-primary/30">
@@ -932,7 +880,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 십신 & 12운성 ── */}
-          {isAuthenticated && visibleSections.tenGods && r.pillarTenGods && (
+          {visibleSections.tenGods && r.pillarTenGods && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.08 }}>
               <SectionHeader icon="🎯" title="십신 & 12운성 (十神·十二運星)" />
               <Card className="glass-panel border-primary/30">
@@ -1039,7 +987,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 신살 (神煞) ── */}
-          {isAuthenticated && visibleSections.shinsal && r.shinsal && (
+          {visibleSections.shinsal && r.shinsal && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.09 }}>
               <SectionHeader icon="✨" title="신살 분석 (神煞)" />
               <Card className="glass-panel border-primary/30">
@@ -1090,7 +1038,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 합충형파해 (合冲刑破害) ── */}
-          {isAuthenticated && visibleSections.hapChung && r.hapChung && (
+          {visibleSections.hapChung && r.hapChung && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
               <SectionHeader icon="⚡" title="합충형 관계 (合冲刑害)" />
               <Card className="glass-panel border-primary/30">
@@ -1159,7 +1107,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 대운 타임라인 ── */}
-          {isAuthenticated && visibleSections.daeun && r.daeun && (
+          {visibleSections.daeun && r.daeun && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
               <SectionHeader icon="🌊" title="대운 타임라인 (大運)" />
               <Card className="glass-panel border-primary/30">
@@ -1198,7 +1146,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 세운 (년운) ── */}
-          {isAuthenticated && visibleSections.seun && r.seun && (
+          {visibleSections.seun && r.seun && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }}>
               <SectionHeader icon="📅" title="년운 · 세운 (歲運)" />
               <Card className="glass-panel border-primary/30">
@@ -1228,7 +1176,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 삼재 체크 ── */}
-          {isAuthenticated && visibleSections.samjae && r.samjae && (
+          {visibleSections.samjae && r.samjae && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.13 }}>
               <SectionHeader icon="🛡️" title="삼재 (三災) 체크" />
               <Card className={`glass-panel border-2 ${r.samjae.inSamjae ? 'border-orange-500/50' : 'border-primary/20'}`}>
@@ -1286,7 +1234,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 용신 보완 아이템 ── */}
-          {isAuthenticated && visibleSections.yongsinItem && r.yongsinItems && (
+          {visibleSections.yongsinItem && r.yongsinItems && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.135 }}>
               <SectionHeader icon="💎" title="용신 보완 아이템 추천" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1361,7 +1309,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 조심해야 할 것들 ── */}
-          {isAuthenticated && visibleSections.careful && r.carefulThings && (
+          {visibleSections.careful && r.carefulThings && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.14 }}>
               <SectionHeader icon="⚠️" title="조심해야 할 것들" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1385,7 +1333,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 일간 심층 분석 ── */}
-          {isAuthenticated && visibleSections.daymaster && (
+          {visibleSections.daymaster && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="space-y-4">
               <SectionHeader icon="🌟" title="일간 심층 분석 (日干)" />
 
@@ -1408,7 +1356,7 @@ export default function SajuPage() {
           )}
 
           {/* ── 직업 적성 ── */}
-          {isAuthenticated && visibleSections.career && (
+          {visibleSections.career && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }}>
               <SectionHeader icon="💼" title="직업 적성 매칭" />
               <Card className="glass-panel border-primary/30">

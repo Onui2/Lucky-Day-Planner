@@ -10,6 +10,7 @@ import {
   Briefcase, Heart, FileText, BookOpen, Plane, Activity, TrendingUp,
 } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
+import { useResolvedProfile } from "@/lib/resolved-profile";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
 const STEM_HANJA: Record<string,string> = { 갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸' };
@@ -65,7 +66,7 @@ function getDayOfWeekIndex(year: number, month: number, day: number) {
 }
 
 export default function LuckyCalendarPage() {
-  const { profile } = useUser();
+  const { profile, hasCachedProfile } = useResolvedProfile();
   const [profileOpen, setProfileOpen] = useState(false);
   const now = new Date();
   const [year, setYear]     = useState(now.getFullYear());
@@ -103,7 +104,7 @@ export default function LuckyCalendarPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="glass-panel border border-primary/20 rounded-2xl p-8 text-center space-y-4">
           <Sparkles className="w-12 h-12 text-primary/50 mx-auto" />
-          <p className="text-muted-foreground">길일을 계산하려면 먼저 사주 정보를 등록해주세요.</p>
+          <p className="text-muted-foreground">길일을 계산하려면 먼저 사주를 계산하거나 프로필을 등록해주세요.</p>
           <Button onClick={() => setProfileOpen(true)} className="bg-primary/20 text-primary hover:bg-primary/30 border border-primary/40">
             내 사주 등록하기
           </Button>
@@ -112,6 +113,11 @@ export default function LuckyCalendarPage() {
 
       {profile && (
         <>
+          {hasCachedProfile && (
+            <div className="glass-panel border border-primary/20 rounded-2xl p-4 text-sm text-muted-foreground">
+              최근 계산한 사주 기준으로 길일을 보여주고 있습니다. 프로필로 저장하면 다른 메뉴에서도 계속 이어집니다.
+            </div>
+          )}
           {/* 목적 선택 */}
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
             {PURPOSES.map(p => {
