@@ -200,6 +200,7 @@ export default function SajuPage() {
   };
 
   const r = displayResult as any;
+  const showAccountActions = isAuthenticated;
 
   const toggleSection = (key: SectionKey) =>
     setVisibleSections(prev => ({ ...prev, [key]: !prev[key] }));
@@ -441,12 +442,30 @@ export default function SajuPage() {
             </motion.div>
           )}
 
+          {/* 직접 입력 폼 */}
+          {!profile && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-2xl mx-auto mb-6"
+            >
+              <div className="glass-panel border border-primary/20 rounded-2xl p-5 text-center">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  프로필을 등록하면 만세력, 월운, 길일 달력 등에서 개인화 분석이 이어집니다.
+                  프로필 없이도 아래에서 바로 사주 분석을 할 수 있습니다.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           <Card className="max-w-2xl mx-auto glass-panel border-primary/30">
             <CardHeader>
               <CardTitle className="text-center text-3xl font-serif text-primary mb-2">
                 {profile ? "다른 사주 직접 입력" : "정보 입력"}
               </CardTitle>
-              <CardDescription className="text-center">정확한 분석을 위해 생년월일시를 입력해주세요. 시간은 모를 경우 비워둘 수 있습니다.</CardDescription>
+              <CardDescription className="text-center">
+                정각을 모르면 시간은 비워둔 채로도 분석할 수 있습니다.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-8">
@@ -528,7 +547,7 @@ export default function SajuPage() {
         <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
           <h2 className="text-3xl font-serif text-primary">사주 분석 결과</h2>
           <div className="flex flex-wrap gap-2 items-center">
-            {isAuthenticated && (
+            {showAccountActions && (
               justSaved ? (
                 <span className="flex items-center gap-1.5 text-sm text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
                   <Check className="w-4 h-4" /> 저장됨
@@ -568,7 +587,7 @@ export default function SajuPage() {
             <Button variant="outline" size="sm" onClick={handleShare} className="gap-2">
               {copied ? <><CheckCheck className="w-4 h-4 text-green-400" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
             </Button>
-            {isAuthenticated && (
+            {showAccountActions && (
               <Button
                 variant="outline" size="sm"
                 onClick={() => setShowInquiryModal(true)}

@@ -314,8 +314,8 @@ export async function customFetch<T = unknown>(
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, {
-    ...init,
     credentials: init.credentials ?? "include",
+    ...init,
     method,
     headers,
   });
