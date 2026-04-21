@@ -1,9 +1,21 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Moon, Mail, Send, Loader2, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  Moon,
+  Send,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  getSupabaseClient,
+  isSupabaseEnabled,
+} from "@/lib/supabase-auth";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -13,29 +25,48 @@ export default function ForgotPasswordPage() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
+
     if (!email.trim() || !email.includes("@")) {
-      setError("유효한 이메일 주소를 입력해주세요.");
+      setError("올바른 이메일 주소를 입력해 주세요.");
       return;
     }
 
     setSubmitting(true);
+
     try {
-      const res = await fetch(`${BASE}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      if (!res.ok) {
-        const data = await res.json() as Record<string, unknown>;
-        setError((data.error as string) ?? "오류가 발생했습니다.");
-        return;
+      if (isSupabaseEnabled()) {
+        const client = getSupabaseClient();
+        const { error: resetError } = await client!.auth.resetPasswordForEmail(
+          email.trim(),
+          {
+            redirectTo: `${window.location.origin}${BASE}/reset-password`,
+          },
+        );
+
+        if (resetError) {
+          setError(resetError.message);
+          return;
+        }
+      } else {
+        const response = await fetch(`${BASE}/api/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim() }),
+        });
+
+        if (!response.ok) {
+          const data = (await response.json()) as Record<string, unknown>;
+          setError((data.error as string) ?? "요청 처리 중 오류가 발생했습니다.");
+          return;
+        }
       }
+
       setDone(true);
     } catch {
-      setError("서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setError("요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setSubmitting(false);
     }
@@ -58,13 +89,12 @@ export default function ForgotPasswordPage() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md"
       >
-        {/* 로고 */}
         <Link href="/" className="flex items-center justify-center gap-3 mb-8 group">
           <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             <Moon className="w-5 h-5 text-primary" />
           </div>
           <span className="font-serif text-2xl font-bold text-gradient-gold tracking-wider">
-            명해원 (命海苑)
+            명해사주
           </span>
         </Link>
 
@@ -78,28 +108,26 @@ export default function ForgotPasswordPage() {
               <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400" />
               </div>
-              <p className="text-xl font-semibold text-foreground">이메일을 확인해주세요</p>
+              <p className="text-xl font-semibold text-foreground">이메일을 확인해 주세요</p>
               <p className="text-sm text-muted-foreground text-center leading-relaxed">
-                <strong className="text-foreground">{email}</strong>로<br />
-                비밀번호 초기화 링크를 보냈습니다.<br />
-                <span className="text-xs mt-1 block text-muted-foreground/70">
-                  이메일이 오지 않으면 스팸함을 확인하거나<br />
-                  잠시 후 다시 시도해주세요. (링크 유효시간: 1시간)
-                </span>
+                <strong className="text-foreground">{email}</strong>
+                로 비밀번호 재설정 안내를 보냈습니다.
               </p>
               <Link href="/login">
                 <Button variant="outline" className="mt-2 gap-2 border-primary/30 text-primary">
-                  <ArrowLeft className="w-4 h-4" /> 로그인으로 돌아가기
+                  <ArrowLeft className="w-4 h-4" />
+                  로그인으로 돌아가기
                 </Button>
               </Link>
             </motion.div>
           ) : (
             <>
               <div className="mb-7 text-center">
-                <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">비밀번호 찾기</h1>
+                <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">
+                  비밀번호 재설정
+                </h1>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  가입한 이메일 주소를 입력하시면<br />
-                  비밀번호 초기화 링크를 보내드립니다.
+                  가입한 이메일을 입력하면 재설정 링크를 보내드립니다.
                 </p>
               </div>
 
@@ -111,7 +139,7 @@ export default function ForgotPasswordPage() {
                     <Input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(event) => setEmail(event.target.value)}
                       placeholder="가입한 이메일 주소"
                       className="pl-10 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
                       autoFocus
@@ -142,13 +170,17 @@ export default function ForgotPasswordPage() {
                   ) : (
                     <Send className="w-4 h-4" />
                   )}
-                  {submitting ? "전송 중..." : "초기화 링크 보내기"}
+                  {submitting ? "전송 중..." : "재설정 링크 보내기"}
                 </Button>
               </form>
 
               <div className="mt-6 text-center">
-                <Link href="/login" className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" /> 로그인으로 돌아가기
+                <Link
+                  href="/login"
+                  className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  로그인으로 돌아가기
                 </Link>
               </div>
             </>

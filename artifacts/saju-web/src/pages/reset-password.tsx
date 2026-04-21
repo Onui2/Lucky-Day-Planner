@@ -1,9 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
-import { Moon, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Moon,
+  ShieldCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  getSupabaseClient,
+  isSupabaseEnabled,
+  type Session,
+  updateSupabasePassword,
+} from "@/lib/supabase-auth";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -15,67 +30,125 @@ export default function ResetPasswordPage() {
   const token = new URLSearchParams(search).get("token") ?? "";
 
   const [pageState, setPageState] = useState<PageState>("verifying");
-  const [invalidMsg, setInvalidMsg] = useState("");
-
+  const [invalidMessage, setInvalidMessage] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 토큰 유효성 확인
   useEffect(() => {
+    if (isSupabaseEnabled()) {
+      const client = getSupabaseClient();
+
+      let cancelled = false;
+
+      void client!.auth.getSession().then(({ data }) => {
+        if (cancelled) return;
+        setPageState(data.session ? "valid" : "invalid");
+        if (!data.session) {
+          setInvalidMessage("비밀번호 재설정 세션이 없습니다. 메일의 링크를 다시 열어 주세요.");
+        }
+      });
+
+      const {
+        data: { subscription },
+      } = client!.auth.onAuthStateChange((event: string, session: Session | null) => {
+        if (cancelled) return;
+
+        if (event === "PASSWORD_RECOVERY" || session) {
+          setPageState("valid");
+          return;
+        }
+
+        if (!session) {
+          setPageState("invalid");
+          setInvalidMessage("비밀번호 재설정 세션이 만료되었습니다.");
+        }
+      });
+
+      return () => {
+        cancelled = true;
+        subscription.unsubscribe();
+      };
+    }
+
     if (!token) {
       setPageState("invalid");
-      setInvalidMsg("초기화 링크가 올바르지 않습니다.");
+      setInvalidMessage("재설정 토큰이 없습니다.");
       return;
     }
 
-    fetch(`${BASE}/api/auth/reset-password/verify?token=${token}`)
-      .then((res) => res.json())
+    void fetch(`${BASE}/api/auth/reset-password/verify?token=${encodeURIComponent(token)}`)
+      .then((response) => response.json())
       .then((data: Record<string, unknown>) => {
         if (data.valid) {
           setPageState("valid");
         } else {
           setPageState("invalid");
-          setInvalidMsg((data.error as string) ?? "링크가 만료되었거나 유효하지 않습니다.");
+          setInvalidMessage(
+            (data.error as string) ?? "재설정 링크가 만료되었거나 유효하지 않습니다.",
+          );
         }
       })
       .catch(() => {
         setPageState("invalid");
-        setInvalidMsg("서버 연결에 실패했습니다.");
+        setInvalidMessage("링크 확인 중 오류가 발생했습니다.");
       });
+
+    return undefined;
   }, [token]);
 
-  const passwordMatch = confirmPassword && password === confirmPassword;
-  const passwordMismatch = confirmPassword && password !== confirmPassword;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
 
-    if (password.length < 6) { setError("비밀번호는 6자 이상이어야 합니다."); return; }
-    if (password !== confirmPassword) { setError("비밀번호가 일치하지 않습니다."); return; }
+    if (password.length < 6) {
+      setError("비밀번호는 6자 이상이어야 합니다.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
 
     setPageState("submitting");
+
     try {
-      const res = await fetch(`${BASE}/api/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
-      });
-      const data = await res.json() as Record<string, unknown>;
-      if (!res.ok) {
-        setPageState("valid");
-        setError((data.error as string) ?? "오류가 발생했습니다.");
-        return;
+      if (isSupabaseEnabled()) {
+        await updateSupabasePassword(password);
+        const client = getSupabaseClient();
+        await client!.auth.signOut();
+      } else {
+        const response = await fetch(`${BASE}/api/auth/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, password }),
+        });
+
+        const data = (await response.json()) as Record<string, unknown>;
+
+        if (!response.ok) {
+          setPageState("valid");
+          setError((data.error as string) ?? "비밀번호 변경에 실패했습니다.");
+          return;
+        }
       }
+
       setPageState("done");
-    } catch {
+    } catch (resetError) {
       setPageState("valid");
-      setError("서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setError(
+        resetError instanceof Error
+          ? resetError.message
+          : "비밀번호 변경 중 문제가 발생했습니다.",
+      );
     }
   };
+
+  const passwordMismatch =
+    confirmPassword.length > 0 && password !== confirmPassword;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 font-sans">
@@ -99,20 +172,18 @@ export default function ResetPasswordPage() {
             <Moon className="w-5 h-5 text-primary" />
           </div>
           <span className="font-serif text-2xl font-bold text-gradient-gold tracking-wider">
-            명해원 (命海苑)
+            명해사주
           </span>
         </Link>
 
         <div className="glass-panel border border-primary/25 rounded-3xl p-8 shadow-2xl">
-          {/* 로딩 */}
           {pageState === "verifying" && (
             <div className="flex flex-col items-center gap-4 py-8">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">링크 확인 중...</p>
+              <p className="text-sm text-muted-foreground">링크를 확인하고 있습니다...</p>
             </div>
           )}
 
-          {/* 토큰 유효하지 않음 */}
           {pageState === "invalid" && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -122,39 +193,42 @@ export default function ResetPasswordPage() {
               <div className="w-16 h-16 rounded-full bg-rose-500/15 border border-rose-500/40 flex items-center justify-center">
                 <AlertCircle className="w-8 h-8 text-rose-400" />
               </div>
-              <p className="text-xl font-semibold text-foreground">링크가 유효하지 않습니다</p>
-              <p className="text-sm text-muted-foreground text-center">{invalidMsg}</p>
+              <p className="text-xl font-semibold text-foreground">
+                재설정 링크를 사용할 수 없습니다
+              </p>
+              <p className="text-sm text-muted-foreground text-center">{invalidMessage}</p>
               <Link href="/forgot-password">
                 <Button className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-                  비밀번호 찾기 다시 시도
+                  재설정 메일 다시 받기
                 </Button>
               </Link>
             </motion.div>
           )}
 
-          {/* 새 비밀번호 입력 폼 */}
           {(pageState === "valid" || pageState === "submitting") && (
             <>
               <div className="mb-7 text-center">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
                   <ShieldCheck className="w-6 h-6 text-primary" />
                 </div>
-                <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">새 비밀번호 설정</h1>
-                <p className="text-sm text-muted-foreground">새로 사용할 비밀번호를 입력해주세요.</p>
+                <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">
+                  새 비밀번호 설정
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  새로 사용할 비밀번호를 입력해 주세요.
+                </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground/80">
-                    새 비밀번호 <span className="text-muted-foreground/60 font-normal text-xs">(6자 이상)</span>
-                  </label>
+                  <label className="text-sm font-medium text-foreground/80">새 비밀번호</label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="새 비밀번호"
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="6자 이상 입력해 주세요"
                       className="pl-10 pr-10 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
                       autoFocus
                       autoComplete="new-password"
@@ -162,54 +236,55 @@ export default function ResetPasswordPage() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword((v) => !v)}
+                      onClick={() => setShowPassword((value) => !value)}
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       tabIndex={-1}
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground/80">비밀번호 확인</label>
+                  <label className="text-sm font-medium text-foreground/80">
+                    비밀번호 확인
+                  </label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      type={showConfirm ? "text" : "password"}
+                      type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="비밀번호 재입력"
-                      className={`pl-10 pr-10 h-11 bg-background/40 transition-colors ${
-                        passwordMismatch
-                          ? "border-rose-500/50"
-                          : passwordMatch
-                          ? "border-emerald-500/50"
-                          : "border-primary/20 focus:border-primary/50"
-                      }`}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      placeholder="비밀번호를 다시 입력해 주세요"
+                      className="pl-10 pr-10 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
                       autoComplete="new-password"
                       disabled={pageState === "submitting"}
                     />
                     <button
                       type="button"
-                      onClick={() => setShowConfirm((v) => !v)}
+                      onClick={() => setShowConfirmPassword((value) => !value)}
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       tabIndex={-1}
                     >
-                      {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
-                  {passwordMatch && (
-                    <p className="flex items-center gap-1 text-xs text-emerald-400">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> 비밀번호가 일치합니다
-                    </p>
-                  )}
-                  {passwordMismatch && (
-                    <p className="flex items-center gap-1 text-xs text-rose-400">
-                      <AlertCircle className="w-3.5 h-3.5" /> 비밀번호가 일치하지 않습니다
-                    </p>
-                  )}
                 </div>
+
+                {passwordMismatch && (
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    비밀번호 확인이 일치하지 않습니다.
+                  </div>
+                )}
 
                 {error && (
                   <motion.div
@@ -224,7 +299,7 @@ export default function ResetPasswordPage() {
 
                 <Button
                   type="submit"
-                  disabled={pageState === "submitting" || !!passwordMismatch}
+                  disabled={pageState === "submitting" || passwordMismatch}
                   className="w-full h-11 text-base font-semibold gap-2 bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
                 >
                   {pageState === "submitting" ? (
@@ -232,13 +307,12 @@ export default function ResetPasswordPage() {
                   ) : (
                     <ShieldCheck className="w-4 h-4" />
                   )}
-                  {pageState === "submitting" ? "처리 중..." : "비밀번호 변경"}
+                  {pageState === "submitting" ? "변경 중..." : "비밀번호 변경"}
                 </Button>
               </form>
             </>
           )}
 
-          {/* 완료 */}
           {pageState === "done" && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -248,15 +322,15 @@ export default function ResetPasswordPage() {
               <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400" />
               </div>
-              <p className="text-xl font-semibold text-foreground">비밀번호 변경 완료!</p>
+              <p className="text-xl font-semibold text-foreground">비밀번호가 변경되었습니다</p>
               <p className="text-sm text-muted-foreground text-center">
-                새 비밀번호로 로그인할 수 있습니다.
+                새 비밀번호로 다시 로그인해 주세요.
               </p>
               <Button
                 onClick={() => navigate("/login")}
-                className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+                className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                로그인하기
+                로그인하러 가기
               </Button>
             </motion.div>
           )}

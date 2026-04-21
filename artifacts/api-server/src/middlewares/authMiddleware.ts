@@ -2,12 +2,17 @@ import * as oidc from "openid-client";
 import { type Request, type Response } from "express";
 import {
   clearSession,
+  getBearerToken,
   getOidcConfig,
   getSession,
   getSessionId,
   updateSession,
   type SessionData,
 } from "../lib/auth.js";
+import {
+  isSupabaseAuthEnabled,
+  verifySupabaseAccessToken,
+} from "../lib/supabase-auth.js";
 
 interface SessionUser {
   id: string;
@@ -63,6 +68,16 @@ export async function authMiddleware(
   ): this is AuthAwareRequest & { user: SessionUser } {
     return this.user != null;
   };
+
+  const bearerToken = getBearerToken(authReq);
+  if (bearerToken && isSupabaseAuthEnabled()) {
+    const user = await verifySupabaseAccessToken(bearerToken);
+    if (user) {
+      authReq.user = user;
+      next();
+      return;
+    }
+  }
 
   const sid = getSessionId(authReq);
   if (!sid) {

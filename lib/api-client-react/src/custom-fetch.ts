@@ -8,6 +8,7 @@ export type BodyType<T> = T;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
+const SUPABASE_ACCESS_TOKEN_STORAGE_KEY = "lucky_day_supabase_access_token";
 
 function isRequest(input: RequestInfo | URL): input is Request {
   return typeof Request !== "undefined" && input instanceof Request;
@@ -42,6 +43,14 @@ function mergeHeaders(...sources: Array<HeadersInit | undefined>): Headers {
   }
 
   return headers;
+}
+
+function getStoredAccessToken(): string | null {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return null;
+  }
+
+  return window.localStorage.getItem(SUPABASE_ACCESS_TOKEN_STORAGE_KEY);
 }
 
 function getMediaType(headers: Headers): string | null {
@@ -295,6 +304,11 @@ export async function customFetch<T = unknown>(
 
   if (responseType === "json" && !headers.has("accept")) {
     headers.set("accept", DEFAULT_JSON_ACCEPT);
+  }
+
+  const accessToken = getStoredAccessToken();
+  if (accessToken && !headers.has("authorization")) {
+    headers.set("authorization", `Bearer ${accessToken}`);
   }
 
   const requestInfo = { method, url: resolveUrl(input) };

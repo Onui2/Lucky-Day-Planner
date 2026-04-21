@@ -1,10 +1,20 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
-import { Moon, Mail, Lock, LogIn, Loader2, Eye, EyeOff, AlertCircle } from "lucide-react";
+import {
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  LogIn,
+  Mail,
+  Moon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@workspace/replit-auth-web";
+import { getSupabaseClient, isSupabaseEnabled } from "@/lib/supabase-auth";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -13,7 +23,6 @@ export default function LoginPage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const returnTo = params.get("returnTo") ?? "/";
-
   const { isAuthenticated, isLoading, refreshUser } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -26,35 +35,51 @@ export default function LoginPage() {
     if (!isLoading && isAuthenticated) {
       navigate(returnTo);
     }
-  }, [isLoading, isAuthenticated, navigate, returnTo]);
+  }, [isAuthenticated, isLoading, navigate, returnTo]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
+
     if (!email.trim() || !password) {
-      setError("이메일과 비밀번호를 입력해주세요.");
+      setError("이메일과 비밀번호를 입력해 주세요.");
       return;
     }
 
     setSubmitting(true);
-    try {
-      const res = await fetch(`${BASE}/api/auth/login-local`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
-        credentials: "include",
-      });
-      const data = await res.json() as Record<string, unknown>;
 
-      if (!res.ok) {
-        setError((data.error as string) ?? "로그인에 실패했습니다.");
-        return;
+    try {
+      if (isSupabaseEnabled()) {
+        const client = getSupabaseClient();
+        const { error: signInError } = await client!.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+        if (signInError) {
+          setError(signInError.message);
+          return;
+        }
+      } else {
+        const response = await fetch(`${BASE}/api/auth/login-local`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim(), password }),
+          credentials: "include",
+        });
+
+        const data = (await response.json()) as Record<string, unknown>;
+
+        if (!response.ok) {
+          setError((data.error as string) ?? "로그인에 실패했습니다.");
+          return;
+        }
       }
 
       await refreshUser();
       navigate(returnTo);
     } catch {
-      setError("서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setError("로그인 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setSubmitting(false);
     }
@@ -64,7 +89,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 font-sans">
-      {/* 배경 오버레이 */}
       <div
         className="fixed inset-0 z-[-1] opacity-40 mix-blend-screen pointer-events-none"
         style={{
@@ -80,25 +104,24 @@ export default function LoginPage() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md"
       >
-        {/* 로고 */}
         <Link href="/" className="flex items-center justify-center gap-3 mb-8 group">
           <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             <Moon className="w-5 h-5 text-primary" />
           </div>
           <span className="font-serif text-2xl font-bold text-gradient-gold tracking-wider">
-            명해원 (命海苑)
+            명해사주
           </span>
         </Link>
 
-        {/* 카드 */}
         <div className="glass-panel border border-primary/25 rounded-3xl p-8 shadow-2xl">
           <div className="mb-7 text-center">
             <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">로그인</h1>
-            <p className="text-sm text-muted-foreground">이메일과 비밀번호로 입장하세요</p>
+            <p className="text-sm text-muted-foreground">
+              이메일과 비밀번호로 로그인해 주세요.
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* 이메일 */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground/80">이메일</label>
               <div className="relative">
@@ -106,7 +129,7 @@ export default function LoginPage() {
                 <Input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   placeholder="example@email.com"
                   className="pl-10 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
                   autoComplete="email"
@@ -116,7 +139,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* 비밀번호 */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground/80">비밀번호</label>
               <div className="relative">
@@ -124,24 +146,27 @@ export default function LoginPage() {
                 <Input
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="비밀번호 입력"
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="비밀번호를 입력해 주세요"
                   className="pl-10 pr-10 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
                   autoComplete="current-password"
                   disabled={submitting}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
+                  onClick={() => setShowPassword((value) => !value)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* 오류 메시지 */}
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
@@ -153,14 +178,15 @@ export default function LoginPage() {
               </motion.div>
             )}
 
-            {/* 비밀번호 찾기 링크 */}
             <div className="text-right -mt-1">
-              <Link href="/forgot-password" className="text-xs text-muted-foreground/70 hover:text-primary transition-colors">
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground/70 hover:text-primary transition-colors"
+              >
                 비밀번호를 잊으셨나요?
               </Link>
             </div>
 
-            {/* 로그인 버튼 */}
             <Button
               type="submit"
               disabled={submitting}
@@ -175,18 +201,10 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* 회원가입 링크 */}
           <div className="mt-6 text-center text-sm text-muted-foreground">
             아직 계정이 없으신가요?{" "}
             <Link href="/register" className="text-primary hover:underline font-medium">
               회원가입
-            </Link>
-          </div>
-
-          {/* 홈으로 */}
-          <div className="mt-3 text-center">
-            <Link href="/" className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors">
-              ← 홈으로 돌아가기
             </Link>
           </div>
         </div>
