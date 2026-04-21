@@ -1,5 +1,6 @@
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import crypto from "node:crypto";
 
 interface IdentityUserInput {
   email?: string | null;
@@ -69,6 +70,7 @@ export async function syncUserFromIdentity(input: IdentityUserInput) {
   const [createdUser] = await db
     .insert(usersTable)
     .values({
+      id: crypto.randomUUID(),
       email: normalizedEmail,
       firstName: input.firstName ?? null,
       lastName: input.lastName ?? null,

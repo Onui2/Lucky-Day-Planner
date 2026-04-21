@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import crypto from "node:crypto";
 import { index, jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // Session storage for the app authentication flow.
@@ -14,7 +14,7 @@ export const sessionsTable = pgTable(
 
 // User records for local auth and optional OIDC sign-in.
 export const usersTable = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),

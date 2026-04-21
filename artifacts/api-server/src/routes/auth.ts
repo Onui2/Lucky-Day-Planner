@@ -354,6 +354,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   const displayName = typeof name === "string" && name.trim() ? name.trim() : null;
 
   const [user] = await db.insert(usersTable).values({
+    id: crypto.randomUUID(),
     email: normalizedEmail,
     firstName: displayName,
     passwordHash,

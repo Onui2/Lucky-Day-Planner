@@ -3,45 +3,62 @@ import pg from "pg";
 import * as schema from "./schema";
 
 const { Pool } = pg;
-
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
+const databaseConfigError = new Error(
+  "DATABASE_URL must be set. Did you forget to provision a database?",
+);
 
 const sslConfig =
   process.env.NODE_ENV === "production"
     ? { ssl: { rejectUnauthorized: false } }
     : {};
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? "1" : "10")),
-  idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS ?? "30000"),
-  connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS ?? "10000"),
-  ...sslConfig,
-});
+export function hasDatabaseConfig(): boolean {
+  return Boolean(process.env.DATABASE_URL);
+}
 
-pool.on("error", (err) => {
+export const pool = hasDatabaseConfig()
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? "1" : "10")),
+      idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS ?? "30000"),
+      connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS ?? "10000"),
+      ...sslConfig,
+    })
+  : null;
+
+pool?.on("error", (err) => {
   console.error("Unexpected error on idle database client:", err.message);
 });
 
-export const db = drizzle(pool, { schema });
+const dbInstance = pool ? drizzle(pool, { schema }) : null;
+type Database = NonNullable<typeof dbInstance>;
+
+export const db = new Proxy({} as Database, {
+  get(_target, prop, receiver) {
+    if (!dbInstance) {
+      throw databaseConfigError;
+    }
+
+    const value = Reflect.get(dbInstance, prop, receiver);
+    return typeof value === "function" ? value.bind(dbInstance) : value;
+  },
+});
 
 let schemaReadyPromise: Promise<void> | null = null;
 
 export function ensureDatabaseSchema(): Promise<void> {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
+      if (!pool) {
+        throw databaseConfigError;
+      }
+
       const client = await pool.connect();
 
       try {
-        await client.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
-
         await client.query(`
           CREATE TABLE IF NOT EXISTS users (
-            id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+            id varchar PRIMARY KEY,
             email varchar UNIQUE,
             first_name varchar,
             last_name varchar,
