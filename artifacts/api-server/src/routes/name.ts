@@ -1,7 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import { analyzeName } from "../lib/name-analysis.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.post("/name-analysis", (req, res) => {
   try {

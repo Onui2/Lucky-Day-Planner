@@ -1,7 +1,7 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { getDailyFortune } from "../lib/fortune.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.get("/fortune/calendar", async (req: Request, res: Response) => {
   const year = parseInt(String(req.query.year) || String(new Date().getFullYear()));

@@ -1,5 +1,5 @@
 import * as oidc from "openid-client";
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -23,7 +23,7 @@ const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1시간
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 
-const router: IRouter = Router();
+const router = Router();
 
 function getOrigin(req: Request): string {
   const proto = req.headers["x-forwarded-proto"] || "https";

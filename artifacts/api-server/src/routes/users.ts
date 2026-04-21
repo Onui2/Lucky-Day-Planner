@@ -1,8 +1,8 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq, desc, count, ilike, or } from "drizzle-orm";
 
-const router: IRouter = Router();
+const router = Router();
 
 function requireAdmin(req: Request, res: Response): req is Request & { user: NonNullable<Request["user"]> } {
   if (!req.isAuthenticated() || !req.user) {

@@ -1,11 +1,11 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import {
   getSajuYear, getYearPillar, getMonthPillar, getDayPillar, getHourPillar,
   countElements, getYongsin, getTenGod, HEAVENLY_STEMS, EARTHLY_BRANCHES,
   BRANCH_ELEMENTS, STEM_ELEMENTS, getGanzi,
 } from "../lib/saju-calculator.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 // ─── 공통 상수 ───────────────────────────────────────────────────────────────
 const STEM_HANJA: Record<string,string> = { 갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸' };

@@ -1,8 +1,8 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { db, savedSajuTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
-const router: IRouter = Router();
+const router = Router();
 
 function requireAuth(req: Request, res: Response): boolean {
   if (!req.isAuthenticated()) {

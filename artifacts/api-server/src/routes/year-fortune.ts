@@ -1,7 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import { getYearFortune } from "../lib/year-fortune.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.post("/year-fortune", (req, res) => {
   try {

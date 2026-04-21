@@ -1,7 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import { getZodiacFortune } from "../lib/zodiac-fortune.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.get("/fortune/zodiac", (req, res) => {
   try {

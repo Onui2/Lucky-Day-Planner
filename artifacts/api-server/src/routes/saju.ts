@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import {
   getSajuYear,
   getYearPillar,
@@ -32,7 +32,7 @@ import {
   getPillarTenGods,
 } from "../lib/saju-calculator.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.post("/saju/calculate", (req, res) => {
   try {

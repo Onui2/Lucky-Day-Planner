@@ -1,7 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import { getManseryokDay, getManseryokMonth, getMonthYearGanzi } from "../lib/manseryok.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.get("/manseryok/date", (req, res) => {
   try {

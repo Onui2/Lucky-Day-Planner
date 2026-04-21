@@ -1,7 +1,7 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { searchDream, POPULAR_KEYWORDS, CATEGORIES } from "../lib/dream.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.post("/dream/search", async (req: Request, res: Response) => {
   const { query } = req.body as Record<string, unknown>;

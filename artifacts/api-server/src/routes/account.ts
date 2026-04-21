@@ -1,10 +1,10 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { clearSession, getSessionId } from "../lib/auth.js";
 
-const router: IRouter = Router();
+const router = Router();
 const BCRYPT_ROUNDS = 12;
 
 function requireAuth(req: Request, res: Response): req is Request & { user: NonNullable<Request["user"]> } {

@@ -1,7 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import { getDailyFortune } from "../lib/fortune.js";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.get("/fortune/daily", (req, res) => {
   try {
