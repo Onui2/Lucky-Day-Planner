@@ -10,6 +10,11 @@ interface ResetTokenVerificationResult {
   error?: string;
 }
 
+export interface AuthSetupStatus {
+  canSelfBootstrapAdmin: boolean;
+  hasConfiguredPrivilegedEmails: boolean;
+}
+
 function getErrorMessage(
   payload: AuthErrorShape | null,
   fallback: string,
@@ -108,5 +113,18 @@ export async function verifyResetPasswordToken(
   return {
     valid: Boolean(payload.valid),
     error: typeof payload.error === "string" ? payload.error : undefined,
+  };
+}
+
+export async function getAuthSetupStatus(): Promise<AuthSetupStatus> {
+  const response = await fetch(`${BASE}/api/auth/setup-status`, {
+    credentials: "include",
+  });
+
+  const payload = await parseJson<AuthSetupStatus>(response);
+
+  return {
+    canSelfBootstrapAdmin: Boolean(payload?.canSelfBootstrapAdmin),
+    hasConfiguredPrivilegedEmails: Boolean(payload?.hasConfiguredPrivilegedEmails),
   };
 }

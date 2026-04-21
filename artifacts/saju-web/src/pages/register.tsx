@@ -3,20 +3,20 @@ import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
-  CheckCircle2,
   Eye,
   EyeOff,
   Loader2,
   Lock,
   Mail,
   Moon,
+  ShieldCheck,
   User,
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@workspace/replit-auth-web";
-import { registerWithPassword } from "@/lib/auth-client";
+import { getAuthSetupStatus, registerWithPassword } from "@/lib/auth-client";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -32,7 +32,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [canSelfBootstrapAdmin, setCanSelfBootstrapAdmin] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -40,10 +40,30 @@ export default function RegisterPage() {
     }
   }, [isAuthenticated, isLoading, navigate]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const setup = await getAuthSetupStatus();
+        if (!cancelled) {
+          setCanSelfBootstrapAdmin(setup.canSelfBootstrapAdmin);
+        }
+      } catch {
+        if (!cancelled) {
+          setCanSelfBootstrapAdmin(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    setSuccessMessage(null);
 
     if (!email.trim() || !password) {
       setError("이메일과 비밀번호를 입력해 주세요.");
@@ -123,6 +143,15 @@ export default function RegisterPage() {
               계정을 만들고 저장 기능과 문의 기능을 이용해 보세요.
             </p>
           </div>
+
+          {canSelfBootstrapAdmin && (
+            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-100">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <p className="leading-relaxed">
+                현재 관리자 이메일 설정이 없어 첫 가입 계정은 최고관리자로 등록됩니다.
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
@@ -228,17 +257,6 @@ export default function RegisterPage() {
               >
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {error}
-              </motion.div>
-            )}
-
-            {successMessage && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2.5 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-sm"
-              >
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                {successMessage}
               </motion.div>
             )}
 

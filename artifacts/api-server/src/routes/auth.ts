@@ -2,7 +2,7 @@ import * as oidc from "openid-client";
 import { Router, type Request, type Response } from "express";
 import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
 import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { count, eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "../lib/email.js";
@@ -87,38 +87,87 @@ function isAdminEmail(email: string | null | undefined): boolean {
   return adminEmails.includes(email.toLowerCase());
 }
 
+function hasConfiguredPrivilegedEmails(): boolean {
+  return Boolean(
+    (process.env.SUPER_ADMIN_EMAILS ?? "").trim() ||
+    (process.env.ADMIN_EMAILS ?? "").trim(),
+  );
+}
+
 function resolveRole(email: string | null | undefined, fallback = "user"): string {
   if (isSuperAdminEmail(email)) return "superadmin";
   if (isAdminEmail(email)) return "admin";
   return fallback;
 }
 
+async function needsAdminBootstrap(): Promise<boolean> {
+  if (hasConfiguredPrivilegedEmails()) {
+    return false;
+  }
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(usersTable)
+    .where(
+      or(
+        eq(usersTable.role, "admin"),
+        eq(usersTable.role, "superadmin"),
+      ),
+    );
+
+  return Number(total) === 0;
+}
+
+async function resolveAssignableRole(
+  email: string | null | undefined,
+  fallback = "user",
+): Promise<string> {
+  const explicitRole = resolveRole(email, fallback);
+
+  if (explicitRole !== fallback) {
+    return explicitRole;
+  }
+
+  if (fallback === "user" && await needsAdminBootstrap()) {
+    return "superadmin";
+  }
+
+  return fallback;
+}
+
 async function upsertUser(claims: Record<string, unknown>) {
   const email = (claims.email as string) || null;
-  const resolvedRole = resolveRole(email);
-  // 명시적으로 지정된 역할만 강제 업데이트 (superadmin/admin 리스트에 있으면 항상 반영)
-  // 일반 회원이면 신규 삽입 시 "user" 기본값, 기존 계정은 DB 역할 유지
-  const privilegedRole = resolvedRole !== "user" ? resolvedRole : undefined;
+  const subject = String(claims.sub ?? "");
+  const [existingUserById] = subject
+    ? await db.select().from(usersTable).where(eq(usersTable.id, subject))
+    : [];
+  const [existingUserByEmail] = !existingUserById && email
+    ? await db.select().from(usersTable).where(eq(usersTable.email, email))
+    : [];
+  const existingUser = existingUserById ?? existingUserByEmail;
+  const resolvedRole = await resolveAssignableRole(email, existingUser?.role ?? "user");
 
   const userData: Record<string, unknown> = {
-    id: claims.sub as string,
+    id: existingUser?.id ?? subject,
     email,
     firstName: (claims.first_name as string) || null,
     lastName: (claims.last_name as string) || null,
     profileImageUrl: (claims.profile_image_url || claims.picture) as string | null,
+    role: resolvedRole,
   };
 
   const updateData: Record<string, unknown> = { ...userData, updatedAt: new Date() };
-  if (privilegedRole) updateData.role = privilegedRole;
 
-  const [user] = await db
-    .insert(usersTable)
-    .values({ ...userData, ...(privilegedRole ? { role: privilegedRole } : {}) })
-    .onConflictDoUpdate({
-      target: usersTable.id,
-      set: updateData,
-    })
-    .returning();
+  if (existingUser) {
+    const [user] = await db
+      .update(usersTable)
+      .set(updateData)
+      .where(eq(usersTable.id, existingUser.id))
+      .returning();
+    return user;
+  }
+
+  const [user] = await db.insert(usersTable).values(userData).returning();
   return user;
 }
 
@@ -128,6 +177,13 @@ router.get("/auth/user", (req: Request, res: Response) => {
       user: req.isAuthenticated() ? req.user : null,
     }),
   );
+});
+
+router.get("/auth/setup-status", async (_req: Request, res: Response) => {
+  res.json({
+    canSelfBootstrapAdmin: await needsAdminBootstrap(),
+    hasConfiguredPrivilegedEmails: hasConfiguredPrivilegedEmails(),
+  });
 });
 
 router.get("/login", async (req: Request, res: Response) => {
@@ -293,7 +349,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   }
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const role = resolveRole(normalizedEmail);
+  const role = await resolveAssignableRole(normalizedEmail);
 
   const displayName = typeof name === "string" && name.trim() ? name.trim() : null;
 
@@ -353,7 +409,7 @@ router.post("/auth/login-local", async (req: Request, res: Response) => {
     return;
   }
 
-  const role = resolveRole(normalizedEmail, user.role ?? "user");
+  const role = await resolveAssignableRole(normalizedEmail, user.role ?? "user");
 
   if (role !== user.role) {
     await db.update(usersTable).set({ role }).where(eq(usersTable.id, user.id));
