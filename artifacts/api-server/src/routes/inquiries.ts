@@ -18,7 +18,7 @@ function requireAdmin(req: Request, res: Response): req is Request & { user: Non
     return false;
   }
   const role = req.user!.role;
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "superadmin") {
     res.status(403).json({ error: "관리자 권한이 필요합니다." });
     return false;
   }

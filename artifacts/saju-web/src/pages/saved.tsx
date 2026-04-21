@@ -36,7 +36,7 @@ function formatHour(h: number) {
 export default function SavedPage() {
   const [, navigate] = useLocation();
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
-  const { data: saved, isLoading } = useGetSavedSaju();
+  const { data: saved, isLoading } = useGetSavedSaju(isAuthenticated);
   const deleteMut = useDeleteSavedSaju();
   const renameMut = useRenameSavedSaju();
 

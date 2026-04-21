@@ -21,11 +21,12 @@ export interface SavedSajuItem {
 
 const SAVED_SAJU_KEY = ["saju", "saved"] as const;
 
-export function useGetSavedSaju() {
+export function useGetSavedSaju(enabled = true) {
   return useQuery<SavedSajuItem[]>({
     queryKey: SAVED_SAJU_KEY,
     queryFn: () => customFetch<SavedSajuItem[]>("/api/saju/saved"),
     staleTime: 30_000,
+    enabled,
   });
 }
 
@@ -121,15 +122,16 @@ export function useSubmitInquiry() {
   });
 }
 
-export function useGetMyInquiries(page = 1) {
+export function useGetMyInquiries(page = 1, enabled = true) {
   return useQuery<InquiryListResponse>({
     queryKey: [...MY_INQUIRIES_KEY, page],
     queryFn: () => customFetch<InquiryListResponse>(`/api/inquiries/my?page=${page}`),
     staleTime: 15_000,
+    enabled,
   });
 }
 
-export function useMyUnreadCount() {
+export function useMyUnreadCount(enabled = true) {
   return useQuery<{ count: number }>({
     queryKey: MY_UNREAD_KEY,
     queryFn: () =>
@@ -137,6 +139,7 @@ export function useMyUnreadCount() {
     refetchInterval: 30_000,
     staleTime: 20_000,
     retry: false,
+    enabled,
   });
 }
 
@@ -162,7 +165,7 @@ export function useGetAdminInquiries(page = 1, status?: string) {
   });
 }
 
-export function useAdminUnreadCount() {
+export function useAdminUnreadCount(enabled = true) {
   return useQuery<{ count: number }>({
     queryKey: ADMIN_UNREAD_KEY,
     queryFn: () =>
@@ -170,6 +173,7 @@ export function useAdminUnreadCount() {
     refetchInterval: 30_000,
     staleTime: 20_000,
     retry: false,
+    enabled,
   });
 }
 

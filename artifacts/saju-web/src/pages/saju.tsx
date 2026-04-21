@@ -149,7 +149,7 @@ export default function SajuPage() {
   const { profile } = useUser();
   const { mutate: calculateSaju, data: result, isPending, error } = useCalculateSaju();
   const saveMut = useSaveSaju();
-  const { data: savedList } = useGetSavedSaju();
+  const { data: savedList } = useGetSavedSaju(isAuthenticated);
   const inquiryMut = useSubmitInquiry();
 
   const SAJU_CACHE_KEY = "myunghae_saju_v1";

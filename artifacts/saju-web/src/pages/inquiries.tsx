@@ -181,7 +181,7 @@ export default function InquiriesPage() {
   const [page, setPage] = useState(1);
   const [, navigate] = useLocation();
 
-  const { data, isLoading: listLoading } = useGetMyInquiries(page);
+  const { data, isLoading: listLoading } = useGetMyInquiries(page, isAuthenticated);
   const markReadMut = useMarkInquiryReadByUser();
 
   if (isLoading) {

@@ -43,8 +43,8 @@ export function Layout({ children }: LayoutProps) {
   const [servicesOpen, setServicesOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const { data: myUnread } = useMyUnreadCount();
-  const { data: adminUnread } = useAdminUnreadCount();
+  const { data: myUnread } = useMyUnreadCount(isAuthenticated);
+  const { data: adminUnread } = useAdminUnreadCount(isAdmin);
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400);
@@ -56,7 +56,7 @@ export function Layout({ children }: LayoutProps) {
     { href: "/saju", label: "사주팔자", icon: Sparkles },
     { href: "/daily-fortune", label: "오늘의 일진", icon: Sun },
     { href: "/manseryok", label: "만세력", icon: Calendar },
-    ...(isAdmin ? [
+    ...(isAuthenticated ? [
       { href: "/gungap", label: "궁합", icon: Heart },
       { href: "/saved", label: "저장함", icon: BookMarked },
       {
@@ -81,12 +81,12 @@ export function Layout({ children }: LayoutProps) {
     { href: "/glossary", label: "사주 용어 사전", icon: BookOpen, desc: "천간·지지·십신 용어 정리" },
     { href: "/saju-tables", label: "이론 조견표", icon: TableProperties, desc: "합충형·삼재·귀문살·장간 등" },
     // 관리자 전용
-    ...(isAdmin ? [
+    ...[
       { href: "/year-fortune", label: "연간 운세", icon: CalendarDays, desc: "올 한 해의 운세 흐름" },
       { href: "/name-analysis", label: "이름 풀이", icon: Type, desc: "수리사주 성명 분석" },
       { href: "/zodiac", label: "띠별 운세", icon: Orbit, desc: "12지신 오늘의 운세" },
       { href: "/dream", label: "꿈 해몽", icon: MoonStar, desc: "꿈 키워드로 길흉 풀이" },
-    ] : []),
+    ],
   ];
 
   const adminNavItem = {

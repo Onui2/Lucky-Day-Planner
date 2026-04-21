@@ -30,6 +30,7 @@ import LuckyCalendarPage from "@/pages/lucky-calendar";
 import SinsalGuidePage from "@/pages/sinsal-guide";
 import GlossaryPage from "@/pages/glossary";
 import SajuTablesPage from "@/pages/saju-tables";
+import LoveFortunePage from "@/pages/love-fortune";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -53,22 +54,23 @@ function Router() {
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/daily-fortune" component={DailyFortunePage} />
-            <Route path="/saju" component={() => <RequireAuth><SajuPage /></RequireAuth>} />
-            <Route path="/manseryok" component={() => <RequireAuth><ManseryokPage /></RequireAuth>} />
+            <Route path="/saju" component={SajuPage} />
+            <Route path="/manseryok" component={ManseryokPage} />
             <Route path="/account" component={() => <RequireAuth><AccountPage /></RequireAuth>} />
-            <Route path="/gungap" component={() => <RequireAdmin><GungapPage /></RequireAdmin>} />
-            <Route path="/year-fortune" component={() => <RequireAdmin><YearFortunePage /></RequireAdmin>} />
-            <Route path="/name-analysis" component={() => <RequireAdmin><NameAnalysisPage /></RequireAdmin>} />
-            <Route path="/zodiac" component={() => <RequireAdmin><ZodiacPage /></RequireAdmin>} />
-            <Route path="/dream" component={() => <RequireAdmin><DreamPage /></RequireAdmin>} />
-            <Route path="/saved" component={() => <RequireAdmin><SavedPage /></RequireAdmin>} />
-            <Route path="/daeun" component={() => <RequireAuth><DaeunPage /></RequireAuth>} />
-            <Route path="/monthly-fortune" component={() => <RequireAuth><MonthlyFortunePage /></RequireAuth>} />
-            <Route path="/lucky-calendar" component={() => <RequireAuth><LuckyCalendarPage /></RequireAuth>} />
+            <Route path="/gungap" component={GungapPage} />
+            <Route path="/love-fortune" component={LoveFortunePage} />
+            <Route path="/year-fortune" component={YearFortunePage} />
+            <Route path="/name-analysis" component={NameAnalysisPage} />
+            <Route path="/zodiac" component={ZodiacPage} />
+            <Route path="/dream" component={DreamPage} />
+            <Route path="/saved" component={SavedPage} />
+            <Route path="/daeun" component={DaeunPage} />
+            <Route path="/monthly-fortune" component={MonthlyFortunePage} />
+            <Route path="/lucky-calendar" component={LuckyCalendarPage} />
             <Route path="/sinsal-guide" component={SinsalGuidePage} />
             <Route path="/glossary" component={GlossaryPage} />
             <Route path="/saju-tables" component={SajuTablesPage} />
-            <Route path="/inquiries" component={() => <RequireAdmin><InquiriesPage /></RequireAdmin>} />
+            <Route path="/inquiries" component={InquiriesPage} />
             <Route path="/admin" component={() => <RequireAdmin><AdminPage /></RequireAdmin>} />
             <Route component={NotFound} />
           </Switch>
