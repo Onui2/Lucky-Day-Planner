@@ -43,7 +43,7 @@ export function useAuth(): AuthState {
   }, [loadUser]);
 
   const login = useCallback(() => {
-    window.location.href = `${BASE}/login`;
+    window.location.href = `${BASE}/api/login`;
   }, []);
 
   const logout = useCallback(() => {

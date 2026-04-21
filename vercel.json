@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @workspace/saju-web run build",
-  "outputDirectory": "public",
+  "installCommand": "corepack pnpm install --frozen-lockfile",
+  "buildCommand": "corepack pnpm --filter @workspace/saju-web run build",
+  "outputDirectory": "artifacts/saju-web/dist/public",
   "rewrites": [
     {
       "source": "/api/:match*",

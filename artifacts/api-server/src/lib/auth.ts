@@ -5,7 +5,10 @@ import { db, sessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { AuthUser } from "@workspace/api-zod";
 
-export const ISSUER_URL = process.env.ISSUER_URL ?? "https://replit.com/oidc";
+export const OIDC_ISSUER_URL =
+  process.env.OIDC_ISSUER_URL ??
+  process.env.ISSUER_URL ??
+  "https://replit.com/oidc";
 export const SESSION_COOKIE = "sid";
 export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -18,19 +21,27 @@ export interface SessionData {
 
 let oidcConfig: client.Configuration | null = null;
 
+export function getOidcClientId(): string | null {
+  return process.env.OIDC_CLIENT_ID ?? process.env.REPL_ID ?? null;
+}
+
 export function isOidcEnabled(): boolean {
-  return Boolean(process.env.REPL_ID);
+  return Boolean(getOidcClientId());
 }
 
 export async function getOidcConfig(): Promise<client.Configuration> {
+  const clientId = getOidcClientId();
+
   if (!isOidcEnabled()) {
-    throw new Error("OIDC is disabled because REPL_ID is not configured.");
+    throw new Error(
+      "OIDC is disabled because OIDC_CLIENT_ID is not configured.",
+    );
   }
 
   if (!oidcConfig) {
     oidcConfig = await client.discovery(
-      new URL(ISSUER_URL),
-      process.env.REPL_ID!,
+      new URL(OIDC_ISSUER_URL),
+      clientId!,
     );
   }
   return oidcConfig;

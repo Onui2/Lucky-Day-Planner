@@ -5,7 +5,7 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, login } = useAuth();
 
   if (isLoading) {
     return (
@@ -29,15 +29,15 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
           </div>
           <h2 className="text-xl font-serif font-bold mb-2">로그인이 필요합니다</h2>
           <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-            이 기능은 회원 전용입니다.<br />로그인 후 이용하실 수 있습니다.
+            이 기능은 회원 전용입니다.
+            <br />
+            로그인 후 이용할 수 있습니다.
           </p>
           <div className="flex flex-col gap-2">
-            <Link href="/login">
-              <Button className="w-full gap-2">
-                <LogIn className="w-4 h-4" />
-                로그인하기
-              </Button>
-            </Link>
+            <Button className="w-full gap-2" onClick={login}>
+              <LogIn className="w-4 h-4" />
+              로그인하기
+            </Button>
             <Link href="/register">
               <Button variant="outline" className="w-full border-primary/30 hover:bg-primary/10">
                 회원가입

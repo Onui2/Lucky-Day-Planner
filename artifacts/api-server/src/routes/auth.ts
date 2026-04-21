@@ -9,6 +9,7 @@ import { sendPasswordResetEmail } from "../lib/email.js";
 import {
   clearSession,
   getOidcConfig,
+  getOidcClientId,
   getSessionId,
   createSession,
   isOidcEnabled,
@@ -227,10 +228,15 @@ router.get("/logout", async (req: Request, res: Response) => {
   await clearSession(res, sid);
 
   try {
+    const clientId = getOidcClientId();
+    if (!clientId) {
+      throw new Error("OIDC client id is not configured.");
+    }
+
     const config = await getOidcConfig();
     const origin = getOrigin(req);
     const endSessionUrl = oidc.buildEndSessionUrl(config, {
-      client_id: process.env.REPL_ID!,
+      client_id: clientId,
       post_logout_redirect_uri: origin,
     });
     res.redirect(endSessionUrl.href);

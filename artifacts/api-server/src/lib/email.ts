@@ -1,14 +1,25 @@
 import nodemailer from "nodemailer";
 
-function getAppUrl(): string {
-  const raw =
-    process.env.APP_URL ??
-    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
-    process.env.VERCEL_URL ??
-    process.env.REPLIT_DEV_DOMAIN;
-  if (!raw) return "http://localhost";
+function normalizeAppUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
   if (raw.startsWith("http")) return raw.replace(/\/$/, "");
-  return `https://${raw}`;
+  return `https://${raw}`.replace(/\/$/, "");
+}
+
+function getAppUrl(): string {
+  const vercelUrl =
+    process.env.VERCEL_ENV === "production"
+      ? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL
+      : process.env.VERCEL_BRANCH_URL ??
+        process.env.VERCEL_URL ??
+        process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
+  return (
+    normalizeAppUrl(process.env.APP_URL) ??
+    normalizeAppUrl(vercelUrl) ??
+    normalizeAppUrl(process.env.REPLIT_DEV_DOMAIN) ??
+    "http://localhost"
+  );
 }
 
 function isEmailConfigured(): boolean {
