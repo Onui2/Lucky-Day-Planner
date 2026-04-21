@@ -3,7 +3,7 @@
   "framework": null,
   "ignoreCommand": "node -e \"const haystack = [process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_URL].filter(Boolean).join(' ').toLowerCase(); process.exit(haystack.includes('api-server') ? 0 : 1)\"",
   "installCommand": "corepack pnpm install --frozen-lockfile",
-  "buildCommand": "corepack pnpm --filter @workspace/saju-web run build",
+  "buildCommand": "corepack pnpm --filter @workspace/api-server run build && corepack pnpm --filter @workspace/saju-web run build",
   "outputDirectory": "artifacts/saju-web/dist/public",
   "rewrites": [
     {
