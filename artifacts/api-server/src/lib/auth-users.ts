@@ -1,8 +1,8 @@
-import { db, usersTable } from "@workspace/db";
+import { db, hasDatabaseConfig, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import crypto from "node:crypto";
 
 interface IdentityUserInput {
+  externalId?: string | null;
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -44,6 +44,19 @@ export async function syncUserFromIdentity(input: IdentityUserInput) {
   const normalizedEmail = input.email?.trim().toLowerCase() ?? null;
   const role = resolveRole(normalizedEmail);
 
+  if (!hasDatabaseConfig()) {
+    return {
+      id: input.externalId ?? normalizedEmail ?? `supabase:${Date.now()}`,
+      email: normalizedEmail,
+      firstName: input.firstName ?? null,
+      lastName: input.lastName ?? null,
+      profileImageUrl: input.profileImageUrl ?? null,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
   const [existingUser] = normalizedEmail
     ? await db
         .select()
@@ -70,7 +83,7 @@ export async function syncUserFromIdentity(input: IdentityUserInput) {
   const [createdUser] = await db
     .insert(usersTable)
     .values({
-      id: crypto.randomUUID(),
+      ...(input.externalId ? { id: input.externalId } : {}),
       email: normalizedEmail,
       firstName: input.firstName ?? null,
       lastName: input.lastName ?? null,

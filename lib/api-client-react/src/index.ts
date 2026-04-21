@@ -4,7 +4,7 @@ export * from "./generated/api.schemas";
 // ─── 저장된 사주 API 훅 (수동 추가) ─────────────────────────
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 export { customFetch } from "./custom-fetch";
-import { customFetch } from "./custom-fetch";
+import { ApiError, customFetch } from "./custom-fetch";
 
 export interface SavedSajuBirthInfo {
   year: number; month: number; day: number; hour: number;
@@ -21,10 +21,194 @@ export interface SavedSajuItem {
 
 const SAVED_SAJU_KEY = ["saju", "saved"] as const;
 
+const env =
+  typeof import.meta !== "undefined"
+    ? (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {}
+    : {};
+
+const SUPABASE_URL = env.VITE_SUPABASE_URL?.trim() ?? "";
+const SUPABASE_PUBLISHABLE_KEY =
+  env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ??
+  env.VITE_SUPABASE_ANON_KEY?.trim() ??
+  "";
+const SUPABASE_ACCESS_TOKEN_STORAGE_KEY = "lucky_day_supabase_access_token";
+const SUPABASE_SAVED_METADATA_KEY = "saved_saju_items";
+
+interface SupabaseAuthUser {
+  id: string;
+  user_metadata?: Record<string, unknown> | null;
+}
+
+function canUseBrowserStorage(): boolean {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function isSupabaseMetadataStorageEnabled(): boolean {
+  return Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && canUseBrowserStorage());
+}
+
+function getSupabaseAccessToken(): string | null {
+  if (!canUseBrowserStorage()) {
+    return null;
+  }
+
+  return window.localStorage.getItem(SUPABASE_ACCESS_TOKEN_STORAGE_KEY);
+}
+
+function shouldUseSupabaseSavedFallback(error: unknown): boolean {
+  if (!isSupabaseMetadataStorageEnabled()) {
+    return false;
+  }
+
+  if (!(error instanceof ApiError)) {
+    return false;
+  }
+
+  if (error.status !== 503) {
+    return false;
+  }
+
+  if (!error.data || typeof error.data !== "object") {
+    return false;
+  }
+
+  const code = (error.data as Record<string, unknown>).error;
+  const message = (error.data as Record<string, unknown>).message;
+  return code === "DB_NOT_CONFIGURED" || message === "서버 데이터베이스 설정이 누락되었습니다.";
+}
+
+function normalizeSavedSajuItems(raw: unknown, userId: string): SavedSajuItem[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map((item, index) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const row = item as Record<string, unknown>;
+      const birthInfo = row.birthInfo;
+
+      if (!birthInfo || typeof birthInfo !== "object") {
+        return null;
+      }
+
+      const data = birthInfo as Record<string, unknown>;
+      return {
+        id: typeof row.id === "number" ? row.id : index + 1,
+        userId:
+          typeof row.userId === "string" && row.userId.trim()
+            ? row.userId
+            : userId,
+        label:
+          typeof row.label === "string" && row.label.trim()
+            ? row.label.trim()
+            : "내 사주",
+        birthInfo: {
+          year: Number(data.year ?? 0),
+          month: Number(data.month ?? 0),
+          day: Number(data.day ?? 0),
+          hour: Number(data.hour ?? -1),
+          gender: String(data.gender ?? "male"),
+          calendarType: String(data.calendarType ?? "solar"),
+        },
+        createdAt:
+          typeof row.createdAt === "string" && row.createdAt
+            ? row.createdAt
+            : new Date().toISOString(),
+      } satisfies SavedSajuItem;
+    })
+    .filter((item): item is SavedSajuItem => Boolean(item));
+}
+
+async function fetchSupabaseUser(): Promise<SupabaseAuthUser> {
+  const accessToken = getSupabaseAccessToken();
+  if (!accessToken) {
+    throw new Error("Supabase access token is missing.");
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load Supabase user metadata.");
+  }
+
+  return (await response.json()) as SupabaseAuthUser;
+}
+
+async function saveSupabaseUserMetadata(
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  const accessToken = getSupabaseAccessToken();
+  if (!accessToken) {
+    throw new Error("Supabase access token is missing.");
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ data: metadata }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update Supabase user metadata.");
+  }
+}
+
+async function getSupabaseSavedSaju(): Promise<SavedSajuItem[]> {
+  const user = await fetchSupabaseUser();
+  return normalizeSavedSajuItems(
+    user.user_metadata?.[SUPABASE_SAVED_METADATA_KEY],
+    user.id,
+  );
+}
+
+async function setSupabaseSavedSaju(
+  updater: (items: SavedSajuItem[], user: SupabaseAuthUser) => SavedSajuItem[],
+): Promise<SavedSajuItem[] | { ok: boolean }> {
+  const user = await fetchSupabaseUser();
+  const existingMetadata = user.user_metadata ?? {};
+  const existingItems = normalizeSavedSajuItems(
+    existingMetadata[SUPABASE_SAVED_METADATA_KEY],
+    user.id,
+  );
+  const nextItems = updater(existingItems, user);
+
+  await saveSupabaseUserMetadata({
+    ...existingMetadata,
+    [SUPABASE_SAVED_METADATA_KEY]: nextItems,
+  });
+
+  return nextItems;
+}
+
+async function fetchSavedSajuList(): Promise<SavedSajuItem[]> {
+  try {
+    return await customFetch<SavedSajuItem[]>("/api/saju/saved");
+  } catch (error) {
+    if (!shouldUseSupabaseSavedFallback(error)) {
+      throw error;
+    }
+
+    return getSupabaseSavedSaju();
+  }
+}
+
 export function useGetSavedSaju(enabled = true) {
   return useQuery<SavedSajuItem[]>({
     queryKey: SAVED_SAJU_KEY,
-    queryFn: () => customFetch<SavedSajuItem[]>("/api/saju/saved"),
+    queryFn: fetchSavedSajuList,
     staleTime: 30_000,
     enabled,
   });
@@ -33,11 +217,38 @@ export function useGetSavedSaju(enabled = true) {
 export function useSaveSaju() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { label: string; birthInfo: SavedSajuBirthInfo }) =>
-      customFetch<SavedSajuItem>("/api/saju/saved", {
-        method: "POST",
-        body: JSON.stringify(body),
-      }),
+    mutationFn: async (body: { label: string; birthInfo: SavedSajuBirthInfo }) => {
+      try {
+        return await customFetch<SavedSajuItem>("/api/saju/saved", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+      } catch (error) {
+        if (!shouldUseSupabaseSavedFallback(error)) {
+          throw error;
+        }
+
+        const result = await setSupabaseSavedSaju((items, user) => {
+          if (items.length >= 20) {
+            throw new Error("최대 20개까지 저장할 수 있습니다.");
+          }
+
+          const nextId = items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+          return [
+            ...items,
+            {
+              id: nextId,
+              userId: user.id,
+              label: body.label.trim().slice(0, 50) || "내 사주",
+              birthInfo: body.birthInfo,
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        });
+
+        return (result as SavedSajuItem[]).at(-1)!;
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: SAVED_SAJU_KEY }),
   });
 }
@@ -45,11 +256,32 @@ export function useSaveSaju() {
 export function useRenameSavedSaju() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, label }: { id: number; label: string }) =>
-      customFetch<SavedSajuItem>(`/api/saju/saved/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ label }),
-      }),
+    mutationFn: async ({ id, label }: { id: number; label: string }) => {
+      try {
+        return await customFetch<SavedSajuItem>(`/api/saju/saved/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ label }),
+        });
+      } catch (error) {
+        if (!shouldUseSupabaseSavedFallback(error)) {
+          throw error;
+        }
+
+        const normalizedLabel = label.trim().slice(0, 50);
+        const result = await setSupabaseSavedSaju((items) =>
+          items.map((item) =>
+            item.id === id ? { ...item, label: normalizedLabel || "내 사주" } : item,
+          ),
+        );
+
+        const updated = (result as SavedSajuItem[]).find((item) => item.id === id);
+        if (!updated) {
+          throw new Error("항목을 찾을 수 없습니다.");
+        }
+
+        return updated;
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: SAVED_SAJU_KEY }),
   });
 }
@@ -57,8 +289,18 @@ export function useRenameSavedSaju() {
 export function useDeleteSavedSaju() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) =>
-      customFetch<{ ok: boolean }>(`/api/saju/saved/${id}`, { method: "DELETE" }),
+    mutationFn: async (id: number) => {
+      try {
+        return await customFetch<{ ok: boolean }>(`/api/saju/saved/${id}`, { method: "DELETE" });
+      } catch (error) {
+        if (!shouldUseSupabaseSavedFallback(error)) {
+          throw error;
+        }
+
+        await setSupabaseSavedSaju((items) => items.filter((item) => item.id !== id));
+        return { ok: true };
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: SAVED_SAJU_KEY }),
   });
 }

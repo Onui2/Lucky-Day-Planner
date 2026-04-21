@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, savedSajuTable } from "@workspace/db";
+import { db, hasDatabaseConfig, savedSajuTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 const router = Router();
@@ -12,9 +12,22 @@ function requireAuth(req: Request, res: Response): boolean {
   return true;
 }
 
+function requireDatabase(res: Response): boolean {
+  if (hasDatabaseConfig()) {
+    return true;
+  }
+
+  res.status(503).json({
+    error: "DB_NOT_CONFIGURED",
+    message: "서버 데이터베이스 설정이 누락되었습니다.",
+  });
+  return false;
+}
+
 // GET /api/saju/saved — 내 저장 목록
 router.get("/saju/saved", async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
+  if (!requireDatabase(res)) return;
   try {
     const rows = await db
       .select()
@@ -31,6 +44,7 @@ router.get("/saju/saved", async (req: Request, res: Response) => {
 // POST /api/saju/saved — 저장
 router.post("/saju/saved", async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
+  if (!requireDatabase(res)) return;
   const { label, birthInfo } = req.body;
   if (!birthInfo) { res.status(400).json({ error: "birthInfo가 필요합니다." }); return; }
 
@@ -61,6 +75,7 @@ router.post("/saju/saved", async (req: Request, res: Response) => {
 // PATCH /api/saju/saved/:id — 이름 수정
 router.patch("/saju/saved/:id", async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
+  if (!requireDatabase(res)) return;
   const id = Number(req.params.id);
   const { label } = req.body;
   if (!label) { res.status(400).json({ error: "label이 필요합니다." }); return; }
@@ -80,6 +95,7 @@ router.patch("/saju/saved/:id", async (req: Request, res: Response) => {
 // DELETE /api/saju/saved/:id — 삭제
 router.delete("/saju/saved/:id", async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
+  if (!requireDatabase(res)) return;
   const id = Number(req.params.id);
   try {
     await db

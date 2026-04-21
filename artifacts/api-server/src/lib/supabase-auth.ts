@@ -77,6 +77,7 @@ export async function verifySupabaseAccessToken(
   const splitName = splitFullName(metadata?.full_name);
 
   const dbUser = await syncUserFromIdentity({
+    externalId: authUser.id,
     email: authUser.email ?? null,
     firstName: metadata?.first_name ?? splitName.firstName,
     lastName: metadata?.last_name ?? splitName.lastName,

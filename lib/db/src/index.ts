@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+
 import * as schema from "./schema";
 
 const { Pool } = pg;
@@ -19,8 +20,7 @@ function resolveDatabaseUrl(): string | null {
   const host = process.env.POSTGRES_HOST ?? process.env.PGHOST;
   const user = process.env.POSTGRES_USER ?? process.env.PGUSER;
   const password = process.env.POSTGRES_PASSWORD ?? process.env.PGPASSWORD;
-  const database =
-    process.env.POSTGRES_DATABASE ?? process.env.PGDATABASE ?? null;
+  const database = process.env.POSTGRES_DATABASE ?? process.env.PGDATABASE ?? null;
   const port = process.env.POSTGRES_PORT ?? process.env.PGPORT ?? "5432";
 
   if (!host || !user || !database) {
@@ -36,7 +36,7 @@ function resolveDatabaseUrl(): string | null {
 
 const resolvedDatabaseUrl = resolveDatabaseUrl();
 const databaseConfigError = new Error(
-  "A Postgres connection string was not found. Set DATABASE_URL or a Vercel POSTGRES_* variable.",
+  "A Postgres connection string was not found. Set DATABASE_URL or a Vercel/Supabase POSTGRES_* variable.",
 );
 
 const sslConfig =
@@ -82,7 +82,7 @@ export function ensureDatabaseSchema(): Promise<void> {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
       if (!pool) {
-        throw databaseConfigError;
+        return;
       }
 
       const client = await pool.connect();
