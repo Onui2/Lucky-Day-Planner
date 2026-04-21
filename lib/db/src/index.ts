@@ -3,8 +3,40 @@ import pg from "pg";
 import * as schema from "./schema";
 
 const { Pool } = pg;
+
+function resolveDatabaseUrl(): string | null {
+  const directUrl =
+    process.env.DATABASE_URL ??
+    process.env.POSTGRES_URL ??
+    process.env.POSTGRES_PRISMA_URL ??
+    process.env.POSTGRES_URL_NON_POOLING ??
+    null;
+
+  if (directUrl?.trim()) {
+    return directUrl.trim();
+  }
+
+  const host = process.env.POSTGRES_HOST ?? process.env.PGHOST;
+  const user = process.env.POSTGRES_USER ?? process.env.PGUSER;
+  const password = process.env.POSTGRES_PASSWORD ?? process.env.PGPASSWORD;
+  const database =
+    process.env.POSTGRES_DATABASE ?? process.env.PGDATABASE ?? null;
+  const port = process.env.POSTGRES_PORT ?? process.env.PGPORT ?? "5432";
+
+  if (!host || !user || !database) {
+    return null;
+  }
+
+  const auth = password
+    ? `${encodeURIComponent(user)}:${encodeURIComponent(password)}`
+    : encodeURIComponent(user);
+
+  return `postgresql://${auth}@${host}:${port}/${database}`;
+}
+
+const resolvedDatabaseUrl = resolveDatabaseUrl();
 const databaseConfigError = new Error(
-  "DATABASE_URL must be set. Did you forget to provision a database?",
+  "A Postgres connection string was not found. Set DATABASE_URL or a Vercel POSTGRES_* variable.",
 );
 
 const sslConfig =
@@ -13,12 +45,12 @@ const sslConfig =
     : {};
 
 export function hasDatabaseConfig(): boolean {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(resolvedDatabaseUrl);
 }
 
 export const pool = hasDatabaseConfig()
   ? new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: resolvedDatabaseUrl!,
       max: Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? "1" : "10")),
       idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS ?? "30000"),
       connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS ?? "10000"),

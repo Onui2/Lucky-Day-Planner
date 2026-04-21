@@ -32,6 +32,13 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
     return;
   }
 
+  if (message.includes("Postgres connection string was not found")) {
+    res.status(503).json({
+      error: "서버 데이터베이스 설정이 누락되었습니다. DATABASE_URL 또는 POSTGRES_URL 환경변수를 확인해주세요.",
+    });
+    return;
+  }
+
   res.status(500).json({ error: message });
 });
 
