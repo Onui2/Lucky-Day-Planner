@@ -64,9 +64,9 @@ function Router() {
             <Route path="/zodiac" component={() => <RequireAuth><ZodiacPage /></RequireAuth>} />
             <Route path="/dream" component={() => <RequireAuth><DreamPage /></RequireAuth>} />
             <Route path="/saved" component={SavedPage} />
-            <Route path="/daeun" component={DaeunPage} />
-            <Route path="/monthly-fortune" component={MonthlyFortunePage} />
-            <Route path="/lucky-calendar" component={LuckyCalendarPage} />
+            <Route path="/daeun" component={() => <RequireAuth><DaeunPage /></RequireAuth>} />
+            <Route path="/monthly-fortune" component={() => <RequireAuth><MonthlyFortunePage /></RequireAuth>} />
+            <Route path="/lucky-calendar" component={() => <RequireAuth><LuckyCalendarPage /></RequireAuth>} />
             <Route path="/sinsal-guide" component={() => <RequireAdmin><SinsalGuidePage /></RequireAdmin>} />
             <Route path="/glossary" component={() => <RequireAdmin><GlossaryPage /></RequireAdmin>} />
             <Route path="/saju-tables" component={() => <RequireAdmin><SajuTablesPage /></RequireAdmin>} />
