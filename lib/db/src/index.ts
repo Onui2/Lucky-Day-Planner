@@ -13,6 +13,9 @@ const resolvedDatabaseUrl = resolveDatabaseUrl();
 const databaseConfigError = new Error(
   `A Postgres connection string was not found. Set one of: ${getDatabaseConfigGuidance()}.`,
 );
+const databaseUnavailableError = new Error(
+  "The configured Postgres database is unavailable. Verify the server is running and the connection settings are correct.",
+);
 
 const sslConfig =
   process.env.NODE_ENV === "production"
@@ -22,6 +25,11 @@ const sslConfig =
 export function hasDatabaseConfig(): boolean {
   return Boolean(resolvedDatabaseUrl);
 }
+
+let lastDatabaseError: Error | null = hasDatabaseConfig()
+  ? null
+  : databaseConfigError;
+let databaseReady = false;
 
 export const pool = hasDatabaseConfig()
   ? new Pool({
@@ -34,6 +42,8 @@ export const pool = hasDatabaseConfig()
   : null;
 
 pool?.on("error", (err) => {
+  lastDatabaseError = err;
+  databaseReady = false;
   console.error("Unexpected error on idle database client:", err.message);
 });
 
@@ -53,10 +63,46 @@ export const db = new Proxy({} as Database, {
 
 let schemaReadyPromise: Promise<void> | null = null;
 
+export function isDatabaseReady(): boolean {
+  return databaseReady;
+}
+
+export function getDatabaseError(): Error | null {
+  return lastDatabaseError;
+}
+
+export function getDatabaseStatusMessage(): string {
+  if (!hasDatabaseConfig()) {
+    return databaseConfigError.message;
+  }
+
+  return lastDatabaseError?.message ?? databaseUnavailableError.message;
+}
+
+export async function ensureDatabaseReady(): Promise<boolean> {
+  if (!pool) {
+    lastDatabaseError = databaseConfigError;
+    databaseReady = false;
+    return false;
+  }
+
+  try {
+    await ensureDatabaseSchema();
+    return true;
+  } catch (error) {
+    lastDatabaseError =
+      error instanceof Error ? error : databaseUnavailableError;
+    databaseReady = false;
+    return false;
+  }
+}
+
 export function ensureDatabaseSchema(): Promise<void> {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
       if (!pool) {
+        lastDatabaseError = databaseConfigError;
+        databaseReady = false;
         return;
       }
 
@@ -175,10 +221,15 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`CREATE INDEX IF NOT EXISTS inquiries_user_created_idx ON inquiries (user_id, created_at DESC)`);
         await client.query(`CREATE INDEX IF NOT EXISTS inquiries_status_created_idx ON inquiries (status, created_at DESC)`);
         await client.query(`CREATE INDEX IF NOT EXISTS inquiries_admin_unread_idx ON inquiries (read_by_admin, created_at DESC)`);
+        databaseReady = true;
+        lastDatabaseError = null;
       } finally {
         client.release();
       }
     })().catch((error) => {
+      lastDatabaseError =
+        error instanceof Error ? error : databaseUnavailableError;
+      databaseReady = false;
       schemaReadyPromise = null;
       throw error;
     });

@@ -85,7 +85,16 @@ export async function authMiddleware(
     return;
   }
 
-  const session = await getSession(sid);
+  let session: SessionData | null = null;
+  try {
+    session = await getSession(sid);
+  } catch (error) {
+    console.error("[auth] failed to load session:", error);
+    await clearSession(res, sid);
+    next();
+    return;
+  }
+
   if (!session?.user?.id) {
     await clearSession(res, sid);
     next();

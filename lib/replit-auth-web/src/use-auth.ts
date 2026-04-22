@@ -46,7 +46,7 @@ async function fetchCurrentUser(): Promise<AuthUser | null> {
 
 function buildLoginUrl(): string {
   if (typeof window === "undefined") {
-    return `${BASE}/login`;
+    return `${BASE}/api/login`;
   }
 
   const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -56,7 +56,9 @@ function buildLoginUrl(): string {
   }
 
   const qs = params.toString();
-  return `${BASE}/login${qs ? `?${qs}` : ""}`;
+  // Always enter through the API auth route so OIDC can start when enabled.
+  // When OIDC is disabled, the server redirects back to the local login page.
+  return `${BASE}/api/login${qs ? `?${qs}` : ""}`;
 }
 
 export function useAuth(): AuthState {

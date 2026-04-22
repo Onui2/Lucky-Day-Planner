@@ -64,7 +64,9 @@ export async function getSession(sid: string): Promise<SessionData | null> {
     .where(eq(sessionsTable.sid, sid));
 
   if (!row || row.expire < new Date()) {
-    if (row) await deleteSession(sid);
+    if (row) {
+      await deleteSessionQuietly(sid, "expired-session");
+    }
     return null;
   }
 
@@ -88,11 +90,24 @@ export async function deleteSession(sid: string): Promise<void> {
   await db.delete(sessionsTable).where(eq(sessionsTable.sid, sid));
 }
 
+async function deleteSessionQuietly(
+  sid: string,
+  context: string,
+): Promise<void> {
+  try {
+    await deleteSession(sid);
+  } catch (error) {
+    console.error(`[auth] failed to delete session during ${context}:`, error);
+  }
+}
+
 export async function clearSession(
   res: Response,
   sid?: string,
 ): Promise<void> {
-  if (sid) await deleteSession(sid);
+  if (sid) {
+    await deleteSessionQuietly(sid, "clear-session");
+  }
   res.clearCookie(SESSION_COOKIE, { path: "/" });
 }
 

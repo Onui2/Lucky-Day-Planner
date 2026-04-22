@@ -43,54 +43,60 @@ export function resolveRole(
 export async function syncUserFromIdentity(input: IdentityUserInput) {
   const normalizedEmail = input.email?.trim().toLowerCase() ?? null;
   const role = resolveRole(normalizedEmail);
+  const fallbackUser = {
+    id: input.externalId ?? normalizedEmail ?? `supabase:${Date.now()}`,
+    email: normalizedEmail,
+    firstName: input.firstName ?? null,
+    lastName: input.lastName ?? null,
+    profileImageUrl: input.profileImageUrl ?? null,
+    role,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   if (!hasDatabaseConfig()) {
-    return {
-      id: input.externalId ?? normalizedEmail ?? `supabase:${Date.now()}`,
-      email: normalizedEmail,
-      firstName: input.firstName ?? null,
-      lastName: input.lastName ?? null,
-      profileImageUrl: input.profileImageUrl ?? null,
-      role,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    return fallbackUser;
   }
 
-  const [existingUser] = normalizedEmail
-    ? await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.email, normalizedEmail))
-    : [];
+  try {
+    const [existingUser] = normalizedEmail
+      ? await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.email, normalizedEmail))
+      : [];
 
-  if (existingUser) {
-    const [updatedUser] = await db
-      .update(usersTable)
-      .set({
+    if (existingUser) {
+      const [updatedUser] = await db
+        .update(usersTable)
+        .set({
+          email: normalizedEmail,
+          firstName: input.firstName ?? existingUser.firstName,
+          lastName: input.lastName ?? existingUser.lastName,
+          profileImageUrl: input.profileImageUrl ?? existingUser.profileImageUrl,
+          role,
+        })
+        .where(eq(usersTable.id, existingUser.id))
+        .returning();
+
+      return updatedUser;
+    }
+
+    const [createdUser] = await db
+      .insert(usersTable)
+      .values({
+        ...(input.externalId ? { id: input.externalId } : {}),
         email: normalizedEmail,
-        firstName: input.firstName ?? existingUser.firstName,
-        lastName: input.lastName ?? existingUser.lastName,
-        profileImageUrl: input.profileImageUrl ?? existingUser.profileImageUrl,
+        firstName: input.firstName ?? null,
+        lastName: input.lastName ?? null,
+        profileImageUrl: input.profileImageUrl ?? null,
         role,
       })
-      .where(eq(usersTable.id, existingUser.id))
       .returning();
 
-    return updatedUser;
+    return createdUser;
+  } catch (error) {
+    console.error("[auth-users] falling back without database:", error);
+    return fallbackUser;
   }
-
-  const [createdUser] = await db
-    .insert(usersTable)
-    .values({
-      ...(input.externalId ? { id: input.externalId } : {}),
-      email: normalizedEmail,
-      firstName: input.firstName ?? null,
-      lastName: input.lastName ?? null,
-      profileImageUrl: input.profileImageUrl ?? null,
-      role,
-    })
-    .returning();
-
-  return createdUser;
 }

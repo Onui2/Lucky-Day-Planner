@@ -1,49 +1,62 @@
 import { Router, type Request, type Response } from "express";
 import { db, usersTable } from "@workspace/db";
-import { eq, desc, count, ilike, or } from "drizzle-orm";
+import { count, desc, eq, ilike, or } from "drizzle-orm";
+import { requireDatabase } from "../lib/database-guard.js";
 
 const router = Router();
 
-function requireAdmin(req: Request, res: Response): req is Request & { user: NonNullable<Request["user"]> } {
+function requireAdmin(
+  req: Request,
+  res: Response,
+): req is Request & { user: NonNullable<Request["user"]> } {
   if (!req.isAuthenticated() || !req.user) {
     res.status(401).json({ error: "로그인이 필요합니다." });
     return false;
   }
-  const role = req.user!.role;
+
+  const role = req.user.role;
   if (role !== "admin" && role !== "superadmin") {
     res.status(403).json({ error: "관리자 권한이 필요합니다." });
     return false;
   }
+
   return true;
 }
 
-function requireSuperAdmin(req: Request, res: Response): req is Request & { user: NonNullable<Request["user"]> } {
+function requireSuperAdmin(
+  req: Request,
+  res: Response,
+): req is Request & { user: NonNullable<Request["user"]> } {
   if (!req.isAuthenticated() || !req.user) {
     res.status(401).json({ error: "로그인이 필요합니다." });
     return false;
   }
-  if (req.user!.role !== "superadmin") {
-    res.status(403).json({ error: "최고관리자 권한이 필요합니다." });
+
+  if (req.user.role !== "superadmin") {
+    res.status(403).json({ error: "최고 관리자 권한이 필요합니다." });
     return false;
   }
+
   return true;
 }
 
 router.get("/admin/users", async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
+  if (!(await requireDatabase(res))) return;
 
-  const page = Math.max(1, parseInt(String(req.query.page) || "1"));
+  const page = Math.max(1, parseInt(String(req.query.page) || "1", 10));
   const limit = 20;
   const offset = (page - 1) * limit;
-  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const search =
+    typeof req.query.search === "string" ? req.query.search.trim() : "";
 
-  const conditions = search
-    ? [or(
+  const condition = search
+    ? or(
         ilike(usersTable.email, `%${search}%`),
         ilike(usersTable.firstName, `%${search}%`),
         ilike(usersTable.lastName, `%${search}%`),
-      )]
-    : [];
+      )
+    : undefined;
 
   const rows = await db
     .select({
@@ -55,7 +68,7 @@ router.get("/admin/users", async (req: Request, res: Response) => {
       createdAt: usersTable.createdAt,
     })
     .from(usersTable)
-    .where(conditions.length ? conditions[0] : undefined)
+    .where(condition)
     .orderBy(desc(usersTable.createdAt))
     .limit(limit)
     .offset(offset);
@@ -63,16 +76,17 @@ router.get("/admin/users", async (req: Request, res: Response) => {
   const [{ total }] = await db
     .select({ total: count() })
     .from(usersTable)
-    .where(conditions.length ? conditions[0] : undefined);
+    .where(condition);
 
   res.json({ users: rows, total: Number(total), page, limit });
 });
 
 router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
   if (!requireSuperAdmin(req, res)) return;
+  if (!(await requireDatabase(res))) return;
 
   const targetId = String(req.params.id);
-  const requesterId = String(req.user!.id);
+  const requesterId = String(req.user.id);
   const { role } = req.body as Record<string, unknown>;
 
   if (role !== "admin" && role !== "user") {
@@ -91,9 +105,10 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
     return;
   }
 
-  // 최고관리자를 다운그레이드할 때는 반드시 "admin"으로만 가능
   if (target.role === "superadmin" && role !== "admin") {
-    res.status(400).json({ error: "최고관리자는 관리자로만 변경할 수 있습니다." });
+    res.status(400).json({
+      error: "최고 관리자는 관리자까지만 변경할 수 있습니다.",
+    });
     return;
   }
 
@@ -101,7 +116,12 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
     .update(usersTable)
     .set({ role: String(role) })
     .where(eq(usersTable.id, targetId))
-    .returning({ id: usersTable.id, email: usersTable.email, firstName: usersTable.firstName, role: usersTable.role });
+    .returning({
+      id: usersTable.id,
+      email: usersTable.email,
+      firstName: usersTable.firstName,
+      role: usersTable.role,
+    });
 
   res.json({ user: updated });
 });

@@ -1,11 +1,15 @@
 import * as oidc from "openid-client";
 import { Router, type Request, type Response } from "express";
 import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
-import { db, hasDatabaseConfig, usersTable } from "@workspace/db";
+import { db, usersTable } from "@workspace/db";
 import { count, eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "../lib/email.js";
+import {
+  isDatabaseAvailable,
+  requireDatabase,
+} from "../lib/database-guard.js";
 import {
   clearSession,
   getOidcConfig,
@@ -75,6 +79,10 @@ function getSafeReturnTo(value: unknown): string {
   return value;
 }
 
+function buildLocalLoginRedirect(returnTo: string): string {
+  return `/login${returnTo !== "/" ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`;
+}
+
 function isSuperAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   const list = (process.env.SUPER_ADMIN_EMAILS ?? "").split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
@@ -94,15 +102,18 @@ function hasConfiguredPrivilegedEmails(): boolean {
   );
 }
 
-function requireLocalAuthDatabase(res: Response): boolean {
-  if (hasDatabaseConfig()) {
+async function requireLocalAuthDatabaseReady(res: Response): Promise<boolean> {
+  if (await requireDatabase(res)) {
     return true;
   }
 
-  res.status(503).json({
-    error:
-      "로컬 회원가입과 로그인 기능을 사용하려면 데이터베이스 연결이 필요합니다. DATABASE_URL 또는 POSTGRES_URL 환경변수를 확인해주세요.",
-  });
+  if (!res.headersSent) {
+    res.status(503).json({
+      error:
+        "로컬 회원가입과 로그인 기능을 사용하려면 데이터베이스 연결이 필요합니다. DATABASE_URL 또는 POSTGRES_URL 설정과 DB 서버 상태를 확인해주세요.",
+    });
+  }
+
   return false;
 }
 
@@ -113,7 +124,7 @@ function resolveRole(email: string | null | undefined, fallback = "user"): strin
 }
 
 async function needsAdminBootstrap(): Promise<boolean> {
-  if (!hasDatabaseConfig()) {
+  if (!(await isDatabaseAvailable())) {
     return false;
   }
 
@@ -196,26 +207,31 @@ router.get("/auth/user", (req: Request, res: Response) => {
 });
 
 router.get("/auth/setup-status", async (_req: Request, res: Response) => {
+  const databaseAvailable = await isDatabaseAvailable();
   res.json({
     canSelfBootstrapAdmin: await needsAdminBootstrap(),
     hasConfiguredPrivilegedEmails: hasConfiguredPrivilegedEmails(),
-    databaseConfigured: hasDatabaseConfig(),
-    localPasswordAuthEnabled: hasDatabaseConfig(),
+    databaseConfigured: databaseAvailable,
+    localPasswordAuthEnabled: databaseAvailable,
     oidcEnabled: isOidcEnabled(),
   });
 });
 
 router.get("/login", async (req: Request, res: Response) => {
+  const returnTo = getSafeReturnTo(req.query.returnTo);
+
   if (!isOidcEnabled()) {
-    const returnTo = getSafeReturnTo(req.query.returnTo);
-    res.redirect(`/login${returnTo !== "/" ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`);
+    res.redirect(buildLocalLoginRedirect(returnTo));
+    return;
+  }
+
+  if (!(await isDatabaseAvailable())) {
+    res.redirect(buildLocalLoginRedirect(returnTo));
     return;
   }
 
   const config = await getOidcConfig();
   const callbackUrl = `${getOrigin(req)}/api/callback`;
-
-  const returnTo = getSafeReturnTo(req.query.returnTo);
 
   const state = oidc.randomState();
   const nonce = oidc.randomNonce();
@@ -243,8 +259,19 @@ router.get("/login", async (req: Request, res: Response) => {
 // Query params are not validated because the OIDC provider may include
 // parameters not expressed in the schema.
 router.get("/callback", async (req: Request, res: Response) => {
+  const returnTo = getSafeReturnTo(req.cookies?.return_to ?? req.query.returnTo);
+
   if (!isOidcEnabled()) {
-    res.redirect("/login");
+    res.redirect(buildLocalLoginRedirect(returnTo));
+    return;
+  }
+
+  if (!(await isDatabaseAvailable())) {
+    res.clearCookie("code_verifier", { path: "/" });
+    res.clearCookie("nonce", { path: "/" });
+    res.clearCookie("state", { path: "/" });
+    res.clearCookie("return_to", { path: "/" });
+    res.redirect(buildLocalLoginRedirect(returnTo));
     return;
   }
 
@@ -256,7 +283,7 @@ router.get("/callback", async (req: Request, res: Response) => {
   const expectedState = req.cookies?.state;
 
   if (!codeVerifier || !expectedState) {
-    res.redirect("/api/login");
+    res.redirect(buildLocalLoginRedirect(returnTo));
     return;
   }
 
@@ -273,11 +300,9 @@ router.get("/callback", async (req: Request, res: Response) => {
       idTokenExpected: true,
     });
   } catch {
-    res.redirect("/api/login");
+    res.redirect(buildLocalLoginRedirect(returnTo));
     return;
   }
-
-  const returnTo = getSafeReturnTo(req.cookies?.return_to);
 
   res.clearCookie("code_verifier", { path: "/" });
   res.clearCookie("nonce", { path: "/" });
@@ -286,37 +311,51 @@ router.get("/callback", async (req: Request, res: Response) => {
 
   const claims = tokens.claims();
   if (!claims) {
-    res.redirect("/api/login");
+    res.redirect(buildLocalLoginRedirect(returnTo));
     return;
   }
 
-  const dbUser = await upsertUser(
-    claims as unknown as Record<string, unknown>,
-  );
+  try {
+    const dbUser = await upsertUser(
+      claims as unknown as Record<string, unknown>,
+    );
 
-  const now = Math.floor(Date.now() / 1000);
-  const sessionData: SessionData = {
-    user: {
-      id: dbUser.id,
-      email: dbUser.email,
-      firstName: dbUser.firstName,
-      lastName: dbUser.lastName,
-      profileImageUrl: dbUser.profileImageUrl,
-      role: dbUser.role,
-    },
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    expires_at: tokens.expiresIn() ? now + tokens.expiresIn()! : claims.exp,
-  };
+    const now = Math.floor(Date.now() / 1000);
+    const sessionData: SessionData = {
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        firstName: dbUser.firstName,
+        lastName: dbUser.lastName,
+        profileImageUrl: dbUser.profileImageUrl,
+        role: dbUser.role,
+      },
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: tokens.expiresIn() ? now + tokens.expiresIn()! : claims.exp,
+    };
 
-  const sid = await createSession(sessionData);
-  setSessionCookie(res, sid);
-  res.redirect(returnTo);
+    const sid = await createSession(sessionData);
+    setSessionCookie(res, sid);
+    res.redirect(returnTo);
+  } catch (error) {
+    console.error("[auth:callback] failed to persist authenticated session:", error);
+    res.redirect(buildLocalLoginRedirect(returnTo));
+  }
 });
 
 router.get("/logout", async (req: Request, res: Response) => {
   const sid = getSessionId(req);
-  const session = sid ? await getSession(sid) : null;
+  let session: SessionData | null = null;
+
+  if (sid) {
+    try {
+      session = await getSession(sid);
+    } catch (error) {
+      console.error("[auth:logout] failed to load session:", error);
+    }
+  }
+
   await clearSession(res, sid);
 
   const hadOidcSession = Boolean(
@@ -348,7 +387,7 @@ router.get("/logout", async (req: Request, res: Response) => {
 
 // ─── 로컬 회원가입 ─────────────────────────────────────
 router.post("/auth/register", async (req: Request, res: Response) => {
-  if (!requireLocalAuthDatabase(res)) {
+  if (!(await requireLocalAuthDatabaseReady(res))) {
     return;
   }
 
@@ -411,7 +450,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
 
 // ─── 로컬 로그인 ─────────────────────────────────────
 router.post("/auth/login-local", async (req: Request, res: Response) => {
-  if (!requireLocalAuthDatabase(res)) {
+  if (!(await requireLocalAuthDatabaseReady(res))) {
     return;
   }
 
@@ -470,7 +509,7 @@ router.post("/auth/login-local", async (req: Request, res: Response) => {
 
 // ─── 비밀번호 찾기 (초기화 이메일 발송) ─────────────
 router.post("/auth/forgot-password", async (req: Request, res: Response) => {
-  if (!requireLocalAuthDatabase(res)) {
+  if (!(await requireLocalAuthDatabaseReady(res))) {
     return;
   }
 
@@ -515,7 +554,7 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
 
 // ─── 비밀번호 초기화 (토큰 검증 + 새 비밀번호 설정) ─
 router.post("/auth/reset-password", async (req: Request, res: Response) => {
-  if (!requireLocalAuthDatabase(res)) {
+  if (!(await requireLocalAuthDatabaseReady(res))) {
     return;
   }
 
@@ -561,7 +600,7 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
 
 // ─── 토큰 유효성 확인 (폼 진입 전 체크) ─────────────
 router.get("/auth/reset-password/verify", async (req: Request, res: Response) => {
-  if (!requireLocalAuthDatabase(res)) {
+  if (!(await requireLocalAuthDatabaseReady(res))) {
     return;
   }
 
