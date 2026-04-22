@@ -17,10 +17,36 @@ const databaseUnavailableError = new Error(
   "The configured Postgres database is unavailable. Verify the server is running and the connection settings are correct.",
 );
 
-const sslConfig =
-  process.env.NODE_ENV === "production"
-    ? { ssl: { rejectUnauthorized: false } }
-    : {};
+const databaseHost = resolvedDatabaseUrl
+  ? (() => {
+      try {
+        return new URL(resolvedDatabaseUrl).hostname.toLowerCase();
+      } catch {
+        return "";
+      }
+    })()
+  : "";
+
+const sslMode = (process.env.PGSSLMODE ?? process.env.PGSSL ?? "").toLowerCase();
+const sslExplicitlyDisabled = ["0", "false", "disable", "off"].includes(sslMode);
+const sslExplicitlyEnabled = ["1", "true", "require", "on"].includes(sslMode);
+const isLocalDatabaseHost =
+  databaseHost === "" ||
+  databaseHost === "localhost" ||
+  databaseHost === "127.0.0.1" ||
+  databaseHost === "::1";
+const shouldUseSsl =
+  !sslExplicitlyDisabled &&
+  (
+    sslExplicitlyEnabled ||
+    process.env.NODE_ENV === "production" ||
+    databaseHost.endsWith(".supabase.co") ||
+    databaseHost.endsWith(".supabase.com") ||
+    !isLocalDatabaseHost
+  );
+const sslConfig = shouldUseSsl
+  ? { ssl: { rejectUnauthorized: false } }
+  : {};
 
 export function hasDatabaseConfig(): boolean {
   return Boolean(resolvedDatabaseUrl);
