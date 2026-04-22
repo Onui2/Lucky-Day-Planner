@@ -2,9 +2,10 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCalculateSaju, useSaveSaju, useGetSavedSaju, useSubmitInquiry } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
-import { useSearch } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import { getCurrentAge } from "@/lib/age";
+import { getSajuCacheStorageKey, LEGACY_SAJU_CACHE_STORAGE_KEY } from "@/lib/profile-storage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,7 @@ const SECTIONS = [
   { key: "career",      label: "직업 적성",   icon: "💼" },
 ] as const;
 type SectionKey = typeof SECTIONS[number]["key"];
+type ResultSource = "manual" | "profile" | "cache" | "query";
 
 // 오행 색상 헬퍼
 const ELEM_COLOR: Record<string, string> = {
@@ -145,39 +147,52 @@ export default function SajuPage() {
   const [inquiryMessage, setInquiryMessage] = useState("");
   const [inquiryDone, setInquiryDone] = useState(false);
 
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const { profile } = useUser();
   const { mutate: calculateSaju, data: result, isPending, error } = useCalculateSaju();
   const saveMut = useSaveSaju();
   const { data: savedList } = useGetSavedSaju(isAuthenticated);
   const inquiryMut = useSubmitInquiry();
 
-  const SAJU_CACHE_KEY = "myunghae_saju_v1";
+  const sajuCacheKey = user?.id ? getSajuCacheStorageKey(user.id) : null;
   const makeCacheKey = (p: typeof profile) =>
-    p ? `v2/${p.birthYear}/${p.birthMonth}/${p.birthDay}/${p.birthHour}/${p.gender}/${p.calendarType}` : null;
+    p ? `v3/${p.birthYear}/${p.birthMonth}/${p.birthDay}/${p.birthHour}/${p.birthMinute ?? 0}/${p.gender}/${p.calendarType}` : null;
 
   const [displayResult, setDisplayResult] = useState<any>(null);
   const [cachedTs, setCachedTs] = useState<number | null>(null);
+  const [displaySource, setDisplaySource] = useState<ResultSource | null>(null);
+  const pendingResultSourceRef = useRef<ResultSource | null>(null);
 
   useEffect(() => {
-    if (!profile || displayResult) return;
+    if (!profile || displayResult || !isAuthenticated || !sajuCacheKey) return;
     try {
-      const raw = localStorage.getItem(SAJU_CACHE_KEY);
+      const raw = localStorage.getItem(sajuCacheKey) ?? localStorage.getItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
       if (!raw) return;
+      if (!localStorage.getItem(sajuCacheKey)) {
+        localStorage.setItem(sajuCacheKey, raw);
+      }
+      localStorage.removeItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
       const saved = JSON.parse(raw);
       if (saved.key === makeCacheKey(profile)) setCachedTs(saved.ts);
     } catch {}
-  }, [profile]);
+  }, [displayResult, isAuthenticated, profile, sajuCacheKey]);
 
   useEffect(() => {
     if (!result) return;
     setDisplayResult(result);
+    setDisplaySource(pendingResultSourceRef.current ?? "manual");
+    pendingResultSourceRef.current = null;
+
+    if (!isAuthenticated || !sajuCacheKey) return;
+
     try {
       const bi = result.birthInfo;
       if (!bi) return;
 
-      const fallbackKey = `v3/${bi.year}/${bi.month}/${bi.day}/${bi.hour ?? -1}/${bi.gender ?? "male"}/${bi.calendarType ?? "solar"}`;
-      localStorage.setItem(SAJU_CACHE_KEY, JSON.stringify({ key: fallbackKey, result, ts: Date.now() }));
+      const fallbackKey = `v4/${bi.year}/${bi.month}/${bi.day}/${bi.hour ?? -1}/${bi.minute ?? 0}/${bi.gender ?? "male"}/${bi.calendarType ?? "solar"}`;
+      localStorage.setItem(sajuCacheKey, JSON.stringify({ key: fallbackKey, result, ts: Date.now() }));
+      localStorage.removeItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
 
       if (!profile) return;
 
@@ -191,14 +206,27 @@ export default function SajuPage() {
         setCachedTs(null);
       }
     } catch {}
-  }, [result]);
+  }, [isAuthenticated, profile, result, sajuCacheKey]);
 
   const loadCached = () => {
+    if (!isAuthenticated || !sajuCacheKey) return;
     try {
-      const saved = JSON.parse(localStorage.getItem(SAJU_CACHE_KEY) ?? "{}");
-      if (saved.result) { setDisplayResult(saved.result); setCachedTs(null); }
+      const saved = JSON.parse(localStorage.getItem(sajuCacheKey) ?? "{}");
+      if (saved.result) {
+        setDisplayResult(saved.result);
+        setCachedTs(null);
+        setDisplaySource("cache");
+      }
     } catch {}
   };
+
+  useEffect(() => {
+    if (isAuthenticated) return;
+    if (displaySource !== "profile" && displaySource !== "cache") return;
+    setDisplayResult(null);
+    setCachedTs(null);
+    setDisplaySource(null);
+  }, [displaySource, isAuthenticated]);
 
   const r = displayResult as any;
   const showAccountActions = isAuthenticated;
@@ -328,18 +356,20 @@ export default function SajuPage() {
     if (!inputForm.birthMonth || isNaN(month) || month < 1 || month > 12)   { setFormError("월을 올바르게 입력해주세요. (1~12)"); return; }
     if (!inputForm.birthDay   || isNaN(day)   || day < 1   || day > 31)     { setFormError("일을 올바르게 입력해주세요. (1~31)"); return; }
     const minute = inputForm.birthMinute ? parseInt(inputForm.birthMinute) : 0;
+    pendingResultSourceRef.current = "manual";
     calculateSaju({ data: { birthYear: year, birthMonth: month, birthDay: day, birthHour: inputForm.birthHour, birthMinute: isNaN(minute) ? 0 : minute, gender: inputForm.gender, calendarType: inputForm.calendarType } });
   };
 
   const handleProfileAnalyze = useCallback(() => {
     if (!profile) return;
+    pendingResultSourceRef.current = "profile";
     calculateSaju({
       data: {
         birthYear: profile.birthYear,
         birthMonth: profile.birthMonth,
         birthDay: profile.birthDay,
         birthHour: profile.birthHour,
-        birthMinute: 0,
+        birthMinute: profile.birthMinute ?? 0,
         gender: profile.gender,
         calendarType: profile.calendarType,
       },
@@ -399,6 +429,7 @@ export default function SajuPage() {
     if (y && m && d && !displayResult) {
       const h = searchParams.get("h"); const g = searchParams.get("g"); const c = searchParams.get("c");
       const minute = 0;
+      pendingResultSourceRef.current = "query";
       calculateSaju({ data: {
         birthYear: parseInt(y), birthMonth: parseInt(m), birthDay: parseInt(d),
         birthHour: h ? parseInt(h) : -1, birthMinute: minute,
@@ -634,7 +665,7 @@ export default function SajuPage() {
                 문의하기
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => setDisplayResult(null)}>
+            <Button variant="outline" size="sm" onClick={() => { setDisplayResult(null); setDisplaySource(null); }}>
               <ArrowLeft className="w-4 h-4 mr-2" /> 다시 분석
             </Button>
           </div>
@@ -781,15 +812,26 @@ export default function SajuPage() {
             const branch = r.dayPillar?.earthlyBranch;
             const analysis = stem && branch ? getDayPillarAnalysis(stem, branch) : undefined;
             if (!analysis) return null;
+            const dayPillarQuery = `${stem}${branch}`;
             return (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
                 <Card className="glass-panel border-amber-400/30">
                   <CardHeader className="pb-3 border-b border-amber-400/15">
-                    <CardTitle className="flex items-center gap-2 text-amber-300">
-                      <span className="text-xl font-serif">{analysis.hanja}</span>
-                      <span className="text-base font-medium">{analysis.title} 분석</span>
-                      <span className="ml-auto text-xs font-normal text-muted-foreground bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">일주 고전 해석</span>
-                    </CardTitle>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <CardTitle className="flex flex-wrap items-center gap-2 text-amber-300">
+                        <span className="text-xl font-serif">{analysis.hanja}</span>
+                        <span className="text-base font-medium">{analysis.title} 분석</span>
+                        <span className="text-xs font-normal text-muted-foreground bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">일주 고전 해석</span>
+                      </CardTitle>
+                      {isAdmin && (
+                        <Link
+                          href={`/day-pillar-analysis?q=${encodeURIComponent(dayPillarQuery)}`}
+                          className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl border border-primary/20 bg-primary/5 text-xs text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          관리자 검색으로 보기
+                        </Link>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="pt-4">
                     <div className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">

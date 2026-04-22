@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { useAuth } from "@workspace/replit-auth-web";
+import { getProfileStorageKey, LEGACY_PROFILE_STORAGE_KEY } from "@/lib/profile-storage";
 
 export interface UserProfile {
   name?: string;
@@ -7,6 +9,7 @@ export interface UserProfile {
   birthMonth: number;
   birthDay: number;
   birthHour: number;
+  birthMinute?: number;
   calendarType: "solar" | "lunar";
   dayMasterElement?: string;
   dayMasterStem?: string;
@@ -35,8 +38,6 @@ const UserContext = createContext<UserContextType>({
   profileReady: false,
 });
 
-const STORAGE_KEY = "myunghae_user_profile";
-
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function needsPillarMigration(profile: UserProfile) {
@@ -58,7 +59,7 @@ async function fetchProfilePillars(p: UserProfile): Promise<Partial<UserProfile>
       birthMonth: p.birthMonth,
       birthDay: p.birthDay,
       birthHour: p.birthHour,
-      birthMinute: 0,
+      birthMinute: p.birthMinute ?? 0,
       gender: p.gender,
       calendarType: p.calendarType,
     }),
@@ -79,54 +80,96 @@ async function fetchProfilePillars(p: UserProfile): Promise<Partial<UserProfile>
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [profile, setProfileState] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    if (authLoading) {
+      setProfileState(null);
+      setProfileReady(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      if (!isAuthenticated || !user?.id) {
+        setProfileState(null);
+        setProfileReady(true);
+        try {
+          localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
+        } catch {}
+        return;
+      }
+
+      setProfileState(null);
+      setProfileReady(false);
+
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const storageKey = getProfileStorageKey(user.id);
+        const raw = localStorage.getItem(storageKey) ?? localStorage.getItem(LEGACY_PROFILE_STORAGE_KEY);
         if (raw) {
           const parsed: UserProfile = JSON.parse(raw);
+          if (!localStorage.getItem(storageKey)) {
+            localStorage.setItem(storageKey, raw);
+          }
+          localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
           if (needsPillarMigration(parsed)) {
             try {
               const pillarInfo = await fetchProfilePillars(parsed);
               const migrated = { ...parsed, ...pillarInfo };
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-              setProfileState(migrated);
+              localStorage.setItem(storageKey, JSON.stringify(migrated));
+              if (!cancelled) setProfileState(migrated);
             } catch {
-              setProfileState(parsed);
+              if (!cancelled) setProfileState(parsed);
             }
           } else {
-            setProfileState(parsed);
+            if (!cancelled) setProfileState(parsed);
           }
+        } else if (!cancelled) {
+          setProfileState(null);
         }
       } catch {}
-      setProfileReady(true);
+      if (!cancelled) {
+        setProfileReady(true);
+      }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, isAuthenticated, user?.id]);
 
   const setProfile = useCallback(async (p: UserProfile) => {
+    if (!user?.id || !isAuthenticated) {
+      setProfileState(null);
+      return;
+    }
+
+    const storageKey = getProfileStorageKey(user.id);
     setIsLoading(true);
     try {
       const pillarInfo = await fetchProfilePillars(p);
       const full: UserProfile = { ...p, ...pillarInfo };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(full));
+      localStorage.setItem(storageKey, JSON.stringify(full));
       setProfileState(full);
     } catch {
       const full: UserProfile = { ...p };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(full));
+      localStorage.setItem(storageKey, JSON.stringify(full));
       setProfileState(full);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated, user?.id]);
 
   const clearProfile = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    if (user?.id) {
+      localStorage.removeItem(getProfileStorageKey(user.id));
+    }
+    localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
     setProfileState(null);
-  }, []);
+  }, [user?.id]);
 
   return (
     <UserContext.Provider value={{ profile, setProfile, clearProfile, isLoading, profileReady }}>

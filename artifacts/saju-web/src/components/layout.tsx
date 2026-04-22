@@ -8,7 +8,7 @@ import {
   UserCircle2, LogIn, LogOut, Menu, X, ChevronUp,
   BookMarked, MessageSquare, ShieldCheck, Bell,
   CalendarDays, Type, Orbit, ChevronDown, Settings,
-  MoonStar, TrendingUp, BookOpen, Star, TableProperties,
+  MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search,
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -43,6 +43,7 @@ export function Layout({ children }: LayoutProps) {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileServiceGroupOpen, setMobileServiceGroupOpen] = useState<string | null>(null);
 
   const { data: myUnread } = useMyUnreadCount(isAuthenticated);
   const { data: adminUnread } = useAdminUnreadCount(isAdmin);
@@ -115,6 +116,7 @@ export function Layout({ children }: LayoutProps) {
     { href: "/sinsal-guide", label: "신살 안내", icon: Star, desc: "도화·역마·천을귀인 등 해설" },
     { href: "/glossary", label: "사주 용어 사전", icon: BookOpen, desc: "천간·지지·십신 용어 정리" },
     { href: "/saju-tables", label: "이론 조견표", icon: TableProperties, desc: "합충형·삼재·귀문살·장간 등" },
+    { href: "/day-pillar-analysis", label: "일주 분석 검색", icon: Search, desc: "60갑자 일주 해석 검색" },
   ] : [];
 
   const extraServiceGroups = [
@@ -122,6 +124,19 @@ export function Layout({ children }: LayoutProps) {
     ...(adminExtraServices.length > 0 ? [{ key: "admin", label: "관리자 전용", items: adminExtraServices }] : []),
   ];
   const extraServices = extraServiceGroups.flatMap((group) => group.items);
+  const activeExtraServiceGroupKey =
+    extraServiceGroups.find((group) => group.items.some((item) => item.href === location))?.key
+    ?? extraServiceGroups[0]?.key
+    ?? null;
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      setMobileServiceGroupOpen(null);
+      return;
+    }
+
+    setMobileServiceGroupOpen(activeExtraServiceGroupKey);
+  }, [activeExtraServiceGroupKey, mobileMenuOpen]);
 
   const adminNavItem = {
     href: "/admin",
@@ -236,7 +251,7 @@ export function Layout({ children }: LayoutProps) {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.97 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full mt-2 right-0 w-56 glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50"
+                    className="absolute top-full mt-2 right-0 w-56 max-h-[min(32rem,calc(100vh-7rem))] overflow-y-auto overscroll-contain glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50"
                   >
                     {extraServiceGroups.map((group) => (
                       <div key={group.key} className="px-1">
@@ -411,17 +426,55 @@ export function Layout({ children }: LayoutProps) {
               transition={{ duration: 0.18 }}
               className="absolute inset-x-0 top-16 bottom-0 border-t border-primary/10 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain"
             >
-              <div className="container mx-auto min-h-full px-4 py-3 pb-8 flex flex-col gap-1">
+              <div className="container mx-auto min-h-full px-4 py-3 pb-24 flex flex-col gap-1">
                 {navItems.map((item) => renderMobileNavLink(item, closeMobile))}
 
-                {extraServiceGroups.length > 0 && extraServiceGroups.map((group) => (
-                  <div key={group.key} className="flex flex-col gap-1">
-                    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-[0.18em] text-primary/60 uppercase">
-                      {group.label}
-                    </div>
-                    {group.items.map((s) => renderMobileNavLink(s, closeMobile))}
+                {extraServiceGroups.length > 0 && (
+                  <div className="flex flex-col gap-2 pt-2">
+                    {extraServiceGroups.map((group) => {
+                      const isOpen = mobileServiceGroupOpen === group.key;
+
+                      return (
+                        <div
+                          key={group.key}
+                          className="rounded-2xl border border-primary/15 bg-card/30 backdrop-blur-sm overflow-hidden"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setMobileServiceGroupOpen((current) => current === group.key ? null : group.key)}
+                            className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                          >
+                            <div>
+                              <div className="text-[10px] font-semibold tracking-[0.18em] text-primary/60 uppercase">
+                                {group.label}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {group.items.length}개 메뉴
+                              </div>
+                            </div>
+                            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+                          </button>
+
+                          <AnimatePresence initial={false}>
+                            {isOpen && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.18 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="px-2 pb-2 flex flex-col gap-1">
+                                  {group.items.map((s) => renderMobileNavLink(s, closeMobile))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
 
                 <div className="h-px bg-primary/10 my-1" />
 

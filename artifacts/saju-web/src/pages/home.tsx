@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star, TableProperties } from "lucide-react";
+import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search } from "lucide-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
 
@@ -141,7 +141,7 @@ export default function Home() {
           </div>
 
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6"
             variants={container}
             initial="hidden"
             animate="show"
@@ -323,6 +323,22 @@ export default function Home() {
                   <p className="text-muted-foreground mb-8">합충형·삼재·귀문살·장간처럼 자주 찾는 이론 표를 관리자 화면에서 빠르게 확인합니다.</p>
                   <div className="flex items-center text-orange-300 font-medium group-hover:gap-3 transition-all gap-2">
                     열어보기 <ArrowRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div variants={item}>
+              <Link href="/day-pillar-analysis" className="block group h-full">
+                <div className="h-full rounded-3xl border border-cyan-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(34,211,238,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/10 rounded-full blur-3xl group-hover:bg-cyan-400/20 transition-colors" />
+                  <div className="w-14 h-14 rounded-2xl bg-cyan-400/20 flex items-center justify-center mb-6 border border-cyan-400/30 group-hover:scale-110 transition-transform">
+                    <Search className="w-7 h-7 text-cyan-300" />
+                  </div>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">일주 분석 검색</h3>
+                  <p className="text-muted-foreground mb-8">계묘·癸卯처럼 60갑자 일주를 직접 검색해서 다른 사람의 일주 해석도 바로 찾아봅니다.</p>
+                  <div className="flex items-center text-cyan-300 font-medium group-hover:gap-3 transition-all gap-2">
+                    검색하기 <ArrowRight className="w-4 h-4" />
                   </div>
                 </div>
               </Link>

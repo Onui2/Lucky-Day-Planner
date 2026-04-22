@@ -526,7 +526,7 @@ export function useYearFortune() {
   return useMutation({
     mutationFn: (body: {
       birthYear: number; birthMonth: number; birthDay: number;
-      birthHour?: number; targetYear?: number;
+      birthHour?: number; birthMinute?: number; targetYear?: number;
     }) => customFetch<YearFortuneData>("/api/year-fortune", { method: "POST", body: JSON.stringify(body) }),
   });
 }
@@ -682,9 +682,9 @@ export function useLoveFortune() {
   return useMutation({
     mutationFn: (body: {
       birthYear: number; birthMonth: number; birthDay: number;
-      birthHour?: number; gender: string; status: string; targetYear?: number;
+      birthHour?: number; birthMinute?: number; gender: string; status: string; targetYear?: number;
       partnerYear?: number; partnerMonth?: number; partnerDay?: number;
-      partnerHour?: number; partnerGender?: string;
+      partnerHour?: number; partnerMinute?: number; partnerGender?: string;
     }) => customFetch<LoveFortuneResult>("/api/love-fortune", { method: "POST", body: JSON.stringify(body) }),
   });
 }

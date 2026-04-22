@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { useAuth } from "@workspace/replit-auth-web";
 import { useUser, type UserProfile } from "@/contexts/UserContext";
-
-const SAJU_CACHE_KEY = "myunghae_saju_v1";
+import { getSajuCacheStorageKey, LEGACY_SAJU_CACHE_STORAGE_KEY } from "@/lib/profile-storage";
 
 function parseNumber(value: unknown, fallback = -1): number {
   const num = Number(value);
@@ -17,12 +17,21 @@ function normalizeCalendarType(value: unknown): UserProfile["calendarType"] {
   return value === "lunar" ? "lunar" : "solar";
 }
 
-export function readCachedSajuProfile(): UserProfile | null {
+export function readCachedSajuProfile(userId?: string | null): UserProfile | null {
   if (typeof window === "undefined") return null;
+  if (!userId) return null;
 
   try {
-    const raw = window.localStorage.getItem(SAJU_CACHE_KEY);
+    const storageKey = getSajuCacheStorageKey(userId);
+    const raw =
+      window.localStorage.getItem(storageKey) ??
+      window.localStorage.getItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
     if (!raw) return null;
+
+    if (!window.localStorage.getItem(storageKey)) {
+      window.localStorage.setItem(storageKey, raw);
+    }
+    window.localStorage.removeItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
 
     const saved = JSON.parse(raw) as { result?: Record<string, unknown> };
     const result = saved.result;
@@ -42,6 +51,7 @@ export function readCachedSajuProfile(): UserProfile | null {
       birthMonth: parseNumber(birthInfo.month, 0),
       birthDay: parseNumber(birthInfo.day, 0),
       birthHour: parseNumber(birthInfo.hour, -1),
+      birthMinute: parseNumber(birthInfo.minute, 0),
       calendarType: normalizeCalendarType(birthInfo.calendarType),
       dayMasterElement:
         typeof result?.dayMasterElement === "string"
@@ -72,23 +82,39 @@ export function readCachedSajuProfile(): UserProfile | null {
 }
 
 export function useResolvedProfile() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { profile, profileReady } = useUser();
   const [cachedProfile, setCachedProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
+    if (authLoading) {
+      setCachedProfile(null);
+      return;
+    }
+
+    if (!isAuthenticated || !user?.id) {
+      setCachedProfile(null);
+      try {
+        window.localStorage.removeItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
+      } catch {}
+      return;
+    }
+
     if (profile) {
       setCachedProfile(null);
       return;
     }
 
     if (!profileReady) return;
-    setCachedProfile(readCachedSajuProfile());
-  }, [profile, profileReady]);
+    setCachedProfile(readCachedSajuProfile(user.id));
+  }, [authLoading, isAuthenticated, profile, profileReady, user?.id]);
+
+  const resolvedProfile = authLoading || !isAuthenticated ? null : profile ?? cachedProfile;
 
   return {
-    profile: profile ?? cachedProfile,
-    hasSavedProfile: Boolean(profile),
-    hasCachedProfile: !profile && Boolean(cachedProfile),
-    profileReady,
+    profile: resolvedProfile,
+    hasSavedProfile: isAuthenticated && Boolean(profile),
+    hasCachedProfile: isAuthenticated && !profile && Boolean(cachedProfile),
+    profileReady: authLoading ? false : profileReady,
   };
 }

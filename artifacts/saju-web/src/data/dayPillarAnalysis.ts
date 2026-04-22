@@ -645,5 +645,54 @@ export function getDayPillarAnalysis(stem: string, branch: string): DayPillarAna
   return DATA[stem + branch];
 }
 
+export interface DayPillarAnalysisEntry extends DayPillarAnalysis {
+  key: string;
+  stem: string;
+  branch: string;
+}
+
+export function normalizeDayPillarQuery(query: string): string {
+  return query
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/[()（）[\]【】]/g, "")
+    .replace(/일주|日柱|분석/g, "");
+}
+
+export const DAY_PILLAR_ANALYSIS_ENTRIES: DayPillarAnalysisEntry[] = Object.entries(DATA).map(([key, value]) => ({
+  key,
+  stem: key.slice(0, 1),
+  branch: key.slice(1),
+  ...value,
+}));
+
+function getEntrySearchTerms(entry: DayPillarAnalysisEntry): string[] {
+  return [
+    entry.key,
+    entry.hanja,
+    entry.title,
+    `${entry.key}${entry.hanja}`,
+    `${entry.hanja}${entry.key}`,
+  ].map(normalizeDayPillarQuery);
+}
+
+export function searchDayPillarAnalyses(query: string): DayPillarAnalysisEntry[] {
+  const normalized = normalizeDayPillarQuery(query);
+  if (!normalized) return DAY_PILLAR_ANALYSIS_ENTRIES;
+
+  return DAY_PILLAR_ANALYSIS_ENTRIES.filter((entry) =>
+    getEntrySearchTerms(entry).some((term) => term.includes(normalized)),
+  );
+}
+
+export function findDayPillarAnalysisByQuery(query: string): DayPillarAnalysisEntry | undefined {
+  const normalized = normalizeDayPillarQuery(query);
+  if (!normalized) return undefined;
+
+  return DAY_PILLAR_ANALYSIS_ENTRIES.find((entry) =>
+    getEntrySearchTerms(entry).some((term) => term === normalized),
+  ) ?? searchDayPillarAnalyses(query)[0];
+}
+
 /** 등록된 일주 수 */
 export const REGISTERED_COUNT = Object.keys(DATA).length;

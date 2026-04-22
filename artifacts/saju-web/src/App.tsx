@@ -30,6 +30,7 @@ import LuckyCalendarPage from "@/pages/lucky-calendar";
 import SinsalGuidePage from "@/pages/sinsal-guide";
 import GlossaryPage from "@/pages/glossary";
 import SajuTablesPage from "@/pages/saju-tables";
+import DayPillarAnalysisPage from "@/pages/day-pillar-analysis";
 import LoveFortunePage from "@/pages/love-fortune";
 import NotFound from "@/pages/not-found";
 
@@ -70,6 +71,7 @@ function Router() {
             <Route path="/sinsal-guide" component={() => <RequireAdmin><SinsalGuidePage /></RequireAdmin>} />
             <Route path="/glossary" component={() => <RequireAdmin><GlossaryPage /></RequireAdmin>} />
             <Route path="/saju-tables" component={() => <RequireAdmin><SajuTablesPage /></RequireAdmin>} />
+            <Route path="/day-pillar-analysis" component={() => <RequireAdmin><DayPillarAnalysisPage /></RequireAdmin>} />
             <Route path="/inquiries" component={InquiriesPage} />
             <Route path="/admin" component={() => <RequireAdmin><AdminPage /></RequireAdmin>} />
             <Route component={NotFound} />

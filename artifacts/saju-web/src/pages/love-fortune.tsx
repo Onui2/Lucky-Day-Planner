@@ -9,6 +9,7 @@ import { BIRTH_HOURS, normalizeBirthHour } from "@/components/ProfileModal";
 import { Loader2, Heart, UserCircle2, Sparkles, ChevronDown, ChevronUp, Star, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";
+import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
 
 const ELEM_COLOR: Record<string, string> = {
   목:'text-green-400', 화:'text-red-400', 토:'text-yellow-400', 금:'text-gray-300', 수:'text-blue-400',
@@ -295,7 +296,7 @@ function DatingResult({ data }: { data: LoveFortuneResult }) {
 
 // 생년월일 입력 블록
 interface BirthFieldState {
-  year: string; month: string; day: string; hour: number;
+  year: string; month: string; day: string; hour: number; minute: string;
 }
 function BirthBlock({
   label, icon, state, onChange,
@@ -336,21 +337,36 @@ function BirthBlock({
           />
         </div>
       </div>
-      <div>
-        <Label className="text-xs text-muted-foreground mb-1 block">태어난 시 (선택)</Label>
-        <Select
-          value={String(state.hour)}
-          onValueChange={v => onChange({ ...state, hour: Number(v) })}
-        >
-          <SelectTrigger className="bg-white/5 border-white/10 text-sm">
-            <SelectValue placeholder="시간 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            {BIRTH_HOURS.map(h => (
-              <SelectItem key={`h-${h.value}`} value={String(h.value)}>{h.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">시 (Hour)</Label>
+          <Select
+            value={String(state.hour)}
+            onValueChange={v => onChange({ ...state, hour: Number(v), minute: Number(v) === -1 ? '' : state.minute })}
+          >
+            <SelectTrigger className="bg-white/5 border-white/10 text-sm">
+              <SelectValue placeholder="시간 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {BIRTH_HOURS.map(h => (
+                <SelectItem key={`h-${h.value}`} value={String(h.value)}>{h.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">분 (Minute)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={59}
+            placeholder="0~59"
+            value={state.minute}
+            disabled={state.hour === -1}
+            onChange={e => onChange({ ...state, minute: e.target.value })}
+            className="bg-white/5 border-white/10 text-sm"
+          />
+        </div>
       </div>
       {setGender && (
         <div>
@@ -378,7 +394,7 @@ function BirthBlock({
   );
 }
 
-const EMPTY_BIRTH: BirthFieldState = { year: '', month: '', day: '', hour: -1 };
+const EMPTY_BIRTH: BirthFieldState = { year: '', month: '', day: '', hour: -1, minute: '' };
 
 export default function LoveFortunePage() {
   const { profile } = useUser();
@@ -397,6 +413,7 @@ export default function LoveFortunePage() {
       month: p.birthMonth ? String(p.birthMonth) : '',
       day: p.birthDay ? String(p.birthDay) : '',
       hour: p.birthHour != null ? normalizeBirthHour(p.birthHour) : -1,
+      minute: p.birthHour != null && normalizeBirthHour(p.birthHour) !== -1 ? formatBirthMinute(p.birthMinute) : '',
     });
     if (p.gender) setGender(p.gender);
   }
@@ -408,6 +425,7 @@ export default function LoveFortunePage() {
       birthMonth: Number(myBirth.month),
       birthDay: Number(myBirth.day),
       birthHour: normalizeBirthHour(myBirth.hour),
+      birthMinute: myBirth.hour === -1 ? 0 : parseBirthMinute(myBirth.minute),
       gender,
       status,
       targetYear: CURRENT_YEAR,
@@ -417,6 +435,7 @@ export default function LoveFortunePage() {
       body.partnerMonth = Number(partnerBirth.month) || undefined;
       body.partnerDay = Number(partnerBirth.day) || undefined;
       body.partnerHour = normalizeBirthHour(partnerBirth.hour);
+      body.partnerMinute = partnerBirth.hour === -1 ? 0 : parseBirthMinute(partnerBirth.minute);
     }
     mutate(body, { onSuccess: (data) => setResult(data) });
   }

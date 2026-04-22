@@ -50,6 +50,7 @@ router.post("/saju/calculate", (req, res) => {
     const month = Number(birthMonth);
     const day   = Number(birthDay);
     const hour  = birthHour === -1 ? -1 : Number(birthHour);
+    const minute = hour === -1 ? 0 : Number(birthMinute);
 
     // 입춘 시각 기준으로 정확한 사주 연도 계산 (입춘 전 출생자는 전년도 간지)
     const sajuYearNum = getSajuYear(year, month, day, hour);
@@ -81,7 +82,7 @@ router.post("/saju/calculate", (req, res) => {
     };
 
     const result = {
-      birthInfo: { year, month, day, hour, gender, calendarType },
+      birthInfo: { year, month, day, hour, minute, gender, calendarType },
       yearPillar:  makePillarResponse(yearPillar),
       monthPillar: makePillarResponse(monthPillar),
       dayPillar:   makePillarResponse(dayPillar),

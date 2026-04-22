@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";
+import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
 
 const ELEM_KOR: Record<string, string> = { 목:'木', 화:'火', 토:'土', 금:'金', 수:'水' };
 const ELEM_COLOR: Record<string, string> = {
@@ -256,6 +257,7 @@ export default function YearFortunePage() {
     birthMonth: '',
     birthDay: '',
     birthHour: -1,
+    birthMinute: '',
     targetYear: currentYear.toString(),
   });
   const [fromProfile, setFromProfile] = useState(false);
@@ -268,6 +270,7 @@ export default function YearFortunePage() {
       birthMonth: profile.birthMonth?.toString() ?? '',
       birthDay:   profile.birthDay?.toString()   ?? '',
       birthHour:  profile.birthHour !== undefined ? profile.birthHour : -1,
+      birthMinute: profile.birthHour !== undefined && profile.birthHour >= 0 ? formatBirthMinute(profile.birthMinute) : '',
     }));
     setFromProfile(true);
   }
@@ -281,6 +284,7 @@ export default function YearFortunePage() {
       birthMonth: Number(form.birthMonth),
       birthDay: Number(form.birthDay),
       birthHour: form.birthHour,
+      birthMinute: form.birthHour === -1 ? 0 : parseBirthMinute(form.birthMinute),
       targetYear: Number(form.targetYear),
     });
   };
@@ -343,10 +347,10 @@ export default function YearFortunePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">출생 시각 (선택)</Label>
-              <Select value={String(form.birthHour)} onValueChange={v => setForm(f => ({ ...f, birthHour: Number(v) }))}>
+              <Label className="text-xs text-muted-foreground">시 (Hour)</Label>
+              <Select value={String(form.birthHour)} onValueChange={v => setForm(f => ({ ...f, birthHour: Number(v), birthMinute: Number(v) === -1 ? '' : f.birthMinute }))}>
                 <SelectTrigger className="bg-white/5 border-white/10">
                   <SelectValue />
                 </SelectTrigger>
@@ -356,6 +360,19 @@ export default function YearFortunePage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">분 (Minute)</Label>
+              <Input
+                value={form.birthMinute}
+                onChange={e => set('birthMinute', e.target.value)}
+                className="bg-white/5 border-white/10"
+                type="number"
+                min={0}
+                max={59}
+                placeholder="0~59"
+                disabled={form.birthHour === -1}
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">조회 연도</Label>

@@ -15,6 +15,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useLoveFortune, type LoveFortuneResult } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
+import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
 
 // ── 공통 상수 ────────────────────────────────────────────────
 const CURRENT_YEAR = new Date().getFullYear();
@@ -210,8 +211,8 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
 }
 
 // ── 인연운 입력 폼 ────────────────────────────────────────────
-interface BirthFieldState { year: string; month: string; day: string; hour: number; }
-const EMPTY_BIRTH: BirthFieldState = { year: "", month: "", day: "", hour: -1 };
+interface BirthFieldState { year: string; month: string; day: string; hour: number; minute: string; }
+const EMPTY_BIRTH: BirthFieldState = { year: "", month: "", day: "", hour: -1, minute: "" };
 
 function BirthBlock({
   label, icon, state, onChange, gender, setGender,
@@ -239,16 +240,31 @@ function BirthBlock({
           </div>
         ))}
       </div>
-      <div>
-        <Label className="text-xs text-muted-foreground mb-1 block">태어난 시 (선택)</Label>
-        <Select value={String(state.hour)} onValueChange={(v) => onChange({ ...state, hour: Number(v) })}>
-          <SelectTrigger className="bg-white/5 border-white/10 text-sm"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {BIRTH_HOURS.map((h) => (
-              <SelectItem key={`h-${h.value}`} value={String(h.value)}>{h.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">시 (Hour)</Label>
+          <Select value={String(state.hour)} onValueChange={(v) => onChange({ ...state, hour: Number(v), minute: Number(v) === -1 ? "" : state.minute })}>
+            <SelectTrigger className="bg-white/5 border-white/10 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {BIRTH_HOURS.map((h) => (
+                <SelectItem key={`h-${h.value}`} value={String(h.value)}>{h.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">분 (Minute)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={59}
+            placeholder="0~59"
+            value={state.minute}
+            disabled={state.hour === -1}
+            onChange={(e) => onChange({ ...state, minute: e.target.value })}
+            className="bg-white/5 border-white/10 text-sm"
+          />
+        </div>
       </div>
       {setGender && (
         <div>
@@ -286,6 +302,7 @@ function SoloTab() {
       month: p.birthMonth ? String(p.birthMonth) : "",
       day: p.birthDay ? String(p.birthDay) : "",
       hour: p.birthHour != null ? normalizeBirthHour(p.birthHour) : -1,
+      minute: p.birthHour != null && normalizeBirthHour(p.birthHour) !== -1 ? formatBirthMinute(p.birthMinute) : "",
     });
     if (p.gender) setGender(p.gender);
   }
@@ -296,6 +313,7 @@ function SoloTab() {
       {
         birthYear: Number(myBirth.year), birthMonth: Number(myBirth.month),
         birthDay: Number(myBirth.day), birthHour: normalizeBirthHour(myBirth.hour),
+        birthMinute: myBirth.hour === -1 ? 0 : parseBirthMinute(myBirth.minute),
         gender, status: "solo", targetYear: CURRENT_YEAR,
       },
       { onSuccess: (data) => setResult(data) }
@@ -349,17 +367,17 @@ function SoloTab() {
 // ── 궁합 탭 ──────────────────────────────────────────────────
 interface PersonForm {
   birthYear: string; birthMonth: string; birthDay: string;
-  birthHour: number; gender: "male" | "female"; name: string;
+  birthHour: number; birthMinute: string; gender: "male" | "female"; name: string;
 }
 const defaultPerson = (g: "male" | "female"): PersonForm => ({
-  birthYear: "", birthMonth: "", birthDay: "", birthHour: -1, gender: g, name: "",
+  birthYear: "", birthMonth: "", birthDay: "", birthHour: -1, birthMinute: "", gender: g, name: "",
 });
 
 async function fetchGungap(p1: PersonForm, p2: PersonForm) {
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   const toPayload = (p: PersonForm) => ({
     year: parseInt(p.birthYear), month: parseInt(p.birthMonth),
-    day: parseInt(p.birthDay), hour: p.birthHour, gender: p.gender,
+    day: parseInt(p.birthDay), hour: p.birthHour, minute: parseBirthMinute(p.birthMinute), gender: p.gender,
   });
   const res = await fetch(`${base}/api/gungap/compare`, {
     method: "POST",
@@ -387,6 +405,7 @@ function GungapTab() {
       name: profile.name ?? "", gender: profile.gender,
       birthYear: String(profile.birthYear), birthMonth: String(profile.birthMonth),
       birthDay: String(profile.birthDay), birthHour: normalizeBirthHour(profile.birthHour),
+      birthMinute: profile.birthHour >= 0 ? formatBirthMinute(profile.birthMinute) : "",
     });
     setP1FromProfile(true);
   }
@@ -493,14 +512,29 @@ function GungapTab() {
                       </div>
                     ))}
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">출생 시간 (선택)</label>
-                    <Select value={String(state.birthHour)} onValueChange={(v) => setState((prev) => ({ ...prev, birthHour: Number(v) }))}>
-                      <SelectTrigger className="h-10 rounded-xl border-primary/20 bg-input text-foreground"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {BIRTH_HOURS.map((h) => (<SelectItem key={h.value} value={String(h.value)}>{h.label}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">시 (Hour)</label>
+                      <Select value={String(state.birthHour)} onValueChange={(v) => setState((prev) => ({ ...prev, birthHour: Number(v), birthMinute: Number(v) === -1 ? "" : prev.birthMinute }))}>
+                        <SelectTrigger className="h-10 rounded-xl border-primary/20 bg-input text-foreground"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {BIRTH_HOURS.map((h) => (<SelectItem key={h.value} value={String(h.value)}>{h.label}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">분 (Minute)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={59}
+                        placeholder="0~59"
+                        value={state.birthMinute}
+                        disabled={state.birthHour === -1}
+                        onChange={(e) => setState((prev) => ({ ...prev, birthMinute: e.target.value }))}
+                        className="placeholder:text-muted-foreground/40 text-sm"
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>

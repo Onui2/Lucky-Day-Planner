@@ -76,6 +76,7 @@ export interface SajuBirthInfo {
   month: number;
   day: number;
   hour: number;
+  minute?: number;
   gender: string;
   calendarType: string;
 }
