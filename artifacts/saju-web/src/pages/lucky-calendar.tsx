@@ -1,16 +1,29 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { useSearch } from "wouter";
+import { useAuth } from "@workspace/replit-auth-web";
 import { useUser } from "@/contexts/UserContext";
 import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import {
   Loader2, Sparkles, ChevronLeft, ChevronRight, Calendar, Star, Trophy, Home,
-  Briefcase, Heart, FileText, BookOpen, Plane, Activity, TrendingUp,
+  Briefcase, Heart, FileText, BookOpen, Plane, Activity, TrendingUp, BookmarkPlus, Trash2, CheckCheck,
 } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
+import {
+  addRecentActivity,
+  createLuckyDayBookmarkId,
+  formatBookmarkDate,
+  getLuckyDayBookmarks,
+  removeLuckyDayBookmark,
+  upsertLuckyDayBookmark,
+  type LuckyDayBookmark,
+} from "@/lib/member-insights";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
 const STEM_HANJA: Record<string,string> = { 갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸' };
@@ -66,16 +79,37 @@ function getDayOfWeekIndex(year: number, month: number, day: number) {
 }
 
 export default function LuckyCalendarPage() {
+  const rawSearch = useSearch();
+  const searchParams = new URLSearchParams(rawSearch);
   const { profile, hasCachedProfile } = useResolvedProfile();
+  const { user } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const now = new Date();
-  const [year, setYear]     = useState(now.getFullYear());
-  const [month, setMonth]   = useState(now.getMonth() + 1);
-  const [purpose, setPurpose] = useState('이사');
-  const [selectedDay, setSelectedDay] = useState<LuckyDay | null>(null);
+  const initialYear = Number(searchParams.get("y")) || now.getFullYear();
+  const initialMonth = Number(searchParams.get("m")) || now.getMonth() + 1;
+  const initialPurpose = PURPOSES.some((item) => item.key === searchParams.get("p")) ? searchParams.get("p") ?? "이사" : "이사";
+  const initialDay = Number(searchParams.get("d")) || null;
 
-  const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
-  const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
+  const [year, setYear]     = useState(initialYear);
+  const [month, setMonth]   = useState(initialMonth);
+  const [purpose, setPurpose] = useState(initialPurpose);
+  const [selectedDay, setSelectedDay] = useState<LuckyDay | null>(null);
+  const [requestedDay, setRequestedDay] = useState<number | null>(initialDay);
+  const [bookmarkTitle, setBookmarkTitle] = useState("");
+  const [bookmarkNote, setBookmarkNote] = useState("");
+  const [saveDone, setSaveDone] = useState(false);
+  const [bookmarks, setBookmarks] = useState<LuckyDayBookmark[]>([]);
+
+  const prevMonth = () => {
+    setRequestedDay(null);
+    setSelectedDay(null);
+    if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    setRequestedDay(null);
+    setSelectedDay(null);
+    if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1);
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['lucky-days', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.gender, year, month, purpose],
@@ -83,8 +117,103 @@ export default function LuckyCalendarPage() {
     enabled: !!profile,
   });
 
+  const selectedBookmarkId = selectedDay
+    ? createLuckyDayBookmarkId(year, month, selectedDay.day, purpose)
+    : null;
+  const selectedBookmark = useMemo(
+    () => bookmarks.find((item) => item.id === selectedBookmarkId) ?? null,
+    [bookmarks, selectedBookmarkId],
+  );
+
+  useEffect(() => {
+    if (!user?.id) {
+      setBookmarks([]);
+      return;
+    }
+
+    setBookmarks(getLuckyDayBookmarks(user.id));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!selectedDay || !data) {
+      setBookmarkTitle("");
+      setBookmarkNote("");
+      return;
+    }
+
+    const defaultTitle = `${formatBookmarkDate({ year, month, day: selectedDay.day })} ${data.purposeLabel}`;
+    setBookmarkTitle(selectedBookmark?.title ?? defaultTitle);
+    setBookmarkNote(selectedBookmark?.note ?? "");
+  }, [data, month, selectedBookmark, selectedDay, year]);
+
+  useEffect(() => {
+    if (!data || !requestedDay || selectedDay) return;
+    const matched = data.days.find((item) => item.day === requestedDay) ?? null;
+    if (matched) {
+      setSelectedDay(matched);
+    }
+  }, [data, requestedDay, selectedDay]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("y", String(year));
+    url.searchParams.set("m", String(month));
+    url.searchParams.set("p", purpose);
+
+    if (selectedDay) {
+      url.searchParams.set("d", String(selectedDay.day));
+    } else {
+      url.searchParams.delete("d");
+    }
+
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+  }, [month, purpose, selectedDay, year]);
+
   // 달력 첫 날 요일
   const firstDow = getDayOfWeekIndex(year, month, 1);
+
+  function handleSaveBookmark() {
+    if (!user?.id || !selectedDay || !data || !selectedBookmarkId) return;
+
+    const bookmark = {
+      id: selectedBookmarkId,
+      title: bookmarkTitle.trim() || `${formatBookmarkDate({ year, month, day: selectedDay.day })} ${data.purposeLabel}`,
+      note: bookmarkNote.trim() || undefined,
+      year,
+      month,
+      day: selectedDay.day,
+      purpose,
+      purposeLabel: data.purposeLabel,
+      ganzi: selectedDay.ganzi,
+      ganziHanja: selectedDay.ganziHanja,
+      grade: selectedDay.grade,
+      score: selectedDay.score,
+      tags: selectedDay.tags,
+      href: `/lucky-calendar?y=${year}&m=${month}&p=${encodeURIComponent(purpose)}&d=${selectedDay.day}`,
+      createdAt: new Date().toISOString(),
+    } satisfies LuckyDayBookmark;
+
+    const next = upsertLuckyDayBookmark(user.id, bookmark);
+    void addRecentActivity(user.id, {
+      id: `lucky-day:${bookmark.id}`,
+      kind: "lucky-day",
+      title: bookmark.title,
+      subtitle: `${bookmark.purposeLabel} · ${bookmark.ganziHanja} · ${bookmark.grade}`,
+      href: bookmark.href,
+      createdAt: new Date().toISOString(),
+    });
+
+    setBookmarks(next);
+    setSaveDone(true);
+    window.setTimeout(() => setSaveDone(false), 1800);
+  }
+
+  function handleRemoveBookmark(bookmarkId: string) {
+    if (!user?.id) return;
+    setBookmarks(removeLuckyDayBookmark(user.id, bookmarkId));
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
@@ -124,7 +253,7 @@ export default function LuckyCalendarPage() {
               const Icon = p.icon;
               const isActive = purpose === p.key;
               return (
-                <button key={p.key} onClick={() => setPurpose(p.key)}
+                <button key={p.key} onClick={() => { setPurpose(p.key); setSelectedDay(null); setRequestedDay(null); }}
                   className={cn(
                     "flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium transition-all",
                     isActive ? "border-primary/60 bg-primary/15 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20"
@@ -178,7 +307,7 @@ export default function LuckyCalendarPage() {
                       const day = data.days.find(dd => dd.day === d);
                       if (!day) return null;
                       return (
-                        <button key={d} onClick={() => setSelectedDay(day)}
+                        <button key={d} onClick={() => { setSelectedDay(day); setRequestedDay(day.day); }}
                           className="flex flex-col items-center bg-amber-400/15 border border-amber-400/40 rounded-xl px-3 py-2 hover:bg-amber-400/25 transition-colors">
                           <span className="text-amber-300 font-bold text-sm">{d}일</span>
                           <span className="text-xs text-muted-foreground">{day.dayOfWeek}요</span>
@@ -215,7 +344,10 @@ export default function LuckyCalendarPage() {
                         key={day.day}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => setSelectedDay(isSelected ? null : day)}
+                        onClick={() => {
+                          setSelectedDay(isSelected ? null : day);
+                          setRequestedDay(isSelected ? null : day.day);
+                        }}
                         className={cn(
                           "relative rounded-lg p-1 border text-center transition-all min-h-[56px] flex flex-col items-center justify-center gap-0.5",
                           gs.bg, gs.border,
@@ -284,7 +416,105 @@ export default function LuckyCalendarPage() {
                       ))}
                     </div>
                   )}
+
+                  <div className="mt-5 rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-medium text-foreground">길일 저장</h3>
+                        <p className="text-xs text-muted-foreground">자주 볼 날짜를 메모와 함께 저장</p>
+                      </div>
+                      {selectedBookmark && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBookmark(selectedBookmark.id)}
+                          className="inline-flex items-center gap-1.5 text-xs text-rose-300 hover:text-rose-200 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          저장 취소
+                        </button>
+                      )}
+                    </div>
+
+                    <Input
+                      value={bookmarkTitle}
+                      onChange={(e) => setBookmarkTitle(e.target.value)}
+                      placeholder="예) 계약하기 좋은 날"
+                      className="bg-background/40 border-primary/15"
+                    />
+                    <Textarea
+                      value={bookmarkNote}
+                      onChange={(e) => setBookmarkNote(e.target.value)}
+                      placeholder="메모를 남겨두면 홈/계정에서 다시 보기 좋음"
+                      className="min-h-[84px] bg-background/40 border-primary/15 resize-none"
+                    />
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" onClick={handleSaveBookmark} className="gap-2">
+                        {saveDone ? <CheckCheck className="w-4 h-4" /> : <BookmarkPlus className="w-4 h-4" />}
+                        {selectedBookmark ? "저장 내용 업데이트" : "길일 저장"}
+                      </Button>
+                      {saveDone && (
+                        <span className="text-xs text-emerald-400">저장 완료</span>
+                      )}
+                    </div>
+                  </div>
                 </motion.div>
+              )}
+
+              {bookmarks.length > 0 && (
+                <div className="glass-panel border border-primary/15 rounded-2xl p-4">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <h3 className="text-sm font-medium text-foreground">저장한 길일</h3>
+                      <p className="text-xs text-muted-foreground">최근 저장한 일정 메모</p>
+                    </div>
+                    <span className="text-xs text-primary">{bookmarks.length}개</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {bookmarks.slice(0, 4).map((bookmark) => (
+                      <div
+                        key={bookmark.id}
+                        className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 flex items-start justify-between gap-3"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setYear(bookmark.year);
+                            setMonth(bookmark.month);
+                            setPurpose(bookmark.purpose);
+                            setSelectedDay(null);
+                            setRequestedDay(bookmark.day);
+                          }}
+                          className="text-left min-w-0 flex-1"
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm text-foreground">{bookmark.title}</span>
+                            <span className={cn("text-[11px] px-2 py-0.5 rounded-full border", GRADE_STYLE[bookmark.grade].text, GRADE_STYLE[bookmark.grade].bg, GRADE_STYLE[bookmark.grade].border)}>
+                              {bookmark.grade}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {formatBookmarkDate(bookmark)} · {bookmark.purposeLabel} · {bookmark.ganziHanja}
+                          </div>
+                          {bookmark.note && (
+                            <div className="text-xs text-foreground/70 mt-1.5 line-clamp-2">
+                              {bookmark.note}
+                            </div>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBookmark(bookmark.id)}
+                          className="text-muted-foreground hover:text-rose-300 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {/* 범례 */}

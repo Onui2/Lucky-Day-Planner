@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search } from "lucide-react";
+import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search, BookmarkPlus, History, UserCircle2 } from "lucide-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
+import { useResolvedProfile } from "@/lib/resolved-profile";
+import { getCurrentAge } from "@/lib/age";
+import { formatBookmarkDate, getLuckyDayBookmarks, getRecentActivities, type LuckyDayBookmark, type RecentActivityItem } from "@/lib/member-insights";
 
 type InquiryType = "general" | "saju" | "gungap";
 
 export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
+  const [bookmarks, setBookmarks] = useState<LuckyDayBookmark[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivityItem[]>([]);
   const { user, isAuthenticated } = useAuth();
+  const { profile } = useResolvedProfile();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
   function openInquiry(type: InquiryType) {
@@ -33,6 +39,17 @@ export default function Home() {
     show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
   };
 
+  useEffect(() => {
+    if (!user?.id) {
+      setBookmarks([]);
+      setRecentActivities([]);
+      return;
+    }
+
+    setBookmarks(getLuckyDayBookmarks(user.id));
+    setRecentActivities(getRecentActivities(user.id));
+  }, [user?.id]);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
       <motion.div 
@@ -53,6 +70,142 @@ export default function Home() {
           그리고 인생의 흐름을 정확하게 짚어드립니다.
         </p>
       </motion.div>
+
+      {isAuthenticated && (
+        <motion.div
+          className="w-full max-w-5xl mb-12"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
+        >
+          <div className="rounded-[28px] border border-primary/20 bg-card/35 backdrop-blur-xl p-6 md:p-7">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+              <div>
+                <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">my dashboard</p>
+                <h2 className="font-serif text-3xl font-bold text-foreground">내 사주 대시보드</h2>
+                <p className="text-sm text-muted-foreground mt-2">다시 볼 분석과 저장한 길일을 한곳에 모았습니다</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/saju" className="px-3 py-2 rounded-xl border border-primary/20 bg-primary/8 text-primary text-sm hover:bg-primary/12 transition-colors">
+                  사주 다시 보기
+                </Link>
+                <Link href="/account" className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-foreground/80 text-sm hover:bg-white/8 transition-colors">
+                  내 정보 관리
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-5">
+              <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
+                    <UserCircle2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-muted-foreground">내 사주 요약</div>
+                    <div className="text-xl font-semibold text-foreground mt-1">
+                      {profile?.name ?? user?.firstName ?? "회원님"}
+                    </div>
+                    {profile ? (
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                          <div className="text-[11px] text-muted-foreground mb-1">생년월일</div>
+                          <div className="font-medium">{profile.birthYear}.{String(profile.birthMonth).padStart(2, "0")}.{String(profile.birthDay).padStart(2, "0")}</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                          <div className="text-[11px] text-muted-foreground mb-1">현재 나이</div>
+                          <div className="font-medium">{getCurrentAge(profile.birthYear, profile.birthMonth, profile.birthDay)}세</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                          <div className="text-[11px] text-muted-foreground mb-1">일주</div>
+                          <div className="font-medium">
+                            {profile.dayMasterStem && profile.dayMasterBranch
+                              ? `${profile.dayMasterStem}${profile.dayMasterBranch}`
+                              : "미등록"}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                          <div className="text-[11px] text-muted-foreground mb-1">성별 · 달력</div>
+                          <div className="font-medium">{profile.gender === "male" ? "남성" : "여성"} · {profile.calendarType === "solar" ? "양력" : "음력"}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3 rounded-2xl border border-primary/15 bg-primary/6 p-4 text-sm text-muted-foreground">
+                        아직 저장된 사주 없음. 등록하면 개인화 메뉴가 훨씬 편해집니다.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5">
+                <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <BookmarkPlus className="w-4 h-4 text-primary" />
+                      <h3 className="font-medium text-foreground">저장한 길일</h3>
+                    </div>
+                    <Link href="/lucky-calendar" className="text-xs text-primary hover:underline">길일 달력</Link>
+                  </div>
+                  {bookmarks.length > 0 ? (
+                    <div className="space-y-2">
+                      {bookmarks.slice(0, 3).map((bookmark) => (
+                        <Link
+                          key={bookmark.id}
+                          href={bookmark.href}
+                          className="block rounded-2xl border border-white/10 bg-white/5 px-3 py-3 hover:bg-white/8 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="font-medium text-sm text-foreground truncate">{bookmark.title}</div>
+                            <div className="text-xs text-primary shrink-0">{bookmark.grade}</div>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {formatBookmarkDate(bookmark)} · {bookmark.purposeLabel}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-muted-foreground">
+                      아직 저장한 길일 없음.
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <History className="w-4 h-4 text-primary" />
+                      <h3 className="font-medium text-foreground">최근 본 분석</h3>
+                    </div>
+                    <Link href="/account" className="text-xs text-primary hover:underline">전체 보기</Link>
+                  </div>
+                  {recentActivities.length > 0 ? (
+                    <div className="space-y-2">
+                      {recentActivities.slice(0, 4).map((activity) => (
+                        <Link
+                          key={activity.id}
+                          href={activity.href}
+                          className="block rounded-2xl border border-white/10 bg-white/5 px-3 py-3 hover:bg-white/8 transition-colors"
+                        >
+                          <div className="font-medium text-sm text-foreground">{activity.title}</div>
+                          {activity.subtitle && (
+                            <div className="text-xs text-muted-foreground mt-1">{activity.subtitle}</div>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-muted-foreground">
+                      아직 최근 기록 없음.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* 메인 기능 카드 */}
       <motion.div 

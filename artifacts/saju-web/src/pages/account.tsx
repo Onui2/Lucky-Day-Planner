@@ -12,10 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
+import { clearRecentActivities, formatBookmarkDate, getLuckyDayBookmarks, getRecentActivities, type LuckyDayBookmark, type RecentActivityItem } from "@/lib/member-insights";
 import {
   UserCircle2, KeyRound, Trash2, Loader2,
   CheckCircle2, AlertTriangle, ShieldCheck, Mail,
-  CalendarDays, Crown, Sparkles, ChevronRight,
+  CalendarDays, Crown, Sparkles, ChevronRight, BookmarkPlus, History,
 } from "lucide-react";
 
 const ELEM_COLOR: Record<string, string> = {
@@ -63,6 +64,8 @@ export default function AccountPage() {
   const { isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { profile, profileReady } = useUser();
   const [tab, setTab] = useState<Tab>("info");
+  const [bookmarks, setBookmarks] = useState<LuckyDayBookmark[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivityItem[]>([]);
 
   const { data: account, isLoading: accountLoading } = useGetAccount();
   const updateName = useUpdateAccountName();
@@ -88,6 +91,17 @@ export default function AccountPage() {
   useEffect(() => {
     if (account?.firstName) setName(account.firstName);
   }, [account]);
+
+  useEffect(() => {
+    if (!account?.id) {
+      setBookmarks([]);
+      setRecentActivities([]);
+      return;
+    }
+
+    setBookmarks(getLuckyDayBookmarks(account.id));
+    setRecentActivities(getRecentActivities(account.id));
+  }, [account?.id]);
 
   async function handleNameSave(e: React.FormEvent) {
     e.preventDefault();
@@ -302,6 +316,86 @@ export default function AccountPage() {
               )}
             </div>
           )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <div className="glass-panel rounded-2xl border border-primary/20 p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h2 className="font-serif text-lg font-semibold text-foreground flex items-center gap-2">
+                  <BookmarkPlus className="w-4 h-4 text-primary" /> 저장한 길일
+                </h2>
+                <Link href="/lucky-calendar">
+                  <button className="flex items-center gap-1 text-xs text-primary hover:underline">
+                    길일 달력 <ChevronRight className="w-3 h-3" />
+                  </button>
+                </Link>
+              </div>
+
+              {bookmarks.length > 0 ? (
+                <div className="space-y-2">
+                  {bookmarks.map((bookmark) => (
+                    <Link
+                      key={bookmark.id}
+                      href={bookmark.href}
+                      className="block rounded-2xl border border-white/10 bg-white/5 px-3 py-3 hover:bg-white/8 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-sm text-foreground truncate">{bookmark.title}</div>
+                        <div className="text-xs text-primary shrink-0">{bookmark.grade}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {formatBookmarkDate(bookmark)} · {bookmark.purposeLabel} · {bookmark.ganziHanja}
+                      </div>
+                      {bookmark.note && (
+                        <div className="text-xs text-foreground/70 mt-1.5 line-clamp-2">{bookmark.note}</div>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-muted-foreground">
+                  저장한 길일이 아직 없습니다.
+                </div>
+              )}
+            </div>
+
+            <div className="glass-panel rounded-2xl border border-primary/20 p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h2 className="font-serif text-lg font-semibold text-foreground flex items-center gap-2">
+                  <History className="w-4 h-4 text-primary" /> 최근 본 분석
+                </h2>
+                {account?.id && recentActivities.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setRecentActivities(clearRecentActivities(account.id))}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    기록 비우기
+                  </button>
+                )}
+              </div>
+
+              {recentActivities.length > 0 ? (
+                <div className="space-y-2">
+                  {recentActivities.map((activity) => (
+                    <Link
+                      key={activity.id}
+                      href={activity.href}
+                      className="block rounded-2xl border border-white/10 bg-white/5 px-3 py-3 hover:bg-white/8 transition-colors"
+                    >
+                      <div className="font-medium text-sm text-foreground">{activity.title}</div>
+                      {activity.subtitle && (
+                        <div className="text-xs text-muted-foreground mt-1">{activity.subtitle}</div>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-muted-foreground">
+                  최근 본 분석 기록이 아직 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
         </motion.div>
       )}
 

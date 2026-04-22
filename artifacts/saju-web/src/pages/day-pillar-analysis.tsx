@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearch } from "wouter";
 import { motion } from "framer-motion";
 import { BookOpen, Search, Sparkles, ChevronLeft, ChevronRight, Link2, CheckCheck } from "lucide-react";
+import { useAuth } from "@workspace/replit-auth-web";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,18 +14,24 @@ import {
   normalizeDayPillarQuery,
   searchDayPillarAnalyses,
 } from "@/data/dayPillarAnalysis";
+import { addRecentActivity } from "@/lib/member-insights";
 
 const EXAMPLE_QUERIES = ["갑자", "계묘", "癸卯", "신유", "丁亥"];
+const STEM_OPTIONS = ["전체", "갑", "을", "병", "정", "무", "기", "경", "신", "임", "계"] as const;
+const BRANCH_OPTIONS = ["전체", "자", "축", "인", "묘", "진", "사", "오", "미", "신", "유", "술", "해"] as const;
 
 export default function DayPillarAnalysisPage() {
   const rawSearch = useSearch();
   const initialQuery = new URLSearchParams(rawSearch).get("q") ?? "";
+  const { user } = useAuth();
 
   const [query, setQuery] = useState(initialQuery);
   const [selectedKey, setSelectedKey] = useState<string | null>(
     findDayPillarAnalysisByQuery(initialQuery)?.key ?? DAY_PILLAR_ANALYSIS_ENTRIES[0]?.key ?? null,
   );
   const [copied, setCopied] = useState(false);
+  const [stemFilter, setStemFilter] = useState<(typeof STEM_OPTIONS)[number]>("전체");
+  const [branchFilter, setBranchFilter] = useState<(typeof BRANCH_OPTIONS)[number]>("전체");
 
   useEffect(() => {
     const nextQuery = new URLSearchParams(rawSearch).get("q") ?? "";
@@ -34,10 +41,14 @@ export default function DayPillarAnalysisPage() {
     );
   }, [rawSearch]);
 
-  const entries = useMemo(
-    () => searchDayPillarAnalyses(query),
-    [query],
-  );
+  const entries = useMemo(() => {
+    const searched = searchDayPillarAnalyses(query);
+    return searched.filter((entry) => {
+      const matchStem = stemFilter === "전체" || entry.stem === stemFilter;
+      const matchBranch = branchFilter === "전체" || entry.branch === branchFilter;
+      return matchStem && matchBranch;
+    });
+  }, [branchFilter, query, stemFilter]);
 
   useEffect(() => {
     if (entries.length === 0) {
@@ -88,6 +99,19 @@ export default function DayPillarAnalysisPage() {
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
   }, [query]);
 
+  useEffect(() => {
+    if (!user?.id || !selected) return;
+
+    void addRecentActivity(user.id, {
+      id: `day-pillar:${selected.key}`,
+      kind: "day-pillar",
+      title: `${selected.key} 일주 분석`,
+      subtitle: selected.hanja,
+      href: `/day-pillar-analysis?q=${encodeURIComponent(selected.key)}`,
+      createdAt: new Date().toISOString(),
+    });
+  }, [selected, user?.id]);
+
   function jumpToEntry(nextKey: string) {
     setSelectedKey(nextKey);
     setQuery(nextKey);
@@ -132,6 +156,34 @@ export default function DayPillarAnalysisPage() {
               placeholder="계묘, 癸卯, 갑자, 甲子 ..."
               className="pl-9"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-1">
+              <span className="text-[11px] text-muted-foreground">천간 필터</span>
+              <select
+                value={stemFilter}
+                onChange={(e) => setStemFilter(e.target.value as (typeof STEM_OPTIONS)[number])}
+                className="w-full rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-sm outline-none focus:border-primary/50"
+              >
+                {STEM_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-[11px] text-muted-foreground">지지 필터</span>
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value as (typeof BRANCH_OPTIONS)[number])}
+                className="w-full rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-sm outline-none focus:border-primary/50"
+              >
+                {BRANCH_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
           </div>
 
           <div className="flex flex-wrap gap-2">

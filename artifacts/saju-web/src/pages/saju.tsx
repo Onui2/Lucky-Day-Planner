@@ -5,6 +5,7 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { Link, useSearch } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import { getCurrentAge } from "@/lib/age";
+import { addRecentActivity } from "@/lib/member-insights";
 import { getSajuCacheStorageKey, LEGACY_SAJU_CACHE_STORAGE_KEY } from "@/lib/profile-storage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -227,6 +228,26 @@ export default function SajuPage() {
     setCachedTs(null);
     setDisplaySource(null);
   }, [displaySource, isAuthenticated]);
+
+  useEffect(() => {
+    if (!user?.id || !displayResult?.birthInfo) return;
+
+    const bi = displayResult.birthInfo;
+    const stem = displayResult.dayPillar?.heavenlyStem ?? "";
+    const branch = displayResult.dayPillar?.earthlyBranch ?? "";
+    const title = `${bi.year}년 ${bi.month}월 ${bi.day}일 사주`;
+    const subtitle = stem && branch ? `${stem}${branch} 일주` : `${bi.gender === "male" ? "남성" : "여성"} 사주`;
+    const href = `/saju?y=${bi.year}&m=${bi.month}&d=${bi.day}&h=${bi.hour ?? -1}&g=${bi.gender ?? "male"}&c=${bi.calendarType ?? "solar"}`;
+
+    void addRecentActivity(user.id, {
+      id: `saju:${bi.year}-${bi.month}-${bi.day}-${bi.hour ?? -1}-${bi.minute ?? 0}-${bi.gender ?? "male"}-${bi.calendarType ?? "solar"}`,
+      kind: "saju",
+      title,
+      subtitle,
+      href,
+      createdAt: new Date().toISOString(),
+    });
+  }, [displayResult, user?.id]);
 
   const r = displayResult as any;
   const showAccountActions = isAuthenticated;
