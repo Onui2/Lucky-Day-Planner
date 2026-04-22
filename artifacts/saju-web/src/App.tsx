@@ -59,17 +59,17 @@ function Router() {
             <Route path="/account" component={() => <RequireAuth><AccountPage /></RequireAuth>} />
             <Route path="/gungap" component={GungapPage} />
             <Route path="/love-fortune" component={LoveFortunePage} />
-            <Route path="/year-fortune" component={YearFortunePage} />
-            <Route path="/name-analysis" component={NameAnalysisPage} />
-            <Route path="/zodiac" component={ZodiacPage} />
-            <Route path="/dream" component={DreamPage} />
+            <Route path="/year-fortune" component={() => <RequireAuth><YearFortunePage /></RequireAuth>} />
+            <Route path="/name-analysis" component={() => <RequireAuth><NameAnalysisPage /></RequireAuth>} />
+            <Route path="/zodiac" component={() => <RequireAuth><ZodiacPage /></RequireAuth>} />
+            <Route path="/dream" component={() => <RequireAuth><DreamPage /></RequireAuth>} />
             <Route path="/saved" component={SavedPage} />
             <Route path="/daeun" component={DaeunPage} />
             <Route path="/monthly-fortune" component={MonthlyFortunePage} />
             <Route path="/lucky-calendar" component={LuckyCalendarPage} />
-            <Route path="/sinsal-guide" component={SinsalGuidePage} />
-            <Route path="/glossary" component={GlossaryPage} />
-            <Route path="/saju-tables" component={SajuTablesPage} />
+            <Route path="/sinsal-guide" component={() => <RequireAdmin><SinsalGuidePage /></RequireAdmin>} />
+            <Route path="/glossary" component={() => <RequireAdmin><GlossaryPage /></RequireAdmin>} />
+            <Route path="/saju-tables" component={() => <RequireAdmin><SajuTablesPage /></RequireAdmin>} />
             <Route path="/inquiries" component={InquiriesPage} />
             <Route path="/admin" component={() => <RequireAdmin><AdminPage /></RequireAdmin>} />
             <Route component={NotFound} />

@@ -102,23 +102,20 @@ export function Layout({ children }: LayoutProps) {
 
   // 추가 서비스 (더보기 드롭다운)
   const extraServices = [
-    // 로그인 사용자 전용
     ...(isAuthenticated ? [
       { href: "/daeun", label: "대운 계산기", icon: TrendingUp, desc: "10년 단위 대운 타임라인" },
       { href: "/monthly-fortune", label: "월운 분석", icon: CalendarDays, desc: "세운·월건 십신 분석" },
       { href: "/lucky-calendar", label: "길일 달력", icon: Calendar, desc: "목적별 최적 날짜 선택" },
-    ] : []),
-    // 공개 교육 콘텐츠
-    { href: "/sinsal-guide", label: "신살 안내", icon: Star, desc: "도화·역마·천을귀인 등 해설" },
-    { href: "/glossary", label: "사주 용어 사전", icon: BookOpen, desc: "천간·지지·십신 용어 정리" },
-    { href: "/saju-tables", label: "이론 조견표", icon: TableProperties, desc: "합충형·삼재·귀문살·장간 등" },
-    // 관리자 전용
-    ...[
       { href: "/year-fortune", label: "연간 운세", icon: CalendarDays, desc: "올 한 해의 운세 흐름" },
       { href: "/name-analysis", label: "이름 풀이", icon: Type, desc: "수리사주 성명 분석" },
       { href: "/zodiac", label: "띠별 운세", icon: Orbit, desc: "12지신 오늘의 운세" },
       { href: "/dream", label: "꿈 해몽", icon: MoonStar, desc: "꿈 키워드로 길흉 풀이" },
-    ],
+    ] : []),
+    ...(isAdmin ? [
+      { href: "/sinsal-guide", label: "신살 안내", icon: Star, desc: "도화·역마·천을귀인 등 해설" },
+      { href: "/glossary", label: "사주 용어 사전", icon: BookOpen, desc: "천간·지지·십신 용어 정리" },
+      { href: "/saju-tables", label: "이론 조견표", icon: TableProperties, desc: "합충형·삼재·귀문살·장간 등" },
+    ] : []),
   ];
 
   const adminNavItem = {
@@ -214,7 +211,7 @@ export function Layout({ children }: LayoutProps) {
           <nav className="hidden md:flex items-center gap-6">
             {navItems.map((item) => renderNavLink(item))}
 
-            {/* 더보기 드롭다운 — 관리자 전용 */}
+            {/* 더보기 드롭다운 */}
             {extraServices.length > 0 && (
             <div className="relative">
               <button

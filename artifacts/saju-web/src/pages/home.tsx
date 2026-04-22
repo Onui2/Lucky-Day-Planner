@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star } from "lucide-react";
+import { useAuth } from "@workspace/replit-auth-web";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
 
 type InquiryType = "general" | "saju" | "gungap";
@@ -9,6 +10,8 @@ type InquiryType = "general" | "saju" | "gungap";
 export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
+  const { user, isAuthenticated } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
   function openInquiry(type: InquiryType) {
     setInquiryType(type);
@@ -122,69 +125,77 @@ export default function Home() {
           </Link>
         </motion.div>
 
-        <motion.div variants={item}>
-          <Link href="/year-fortune" className="block group h-full">
-            <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6 border border-blue-500/30 group-hover:scale-110 transition-transform">
-                <CalendarDays className="w-7 h-7 text-blue-400" />
+        {isAuthenticated && (
+          <motion.div variants={item}>
+            <Link href="/year-fortune" className="block group h-full">
+              <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
+                <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6 border border-blue-500/30 group-hover:scale-110 transition-transform">
+                  <CalendarDays className="w-7 h-7 text-blue-400" />
+                </div>
+                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">연간 운세</h3>
+                <p className="text-muted-foreground mb-8">올 한 해의 운세를 분기·월별로 상세 분석합니다.</p>
+                <div className="flex items-center text-blue-400 font-medium group-hover:gap-3 transition-all gap-2">
+                  확인하기 <ArrowRight className="w-4 h-4" />
+                </div>
               </div>
-              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">연간 운세</h3>
-              <p className="text-muted-foreground mb-8">올 한 해의 운세를 분기·월별로 상세 분석합니다.</p>
-              <div className="flex items-center text-blue-400 font-medium group-hover:gap-3 transition-all gap-2">
-                확인하기 <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-          </Link>
-        </motion.div>
+            </Link>
+          </motion.div>
+        )}
 
-        <motion.div variants={item}>
-          <Link href="/zodiac" className="block group h-full">
-            <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-colors" />
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mb-6 border border-amber-500/30 group-hover:scale-110 transition-transform">
-                <Orbit className="w-7 h-7 text-amber-400" />
+        {isAuthenticated && (
+          <motion.div variants={item}>
+            <Link href="/zodiac" className="block group h-full">
+              <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-colors" />
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mb-6 border border-amber-500/30 group-hover:scale-110 transition-transform">
+                  <Orbit className="w-7 h-7 text-amber-400" />
+                </div>
+                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">띠별 운세</h3>
+                <p className="text-muted-foreground mb-8">12지신의 오늘 운세를 순위별로 한눈에 확인합니다.</p>
+                <div className="flex items-center text-amber-400 font-medium group-hover:gap-3 transition-all gap-2">
+                  확인하기 <ArrowRight className="w-4 h-4" />
+                </div>
               </div>
-              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">띠별 운세</h3>
-              <p className="text-muted-foreground mb-8">12지신의 오늘 운세를 순위별로 한눈에 확인합니다.</p>
-              <div className="flex items-center text-amber-400 font-medium group-hover:gap-3 transition-all gap-2">
-                확인하기 <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-          </Link>
-        </motion.div>
+            </Link>
+          </motion.div>
+        )}
 
-        <motion.div variants={item}>
-          <Link href="/dream" className="block group h-full">
-            <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors" />
-              <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-6 border border-indigo-500/30 group-hover:scale-110 transition-transform">
-                <MoonStar className="w-7 h-7 text-indigo-400" />
+        {isAuthenticated && (
+          <motion.div variants={item}>
+            <Link href="/dream" className="block group h-full">
+              <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors" />
+                <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-6 border border-indigo-500/30 group-hover:scale-110 transition-transform">
+                  <MoonStar className="w-7 h-7 text-indigo-400" />
+                </div>
+                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">꿈 해몽</h3>
+                <p className="text-muted-foreground mb-8">꿈에 나타난 키워드로 오늘의 길흉을 풀이합니다.</p>
+                <div className="flex items-center text-indigo-400 font-medium group-hover:gap-3 transition-all gap-2">
+                  풀이하기 <ArrowRight className="w-4 h-4" />
+                </div>
               </div>
-              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">꿈 해몽</h3>
-              <p className="text-muted-foreground mb-8">꿈에 나타난 키워드로 오늘의 길흉을 풀이합니다.</p>
-              <div className="flex items-center text-indigo-400 font-medium group-hover:gap-3 transition-all gap-2">
-                풀이하기 <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-          </Link>
-        </motion.div>
+            </Link>
+          </motion.div>
+        )}
 
-        <motion.div variants={item}>
-          <Link href="/name-analysis" className="block group h-full">
-            <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl group-hover:bg-violet-500/20 transition-colors" />
-              <div className="w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center mb-6 border border-violet-500/30 group-hover:scale-110 transition-transform">
-                <Type className="w-7 h-7 text-violet-400" />
+        {isAuthenticated && (
+          <motion.div variants={item}>
+            <Link href="/name-analysis" className="block group h-full">
+              <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl group-hover:bg-violet-500/20 transition-colors" />
+                <div className="w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center mb-6 border border-violet-500/30 group-hover:scale-110 transition-transform">
+                  <Type className="w-7 h-7 text-violet-400" />
+                </div>
+                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">이름 풀이</h3>
+                <p className="text-muted-foreground mb-8">수리사주와 오행으로 이름의 운세와 성격을 분석합니다.</p>
+                <div className="flex items-center text-violet-400 font-medium group-hover:gap-3 transition-all gap-2">
+                  분석하기 <ArrowRight className="w-4 h-4" />
+                </div>
               </div>
-              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">이름 풀이</h3>
-              <p className="text-muted-foreground mb-8">수리사주와 오행으로 이름의 운세와 성격을 분석합니다.</p>
-              <div className="flex items-center text-violet-400 font-medium group-hover:gap-3 transition-all gap-2">
-                분석하기 <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-          </Link>
-        </motion.div>
+            </Link>
+          </motion.div>
+        )}
 
       </motion.div>
 
@@ -258,39 +269,41 @@ export default function Home() {
             </Link>
           </motion.div>
 
-          {/* 신살 안내 */}
-          <motion.div variants={item}>
-            <Link href="/sinsal-guide" className="block group h-full">
-              <div className="h-full rounded-3xl border border-amber-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(251,191,36,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full blur-3xl group-hover:bg-amber-400/20 transition-colors" />
-                <div className="w-14 h-14 rounded-2xl bg-amber-400/20 flex items-center justify-center mb-6 border border-amber-400/30 group-hover:scale-110 transition-transform">
-                  <Star className="w-7 h-7 text-amber-400" />
+          {isAdmin && (
+            <motion.div variants={item}>
+              <Link href="/sinsal-guide" className="block group h-full">
+                <div className="h-full rounded-3xl border border-amber-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(251,191,36,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full blur-3xl group-hover:bg-amber-400/20 transition-colors" />
+                  <div className="w-14 h-14 rounded-2xl bg-amber-400/20 flex items-center justify-center mb-6 border border-amber-400/30 group-hover:scale-110 transition-transform">
+                    <Star className="w-7 h-7 text-amber-400" />
+                  </div>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">신살(神殺) 안내</h3>
+                  <p className="text-muted-foreground mb-8">천을귀인·도화살·역마살·화개살·양인살·겁살·삼재 등 7종 신살의 의미, 긍정적 활용법, 주의사항을 상세히 해설합니다.</p>
+                  <div className="flex items-center text-amber-400 font-medium group-hover:gap-3 transition-all gap-2">
+                    알아보기 <ArrowRight className="w-4 h-4" />
+                  </div>
                 </div>
-                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">신살(神殺) 안내</h3>
-                <p className="text-muted-foreground mb-8">천을귀인·도화살·역마살·화개살·양인살·겁살·삼재 등 7종 신살의 의미, 긍정적 활용법, 주의사항을 상세히 해설합니다.</p>
-                <div className="flex items-center text-amber-400 font-medium group-hover:gap-3 transition-all gap-2">
-                  알아보기 <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
+              </Link>
+            </motion.div>
+          )}
 
-          {/* 사주 용어 사전 */}
-          <motion.div variants={item}>
-            <Link href="/glossary" className="block group h-full">
-              <div className="h-full rounded-3xl border border-sky-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(56,189,248,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-3xl group-hover:bg-sky-400/20 transition-colors" />
-                <div className="w-14 h-14 rounded-2xl bg-sky-400/20 flex items-center justify-center mb-6 border border-sky-400/30 group-hover:scale-110 transition-transform">
-                  <BookOpen className="w-7 h-7 text-sky-400" />
+          {isAdmin && (
+            <motion.div variants={item}>
+              <Link href="/glossary" className="block group h-full">
+                <div className="h-full rounded-3xl border border-sky-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(56,189,248,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-3xl group-hover:bg-sky-400/20 transition-colors" />
+                  <div className="w-14 h-14 rounded-2xl bg-sky-400/20 flex items-center justify-center mb-6 border border-sky-400/30 group-hover:scale-110 transition-transform">
+                    <BookOpen className="w-7 h-7 text-sky-400" />
+                  </div>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">사주 용어 사전</h3>
+                  <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국 등 사주 핵심 용어 47가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
+                  <div className="flex items-center text-sky-400 font-medium group-hover:gap-3 transition-all gap-2">
+                    찾아보기 <ArrowRight className="w-4 h-4" />
+                  </div>
                 </div>
-                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">사주 용어 사전</h3>
-                <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국 등 사주 핵심 용어 47가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
-                <div className="flex items-center text-sky-400 font-medium group-hover:gap-3 transition-all gap-2">
-                  찾아보기 <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
+              </Link>
+            </motion.div>
+          )}
 
         </motion.div>
       </motion.div>
