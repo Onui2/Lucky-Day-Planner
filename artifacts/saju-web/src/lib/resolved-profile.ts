@@ -27,7 +27,10 @@ export function readCachedSajuProfile(): UserProfile | null {
     const saved = JSON.parse(raw) as { result?: Record<string, unknown> };
     const result = saved.result;
     const birthInfo = result?.birthInfo as Record<string, unknown> | undefined;
+    const yearPillar = result?.yearPillar as Record<string, unknown> | undefined;
+    const monthPillar = result?.monthPillar as Record<string, unknown> | undefined;
     const dayPillar = result?.dayPillar as Record<string, unknown> | undefined;
+    const hourPillar = result?.hourPillar as Record<string, unknown> | undefined;
 
     if (!birthInfo?.year || !birthInfo?.month || !birthInfo?.day) {
       return null;
@@ -50,6 +53,18 @@ export function readCachedSajuProfile(): UserProfile | null {
         typeof dayPillar?.heavenlyStem === "string" ? dayPillar.heavenlyStem : undefined,
       dayMasterBranch:
         typeof dayPillar?.earthlyBranch === "string" ? dayPillar.earthlyBranch : undefined,
+      yearStem:
+        typeof yearPillar?.heavenlyStem === "string" ? yearPillar.heavenlyStem : undefined,
+      yearBranch:
+        typeof yearPillar?.earthlyBranch === "string" ? yearPillar.earthlyBranch : undefined,
+      monthStem:
+        typeof monthPillar?.heavenlyStem === "string" ? monthPillar.heavenlyStem : undefined,
+      monthBranch:
+        typeof monthPillar?.earthlyBranch === "string" ? monthPillar.earthlyBranch : undefined,
+      hourStem:
+        typeof hourPillar?.heavenlyStem === "string" ? hourPillar.heavenlyStem : undefined,
+      hourBranch:
+        typeof hourPillar?.earthlyBranch === "string" ? hourPillar.earthlyBranch : undefined,
     };
   } catch {
     return null;

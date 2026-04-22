@@ -7,7 +7,7 @@ import { ko } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { Loader2, TrendingUp, Heart, Briefcase, Activity, UserCircle2, Compass, Clock, Palette, Hash, Star, CalendarDays, Gem, Utensils, ChevronLeft, ChevronRight } from "lucide-react";
 import { getElementStyles } from "@/lib/utils";
-import { getElementRelation } from "@/contexts/UserContext";
+import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import {
@@ -243,7 +243,15 @@ export default function DailyFortunePage() {
   );
 
   const rel = profile?.dayMasterElement && data?.dayElement
-    ? getElementRelation(profile.dayMasterElement, data.dayElement)
+    ? getElementRelation(
+        profile.dayMasterElement,
+        data.dayElement,
+        profile.dayMasterStem,
+        data.dayHeavenlyStem,
+        profile.dayMasterBranch,
+        data.dayEarthlyBranch,
+        getProfileRelationContext(profile),
+      )
     : null;
 
   return (
@@ -578,6 +586,12 @@ export default function DailyFortunePage() {
                         내 일간이 오늘 기운을 제어 — 재물·성과를 노리는 적극적인 행동이 유리
                       </div>
                     )}
+                    {rel && ['천간합', '지지육합', '지지반합', '지지삼합', '지지방합', '지지암합'].includes(rel.type) && (
+                      <div className="flex items-center gap-2 text-sm text-emerald-300/90">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0" />
+                        오늘은 {rel.label} 성향 강함 — 협의·만남·조율·파트너십 움직임이 특히 유리
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -601,6 +615,12 @@ export default function DailyFortunePage() {
                       <div className="flex items-center gap-2 text-sm text-rose-300/90">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-300 shrink-0" />
                         내 에너지가 바깥으로 흐르는 날 — 과도한 지출이나 체력 소모는 줄이세요
+                      </div>
+                    )}
+                    {rel && ['천간충', '지지충', '지지형', '지지해', '지지원진', '지지귀문'].includes(rel.type) && (
+                      <div className="flex items-center gap-2 text-sm text-rose-300/90">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-300 shrink-0" />
+                        오늘은 {rel.label} 성향 강함 — 말실수·감정 대립·급한 결정은 특히 줄이는 편이 좋음
                       </div>
                     )}
                   </div>
