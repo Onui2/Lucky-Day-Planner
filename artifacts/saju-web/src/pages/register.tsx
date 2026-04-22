@@ -138,7 +138,7 @@ export default function RegisterPage() {
             <Moon className="w-5 h-5 text-primary" />
           </div>
           <span className="font-serif text-2xl font-bold text-gradient-gold tracking-wider">
-            명해사주
+            명해원
           </span>
         </Link>
 
