@@ -1,5 +1,12 @@
 import { Router } from "express";
 import { getManseryokDay, getManseryokMonth, getMonthYearGanzi } from "../lib/manseryok.js";
+import {
+  filterDaysUpToTodayInSeoul,
+  isCurrentMonthInSeoul,
+  isFutureDateInSeoul,
+  isFutureMonthInSeoul,
+  isPrivilegedRole,
+} from "../lib/date-access.js";
 
 const router = Router();
 
@@ -22,6 +29,10 @@ router.get("/manseryok/date", (req, res) => {
     
     if (isNaN(year) || isNaN(month) || isNaN(day)) {
       return res.status(400).json({ error: "유효하지 않은 날짜입니다." });
+    }
+
+    if (isFutureDateInSeoul(year, month, day) && !isPrivilegedRole(req.user?.role)) {
+      return res.status(403).json({ error: "관리자만 미래 날짜를 조회할 수 있습니다." });
     }
     
     const dayData = getManseryokDay(year, month, day);
@@ -55,8 +66,18 @@ router.get("/manseryok/month", (req, res) => {
     if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
       return res.status(400).json({ error: "유효하지 않은 년월입니다." });
     }
+
+    const canAccessFutureDates = isPrivilegedRole(req.user?.role);
+
+    if (isFutureMonthInSeoul(year, month) && !canAccessFutureDates) {
+      return res.status(403).json({ error: "관리자만 미래 월의 만세력을 조회할 수 있습니다." });
+    }
     
-    const days = getManseryokMonth(year, month);
+    let days = getManseryokMonth(year, month);
+    if (!canAccessFutureDates && isCurrentMonthInSeoul(year, month)) {
+      days = filterDaysUpToTodayInSeoul(days);
+    }
+
     const { yearGanzi, monthGanzi, yearZodiac } = getMonthYearGanzi(year, month);
     
     return res.json({

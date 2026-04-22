@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGetDailyFortune } from "@workspace/api-client-react";
+import { useAuth } from "@workspace/replit-auth-web";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from "date-fns";
@@ -15,6 +16,7 @@ import {
   ELEM_KOR as SAJU_ELEM_KOR, ELEM_COLOR as SAJU_ELEM_COLOR, ELEM_BG as SAJU_ELEM_BG,
 } from "@/lib/sajuLucky";
 import { useResolvedProfile } from "@/lib/resolved-profile";
+import { getMonthKey, getSeoulTodayString } from "@/lib/seoul-date";
 
 const ELEM_KOR: Record<string, string> = { 목: "木", 화: "火", 토: "土", 금: "金", 수: "水" };
 const ELEM_COLOR: Record<string, string> = { 목: "text-green-400", 화: "text-red-400", 토: "text-yellow-400", 금: "text-gray-300", 수: "text-blue-400" };
@@ -35,24 +37,28 @@ function overallScoreStyle(s: number) {
   return             { text: 'text-rose-400',    label: '조심하는 날'  };
 }
 
-const TODAY = format(new Date(), "yyyy-MM-dd");
-const TODAY_DATE = new Date();
-TODAY_DATE.setHours(0, 0, 0, 0);
+const TODAY = getSeoulTodayString();
+const TODAY_MONTH = TODAY.slice(0, 7);
 
 const DOW_KOR = ["일", "월", "화", "수", "목", "금", "토"];
 
 function DateNavPicker({
   date,
   onDateChange,
+  canAccessFutureDates,
 }: {
   date: string;
   onDateChange: (d: string) => void;
+  canAccessFutureDates: boolean;
 }) {
   const dateObj = new Date(date + "T00:00:00");
   const [calMonth, setCalMonth] = useState(new Date(date + "T00:00:00"));
   const [open, setOpen] = useState(false);
 
   const isToday = date === TODAY;
+  const canGoNext = canAccessFutureDates || date < TODAY;
+  const canGoNextMonth =
+    canAccessFutureDates || getMonthKey(addDays(endOfMonth(calMonth), 1)) <= TODAY_MONTH;
 
   function goPrev() {
     const prev = subDays(dateObj, 1);
@@ -60,6 +66,7 @@ function DateNavPicker({
   }
 
   function goNext() {
+    if (!canGoNext) return;
     const next = addDays(dateObj, 1);
     onDateChange(format(next, "yyyy-MM-dd"));
   }
@@ -119,8 +126,15 @@ function DateNavPicker({
               {format(calMonth, "yyyy년 M월")}
             </span>
             <button
-              onClick={() => setCalMonth(m => addDays(endOfMonth(m), 1))}
-              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-primary/15 text-foreground/70 hover:text-foreground"
+              onClick={() => {
+                if (!canGoNextMonth) return;
+                setCalMonth(m => addDays(endOfMonth(m), 1));
+              }}
+              disabled={!canGoNextMonth}
+              className={cn(
+                "w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-foreground/70",
+                canGoNextMonth ? "hover:bg-primary/15 hover:text-foreground" : "opacity-40 cursor-not-allowed",
+              )}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -145,14 +159,20 @@ function DateNavPicker({
               const key = format(d, "yyyy-MM-dd");
               const isSelected = key === date;
               const isTodayCell = key === TODAY;
+              const isFutureCell = key > TODAY;
               const dow = getDay(d);
+              const isDisabled = !canAccessFutureDates && isFutureCell;
               return (
                 <button
                   key={key}
-                  onClick={() => pickDay(d)}
+                  onClick={() => {
+                    if (isDisabled) return;
+                    pickDay(d);
+                  }}
+                  disabled={isDisabled}
                   className={cn(
                     "h-8 w-full flex items-center justify-center rounded-lg text-sm transition-colors",
-                    "hover:bg-primary/15",
+                    isDisabled ? "opacity-35 cursor-not-allowed" : "hover:bg-primary/15",
                     isSelected && "bg-primary text-white font-semibold",
                     !isSelected && isTodayCell && "border border-primary/50 text-primary font-semibold",
                     !isSelected && dow === 0 && "text-rose-400",
@@ -170,7 +190,11 @@ function DateNavPicker({
       {/* 다음 날 */}
       <button
         onClick={goNext}
-        className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors text-muted-foreground hover:bg-primary/10 hover:text-primary"
+        disabled={!canGoNext}
+        className={cn(
+          "w-9 h-9 flex items-center justify-center rounded-xl transition-colors text-muted-foreground",
+          canGoNext ? "hover:bg-primary/10 hover:text-primary" : "opacity-40 cursor-not-allowed",
+        )}
         title="다음 날"
       >
         <ChevronRight className="w-4 h-4" />
@@ -191,8 +215,24 @@ function DateNavPicker({
 
 export default function DailyFortunePage() {
   const [date, setDate] = useState(TODAY);
-  const { data, isLoading, error } = useGetDailyFortune({ date });
+  const { user } = useAuth();
+  const canAccessFutureDates = user?.role === "admin" || user?.role === "superadmin";
+  const accessScope = canAccessFutureDates ? "privileged" : "standard";
+  const { data, isLoading, error } = useGetDailyFortune(
+    { date },
+    {
+      query: {
+        queryKey: ["/api/fortune/daily", { date }, accessScope],
+      },
+    },
+  );
   const { profile, profileReady, hasCachedProfile } = useResolvedProfile();
+
+  useEffect(() => {
+    if (!canAccessFutureDates && date > TODAY) {
+      setDate(TODAY);
+    }
+  }, [canAccessFutureDates, date]);
 
   // 명시적 색상 매핑 (Tailwind 동적 클래스 미지원 우회)
   const BAR_BG: Record<string, string> = {
@@ -259,7 +299,14 @@ export default function DailyFortunePage() {
         <h1 className="text-4xl md:text-5xl font-serif font-bold text-gradient-gold mb-4">오늘의 일진 (日辰)</h1>
         <p className="text-muted-foreground text-lg mb-8">매일매일 달라지는 그날의 기운을 확인하세요.</p>
 
-        <DateNavPicker date={date} onDateChange={setDate} />
+        <DateNavPicker
+          date={date}
+          onDateChange={setDate}
+          canAccessFutureDates={canAccessFutureDates}
+        />
+        {!canAccessFutureDates && (
+          <p className="mt-3 text-xs text-muted-foreground">일반 회원은 오늘까지만 조회할 수 있습니다.</p>
+        )}
       </div>
 
       {isLoading ? (
@@ -269,7 +316,7 @@ export default function DailyFortunePage() {
         </div>
       ) : error || !data ? (
         <div className="text-center p-8 bg-destructive/10 text-destructive rounded-2xl border border-destructive/20">
-          운세 정보를 불러오지 못했습니다.
+          {error instanceof Error ? error.message : "운세 정보를 불러오지 못했습니다."}
         </div>
       ) : (
         <motion.div

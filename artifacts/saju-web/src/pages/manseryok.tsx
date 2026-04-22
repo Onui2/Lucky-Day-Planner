@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useGetManseryokMonth } from "@workspace/api-client-react";
+import { useAuth } from "@workspace/replit-auth-web";
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
   ELEM_BG as SAJU_ELEM_BG,
 } from "@/lib/sajuLucky";
 import { useResolvedProfile } from "@/lib/resolved-profile";
+import { getMonthKey, getSeoulTodayString } from "@/lib/seoul-date";
 
 const STEM_HANJA: Record<string, string> = {
   갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸',
@@ -167,22 +169,42 @@ interface SelectedDay {
   rel: ReturnType<typeof getElementRelation> | null;
 }
 
-export default function ManseryokPage() {
-  const today = new Date();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selected, setSelected] = useState<SelectedDay | null>(null);
-  const { profile, profileReady, hasCachedProfile } = useResolvedProfile();
+const TODAY = getSeoulTodayString();
+const TODAY_MONTH = TODAY.slice(0, 7);
+const TODAY_DATE = new Date(`${TODAY}T00:00:00`);
 
-  const isCurrentMonth =
-    format(currentDate, "yyyy-MM") === format(today, "yyyy-MM");
+export default function ManseryokPage() {
+  const today = TODAY_DATE;
+  const [currentDate, setCurrentDate] = useState(TODAY_DATE);
+  const [selected, setSelected] = useState<SelectedDay | null>(null);
+  const { user } = useAuth();
+  const { profile, profileReady, hasCachedProfile } = useResolvedProfile();
+  const canAccessFutureDates = user?.role === "admin" || user?.role === "superadmin";
 
   const yearStr = format(currentDate, "yyyy");
   const monthStr = format(currentDate, "MM");
+  const currentMonthKey = `${yearStr}-${monthStr}`;
+  const isCurrentMonth = currentMonthKey === TODAY_MONTH;
+  const accessScope = canAccessFutureDates ? "privileged" : "standard";
 
-  const { data, isLoading } = useGetManseryokMonth({ year: yearStr, month: monthStr });
+  const { data, isLoading, error } = useGetManseryokMonth(
+    { year: yearStr, month: monthStr },
+    {
+      query: {
+        queryKey: ["/api/manseryok/month", { year: yearStr, month: monthStr }, accessScope],
+      },
+    },
+  );
   const myElem = profile?.dayMasterElement ?? null;
   const myStem = profile?.dayMasterStem ?? null;
   const myBranch = profile?.dayMasterBranch ?? null;
+
+  useEffect(() => {
+    if (!canAccessFutureDates && currentMonthKey > TODAY_MONTH) {
+      setCurrentDate(TODAY_DATE);
+      setSelected(null);
+    }
+  }, [canAccessFutureDates, currentMonthKey]);
 
   // 오늘 날짜 자동 선택 (데이터·프로필 로드 후, 현재 달일 때)
   useEffect(() => {
@@ -208,8 +230,23 @@ export default function ManseryokPage() {
     myStem,
   ]);
 
-  const nextMonth = () => { setCurrentDate(addMonths(currentDate, 1)); setSelected(null); };
+  useEffect(() => {
+    if (!selected || canAccessFutureDates) return;
+
+    const selectedDate = `${yearStr}-${monthStr}-${String(selected.dayNum).padStart(2, "0")}`;
+    if (selectedDate > TODAY) {
+      setSelected(null);
+    }
+  }, [canAccessFutureDates, monthStr, selected, yearStr]);
+
+  const nextMonth = () => {
+    const next = addMonths(currentDate, 1);
+    if (!canAccessFutureDates && getMonthKey(next) > TODAY_MONTH) return;
+    setCurrentDate(next);
+    setSelected(null);
+  };
   const prevMonth = () => { setCurrentDate(subMonths(currentDate, 1)); setSelected(null); };
+  const nextMonthDisabled = !canAccessFutureDates && currentMonthKey >= TODAY_MONTH;
 
   const daysInMonth = getDaysInMonth(currentDate);
   const firstDayOfMonth = getDay(startOfMonth(currentDate));
@@ -322,7 +359,7 @@ export default function ManseryokPage() {
             )}
             {!isCurrentMonth && (
               <button
-                onClick={() => { setCurrentDate(new Date()); setSelected(null); }}
+                onClick={() => { setCurrentDate(TODAY_DATE); setSelected(null); }}
                 className="mt-1 px-3 py-0.5 rounded-full text-xs font-medium bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
               >
                 이번달로 이동
@@ -330,15 +367,29 @@ export default function ManseryokPage() {
             )}
           </div>
 
-          <Button variant="outline" size="icon" onClick={nextMonth} className="rounded-full">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={nextMonth}
+            disabled={nextMonthDisabled}
+            className="rounded-full"
+          >
             <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
+
+        {!canAccessFutureDates && (
+          <p className="mb-4 text-center text-xs text-muted-foreground">일반 회원은 오늘 이후 날짜와 다음 달 만세력을 볼 수 없습니다.</p>
+        )}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-[400px]">
             <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
             <p className="text-muted-foreground">만세력을 펼치는 중입니다...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-[240px] rounded-2xl border border-destructive/20 bg-destructive/10 text-center text-destructive">
+            <p>{error instanceof Error ? error.message : "만세력을 불러오지 못했습니다."}</p>
           </div>
         ) : (
           <motion.div
@@ -370,25 +421,36 @@ export default function ManseryokPage() {
                 const dayData = data?.days.find((d: any) => d.solar === fullDate);
                 const dayOfWeek = (firstDayOfMonth + dayNum - 1) % 7;
                 const dateColor = dayOfWeek === 0 ? "text-destructive" : dayOfWeek === 6 ? "text-blue-400" : "text-foreground";
-                const isTodayDate = fullDate === format(today, "yyyy-MM-dd");
+                const isTodayDate = fullDate === TODAY;
+                const isBlockedFutureDate = !canAccessFutureDates && fullDate > TODAY;
                 const rel = getDayRelation(dayData, myElem, myStem, myBranch);
                 const score = dayData ? dayScores[dayNum] : null;
                 const isSelected = selected?.dayNum === dayNum;
+                const canSelectDay = Boolean(dayData) && !isBlockedFutureDate;
 
                 return (
                   <button
                     key={dayNum}
-                    onClick={() => handleDayClick(dayNum, dayData)}
-                    disabled={!dayData}
+                    onClick={() => {
+                      if (!canSelectDay) return;
+                      handleDayClick(dayNum, dayData);
+                    }}
+                    disabled={!canSelectDay}
                     className={cn(
                       "min-h-[80px] md:min-h-[96px] p-1 md:p-1.5 rounded-xl border flex flex-col transition-all text-left",
-                      dayData ? "cursor-pointer hover:bg-card/80" : "cursor-default opacity-0",
+                      canSelectDay
+                        ? "cursor-pointer hover:bg-card/80"
+                        : isBlockedFutureDate
+                        ? "cursor-not-allowed opacity-45 border-border/30 bg-card/10"
+                        : "cursor-default opacity-0",
                       isSelected && "ring-2 ring-primary/50",
                       isTodayDate ? "border-primary bg-primary/10 shadow-[0_0_12px_rgba(212,175,55,0.2)]"
-                        : rel ? `${rel.borderClass} bg-card/20` : "border-border/40 bg-card/20 hover:border-primary/40"
+                        : canSelectDay && rel ? `${rel.borderClass} bg-card/20`
+                        : canSelectDay ? "border-border/40 bg-card/20 hover:border-primary/40"
+                        : undefined,
                     )}
                   >
-                    {dayData && (
+                    {dayData ? (
                       <>
                         {/* 날짜 + 점수 점 */}
                         <div className="flex justify-between items-start mb-0.5">
@@ -446,7 +508,18 @@ export default function ManseryokPage() {
                           </div>
                         )}
                       </>
-                    )}
+                    ) : isBlockedFutureDate ? (
+                      <>
+                        <div className="flex justify-between items-start mb-0.5">
+                          <span className={cn("text-xs md:text-sm font-semibold leading-none", dateColor)}>
+                            {dayNum}
+                          </span>
+                        </div>
+                        <div className="mt-auto text-[9px] md:text-[10px] text-muted-foreground font-medium">
+                          미래 날짜
+                        </div>
+                      </>
+                    ) : null}
                   </button>
                 );
               })}

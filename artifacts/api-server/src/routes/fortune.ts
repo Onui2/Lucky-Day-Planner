@@ -1,5 +1,10 @@
 import { Router } from "express";
 import { getDailyFortune } from "../lib/fortune.js";
+import {
+  getSeoulToday,
+  isFutureDateInSeoul,
+  isPrivilegedRole,
+} from "../lib/date-access.js";
 
 const router = Router();
 
@@ -18,14 +23,18 @@ router.get("/fortune/daily", (req, res) => {
       month = parseInt(parts[1], 10);
       day = parseInt(parts[2], 10);
     } else {
-      const today = new Date();
-      year = today.getFullYear();
-      month = today.getMonth() + 1;
-      day = today.getDate();
+      const today = getSeoulToday();
+      year = today.year;
+      month = today.month;
+      day = today.day;
     }
     
     if (isNaN(year) || isNaN(month) || isNaN(day) || month < 1 || month > 12 || day < 1 || day > 31) {
       return res.status(400).json({ error: "유효하지 않은 날짜입니다." });
+    }
+
+    if (isFutureDateInSeoul(year, month, day) && !isPrivilegedRole(req.user?.role)) {
+      return res.status(403).json({ error: "관리자만 미래 날짜를 조회할 수 있습니다." });
     }
     
     const fortune = getDailyFortune(year, month, day);
