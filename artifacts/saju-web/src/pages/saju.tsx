@@ -4,6 +4,7 @@ import { useCalculateSaju, useSaveSaju, useGetSavedSaju, useSubmitInquiry } from
 import { useAuth } from "@workspace/replit-auth-web";
 import { useSearch } from "wouter";
 import { useUser } from "@/contexts/UserContext";
+import { getCurrentAge } from "@/lib/age";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -212,8 +213,42 @@ export default function SajuPage() {
     const BRNCH_H: Record<string,string> = {자:'子',축:'丑',인:'寅',묘:'卯',진:'辰',사:'巳',오:'午',미:'未',신:'申',유:'酉',술:'戌',해:'亥'};
     const pillarStr = (stem: string, branch: string) => `${STEM_H[stem]??stem}${BRNCH_H[branch]??branch}(${stem}${branch})`;
     const hourStr = hp?.heavenlyStem && hp.heavenlyStem !== '?' ? pillarStr(hp.heavenlyStem, hp.earthlyBranch) : '시간미상';
-    const brief = (s: string, len = 70) => s ? (s.length > len ? s.slice(0, len) + '…' : s) : '';
     const divider = '─────────────────────';
+    const cleanShareText = (s: string) => s.replace(/\s+/g, ' ').trim().replace(/[.!?。！？]+$/g, '');
+    const fitShareText = (s: string, len: number) => {
+      const cleaned = cleanShareText(s);
+      if (!cleaned) return '';
+      if (cleaned.length <= len) return cleaned;
+
+      const clauses = cleaned.split(/[,:;·]/).map(v => v.trim()).filter(Boolean);
+      let combined = '';
+      for (const clause of clauses) {
+        const next = combined ? `${combined} · ${clause}` : clause;
+        if (next.length > len) break;
+        combined = next;
+      }
+      if (combined) return combined;
+
+      const words = cleaned.split(/\s+/);
+      let summary = '';
+      for (const word of words) {
+        const next = summary ? `${summary} ${word}` : word;
+        if (next.length > len) break;
+        summary = next;
+      }
+
+      return summary || cleaned.slice(0, len).trim();
+    };
+    const shareSummary = (s: string, len = 52) => {
+      if (!s) return '';
+      const sentences = s.split(/(?<=[.!?。！？])\s+/).map(v => v.trim()).filter(Boolean);
+      const first = fitShareText(sentences[0] ?? s, len);
+      if (!first) return '';
+      if (first.length > Math.floor(len * 0.45) || !sentences[1]) return first;
+
+      const second = fitShareText(sentences[1], len - first.length - 1);
+      return second ? `${first} ${second}` : first;
+    };
 
     const lines: string[] = [
       `🌙 명해원(命海苑) 사주팔자 분석`,
@@ -232,31 +267,31 @@ export default function SajuPage() {
       lines.push('');
       lines.push(`【 신강/신약 】`);
       lines.push(`  ${r.sinGangYak.type} (강도: ${r.sinGangYak.score > 0 ? '+' : ''}${r.sinGangYak.score})`);
-      if (r.sinGangYak.description) lines.push(`  ${brief(r.sinGangYak.description)}`);
-      if (r.sinGangYak.advice)      lines.push(`  💡 ${brief(r.sinGangYak.advice, 60)}`);
+      if (r.sinGangYak.description) lines.push(`  ${shareSummary(r.sinGangYak.description)}`);
+      if (r.sinGangYak.advice)      lines.push(`  💡 ${shareSummary(r.sinGangYak.advice, 44)}`);
     }
 
     if (r.yongsin) {
       lines.push('');
       lines.push(`【 용신/기신 】`);
       lines.push(`  용신(用神): ${r.yongsin.yongsin}  |  희신(喜神): ${r.yongsin.heegsin}  |  기신(忌神): ${r.yongsin.geesin}`);
-      if (r.yongsin.advice)      lines.push(`  ${brief(r.yongsin.advice)}`);
+      if (r.yongsin.advice)      lines.push(`  ${shareSummary(r.yongsin.advice)}`);
       if (r.yongsin.luckyColors?.length) lines.push(`  행운 색상: ${r.yongsin.luckyColors.join(', ')}`);
     }
 
     if (r.personality || r.fortune) {
       lines.push('');
       lines.push(`【 일간 심층 분석 】`);
-      if (r.personality) lines.push(`  성향: ${brief(r.personality)}`);
-      if (r.fortune)     lines.push(`  총운: ${brief(r.fortune)}`);
-      if (r.love)        lines.push(`  애정: ${brief(r.love, 60)}`);
-      if (r.health)      lines.push(`  건강: ${brief(r.health, 60)}`);
+      if (r.personality) lines.push(`  성향: ${shareSummary(r.personality, 44)}`);
+      if (r.fortune)     lines.push(`  총운: ${shareSummary(r.fortune, 44)}`);
+      if (r.love)        lines.push(`  애정: ${shareSummary(r.love, 40)}`);
+      if (r.health)      lines.push(`  건강: ${shareSummary(r.health, 40)}`);
     }
 
     if (r.career) {
       lines.push('');
       lines.push(`【 직업 적성 】`);
-      lines.push(`  ${brief(r.career, 80)}`);
+      lines.push(`  ${shareSummary(r.career, 56)}`);
     }
 
     if (r.samjae) {
@@ -264,8 +299,8 @@ export default function SajuPage() {
       lines.push(`【 삼재 】`);
       if (r.samjae.inSamjae) {
         lines.push(`  ⚠️ ${r.samjae.type} (${r.samjae.samjaeYears?.join('·')}년)`);
-        if (r.samjae.description) lines.push(`  ${brief(r.samjae.description, 60)}`);
-        if (r.samjae.advice)      lines.push(`  💡 ${brief(r.samjae.advice, 60)}`);
+        if (r.samjae.description) lines.push(`  ${shareSummary(r.samjae.description, 44)}`);
+        if (r.samjae.advice)      lines.push(`  💡 ${shareSummary(r.samjae.advice, 44)}`);
       } else {
         lines.push(`  ✅ 현재 삼재 해당 없음`);
         if (r.samjae.nextSamjae)  lines.push(`  다음 삼재: ${r.samjae.nextSamjae}년`);
@@ -537,7 +572,9 @@ export default function SajuPage() {
 
   // ─── 결과 화면 ───────────────────────────────────
   const bi = r.birthInfo ?? {};
-  const currentYear = new Date().getFullYear();
+  const currentAge = r?.birthInfo
+    ? getCurrentAge(r.birthInfo.year, r.birthInfo.month, r.birthInfo.day)
+    : null;
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -1135,11 +1172,17 @@ export default function SajuPage() {
                     <span>{r.daeun.isForward ? '순행(順行)' : '역행(逆行)'}</span>
                     <span className="text-muted-foreground">·</span>
                     <span>첫 대운 시작 나이: <strong className="text-primary">{r.daeun.startAge}세</strong></span>
+                    {typeof currentAge === 'number' && (
+                      <>
+                        <span className="text-muted-foreground">·</span>
+                        <span>현재 나이: <strong className="text-primary">{currentAge}세</strong></span>
+                      </>
+                    )}
                     <span className="text-muted-foreground text-xs">(3일 = 1년 환산)</span>
                   </div>
                   <div className="space-y-3">
                     {r.daeun.periods?.map((p: any) => {
-                      const isNow = currentYear >= p.startYear && currentYear <= p.endYear;
+                      const isNow = typeof currentAge === 'number' && currentAge >= p.startAge && currentAge <= p.endAge;
                       return (
                         <div key={p.idx} className={`relative flex gap-4 p-4 rounded-xl border transition-all ${isNow ? 'border-primary/60 bg-primary/10 shadow-lg shadow-primary/10' : 'border-primary/15 bg-primary/3 hover:border-primary/30'}`}>
                           {isNow && <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary animate-pulse" />}

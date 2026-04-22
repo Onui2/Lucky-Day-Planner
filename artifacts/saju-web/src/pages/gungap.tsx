@@ -244,7 +244,6 @@ function BirthBlock({
         <Select value={String(state.hour)} onValueChange={(v) => onChange({ ...state, hour: Number(v) })}>
           <SelectTrigger className="bg-white/5 border-white/10 text-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="-1">모름</SelectItem>
             {BIRTH_HOURS.map((h) => (
               <SelectItem key={`h-${h.value}`} value={String(h.value)}>{h.label}</SelectItem>
             ))}

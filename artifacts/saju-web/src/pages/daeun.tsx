@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Loader2, Sparkles, ChevronDown, ChevronUp, Star, TrendingUp, Calendar } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
+import { getCurrentAge } from "@/lib/age";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
 const ELEM_BG: Record<string,string>    = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
@@ -30,7 +31,6 @@ interface DaeunPeriod {
 interface DaeunData {
   isForward: boolean; startAge: number; periods: DaeunPeriod[];
   dayPillar: { heavenlyStem: string; earthlyBranch: string; heavenlyStemElement: string };
-  birthYear: number;
 }
 
 async function fetchDaeun(p: ReturnType<typeof useUser>['profile']): Promise<DaeunData> {
@@ -48,17 +48,21 @@ async function fetchDaeun(p: ReturnType<typeof useUser>['profile']): Promise<Dae
     startAge:  (data.daeun as any).startAge,
     periods:   (data.daeun as any).periods,
     dayPillar: data.dayPillar as any,
-    birthYear: p.birthYear,
   };
 }
 
-function getCurrentPeriod(periods: DaeunPeriod[], birthYear: number) {
-  const age = new Date().getFullYear() - birthYear;
+function getCurrentPeriod(
+  periods: DaeunPeriod[],
+  birthYear: number,
+  birthMonth: number,
+  birthDay: number,
+) {
+  const age = getCurrentAge(birthYear, birthMonth, birthDay);
   return periods.findIndex(p => age >= p.startAge && age <= p.endAge);
 }
 
-function PeriodCard({ period, birthYear, isActive, expanded, onToggle }: {
-  period: DaeunPeriod; birthYear: number; isActive: boolean;
+function PeriodCard({ period, isActive, expanded, onToggle }: {
+  period: DaeunPeriod; isActive: boolean;
   expanded: boolean; onToggle: () => void;
 }) {
   const stemColor = ELEM_COLOR[period.stemElement] ?? 'text-white';
@@ -136,7 +140,9 @@ export default function DaeunPage() {
     enabled: !!profile,
   });
 
-  const currentIdx = data ? getCurrentPeriod(data.periods, data.birthYear) : -1;
+  const currentIdx = data && profile
+    ? getCurrentPeriod(data.periods, profile.birthYear, profile.birthMonth, profile.birthDay)
+    : -1;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
@@ -257,13 +263,12 @@ export default function DaeunPage() {
             {/* 대운 카드 목록 */}
             <div className="space-y-3">
               {data.periods.map((period, i) => (
-                <PeriodCard
-                  key={period.idx}
-                  period={period}
-                  birthYear={data.birthYear}
-                  isActive={i === currentIdx}
-                  expanded={expandedIdx === i}
-                  onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
+                  <PeriodCard
+                    key={period.idx}
+                    period={period}
+                    isActive={i === currentIdx}
+                    expanded={expandedIdx === i}
+                    onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
                 />
               ))}
             </div>

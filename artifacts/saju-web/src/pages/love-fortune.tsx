@@ -346,7 +346,6 @@ function BirthBlock({
             <SelectValue placeholder="시간 선택" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="-1">모름</SelectItem>
             {BIRTH_HOURS.map(h => (
               <SelectItem key={`h-${h.value}`} value={String(h.value)}>{h.label}</SelectItem>
             ))}
