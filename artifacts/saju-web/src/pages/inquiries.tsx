@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, Link } from "wouter";
+import { buildAuthHref } from "@/lib/auth-redirect";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -177,7 +178,7 @@ function InquiryItem({ inquiry, onRead }: { inquiry: Inquiry; onRead: (id: numbe
 }
 
 export default function InquiriesPage() {
-  const { isAuthenticated, isLoading, login } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [page, setPage] = useState(1);
   const [, navigate] = useLocation();
 
@@ -200,7 +201,7 @@ export default function InquiriesPage() {
         </div>
         <h2 className="text-xl font-semibold mb-2">로그인이 필요합니다</h2>
         <p className="text-muted-foreground mb-6">내 문의 내역을 보려면 로그인해 주세요.</p>
-        <Button onClick={login} className="gap-2">
+        <Button onClick={() => navigate(buildAuthHref("/login"))} className="gap-2">
           <LogIn className="w-4 h-4" /> 로그인
         </Button>
       </div>

@@ -3,9 +3,10 @@ import { ShieldAlert, LogIn } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
+import { buildAuthHref } from "@/lib/auth-redirect";
 
 export default function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, isLoading, login } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
   if (isLoading) {
@@ -17,6 +18,9 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
   }
 
   if (!isAuthenticated) {
+    const loginHref = buildAuthHref("/login");
+    const registerHref = buildAuthHref("/register");
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 24 }}
@@ -35,11 +39,13 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
             로그인 후 이용할 수 있습니다.
           </p>
           <div className="flex flex-col gap-2">
-            <Button className="w-full gap-2" onClick={login}>
-              <LogIn className="w-4 h-4" />
-              로그인하기
-            </Button>
-            <Link href="/register">
+            <Link href={loginHref}>
+              <Button className="w-full gap-2">
+                <LogIn className="w-4 h-4" />
+                로그인하기
+              </Button>
+            </Link>
+            <Link href={registerHref}>
               <Button variant="outline" className="w-full border-primary/30 hover:bg-primary/10">
                 회원가입
               </Button>

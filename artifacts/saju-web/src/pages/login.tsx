@@ -19,6 +19,7 @@ import {
   getAuthSetupStatus,
   loginWithPassword,
 } from "@/lib/auth-client";
+import { buildAuthHref, sanitizeReturnTo } from "@/lib/auth-redirect";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -26,7 +27,7 @@ export default function LoginPage() {
   const [, navigate] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
-  const returnTo = params.get("returnTo") ?? "/";
+  const returnTo = sanitizeReturnTo(params.get("returnTo"));
   const { isAuthenticated, isLoading, refreshUser } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -223,7 +224,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             아직 계정이 없으신가요?{" "}
-            <Link href="/register" className="text-primary hover:underline font-medium">
+            <Link href={buildAuthHref("/register", returnTo)} className="text-primary hover:underline font-medium">
               회원가입
             </Link>
           </div>

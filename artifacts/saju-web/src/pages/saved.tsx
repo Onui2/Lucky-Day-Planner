@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Trash2, Pencil, Check, X, BookMarked, LogIn, ChevronRight } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { buildAuthHref } from "@/lib/auth-redirect";
 
 const STEM_HANJA: Record<string, string> = {
   갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸',
@@ -35,7 +36,7 @@ function formatHour(h: number) {
 
 export default function SavedPage() {
   const [, navigate] = useLocation();
-  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: saved, isLoading } = useGetSavedSaju(isAuthenticated);
   const deleteMut = useDeleteSavedSaju();
   const renameMut = useRenameSavedSaju();
@@ -79,7 +80,7 @@ export default function SavedPage() {
         <BookMarked className="w-16 h-16 text-primary/40 mx-auto" />
         <h2 className="text-2xl font-serif text-foreground">저장된 사주 목록</h2>
         <p className="text-muted-foreground">로그인하면 사주를 저장하고 언제든 다시 분석할 수 있습니다.</p>
-        <Button onClick={() => login()} className="gap-2">
+        <Button onClick={() => navigate(buildAuthHref("/login"))} className="gap-2">
           <LogIn className="w-4 h-4" /> 로그인하기
         </Button>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -21,11 +21,15 @@ import {
   getAuthSetupStatus,
   registerWithPassword,
 } from "@/lib/auth-client";
+import { buildAuthHref, sanitizeReturnTo } from "@/lib/auth-redirect";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
 export default function RegisterPage() {
   const [, navigate] = useLocation();
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const returnTo = sanitizeReturnTo(params.get("returnTo"));
   const { isAuthenticated, isLoading, refreshUser } = useAuth();
 
   const [name, setName] = useState("");
@@ -40,9 +44,9 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate("/");
+      navigate(returnTo);
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate, returnTo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +102,7 @@ export default function RegisterPage() {
         name: name.trim(),
       });
       await refreshUser();
-      navigate("/");
+      navigate(returnTo);
     } catch (registerError) {
       setError(
         registerError instanceof Error
@@ -296,7 +300,7 @@ export default function RegisterPage() {
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             이미 계정이 있으신가요?{" "}
-            <Link href="/login" className="text-primary hover:underline font-medium">
+            <Link href={buildAuthHref("/login", returnTo)} className="text-primary hover:underline font-medium">
               로그인
             </Link>
           </div>

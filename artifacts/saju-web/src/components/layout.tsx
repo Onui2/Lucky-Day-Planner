@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { buildAuthHref } from "@/lib/auth-redirect";
 import {
   Moon, Sun, Sparkles, Calendar, Heart,
   UserCircle2, LogIn, LogOut, Menu, X, ChevronUp,
@@ -33,9 +34,9 @@ function UnreadBadge({ count }: { count: number }) {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { profile } = useUser();
-  const { user, isAuthenticated, isLoading, login, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -338,7 +339,7 @@ export function Layout({ children }: LayoutProps) {
               </div>
             ) : (
               <button
-                onClick={login}
+                onClick={() => navigate(buildAuthHref("/login"))}
                 className="flex items-center gap-2 text-sm font-medium transition-all py-2 px-4 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60"
               >
                 <LogIn className="w-4 h-4" />
@@ -351,7 +352,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="flex md:hidden items-center gap-2">
             {!isLoading && !isAuthenticated && (
               <button
-                onClick={login}
+                onClick={() => navigate(buildAuthHref("/login"))}
                 className="flex items-center gap-1.5 text-xs font-medium py-1.5 px-3 rounded-full border border-primary/40 bg-primary/10 text-primary"
               >
                 <LogIn className="w-3.5 h-3.5" />
@@ -451,7 +452,7 @@ export function Layout({ children }: LayoutProps) {
                   </>
                 ) : (
                   <button
-                    onClick={() => { login(); closeMobile(); }}
+                    onClick={() => { navigate(buildAuthHref("/login")); closeMobile(); }}
                     className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium bg-primary/10 text-primary border border-primary/30 w-full"
                   >
                     <LogIn className="w-4 h-4" />
