@@ -7,7 +7,7 @@ import { ko } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { Loader2, TrendingUp, Heart, Briefcase, Activity, UserCircle2, Compass, Clock, Palette, Hash, Star, CalendarDays, Gem, Utensils, ChevronLeft, ChevronRight } from "lucide-react";
 import { getElementStyles } from "@/lib/utils";
-import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
+import { getElementRelation } from "@/lib/saju-relation";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import {
@@ -250,7 +250,6 @@ export default function DailyFortunePage() {
         data.dayHeavenlyStem,
         profile.dayMasterBranch,
         data.dayEarthlyBranch,
-        getProfileRelationContext(profile),
       )
     : null;
 

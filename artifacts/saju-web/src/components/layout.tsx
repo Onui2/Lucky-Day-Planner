@@ -52,6 +52,38 @@ export function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const scrollY = window.scrollY;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyLeft = document.body.style.left;
+    const originalBodyRight = document.body.style.right;
+    const originalBodyWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+
+    return () => {
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.left = originalBodyLeft;
+      document.body.style.right = originalBodyRight;
+      document.body.style.width = originalBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileMenuOpen]);
+
   const navItems = [
     { href: "/saju", label: "사주팔자", icon: Sparkles },
     { href: "/daily-fortune", label: "오늘의 일진", icon: Sun },
@@ -353,9 +385,9 @@ export function Layout({ children }: LayoutProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
-              className="md:hidden border-t border-primary/10 bg-background/95 backdrop-blur-xl"
+              className="fixed inset-x-0 top-16 bottom-0 z-50 md:hidden border-t border-primary/10 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain"
             >
-              <div className="container mx-auto px-4 py-3 flex flex-col gap-1">
+              <div className="container mx-auto min-h-full px-4 py-3 pb-8 flex flex-col gap-1">
                 {navItems.map((item) => renderMobileNavLink(item, closeMobile))}
 
                 {extraServices.length > 0 && extraServices.map(s => renderMobileNavLink(s, closeMobile))}

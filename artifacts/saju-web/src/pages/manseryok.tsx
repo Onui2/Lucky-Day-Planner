@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem } from "lucide-react";
 import { getElementStyles, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
+import { getElementRelation } from "@/lib/saju-relation";
 import { Link } from "wouter";
 import {
   getStemLucky,
@@ -30,7 +30,6 @@ function getDayRelation(
   myElem: string | null,
   myStem: string | null,
   myBranch: string | null,
-  relationContext?: ReturnType<typeof getProfileRelationContext>,
 ) {
   if (!myElem || !dayData?.dayElement) {
     return null;
@@ -43,7 +42,6 @@ function getDayRelation(
     dayData.dayHeavenlyStem,
     myBranch,
     dayData.dayEarthlyBranch,
-    relationContext,
   );
 }
 
@@ -52,9 +50,8 @@ function calcDayScore(
   myElem: string | null,
   myStem: string | null,
   myBranch: string | null,
-  relationContext?: ReturnType<typeof getProfileRelationContext>,
 ): number {
-  const relation = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
+  const relation = getDayRelation(dayData, myElem, myStem, myBranch);
 
   if (!relation) {
     let base = 5;
@@ -186,16 +183,6 @@ export default function ManseryokPage() {
   const myElem = profile?.dayMasterElement ?? null;
   const myStem = profile?.dayMasterStem ?? null;
   const myBranch = profile?.dayMasterBranch ?? null;
-  const relationContext = useMemo(() => getProfileRelationContext(profile), [
-    profile?.dayMasterBranch,
-    profile?.dayMasterStem,
-    profile?.hourBranch,
-    profile?.hourStem,
-    profile?.monthBranch,
-    profile?.monthStem,
-    profile?.yearBranch,
-    profile?.yearStem,
-  ]);
 
   // 오늘 날짜 자동 선택 (데이터·프로필 로드 후, 현재 달일 때)
   useEffect(() => {
@@ -206,17 +193,19 @@ export default function ManseryokPage() {
     const todayStr = `${yearStr}-${monthStr}-${todayNum.toString().padStart(2, "0")}`;
     const todayData = data.days.find((d: any) => d.solar === todayStr);
     if (!todayData) return;
-    const score = calcDayScore(todayData, myElem, myStem, myBranch, relationContext);
-    const rel = getDayRelation(todayData, myElem, myStem, myBranch, relationContext);
+    const score = calcDayScore(todayData, myElem, myStem, myBranch);
+    const rel = getDayRelation(todayData, myElem, myStem, myBranch);
     setSelected({ dayNum: todayNum, dayData: todayData, score, rel });
   }, [
     data,
     isCurrentMonth,
     monthStr,
     profileReady,
-    relationContext,
     selected?.dayNum,
     yearStr,
+    myBranch,
+    myElem,
+    myStem,
   ]);
 
   const nextMonth = () => { setCurrentDate(addMonths(currentDate, 1)); setSelected(null); };
@@ -237,10 +226,10 @@ export default function ManseryokPage() {
       const dayStr = dayNum.toString().padStart(2, "0");
       const fullDate = `${yearStr}-${monthStr}-${dayStr}`;
       const dayData = data.days.find((d: any) => d.solar === fullDate);
-      if (dayData) map[dayNum] = calcDayScore(dayData, myElem, myStem, myBranch, relationContext);
+      if (dayData) map[dayNum] = calcDayScore(dayData, myElem, myStem, myBranch);
     });
     return map;
-  }, [data, monthStr, myBranch, myElem, myStem, relationContext, yearStr]);
+  }, [data, monthStr, myBranch, myElem, myStem, yearStr]);
 
   const scoreValues = Object.values(dayScores);
   const avgScore = scoreValues.length > 0
@@ -256,8 +245,8 @@ export default function ManseryokPage() {
   function handleDayClick(dayNum: number, dayData: any) {
     if (!dayData) return;
     if (selected?.dayNum === dayNum) { setSelected(null); return; }
-    const score = calcDayScore(dayData, myElem, myStem, myBranch, relationContext);
-    const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
+    const score = calcDayScore(dayData, myElem, myStem, myBranch);
+    const rel = getDayRelation(dayData, myElem, myStem, myBranch);
     setSelected({ dayNum, dayData, score, rel });
   }
 
@@ -382,7 +371,7 @@ export default function ManseryokPage() {
                 const dayOfWeek = (firstDayOfMonth + dayNum - 1) % 7;
                 const dateColor = dayOfWeek === 0 ? "text-destructive" : dayOfWeek === 6 ? "text-blue-400" : "text-foreground";
                 const isTodayDate = fullDate === format(today, "yyyy-MM-dd");
-                const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
+                const rel = getDayRelation(dayData, myElem, myStem, myBranch);
                 const score = dayData ? dayScores[dayNum] : null;
                 const isSelected = selected?.dayNum === dayNum;
 
