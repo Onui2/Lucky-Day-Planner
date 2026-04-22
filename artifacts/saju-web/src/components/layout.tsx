@@ -377,15 +377,27 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
 
-        {/* 모바일 드롭다운 메뉴 */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
+      </header>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-40 md:hidden">
+            <motion.button
+              type="button"
+              aria-label="메뉴 닫기"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-x-0 top-16 bottom-0 bg-background/75 backdrop-blur-sm"
+              onClick={closeMobile}
+            />
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
-              className="fixed inset-x-0 top-16 bottom-0 z-50 md:hidden border-t border-primary/10 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain"
+              className="absolute inset-x-0 top-16 bottom-0 border-t border-primary/10 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain"
             >
               <div className="container mx-auto min-h-full px-4 py-3 pb-8 flex flex-col gap-1">
                 {navItems.map((item) => renderMobileNavLink(item, closeMobile))}
@@ -451,9 +463,9 @@ export function Layout({ children }: LayoutProps) {
                 ))}
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
+          </div>
+        )}
+      </AnimatePresence>
 
       <main className="flex-1 container mx-auto px-4 py-8 md:py-12">
         {children}
