@@ -41,7 +41,8 @@ testem.log
 .DS_Store
 Thumbs.db
 .env
-.env.local
+.env.*
+!.env.example
 /public
 /artifacts/saju-web/public/assets
 /artifacts/saju-web/public/index.html
