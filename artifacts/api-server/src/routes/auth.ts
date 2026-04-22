@@ -1,7 +1,7 @@
 import * as oidc from "openid-client";
 import { Router, type Request, type Response } from "express";
 import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
-import { db, usersTable } from "@workspace/db";
+import { db, hasDatabaseConfig, usersTable } from "@workspace/db";
 import { count, eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -94,6 +94,18 @@ function hasConfiguredPrivilegedEmails(): boolean {
   );
 }
 
+function requireLocalAuthDatabase(res: Response): boolean {
+  if (hasDatabaseConfig()) {
+    return true;
+  }
+
+  res.status(503).json({
+    error:
+      "로컬 회원가입과 로그인 기능을 사용하려면 데이터베이스 연결이 필요합니다. DATABASE_URL 또는 POSTGRES_URL 환경변수를 확인해주세요.",
+  });
+  return false;
+}
+
 function resolveRole(email: string | null | undefined, fallback = "user"): string {
   if (isSuperAdminEmail(email)) return "superadmin";
   if (isAdminEmail(email)) return "admin";
@@ -101,6 +113,10 @@ function resolveRole(email: string | null | undefined, fallback = "user"): strin
 }
 
 async function needsAdminBootstrap(): Promise<boolean> {
+  if (!hasDatabaseConfig()) {
+    return false;
+  }
+
   if (hasConfiguredPrivilegedEmails()) {
     return false;
   }
@@ -183,6 +199,9 @@ router.get("/auth/setup-status", async (_req: Request, res: Response) => {
   res.json({
     canSelfBootstrapAdmin: await needsAdminBootstrap(),
     hasConfiguredPrivilegedEmails: hasConfiguredPrivilegedEmails(),
+    databaseConfigured: hasDatabaseConfig(),
+    localPasswordAuthEnabled: hasDatabaseConfig(),
+    oidcEnabled: isOidcEnabled(),
   });
 });
 
@@ -329,6 +348,10 @@ router.get("/logout", async (req: Request, res: Response) => {
 
 // ─── 로컬 회원가입 ─────────────────────────────────────
 router.post("/auth/register", async (req: Request, res: Response) => {
+  if (!requireLocalAuthDatabase(res)) {
+    return;
+  }
+
   const { email, password, name } = req.body as Record<string, unknown>;
 
   if (!email || typeof email !== "string" || !email.includes("@")) {
@@ -388,6 +411,10 @@ router.post("/auth/register", async (req: Request, res: Response) => {
 
 // ─── 로컬 로그인 ─────────────────────────────────────
 router.post("/auth/login-local", async (req: Request, res: Response) => {
+  if (!requireLocalAuthDatabase(res)) {
+    return;
+  }
+
   const { email, password } = req.body as Record<string, unknown>;
 
   if (!email || typeof email !== "string" || !password || typeof password !== "string") {
@@ -443,6 +470,10 @@ router.post("/auth/login-local", async (req: Request, res: Response) => {
 
 // ─── 비밀번호 찾기 (초기화 이메일 발송) ─────────────
 router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+  if (!requireLocalAuthDatabase(res)) {
+    return;
+  }
+
   const { email } = req.body as Record<string, unknown>;
 
   if (!email || typeof email !== "string") {
@@ -484,6 +515,10 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
 
 // ─── 비밀번호 초기화 (토큰 검증 + 새 비밀번호 설정) ─
 router.post("/auth/reset-password", async (req: Request, res: Response) => {
+  if (!requireLocalAuthDatabase(res)) {
+    return;
+  }
+
   const { token, password } = req.body as Record<string, unknown>;
 
   if (!token || typeof token !== "string") {
@@ -526,6 +561,10 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
 
 // ─── 토큰 유효성 확인 (폼 진입 전 체크) ─────────────
 router.get("/auth/reset-password/verify", async (req: Request, res: Response) => {
+  if (!requireLocalAuthDatabase(res)) {
+    return;
+  }
+
   const { token } = req.query as Record<string, unknown>;
 
   if (!token || typeof token !== "string") {

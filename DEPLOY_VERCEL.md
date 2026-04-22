@@ -15,6 +15,13 @@ Set these in Vercel Project Settings -> Environment Variables.
 - `DATABASE_URL`: Postgres connection string
 - `APP_URL`: Your canonical site URL, for example `https://your-domain.com`
 
+The app also accepts Vercel/Supabase-style Postgres variables such as:
+
+- `POSTGRES_URL`
+- `POSTGRES_PRISMA_URL`
+- `POSTGRES_URL_NON_POOLING`
+- `POSTGRES_HOST`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DATABASE`
+
 ### Recommended
 
 - `ADMIN_EMAILS`: comma-separated admin email list
@@ -62,6 +69,10 @@ corepack pnpm --filter @workspace/db run push
 ```
 
 Run that command with `DATABASE_URL` pointed at the target database.
+
+`drizzle-kit` and the runtime API now use the same connection lookup rules, so `POSTGRES_URL` and the equivalent Postgres variables work there as well.
+
+At runtime the API also auto-creates the core auth tables (`users`, `sessions`) and app tables (`saved_saju`, `inquiries`) when a valid database connection is available, but an explicit schema push is still the safer first deploy step.
 
 ## 5. Local development
 

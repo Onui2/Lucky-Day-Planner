@@ -2,41 +2,16 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
 import * as schema from "./schema";
+import {
+  getDatabaseConfigGuidance,
+  resolveDatabaseUrl,
+} from "./database-url";
 
 const { Pool } = pg;
 
-function resolveDatabaseUrl(): string | null {
-  const directUrl =
-    process.env.DATABASE_URL ??
-    process.env.POSTGRES_URL ??
-    process.env.POSTGRES_PRISMA_URL ??
-    process.env.POSTGRES_URL_NON_POOLING ??
-    null;
-
-  if (directUrl?.trim()) {
-    return directUrl.trim();
-  }
-
-  const host = process.env.POSTGRES_HOST ?? process.env.PGHOST;
-  const user = process.env.POSTGRES_USER ?? process.env.PGUSER;
-  const password = process.env.POSTGRES_PASSWORD ?? process.env.PGPASSWORD;
-  const database = process.env.POSTGRES_DATABASE ?? process.env.PGDATABASE ?? null;
-  const port = process.env.POSTGRES_PORT ?? process.env.PGPORT ?? "5432";
-
-  if (!host || !user || !database) {
-    return null;
-  }
-
-  const auth = password
-    ? `${encodeURIComponent(user)}:${encodeURIComponent(password)}`
-    : encodeURIComponent(user);
-
-  return `postgresql://${auth}@${host}:${port}/${database}`;
-}
-
 const resolvedDatabaseUrl = resolveDatabaseUrl();
 const databaseConfigError = new Error(
-  "A Postgres connection string was not found. Set DATABASE_URL or a Vercel/Supabase POSTGRES_* variable.",
+  `A Postgres connection string was not found. Set one of: ${getDatabaseConfigGuidance()}.`,
 );
 
 const sslConfig =
@@ -121,6 +96,8 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`ALTER TABLE users ALTER COLUMN created_at SET NOT NULL`);
         await client.query(`ALTER TABLE users ALTER COLUMN updated_at SET DEFAULT now()`);
         await client.query(`ALTER TABLE users ALTER COLUMN updated_at SET NOT NULL`);
+        await client.query(`CREATE INDEX IF NOT EXISTS users_email_lookup_idx ON users ((lower(email)))`);
+        await client.query(`CREATE INDEX IF NOT EXISTS users_password_reset_token_idx ON users (password_reset_token)`);
 
         await client.query(`
           CREATE TABLE IF NOT EXISTS sessions (
@@ -148,6 +125,7 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`ALTER TABLE saved_saju ALTER COLUMN label SET NOT NULL`);
         await client.query(`ALTER TABLE saved_saju ALTER COLUMN created_at SET DEFAULT now()`);
         await client.query(`ALTER TABLE saved_saju ALTER COLUMN created_at SET NOT NULL`);
+        await client.query(`CREATE INDEX IF NOT EXISTS saved_saju_user_created_idx ON saved_saju (user_id, created_at DESC)`);
 
         await client.query(`
           CREATE TABLE IF NOT EXISTS inquiries (
@@ -194,6 +172,9 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`ALTER TABLE inquiries ALTER COLUMN created_at SET NOT NULL`);
         await client.query(`ALTER TABLE inquiries ALTER COLUMN updated_at SET DEFAULT now()`);
         await client.query(`ALTER TABLE inquiries ALTER COLUMN updated_at SET NOT NULL`);
+        await client.query(`CREATE INDEX IF NOT EXISTS inquiries_user_created_idx ON inquiries (user_id, created_at DESC)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS inquiries_status_created_idx ON inquiries (status, created_at DESC)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS inquiries_admin_unread_idx ON inquiries (read_by_admin, created_at DESC)`);
       } finally {
         client.release();
       }

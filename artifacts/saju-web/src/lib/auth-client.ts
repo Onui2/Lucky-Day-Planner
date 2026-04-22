@@ -13,6 +13,9 @@ interface ResetTokenVerificationResult {
 export interface AuthSetupStatus {
   canSelfBootstrapAdmin: boolean;
   hasConfiguredPrivilegedEmails: boolean;
+  databaseConfigured: boolean;
+  localPasswordAuthEnabled: boolean;
+  oidcEnabled: boolean;
 }
 
 function getErrorMessage(
@@ -126,5 +129,8 @@ export async function getAuthSetupStatus(): Promise<AuthSetupStatus> {
   return {
     canSelfBootstrapAdmin: Boolean(payload?.canSelfBootstrapAdmin),
     hasConfiguredPrivilegedEmails: Boolean(payload?.hasConfiguredPrivilegedEmails),
+    databaseConfigured: Boolean(payload?.databaseConfigured),
+    localPasswordAuthEnabled: Boolean(payload?.localPasswordAuthEnabled),
+    oidcEnabled: Boolean(payload?.oidcEnabled),
   };
 }

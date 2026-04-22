@@ -16,7 +16,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@workspace/replit-auth-web";
-import { getAuthSetupStatus, registerWithPassword } from "@/lib/auth-client";
+import {
+  type AuthSetupStatus,
+  getAuthSetupStatus,
+  registerWithPassword,
+} from "@/lib/auth-client";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -32,7 +36,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [canSelfBootstrapAdmin, setCanSelfBootstrapAdmin] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<AuthSetupStatus | null>(null);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -47,11 +51,11 @@ export default function RegisterPage() {
       try {
         const setup = await getAuthSetupStatus();
         if (!cancelled) {
-          setCanSelfBootstrapAdmin(setup.canSelfBootstrapAdmin);
+          setSetupStatus(setup);
         }
       } catch {
         if (!cancelled) {
-          setCanSelfBootstrapAdmin(false);
+          setSetupStatus(null);
         }
       }
     })();
@@ -109,6 +113,8 @@ export default function RegisterPage() {
   if (isLoading) return null;
 
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const localSignupUnavailable = setupStatus?.localPasswordAuthEnabled === false;
+  const canSelfBootstrapAdmin = setupStatus?.canSelfBootstrapAdmin === true;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 font-sans py-8">
@@ -143,6 +149,16 @@ export default function RegisterPage() {
               계정을 만들고 저장 기능과 문의 기능을 이용해 보세요.
             </p>
           </div>
+
+          {localSignupUnavailable && (
+            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+              <p className="leading-relaxed">
+                회원가입을 사용하려면 서버 데이터베이스 연결이 필요합니다.
+                `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해 주세요.
+              </p>
+            </div>
+          )}
 
           {canSelfBootstrapAdmin && (
             <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-100">
@@ -262,7 +278,7 @@ export default function RegisterPage() {
 
             <Button
               type="submit"
-              disabled={submitting || passwordMismatch}
+              disabled={submitting || passwordMismatch || localSignupUnavailable}
               className="w-full h-11 text-base font-semibold gap-2 bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
             >
               {submitting ? (
@@ -270,7 +286,11 @@ export default function RegisterPage() {
               ) : (
                 <UserPlus className="w-4 h-4" />
               )}
-              {submitting ? "가입 중..." : "회원가입"}
+              {submitting
+                ? "가입 중..."
+                : localSignupUnavailable
+                  ? "데이터베이스 연결 필요"
+                  : "회원가입"}
             </Button>
           </form>
 

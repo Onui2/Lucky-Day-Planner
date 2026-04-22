@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { sql } from "drizzle-orm";
 import { index, jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // Session storage for the app authentication flow.
@@ -13,19 +14,26 @@ export const sessionsTable = pgTable(
 );
 
 // User records for local auth and optional OIDC sign-in.
-export const usersTable = pgTable("users", {
-  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { length: 20 }).notNull().default("user"),
-  passwordHash: varchar("password_hash"),
-  passwordResetToken: varchar("password_reset_token"),
-  passwordResetExpiry: timestamp("password_reset_expiry", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+export const usersTable = pgTable(
+  "users",
+  {
+    id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    email: varchar("email").unique(),
+    firstName: varchar("first_name"),
+    lastName: varchar("last_name"),
+    profileImageUrl: varchar("profile_image_url"),
+    role: varchar("role", { length: 20 }).notNull().default("user"),
+    passwordHash: varchar("password_hash"),
+    passwordResetToken: varchar("password_reset_token"),
+    passwordResetExpiry: timestamp("password_reset_expiry", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("users_email_lookup_idx").on(sql`lower(${table.email})`),
+    index("users_password_reset_token_idx").on(table.passwordResetToken),
+  ],
+);
 
 export type UpsertUser = typeof usersTable.$inferInsert;
 export type User = typeof usersTable.$inferSelect;

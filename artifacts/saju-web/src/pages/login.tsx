@@ -14,7 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@workspace/replit-auth-web";
-import { loginWithPassword } from "@/lib/auth-client";
+import {
+  type AuthSetupStatus,
+  getAuthSetupStatus,
+  loginWithPassword,
+} from "@/lib/auth-client";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -30,12 +34,34 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [setupStatus, setSetupStatus] = useState<AuthSetupStatus | null>(null);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       navigate(returnTo);
     }
   }, [isAuthenticated, isLoading, navigate, returnTo]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const setup = await getAuthSetupStatus();
+        if (!cancelled) {
+          setSetupStatus(setup);
+        }
+      } catch {
+        if (!cancelled) {
+          setSetupStatus(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -64,6 +90,8 @@ export default function LoginPage() {
   };
 
   if (isLoading) return null;
+
+  const localLoginUnavailable = setupStatus?.localPasswordAuthEnabled === false;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 font-sans">
@@ -98,6 +126,16 @@ export default function LoginPage() {
               이메일과 비밀번호로 로그인해 주세요.
             </p>
           </div>
+
+          {localLoginUnavailable && (
+            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+              <p className="leading-relaxed">
+                로컬 로그인을 사용하려면 서버 데이터베이스 연결이 필요합니다.
+                `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해 주세요.
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
@@ -167,7 +205,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || localLoginUnavailable}
               className="w-full h-11 text-base font-semibold gap-2 bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
             >
               {submitting ? (
@@ -175,7 +213,11 @@ export default function LoginPage() {
               ) : (
                 <LogIn className="w-4 h-4" />
               )}
-              {submitting ? "로그인 중..." : "로그인"}
+              {submitting
+                ? "로그인 중..."
+                : localLoginUnavailable
+                  ? "데이터베이스 연결 필요"
+                  : "로그인"}
             </Button>
           </form>
 
