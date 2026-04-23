@@ -126,12 +126,22 @@ export default function LuckyCalendarPage() {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!user?.id) {
       setBookmarks([]);
       return;
     }
 
-    setBookmarks(getLuckyDayBookmarks(user.id));
+    void (async () => {
+      const nextBookmarks = await getLuckyDayBookmarks(user.id);
+      if (cancelled) return;
+      setBookmarks(nextBookmarks);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -174,7 +184,7 @@ export default function LuckyCalendarPage() {
   // 달력 첫 날 요일
   const firstDow = getDayOfWeekIndex(year, month, 1);
 
-  function handleSaveBookmark() {
+  async function handleSaveBookmark() {
     if (!user?.id || !selectedDay || !data || !selectedBookmarkId) return;
 
     const bookmark = {
@@ -195,7 +205,7 @@ export default function LuckyCalendarPage() {
       createdAt: new Date().toISOString(),
     } satisfies LuckyDayBookmark;
 
-    const next = upsertLuckyDayBookmark(user.id, bookmark);
+    const next = await upsertLuckyDayBookmark(user.id, bookmark);
     void addRecentActivity(user.id, {
       id: `lucky-day:${bookmark.id}`,
       kind: "lucky-day",
@@ -210,9 +220,9 @@ export default function LuckyCalendarPage() {
     window.setTimeout(() => setSaveDone(false), 1800);
   }
 
-  function handleRemoveBookmark(bookmarkId: string) {
+  async function handleRemoveBookmark(bookmarkId: string) {
     if (!user?.id) return;
-    setBookmarks(removeLuckyDayBookmark(user.id, bookmarkId));
+    setBookmarks(await removeLuckyDayBookmark(user.id, bookmarkId));
   }
 
   return (

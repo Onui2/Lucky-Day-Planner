@@ -247,6 +247,88 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`CREATE INDEX IF NOT EXISTS inquiries_user_created_idx ON inquiries (user_id, created_at DESC)`);
         await client.query(`CREATE INDEX IF NOT EXISTS inquiries_status_created_idx ON inquiries (status, created_at DESC)`);
         await client.query(`CREATE INDEX IF NOT EXISTS inquiries_admin_unread_idx ON inquiries (read_by_admin, created_at DESC)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS user_profiles (
+            user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            profile jsonb NOT NULL DEFAULT '{}'::jsonb,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS profile jsonb DEFAULT '{}'::jsonb`);
+        await client.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
+        await client.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
+        await client.query(`UPDATE user_profiles SET profile = '{}'::jsonb WHERE profile IS NULL`);
+        await client.query(`UPDATE user_profiles SET created_at = now() WHERE created_at IS NULL`);
+        await client.query(`UPDATE user_profiles SET updated_at = now() WHERE updated_at IS NULL`);
+        await client.query(`ALTER TABLE user_profiles ALTER COLUMN profile SET DEFAULT '{}'::jsonb`);
+        await client.query(`ALTER TABLE user_profiles ALTER COLUMN profile SET NOT NULL`);
+        await client.query(`ALTER TABLE user_profiles ALTER COLUMN created_at SET DEFAULT now()`);
+        await client.query(`ALTER TABLE user_profiles ALTER COLUMN created_at SET NOT NULL`);
+        await client.query(`ALTER TABLE user_profiles ALTER COLUMN updated_at SET DEFAULT now()`);
+        await client.query(`ALTER TABLE user_profiles ALTER COLUMN updated_at SET NOT NULL`);
+        await client.query(`CREATE INDEX IF NOT EXISTS user_profiles_updated_idx ON user_profiles (updated_at DESC)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS member_bookmarks (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            bookmark_id varchar(160) NOT NULL,
+            payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS bookmark_id varchar(160)`);
+        await client.query(`ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS payload jsonb DEFAULT '{}'::jsonb`);
+        await client.query(`ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
+        await client.query(`ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
+        await client.query(`UPDATE member_bookmarks SET payload = '{}'::jsonb WHERE payload IS NULL`);
+        await client.query(`UPDATE member_bookmarks SET created_at = now() WHERE created_at IS NULL`);
+        await client.query(`UPDATE member_bookmarks SET updated_at = now() WHERE updated_at IS NULL`);
+        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN bookmark_id SET NOT NULL`);
+        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN payload SET DEFAULT '{}'::jsonb`);
+        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN payload SET NOT NULL`);
+        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN created_at SET DEFAULT now()`);
+        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN created_at SET NOT NULL`);
+        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN updated_at SET DEFAULT now()`);
+        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN updated_at SET NOT NULL`);
+        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS member_bookmarks_user_bookmark_idx ON member_bookmarks (user_id, bookmark_id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS member_bookmarks_user_updated_idx ON member_bookmarks (user_id, updated_at DESC)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS recent_activities (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            activity_id varchar(200) NOT NULL,
+            kind varchar(30) NOT NULL DEFAULT 'saju',
+            payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS activity_id varchar(200)`);
+        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS kind varchar(30) DEFAULT 'saju'`);
+        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS payload jsonb DEFAULT '{}'::jsonb`);
+        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
+        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
+        await client.query(`UPDATE recent_activities SET kind = 'saju' WHERE kind IS NULL`);
+        await client.query(`UPDATE recent_activities SET payload = '{}'::jsonb WHERE payload IS NULL`);
+        await client.query(`UPDATE recent_activities SET created_at = now() WHERE created_at IS NULL`);
+        await client.query(`UPDATE recent_activities SET updated_at = now() WHERE updated_at IS NULL`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN activity_id SET NOT NULL`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN kind SET DEFAULT 'saju'`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN kind SET NOT NULL`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN payload SET DEFAULT '{}'::jsonb`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN payload SET NOT NULL`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN created_at SET DEFAULT now()`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN created_at SET NOT NULL`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN updated_at SET DEFAULT now()`);
+        await client.query(`ALTER TABLE recent_activities ALTER COLUMN updated_at SET NOT NULL`);
+        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS recent_activities_user_activity_idx ON recent_activities (user_id, activity_id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS recent_activities_user_updated_idx ON recent_activities (user_id, updated_at DESC)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS recent_activities_kind_updated_idx ON recent_activities (kind, updated_at DESC)`);
         databaseReady = true;
         lastDatabaseError = null;
       } finally {

@@ -1,6 +1,19 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+
+import { customFetch } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
-import { getProfileStorageKey, LEGACY_PROFILE_STORAGE_KEY } from "@/lib/profile-storage";
+
+import {
+  getProfileStorageKey,
+  LEGACY_PROFILE_STORAGE_KEY,
+} from "@/lib/profile-storage";
 
 export interface UserProfile {
   name?: string;
@@ -40,6 +53,100 @@ const UserContext = createContext<UserContextType>({
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseNumber(value: unknown, fallback?: number) {
+  const number = Number(value);
+  if (Number.isFinite(number)) {
+    return number;
+  }
+
+  return fallback;
+}
+
+function normalizeProfile(value: unknown): UserProfile | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const gender = value.gender === "female" ? "female" : value.gender === "male" ? "male" : null;
+  const calendarType =
+    value.calendarType === "lunar"
+      ? "lunar"
+      : value.calendarType === "solar"
+        ? "solar"
+        : null;
+  const birthYear = parseNumber(value.birthYear);
+  const birthMonth = parseNumber(value.birthMonth);
+  const birthDay = parseNumber(value.birthDay);
+  const birthHour = parseNumber(value.birthHour, -1);
+
+  if (!gender || !calendarType || !birthYear || !birthMonth || !birthDay || birthHour === undefined) {
+    return null;
+  }
+
+  return {
+    name: typeof value.name === "string" && value.name.trim() ? value.name.trim() : undefined,
+    gender,
+    birthYear,
+    birthMonth,
+    birthDay,
+    birthHour,
+    birthMinute: parseNumber(value.birthMinute),
+    calendarType,
+    dayMasterElement:
+      typeof value.dayMasterElement === "string" ? value.dayMasterElement : undefined,
+    dayMasterStem:
+      typeof value.dayMasterStem === "string" ? value.dayMasterStem : undefined,
+    dayMasterBranch:
+      typeof value.dayMasterBranch === "string" ? value.dayMasterBranch : undefined,
+    yearStem: typeof value.yearStem === "string" ? value.yearStem : undefined,
+    yearBranch: typeof value.yearBranch === "string" ? value.yearBranch : undefined,
+    monthStem: typeof value.monthStem === "string" ? value.monthStem : undefined,
+    monthBranch: typeof value.monthBranch === "string" ? value.monthBranch : undefined,
+    hourStem: typeof value.hourStem === "string" ? value.hourStem : undefined,
+    hourBranch: typeof value.hourBranch === "string" ? value.hourBranch : undefined,
+  };
+}
+
+function readLocalProfile(userId: string): UserProfile | null {
+  try {
+    const storageKey = getProfileStorageKey(userId);
+    const raw =
+      localStorage.getItem(storageKey) ??
+      localStorage.getItem(LEGACY_PROFILE_STORAGE_KEY);
+
+    if (!raw) {
+      return null;
+    }
+
+    if (!localStorage.getItem(storageKey)) {
+      localStorage.setItem(storageKey, raw);
+    }
+    localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
+
+    return normalizeProfile(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalProfile(userId: string, profile: UserProfile | null) {
+  const storageKey = getProfileStorageKey(userId);
+
+  if (!profile) {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
+    return;
+  }
+
+  const serialized = JSON.stringify(profile);
+  localStorage.setItem(storageKey, serialized);
+  localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
+}
+
 function needsPillarMigration(profile: UserProfile) {
   return !profile.dayMasterStem
     || !profile.dayMasterBranch
@@ -64,10 +171,13 @@ async function fetchProfilePillars(p: UserProfile): Promise<Partial<UserProfile>
       calendarType: p.calendarType,
     }),
   });
+
   if (!res.ok) throw new Error("사주 계산 실패");
+
   const data = await res.json();
   return {
-    dayMasterElement: data.dayMasterElement ?? data.dayPillar?.heavenlyStemElement ?? "목",
+    dayMasterElement:
+      data.dayMasterElement ?? data.dayPillar?.heavenlyStemElement ?? "목",
     dayMasterStem: data.dayPillar?.heavenlyStem ?? "",
     dayMasterBranch: data.dayPillar?.earthlyBranch ?? "",
     yearStem: data.yearPillar?.heavenlyStem ?? "",
@@ -77,6 +187,37 @@ async function fetchProfilePillars(p: UserProfile): Promise<Partial<UserProfile>
     hourStem: data.hourPillar?.heavenlyStem ?? "",
     hourBranch: data.hourPillar?.earthlyBranch ?? "",
   };
+}
+
+async function fetchRemoteProfile() {
+  const response = await customFetch<{ profile: unknown }>("/api/profile");
+  return normalizeProfile(response.profile);
+}
+
+async function saveRemoteProfile(profile: UserProfile) {
+  const response = await customFetch<{ profile: unknown }>("/api/profile", {
+    method: "PUT",
+    body: JSON.stringify({ profile }),
+  });
+
+  return normalizeProfile(response.profile) ?? profile;
+}
+
+async function removeRemoteProfile() {
+  return customFetch<{ ok: boolean }>("/api/profile", { method: "DELETE" });
+}
+
+async function resolveProfile(profile: UserProfile) {
+  if (!needsPillarMigration(profile)) {
+    return profile;
+  }
+
+  try {
+    const pillarInfo = await fetchProfilePillars(profile);
+    return { ...profile, ...pillarInfo };
+  } catch {
+    return profile;
+  }
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {
@@ -107,72 +248,89 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setProfileState(null);
       setProfileReady(false);
 
+      const localProfile = readLocalProfile(user.id);
+
       try {
-        const storageKey = getProfileStorageKey(user.id);
-        const raw = localStorage.getItem(storageKey) ?? localStorage.getItem(LEGACY_PROFILE_STORAGE_KEY);
-        if (raw) {
-          const parsed: UserProfile = JSON.parse(raw);
-          if (!localStorage.getItem(storageKey)) {
-            localStorage.setItem(storageKey, raw);
-          }
-          localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
-          if (needsPillarMigration(parsed)) {
-            try {
-              const pillarInfo = await fetchProfilePillars(parsed);
-              const migrated = { ...parsed, ...pillarInfo };
-              localStorage.setItem(storageKey, JSON.stringify(migrated));
-              if (!cancelled) setProfileState(migrated);
-            } catch {
-              if (!cancelled) setProfileState(parsed);
-            }
-          } else {
-            if (!cancelled) setProfileState(parsed);
-          }
-        } else if (!cancelled) {
-          setProfileState(null);
+        const remoteProfile = await fetchRemoteProfile();
+        const baseProfile = remoteProfile ?? localProfile;
+
+        if (!baseProfile) {
+          if (!cancelled) setProfileState(null);
+          return;
         }
-      } catch {}
-      if (!cancelled) {
-        setProfileReady(true);
+
+        const resolvedProfile = await resolveProfile(baseProfile);
+        writeLocalProfile(user.id, resolvedProfile);
+
+        if (!remoteProfile || needsPillarMigration(remoteProfile)) {
+          void saveRemoteProfile(resolvedProfile).catch(() => {});
+        }
+
+        if (!cancelled) {
+          setProfileState(resolvedProfile);
+        }
+      } catch {
+        if (!localProfile) {
+          if (!cancelled) setProfileState(null);
+          return;
+        }
+
+        const resolvedProfile = await resolveProfile(localProfile);
+        writeLocalProfile(user.id, resolvedProfile);
+        if (!cancelled) {
+          setProfileState(resolvedProfile);
+        }
+      } finally {
+        if (!cancelled) {
+          setProfileReady(true);
+        }
       }
     })();
+
     return () => {
       cancelled = true;
     };
   }, [authLoading, isAuthenticated, user?.id]);
 
-  const setProfile = useCallback(async (p: UserProfile) => {
-    if (!user?.id || !isAuthenticated) {
-      setProfileState(null);
-      return;
-    }
+  const setProfile = useCallback(
+    async (nextProfile: UserProfile) => {
+      if (!user?.id || !isAuthenticated) {
+        setProfileState(null);
+        return;
+      }
 
-    const storageKey = getProfileStorageKey(user.id);
-    setIsLoading(true);
-    try {
-      const pillarInfo = await fetchProfilePillars(p);
-      const full: UserProfile = { ...p, ...pillarInfo };
-      localStorage.setItem(storageKey, JSON.stringify(full));
-      setProfileState(full);
-    } catch {
-      const full: UserProfile = { ...p };
-      localStorage.setItem(storageKey, JSON.stringify(full));
-      setProfileState(full);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isAuthenticated, user?.id]);
+      setIsLoading(true);
+      const resolvedProfile = await resolveProfile(nextProfile);
+      writeLocalProfile(user.id, resolvedProfile);
+      setProfileState(resolvedProfile);
+
+      try {
+        const savedProfile = await saveRemoteProfile(resolvedProfile);
+        writeLocalProfile(user.id, savedProfile);
+        setProfileState(savedProfile);
+      } catch {
+        setProfileState(resolvedProfile);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [isAuthenticated, user?.id],
+  );
 
   const clearProfile = useCallback(() => {
     if (user?.id) {
-      localStorage.removeItem(getProfileStorageKey(user.id));
+      writeLocalProfile(user.id, null);
+      void removeRemoteProfile().catch(() => {});
     }
+
     localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
     setProfileState(null);
   }, [user?.id]);
 
   return (
-    <UserContext.Provider value={{ profile, setProfile, clearProfile, isLoading, profileReady }}>
+    <UserContext.Provider
+      value={{ profile, setProfile, clearProfile, isLoading, profileReady }}
+    >
       {children}
     </UserContext.Provider>
   );

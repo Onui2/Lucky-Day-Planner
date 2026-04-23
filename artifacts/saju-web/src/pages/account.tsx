@@ -93,14 +93,28 @@ export default function AccountPage() {
   }, [account]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!account?.id) {
       setBookmarks([]);
       setRecentActivities([]);
       return;
     }
 
-    setBookmarks(getLuckyDayBookmarks(account.id));
-    setRecentActivities(getRecentActivities(account.id));
+    void (async () => {
+      const [nextBookmarks, nextRecentActivities] = await Promise.all([
+        getLuckyDayBookmarks(account.id),
+        getRecentActivities(account.id),
+      ]);
+
+      if (cancelled) return;
+      setBookmarks(nextBookmarks);
+      setRecentActivities(nextRecentActivities);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [account?.id]);
 
   async function handleNameSave(e: React.FormEvent) {
@@ -366,7 +380,11 @@ export default function AccountPage() {
                 {account?.id && recentActivities.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setRecentActivities(clearRecentActivities(account.id))}
+                    onClick={() => {
+                      void (async () => {
+                        setRecentActivities(await clearRecentActivities(account.id));
+                      })();
+                    }}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     기록 비우기

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ComponentType } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
 import {
+  useGetAdminStats,
   useGetAdminInquiries,
   useAdminReplyInquiry,
   useAdminMarkRead,
@@ -9,6 +10,7 @@ import {
   useCalculateSaju,
   useGetAdminUsers,
   useAdminSetUserRole,
+  type AdminStatsResponse,
   type Inquiry,
   type InquirySajuSnapshot,
   type AdminUser,
@@ -19,7 +21,7 @@ import {
   ShieldCheck, MessageSquare, Clock, CheckCircle2, Trash2,
   ChevronLeft, ChevronRight, Send, Loader2, User, Calendar,
   AlertTriangle, Eye, ChevronDown, ChevronUp, Sparkles, Heart, FileQuestion,
-  Users, Search, Crown, UserCheck, UserX, Mail,
+  Users, Search, Crown, UserCheck, UserX, Mail, TrendingUp, Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBirthHourLabel } from "@/components/ProfileModal";
@@ -726,10 +728,227 @@ function UsersTab({ currentUserId, currentUserRole }: { currentUserId: string; c
 }
 
 /* ─── 어드민 페이지 ───────────────────────────── */
+function StatsCard({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone = "primary",
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  hint: string;
+  tone?: "primary" | "emerald" | "amber" | "sky";
+}) {
+  const toneClass =
+    tone === "emerald"
+      ? "border-emerald-500/30 bg-emerald-500/8 text-emerald-300"
+      : tone === "amber"
+        ? "border-amber-500/30 bg-amber-500/8 text-amber-300"
+        : tone === "sky"
+          ? "border-sky-500/30 bg-sky-500/8 text-sky-300"
+          : "border-primary/30 bg-primary/8 text-primary";
+
+  return (
+    <div className={cn("glass-panel border rounded-2xl p-5", toneClass)}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-widest opacity-70 mb-1">{label}</p>
+          <p className="text-3xl font-semibold text-foreground">{value.toLocaleString("ko-KR")}</p>
+        </div>
+        <div className="w-10 h-10 rounded-2xl border border-current/20 bg-black/10 flex items-center justify-center">
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground mt-3">{hint}</p>
+    </div>
+  );
+}
+
+function DashboardTab() {
+  const { data, isLoading } = useGetAdminStats();
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="w-7 h-7 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="glass-panel border border-primary/20 rounded-2xl p-8 text-center text-muted-foreground">
+        관리자 통계를 불러오지 못했습니다.
+      </div>
+    );
+  }
+
+  const inquiryTypeEntries: Array<{
+    key: keyof AdminStatsResponse["inquiryTypes"];
+    label: string;
+    color: string;
+  }> = [
+    { key: "general", label: "일반", color: "bg-sky-400" },
+    { key: "saju", label: "사주", color: "bg-primary" },
+    { key: "gungap", label: "궁합", color: "bg-rose-400" },
+  ];
+  const inquiryTypeTotal = Object.values(data.inquiryTypes).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatsCard
+          icon={Users}
+          label="전체 회원"
+          value={data.counts.totalUsers}
+          hint={`오늘 신규 ${data.counts.newUsersToday}명`}
+        />
+        <StatsCard
+          icon={MessageSquare}
+          label="전체 문의"
+          value={data.counts.totalInquiries}
+          hint={`오늘 접수 ${data.counts.inquiriesToday}건`}
+          tone="sky"
+        />
+        <StatsCard
+          icon={Clock}
+          label="미처리 문의"
+          value={data.counts.pendingInquiries}
+          hint={`미확인 ${data.counts.unreadInquiries}건`}
+          tone="amber"
+        />
+        <StatsCard
+          icon={Database}
+          label="저장된 사주"
+          value={data.counts.totalSavedSaju}
+          hint={`오늘 답변 ${data.counts.answeredToday}건`}
+          tone="emerald"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.95fr] gap-4">
+        <div className="glass-panel border border-primary/20 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <h3 className="font-medium text-foreground">문의 유형 비중</h3>
+          </div>
+
+          <div className="space-y-3">
+            {inquiryTypeEntries.map((entry) => {
+              const value = data.inquiryTypes[entry.key];
+              const ratio =
+                inquiryTypeTotal > 0
+                  ? Math.round((value / inquiryTypeTotal) * 100)
+                  : 0;
+
+              return (
+                <div key={entry.key} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground/85">{entry.label}</span>
+                    <span className="text-muted-foreground">
+                      {value}건 ({ratio}%)
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white/8 overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full", entry.color)}
+                      style={{ width: `${Math.max(ratio, value > 0 ? 8 : 0)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-5 text-sm">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[11px] text-muted-foreground mb-1">관리자 계정</div>
+              <div className="font-semibold text-foreground">{data.counts.adminUsers}명</div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[11px] text-muted-foreground mb-1">오늘 답변</div>
+              <div className="font-semibold text-foreground">{data.counts.answeredToday}건</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          <div className="glass-panel border border-primary/20 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-4 h-4 text-primary" />
+              <h3 className="font-medium text-foreground">최근 가입</h3>
+            </div>
+
+            <div className="space-y-3">
+              {data.recentUsers.length === 0 ? (
+                <div className="text-sm text-muted-foreground">최근 가입 사용자가 없습니다.</div>
+              ) : (
+                data.recentUsers.map((member) => (
+                  <div key={member.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">
+                          {member.firstName || member.email || "이름 없음"}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {member.email ?? "이메일 없음"}
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-primary bg-primary/15 border border-primary/25 px-2 py-0.5 rounded-full">
+                        {member.role}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-2">
+                      {formatDate(member.createdAt)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="glass-panel border border-primary/20 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              <h3 className="font-medium text-foreground">최근 문의</h3>
+            </div>
+
+            <div className="space-y-3">
+              {data.recentInquiries.length === 0 ? (
+                <div className="text-sm text-muted-foreground">최근 문의가 없습니다.</div>
+              ) : (
+                data.recentInquiries.map((inquiry) => (
+                  <div key={inquiry.id} className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-medium text-foreground">
+                        {inquiry.userLabel || inquiry.userEmail || `문의 #${inquiry.id}`}
+                      </div>
+                      <StatusBadge status={inquiry.status} />
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <InquiryTypeBadge type={inquiry.inquiryType} />
+                      <span>{formatDate(inquiry.createdAt)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"inquiries" | "users">("inquiries");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "inquiries" | "users">("dashboard");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
@@ -791,6 +1010,18 @@ export default function AdminPage() {
         {/* 탭 */}
         <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-8 w-fit">
           <button
+            onClick={() => setActiveTab("dashboard")}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all",
+              activeTab === "dashboard"
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <TrendingUp className="w-4 h-4" />
+            운영 현황
+          </button>
+          <button
             onClick={() => setActiveTab("inquiries")}
             className={cn(
               "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all",
@@ -823,7 +1054,11 @@ export default function AdminPage() {
 
         {/* 탭 콘텐츠 */}
         <AnimatePresence mode="wait">
-          {activeTab === "inquiries" ? (
+          {activeTab === "dashboard" ? (
+            <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} transition={{ duration: 0.2 }}>
+              <DashboardTab />
+            </motion.div>
+          ) : activeTab === "inquiries" ? (
             <motion.div key="inquiries" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}>
               {/* 문의 필터 */}
               <div className="flex gap-2 mb-6">

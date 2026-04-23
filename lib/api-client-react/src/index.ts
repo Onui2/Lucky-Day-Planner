@@ -474,6 +474,47 @@ export interface AdminUsersResponse {
 }
 
 const ADMIN_USERS_KEY = ["admin", "users"] as const;
+const ADMIN_STATS_KEY = ["admin", "stats"] as const;
+
+export interface AdminStatsCountSummary {
+  totalUsers: number;
+  newUsersToday: number;
+  adminUsers: number;
+  totalSavedSaju: number;
+  totalInquiries: number;
+  unreadInquiries: number;
+  pendingInquiries: number;
+  inquiriesToday: number;
+  answeredToday: number;
+}
+
+export interface AdminStatsRecentUser {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  role: string;
+  createdAt: string;
+}
+
+export interface AdminStatsRecentInquiry {
+  id: number;
+  inquiryType: string | null;
+  status: string;
+  userLabel: string | null;
+  userEmail: string | null;
+  createdAt: string;
+}
+
+export interface AdminStatsResponse {
+  counts: AdminStatsCountSummary;
+  inquiryTypes: {
+    general: number;
+    saju: number;
+    gungap: number;
+  };
+  recentUsers: AdminStatsRecentUser[];
+  recentInquiries: AdminStatsRecentInquiry[];
+}
 
 export function useGetAdminUsers(page = 1, search = "") {
   return useQuery<AdminUsersResponse>({
@@ -483,6 +524,14 @@ export function useGetAdminUsers(page = 1, search = "") {
         `/api/admin/users?page=${page}&search=${encodeURIComponent(search)}`
       ),
     staleTime: 10_000,
+  });
+}
+
+export function useGetAdminStats() {
+  return useQuery<AdminStatsResponse>({
+    queryKey: ADMIN_STATS_KEY,
+    queryFn: () => customFetch<AdminStatsResponse>("/api/admin/stats"),
+    staleTime: 15_000,
   });
 }
 

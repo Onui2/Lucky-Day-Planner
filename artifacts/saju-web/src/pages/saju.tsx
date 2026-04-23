@@ -95,6 +95,73 @@ const SECTIONS = [
 ] as const;
 type SectionKey = typeof SECTIONS[number]["key"];
 type ResultSource = "manual" | "profile" | "cache" | "query";
+type ShareMode = "text" | "link";
+
+const DEFAULT_VISIBLE_SECTIONS: Record<SectionKey, boolean> = {
+  saju: true,
+  singang: true,
+  yongsin: true,
+  geokguk: true,
+  tenGods: true,
+  shinsal: true,
+  hapChung: true,
+  daeun: true,
+  seun: true,
+  samjae: true,
+  yongsinItem: true,
+  careful: true,
+  daymaster: true,
+  career: true,
+};
+
+const COMPACT_SECTION_KEYS: SectionKey[] = [
+  "saju",
+  "singang",
+  "yongsin",
+  "hapChung",
+  "samjae",
+  "daymaster",
+  "career",
+];
+
+function createVisibleSections(enabledKeys?: SectionKey[]) {
+  const next = { ...DEFAULT_VISIBLE_SECTIONS };
+
+  if (!enabledKeys || enabledKeys.length === 0) {
+    return next;
+  }
+
+  for (const key of Object.keys(next) as SectionKey[]) {
+    next[key] = false;
+  }
+
+  for (const key of enabledKeys) {
+    next[key] = true;
+  }
+
+  return next;
+}
+
+function parseVisibleSectionsParam(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const enabledKeys = value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item): item is SectionKey =>
+      SECTIONS.some((section) => section.key === item),
+    );
+
+  return enabledKeys.length > 0 ? createVisibleSections(enabledKeys) : null;
+}
+
+function serializeVisibleSections(sections: Record<SectionKey, boolean>) {
+  return SECTIONS.filter((section) => sections[section.key])
+    .map((section) => section.key)
+    .join(",");
+}
 
 // 오행 색상 헬퍼
 const ELEM_COLOR: Record<string, string> = {
@@ -120,23 +187,27 @@ export default function SajuPage() {
   const [inputForm, setInputForm] = useState<InputForm>(() => {
     const y = searchParams.get("y"); const m = searchParams.get("m");
     const d = searchParams.get("d"); const h = searchParams.get("h");
+    const min = searchParams.get("min");
     const g = searchParams.get("g"); const c = searchParams.get("c");
     if (y && m && d) {
       return {
         birthYear: y, birthMonth: m, birthDay: d,
-        birthHour: h ? Number(h) : -1, birthMinute: "",
+        birthHour: h ? Number(h) : -1, birthMinute: min ?? "",
         gender: (g as any) ?? "male", calendarType: (c as any) ?? "solar",
       };
     }
     return { birthYear: "", birthMonth: "", birthDay: "", birthHour: -1, birthMinute: "", gender: "male", calendarType: "solar" };
   });
   const [formError, setFormError] = useState<string | null>(null);
-  const [visibleSections, setVisibleSections] = useState<Record<SectionKey, boolean>>({
-    saju: true, singang: true, yongsin: true,
-    geokguk: true, tenGods: true, shinsal: true, hapChung: true,
-    daeun: true, seun: true, samjae: true, yongsinItem: true,
-    careful: true, daymaster: true, career: true,
-  });
+  const [compactMode, setCompactMode] = useState(() => searchParams.get("compact") === "1");
+  const [visibleSections, setVisibleSections] = useState<Record<SectionKey, boolean>>(
+    () =>
+      parseVisibleSectionsParam(searchParams.get("sections")) ??
+      (searchParams.get("compact") === "1"
+        ? createVisibleSections(COMPACT_SECTION_KEYS)
+        : { ...DEFAULT_VISIBLE_SECTIONS }),
+  );
+  const [shareMode, setShareMode] = useState<ShareMode>("text");
   const [copied, setCopied] = useState(false);
 
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -237,7 +308,23 @@ export default function SajuPage() {
     const branch = displayResult.dayPillar?.earthlyBranch ?? "";
     const title = `${bi.year}년 ${bi.month}월 ${bi.day}일 사주`;
     const subtitle = stem && branch ? `${stem}${branch} 일주` : `${bi.gender === "male" ? "남성" : "여성"} 사주`;
-    const href = `/saju?y=${bi.year}&m=${bi.month}&d=${bi.day}&h=${bi.hour ?? -1}&g=${bi.gender ?? "male"}&c=${bi.calendarType ?? "solar"}`;
+    const params = new URLSearchParams({
+      y: String(bi.year),
+      m: String(bi.month),
+      d: String(bi.day),
+      h: String(bi.hour ?? -1),
+      min: String(bi.minute ?? 0),
+      g: String(bi.gender ?? "male"),
+      c: String(bi.calendarType ?? "solar"),
+    });
+    const serializedSections = serializeVisibleSections(visibleSections);
+    if (serializedSections && serializedSections !== serializeVisibleSections(DEFAULT_VISIBLE_SECTIONS)) {
+      params.set("sections", serializedSections);
+    }
+    if (compactMode) {
+      params.set("compact", "1");
+    }
+    const href = `/saju?${params.toString()}`;
 
     void addRecentActivity(user.id, {
       id: `saju:${bi.year}-${bi.month}-${bi.day}-${bi.hour ?? -1}-${bi.minute ?? 0}-${bi.gender ?? "male"}-${bi.calendarType ?? "solar"}`,
@@ -247,13 +334,25 @@ export default function SajuPage() {
       href,
       createdAt: new Date().toISOString(),
     });
-  }, [displayResult, user?.id]);
+  }, [compactMode, displayResult, user?.id, visibleSections]);
 
   const r = displayResult as any;
   const showAccountActions = isAuthenticated;
 
   const toggleSection = (key: SectionKey) =>
     setVisibleSections(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const handleCompactToggle = () => {
+    setCompactMode((prev) => {
+      const next = !prev;
+      setVisibleSections(
+        next
+          ? createVisibleSections(COMPACT_SECTION_KEYS)
+          : { ...DEFAULT_VISIBLE_SECTIONS },
+      );
+      return next;
+    });
+  };
 
   function buildVisibleShareText(
     result: any,
@@ -436,10 +535,48 @@ export default function SajuPage() {
     return lines.join("\n");
   }
 
+  const buildShareLink = (
+    result: any,
+    sections: Record<SectionKey, boolean>,
+    compact: boolean,
+  ) => {
+    const bi = result.birthInfo;
+    const url =
+      typeof window !== "undefined"
+        ? new URL(window.location.href)
+        : new URL("https://example.com/saju");
+
+    url.search = "";
+    url.searchParams.set("y", String(bi?.year ?? inputForm.birthYear));
+    url.searchParams.set("m", String(bi?.month ?? inputForm.birthMonth));
+    url.searchParams.set("d", String(bi?.day ?? inputForm.birthDay));
+    url.searchParams.set("h", String(bi?.hour ?? inputForm.birthHour));
+    url.searchParams.set("min", String(bi?.minute ?? inputForm.birthMinute ?? 0));
+    url.searchParams.set("g", String(bi?.gender ?? inputForm.gender));
+    url.searchParams.set("c", String(bi?.calendarType ?? inputForm.calendarType));
+
+    const serializedSections = serializeVisibleSections(sections);
+    if (
+      serializedSections &&
+      serializedSections !== serializeVisibleSections(DEFAULT_VISIBLE_SECTIONS)
+    ) {
+      url.searchParams.set("sections", serializedSections);
+    }
+
+    if (compact) {
+      url.searchParams.set("compact", "1");
+    }
+
+    return url.toString();
+  };
+
   const handleShare = () => {
     if (!r) return;
-    const shareText = buildVisibleShareText(r, visibleSections);
-    navigator.clipboard.writeText(shareText).then(() => {
+    const payload =
+      shareMode === "link"
+        ? buildShareLink(r, visibleSections, compactMode)
+        : buildVisibleShareText(r, visibleSections);
+    navigator.clipboard.writeText(payload).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -635,16 +772,47 @@ export default function SajuPage() {
   useEffect(() => {
     const y = searchParams.get("y"); const m = searchParams.get("m"); const d = searchParams.get("d");
     if (y && m && d && !displayResult) {
-      const h = searchParams.get("h"); const g = searchParams.get("g"); const c = searchParams.get("c");
-      const minute = 0;
+      const h = searchParams.get("h");
+      const minute = parseInt(searchParams.get("min") ?? "0", 10);
+      const g = searchParams.get("g"); const c = searchParams.get("c");
       pendingResultSourceRef.current = "query";
       calculateSaju({ data: {
         birthYear: parseInt(y), birthMonth: parseInt(m), birthDay: parseInt(d),
-        birthHour: h ? parseInt(h) : -1, birthMinute: minute,
+        birthHour: h ? parseInt(h) : -1, birthMinute: Number.isFinite(minute) ? minute : 0,
         gender: (g as any) ?? "male", calendarType: (c as any) ?? "solar",
       }});
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !r?.birthInfo) return;
+
+    const url = new URL(window.location.href);
+    const bi = r.birthInfo;
+
+    url.searchParams.set("y", String(bi.year));
+    url.searchParams.set("m", String(bi.month));
+    url.searchParams.set("d", String(bi.day));
+    url.searchParams.set("h", String(bi.hour ?? -1));
+    url.searchParams.set("min", String(bi.minute ?? 0));
+    url.searchParams.set("g", String(bi.gender ?? "male"));
+    url.searchParams.set("c", String(bi.calendarType ?? "solar"));
+
+    const serializedSections = serializeVisibleSections(visibleSections);
+    if (serializedSections && serializedSections !== serializeVisibleSections(DEFAULT_VISIBLE_SECTIONS)) {
+      url.searchParams.set("sections", serializedSections);
+    } else {
+      url.searchParams.delete("sections");
+    }
+
+    if (compactMode) {
+      url.searchParams.set("compact", "1");
+    } else {
+      url.searchParams.delete("compact");
+    }
+
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+  }, [compactMode, r, visibleSections]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -823,6 +991,10 @@ export default function SajuPage() {
         <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
           <h2 className="text-3xl font-serif text-primary">사주 분석 결과</h2>
           <div className="flex flex-wrap gap-2 items-center">
+            <Button variant="outline" size="sm" onClick={handleCompactToggle} className="gap-2">
+              {compactMode ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              {compactMode ? "전체 보기" : "핵심만 보기"}
+            </Button>
             {showAccountActions && (
               justSaved ? (
                 <span className="flex items-center gap-1.5 text-sm text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
@@ -860,6 +1032,15 @@ export default function SajuPage() {
                 </Button>
               )
             )}
+            <Select value={shareMode} onValueChange={(value) => setShareMode(value as ShareMode)}>
+              <SelectTrigger className="h-9 w-[116px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">텍스트 공유</SelectItem>
+                <SelectItem value="link">링크 공유</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" onClick={handleShare} className="gap-2">
               {copied ? <><CheckCheck className="w-4 h-4 text-green-400" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
             </Button>
@@ -881,6 +1062,20 @@ export default function SajuPage() {
 
         {/* 섹션 토글 버튼 */}
         <div className="flex flex-wrap gap-2 mb-8 p-4 glass-panel rounded-2xl border border-primary/20">
+          <button
+            type="button"
+            onClick={() => setVisibleSections({ ...DEFAULT_VISIBLE_SECTIONS })}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-primary/20 text-primary hover:bg-primary/10 transition-all"
+          >
+            전체 켜기
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibleSections(createVisibleSections(COMPACT_SECTION_KEYS))}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-primary/20 text-primary hover:bg-primary/10 transition-all"
+          >
+            핵심 프리셋
+          </button>
           <span className="text-sm text-muted-foreground self-center mr-2">섹션 필터:</span>
           {SECTIONS.map(s => (
             <button key={s.key} onClick={() => toggleSection(s.key)}
@@ -896,7 +1091,7 @@ export default function SajuPage() {
           ))}
         </div>
 
-        <div className="space-y-8">
+        <div className={compactMode ? "space-y-4" : "space-y-8"}>
 
           {/* ── 사주팔자 + 오행 ── */}
           {visibleSections.saju && (

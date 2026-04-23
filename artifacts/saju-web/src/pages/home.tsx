@@ -40,14 +40,28 @@ export default function Home() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!user?.id) {
       setBookmarks([]);
       setRecentActivities([]);
       return;
     }
 
-    setBookmarks(getLuckyDayBookmarks(user.id));
-    setRecentActivities(getRecentActivities(user.id));
+    void (async () => {
+      const [nextBookmarks, nextRecentActivities] = await Promise.all([
+        getLuckyDayBookmarks(user.id),
+        getRecentActivities(user.id),
+      ]);
+
+      if (cancelled) return;
+      setBookmarks(nextBookmarks);
+      setRecentActivities(nextRecentActivities);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
 
   return (
