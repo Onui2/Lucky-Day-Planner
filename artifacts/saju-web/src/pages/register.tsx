@@ -30,7 +30,7 @@ export default function RegisterPage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const returnTo = sanitizeReturnTo(params.get("returnTo"));
-  const { isAuthenticated, isLoading, refreshUser } = useAuth();
+  const { isAuthenticated, isLoading, refreshUser, setAuthenticatedUser } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -96,11 +96,14 @@ export default function RegisterPage() {
     setSubmitting(true);
 
     try {
-      await registerWithPassword({
+      const authenticatedUser = await registerWithPassword({
         email: email.trim(),
         password,
         name: name.trim(),
       });
+      if (authenticatedUser) {
+        setAuthenticatedUser(authenticatedUser);
+      }
       await refreshUser();
       navigate(returnTo);
     } catch (registerError) {

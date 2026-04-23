@@ -28,7 +28,7 @@ export default function LoginPage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const returnTo = sanitizeReturnTo(params.get("returnTo"));
-  const { isAuthenticated, isLoading, refreshUser } = useAuth();
+  const { isAuthenticated, isLoading, refreshUser, setAuthenticatedUser } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,7 +76,10 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      await loginWithPassword({ email: email.trim(), password });
+      const authenticatedUser = await loginWithPassword({ email: email.trim(), password });
+      if (authenticatedUser) {
+        setAuthenticatedUser(authenticatedUser);
+      }
       await refreshUser();
       navigate(returnTo);
     } catch (loginError) {

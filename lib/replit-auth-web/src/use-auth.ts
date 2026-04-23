@@ -17,6 +17,7 @@ interface AuthState {
   login: () => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  setAuthenticatedUser: (user: AuthUser | null) => void;
 }
 
 const BASE =
@@ -32,16 +33,89 @@ function buildAuthHeaders(): HeadersInit | undefined {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
 }
 
-async function fetchCurrentUser(): Promise<AuthUser | null> {
-  const res = await fetch(`${BASE}/api/auth/user`, {
-    credentials: "include",
-    headers: buildAuthHeaders(),
-  });
+class AuthRequestError extends Error {
+  readonly status?: number;
+  readonly isTransient: boolean;
 
-  if (!res.ok) return null;
+  constructor(
+    message: string,
+    options: {
+      status?: number;
+      isTransient?: boolean;
+      cause?: unknown;
+    } = {},
+  ) {
+    super(message);
+    this.name = "AuthRequestError";
+    this.status = options.status;
+    this.isTransient = options.isTransient ?? false;
+    this.cause = options.cause;
+  }
+}
+
+function isTransientAuthStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function fetchCurrentUser(): Promise<AuthUser | null> {
+  let res: Response;
+
+  try {
+    res = await fetch(`${BASE}/api/auth/user`, {
+      credentials: "include",
+      headers: buildAuthHeaders(),
+    });
+  } catch (error) {
+    throw new AuthRequestError("Failed to reach auth endpoint.", {
+      isTransient: true,
+      cause: error,
+    });
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    return null;
+  }
+
+  if (!res.ok) {
+    throw new AuthRequestError(
+      `Auth endpoint returned ${res.status}.`,
+      {
+        status: res.status,
+        isTransient: isTransientAuthStatus(res.status),
+      },
+    );
+  }
 
   const data = (await res.json()) as { user: AuthUser | null };
   return data.user ?? null;
+}
+
+async function fetchCurrentUserWithRetry(
+  maxAttempts = 3,
+): Promise<AuthUser | null> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetchCurrentUser();
+    } catch (error) {
+      lastError = error;
+
+      if (!(error instanceof AuthRequestError) || !error.isTransient || attempt >= maxAttempts) {
+        throw error;
+      }
+
+      await delay(250 * attempt);
+    }
+  }
+
+  throw lastError;
 }
 
 function buildLoginUrl(): string {
@@ -65,22 +139,33 @@ export function useAuth(): AuthState {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const syncSupabaseSession = useCallback(async () => {
+    if (!isSupabaseEnabled()) {
+      return;
+    }
+
+    try {
+      const client = getSupabaseClient();
+      const { data } = await client!.auth.getSession();
+      if (data.session) {
+        storeSupabaseSession(data.session);
+      }
+    } catch {
+      // Keep existing local auth state when Supabase session sync is flaky.
+    }
+  }, []);
+
   const loadUser = useCallback(async () => {
     try {
-      if (isSupabaseEnabled()) {
-        const client = getSupabaseClient();
-        const { data } = await client!.auth.getSession();
-        storeSupabaseSession(data.session ?? null);
-      }
-
-      const currentUser = await fetchCurrentUser();
+      await syncSupabaseSession();
+      const currentUser = await fetchCurrentUserWithRetry();
       setUser(currentUser);
     } catch {
-      setUser(null);
+      // Avoid logging the user out on transient auth endpoint failures.
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [syncSupabaseSession]);
 
   useEffect(() => {
     let isMounted = true;
@@ -96,17 +181,21 @@ export function useAuth(): AuthState {
     const client = getSupabaseClient();
     const {
       data: { subscription },
-    } = client!.auth.onAuthStateChange(async (_event, session) => {
-      storeSupabaseSession(session);
+    } = client!.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        storeSupabaseSession(session);
+      } else if (event === "SIGNED_OUT") {
+        clearStoredSupabaseTokens();
+      }
+
       try {
-        const currentUser = await fetchCurrentUser();
+        const currentUser = await fetchCurrentUserWithRetry();
         if (isMounted) {
           setUser(currentUser);
           setIsLoading(false);
         }
       } catch {
         if (isMounted) {
-          setUser(null);
           setIsLoading(false);
         }
       }
@@ -152,18 +241,13 @@ export function useAuth(): AuthState {
 
   const refreshUser = useCallback(async () => {
     try {
-      if (isSupabaseEnabled()) {
-        const client = getSupabaseClient();
-        const { data } = await client!.auth.getSession();
-        storeSupabaseSession(data.session ?? null);
-      }
-
-      const currentUser = await fetchCurrentUser();
+      await syncSupabaseSession();
+      const currentUser = await fetchCurrentUserWithRetry();
       setUser(currentUser);
     } catch {
-      setUser(null);
+      // Preserve the last known authenticated user on transient failures.
     }
-  }, []);
+  }, [syncSupabaseSession]);
 
   return {
     user,
@@ -172,5 +256,6 @@ export function useAuth(): AuthState {
     login,
     logout,
     refreshUser,
+    setAuthenticatedUser: setUser,
   };
 }

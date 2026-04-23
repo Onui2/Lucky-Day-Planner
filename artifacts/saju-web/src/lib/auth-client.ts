@@ -1,3 +1,5 @@
+import type { AuthUser } from "@workspace/replit-auth-web";
+
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
 interface AuthErrorShape {
@@ -8,6 +10,10 @@ interface AuthErrorShape {
 interface ResetTokenVerificationResult {
   valid: boolean;
   error?: string;
+}
+
+interface AuthUserPayload {
+  user?: AuthUser | null;
 }
 
 export interface AuthSetupStatus {
@@ -69,22 +75,34 @@ export async function registerWithPassword(input: {
   email: string;
   password: string;
   name?: string;
-}): Promise<void> {
-  await postJson("/api/auth/register", input, "회원가입에 실패했습니다.");
+}): Promise<AuthUser | null> {
+  const payload = await postJson<AuthUserPayload>(
+    "/api/auth/register",
+    input,
+    "회원가입에 실패했습니다.",
+  );
+
+  return payload.user ?? null;
 }
 
 export async function loginWithPassword(input: {
   email: string;
   password: string;
-}): Promise<void> {
-  await postJson("/api/auth/login-local", input, "로그인에 실패했습니다.");
+}): Promise<AuthUser | null> {
+  const payload = await postJson<AuthUserPayload>(
+    "/api/auth/login-local",
+    input,
+    "로그인에 실패했습니다.",
+  );
+
+  return payload.user ?? null;
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
   await postJson(
     "/api/auth/forgot-password",
     { email },
-    "재설정 메일 요청에 실패했습니다.",
+    "비밀번호 재설정 메일 요청에 실패했습니다.",
   );
 }
 
