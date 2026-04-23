@@ -255,8 +255,195 @@ export default function SajuPage() {
   const toggleSection = (key: SectionKey) =>
     setVisibleSections(prev => ({ ...prev, [key]: !prev[key] }));
 
+  function buildVisibleShareText(
+    result: any,
+    sections: Record<SectionKey, boolean>,
+  ): string {
+    const yp = result.yearPillar;
+    const mp = result.monthPillar;
+    const dp = result.dayPillar;
+    const hp = result.hourPillar;
+
+    const stemHanja: Record<string, string> = {
+      "갑": "甲",
+      "을": "乙",
+      "병": "丙",
+      "정": "丁",
+      "무": "戊",
+      "기": "己",
+      "경": "庚",
+      "신": "辛",
+      "임": "壬",
+      "계": "癸",
+    };
+
+    const branchHanja: Record<string, string> = {
+      "자": "子",
+      "축": "丑",
+      "인": "寅",
+      "묘": "卯",
+      "진": "辰",
+      "사": "巳",
+      "오": "午",
+      "미": "未",
+      "신": "申",
+      "유": "酉",
+      "술": "戌",
+      "해": "亥",
+    };
+
+    const divider = "────────────────────";
+    const pillarStr = (stem: string, branch: string) =>
+      `${stemHanja[stem] ?? stem}${branchHanja[branch] ?? branch}(${stem}${branch})`;
+    const hourStr =
+      hp?.heavenlyStem && hp.heavenlyStem !== "?"
+        ? pillarStr(hp.heavenlyStem, hp.earthlyBranch)
+        : "시간 미상";
+
+    const cleanShareText = (text: string) =>
+      text.replace(/\s+/g, " ").trim().replace(/[.!?。！？]+$/g, "");
+
+    const fitShareText = (text: string, maxLength: number) => {
+      const cleaned = cleanShareText(text);
+      if (!cleaned) return "";
+      if (cleaned.length <= maxLength) return cleaned;
+
+      const clauses = cleaned
+        .split(/[,:;·]/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      let combined = "";
+      for (const clause of clauses) {
+        const next = combined ? `${combined}, ${clause}` : clause;
+        if (next.length > maxLength) break;
+        combined = next;
+      }
+
+      if (combined) return combined;
+
+      const words = cleaned.split(/\s+/);
+      let summary = "";
+      for (const word of words) {
+        const next = summary ? `${summary} ${word}` : word;
+        if (next.length > maxLength) break;
+        summary = next;
+      }
+
+      return summary || cleaned.slice(0, maxLength).trim();
+    };
+
+    const shareSummary = (text: string, maxLength = 52) => {
+      if (!text) return "";
+
+      const sentences = text
+        .split(/(?<=[.!?。！？])\s+/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      const first = fitShareText(sentences[0] ?? text, maxLength);
+      if (!first) return "";
+      if (first.length > Math.floor(maxLength * 0.45) || !sentences[1]) return first;
+
+      const second = fitShareText(sentences[1], maxLength - first.length - 1);
+      return second ? `${first} ${second}` : first;
+    };
+
+    const lines: string[] = ["명해원 사주팔자 분석", divider];
+    let sharedSectionCount = 0;
+
+    if (sections.saju) {
+      sharedSectionCount += 1;
+      lines.push(
+        `생년월일: ${result.birthInfo?.year}년 ${result.birthInfo?.month}월 ${result.birthInfo?.day}일 ${result.birthInfo?.gender === "male" ? "남성" : "여성"}`,
+        "",
+        "[사주팔자]",
+        `  년주 ${pillarStr(yp.heavenlyStem, yp.earthlyBranch)}`,
+        `  월주 ${pillarStr(mp.heavenlyStem, mp.earthlyBranch)}`,
+        `  일주 ${pillarStr(dp.heavenlyStem, dp.earthlyBranch)} / 일간 ${dp.heavenlyStem}(${result.dayMasterElement})`,
+        `  시주 ${hourStr}`,
+      );
+    }
+
+    if (sections.singang && result.sinGangYak) {
+      sharedSectionCount += 1;
+      lines.push(
+        "",
+        "[신강/신약]",
+        `  ${result.sinGangYak.type} (${result.sinGangYak.score > 0 ? "+" : ""}${result.sinGangYak.score})`,
+      );
+      if (result.sinGangYak.description) {
+        lines.push(`  ${shareSummary(result.sinGangYak.description)}`);
+      }
+      if (result.sinGangYak.advice) {
+        lines.push(`  조언: ${shareSummary(result.sinGangYak.advice, 44)}`);
+      }
+    }
+
+    if (sections.yongsin && result.yongsin) {
+      sharedSectionCount += 1;
+      lines.push(
+        "",
+        "[용신 분석]",
+        `  용신 ${result.yongsin.yongsin} / 희신 ${result.yongsin.heegsin} / 기신 ${result.yongsin.geesin}`,
+      );
+      if (result.yongsin.advice) {
+        lines.push(`  ${shareSummary(result.yongsin.advice)}`);
+      }
+      if (result.yongsin.luckyColors?.length) {
+        lines.push(`  행운 색상: ${result.yongsin.luckyColors.join(", ")}`);
+      }
+    }
+
+    if (sections.daymaster && (result.personality || result.fortune || result.love || result.health)) {
+      sharedSectionCount += 1;
+      lines.push("", "[일간 성향]");
+      if (result.personality) lines.push(`  성향: ${shareSummary(result.personality, 44)}`);
+      if (result.fortune) lines.push(`  총운: ${shareSummary(result.fortune, 44)}`);
+      if (result.love) lines.push(`  애정: ${shareSummary(result.love, 40)}`);
+      if (result.health) lines.push(`  건강: ${shareSummary(result.health, 40)}`);
+    }
+
+    if (sections.career && result.career) {
+      sharedSectionCount += 1;
+      lines.push("", "[직업 적성]", `  ${shareSummary(result.career, 56)}`);
+    }
+
+    if (sections.samjae && result.samjae) {
+      sharedSectionCount += 1;
+      lines.push("", "[삼재]");
+      if (result.samjae.inSamjae) {
+        lines.push(`  ${result.samjae.type} (${result.samjae.samjaeYears?.join(", ")})`);
+        if (result.samjae.description) {
+          lines.push(`  ${shareSummary(result.samjae.description, 44)}`);
+        }
+        if (result.samjae.advice) {
+          lines.push(`  조언: ${shareSummary(result.samjae.advice, 44)}`);
+        }
+      } else {
+        lines.push("  현재 삼재 해당 없음");
+        if (result.samjae.nextSamjae) {
+          lines.push(`  다음 삼재: ${result.samjae.nextSamjae}`);
+        }
+      }
+    }
+
+    if (sharedSectionCount === 0) {
+      lines.push("현재 켜진 공유 섹션이 없습니다.");
+    }
+
+    lines.push("", divider, "명해원에서 결과를 다시 확인해 보세요.");
+    return lines.join("\n");
+  }
+
   const handleShare = () => {
     if (!r) return;
+    const shareText = buildVisibleShareText(r, visibleSections);
+    navigator.clipboard.writeText(shareText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+    return;
     const yp = r.yearPillar; const mp = r.monthPillar; const dp = r.dayPillar; const hp = r.hourPillar;
     const STEM_H: Record<string,string> = {갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸'};
     const BRNCH_H: Record<string,string> = {자:'子',축:'丑',인:'寅',묘:'卯',진:'辰',사:'巳',오:'午',미:'未',신:'申',유:'酉',술:'戌',해:'亥'};
