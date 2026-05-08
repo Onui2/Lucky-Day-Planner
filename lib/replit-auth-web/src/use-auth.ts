@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { createElement, useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
 import type { AuthUser } from "@workspace/api-client-react";
 import {
   clearStoredSupabaseTokens,
@@ -130,12 +130,22 @@ function buildLoginUrl(): string {
   }
 
   const qs = params.toString();
-  // Always enter through the API auth route so OIDC can start when enabled.
-  // When OIDC is disabled, the server redirects back to the local login page.
   return `${BASE}/api/login${qs ? `?${qs}` : ""}`;
 }
 
-export function useAuth(): AuthState {
+// ─── Context (singleton — prevents duplicate /api/auth/user fetches) ─────────
+
+const AuthContext = createContext<AuthState>({
+  user: null,
+  isLoading: true,
+  isAuthenticated: false,
+  login: () => {},
+  logout: () => {},
+  refreshUser: async () => {},
+  setAuthenticatedUser: () => {},
+});
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -241,7 +251,7 @@ export function useAuth(): AuthState {
     }
   }, [syncSupabaseSession]);
 
-  return {
+  const value: AuthState = {
     user,
     isLoading,
     isAuthenticated: !!user,
@@ -250,4 +260,10 @@ export function useAuth(): AuthState {
     refreshUser,
     setAuthenticatedUser: setUser,
   };
+
+  return createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth(): AuthState {
+  return useContext(AuthContext);
 }
