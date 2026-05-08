@@ -228,7 +228,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authLoading) {
-      setProfileState(null);
       setProfileReady(false);
       return;
     }

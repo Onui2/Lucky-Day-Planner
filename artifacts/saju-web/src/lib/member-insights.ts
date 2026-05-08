@@ -201,6 +201,11 @@ export async function removeLuckyDayBookmark(userId: string, bookmarkId: string)
   }
 }
 
+export function clearLuckyDayBookmarks(userId: string) {
+  writeScopedArray<LuckyDayBookmark>("lucky-day-bookmarks", userId, []);
+  return [];
+}
+
 export async function getRecentActivities(userId?: string | null) {
   const data = await loadInsights(userId);
   return data.recentActivities;

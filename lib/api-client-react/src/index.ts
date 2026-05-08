@@ -305,6 +305,81 @@ export function useDeleteSavedSaju() {
   });
 }
 
+// ─── 회원 길일 저장 API 훅 ───────────────────────────────────────
+
+export interface LuckyDayBookmarkItem {
+  id: string;
+  title: string;
+  note?: string | null;
+  year: number;
+  month: number;
+  day: number;
+  purpose: string;
+  purposeLabel: string;
+  ganzi: string;
+  ganziHanja: string;
+  grade: "대길" | "길" | "보통" | "흉" | "대흉";
+  score: number;
+  tags: string[];
+  href: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type LuckyDayBookmarkInput = Omit<
+  LuckyDayBookmarkItem,
+  "href" | "createdAt" | "updatedAt"
+>;
+
+const ACCOUNT_LUCKY_DAY_KEY = ["account", "lucky-days"] as const;
+
+export async function fetchAccountLuckyDayBookmarks(): Promise<LuckyDayBookmarkItem[]> {
+  return customFetch<LuckyDayBookmarkItem[]>("/api/account/lucky-days");
+}
+
+export async function saveAccountLuckyDayBookmark(
+  body: LuckyDayBookmarkInput,
+): Promise<LuckyDayBookmarkItem> {
+  return customFetch<LuckyDayBookmarkItem>("/api/account/lucky-days", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteAccountLuckyDayBookmark(
+  id: string,
+): Promise<{ ok: boolean }> {
+  return customFetch<{ ok: boolean }>(
+    `/api/account/lucky-days/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function useGetAccountLuckyDayBookmarks(enabled = true) {
+  return useQuery<LuckyDayBookmarkItem[]>({
+    queryKey: ACCOUNT_LUCKY_DAY_KEY,
+    queryFn: fetchAccountLuckyDayBookmarks,
+    staleTime: 30_000,
+    enabled,
+  });
+}
+
+export function useSaveAccountLuckyDayBookmark() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: saveAccountLuckyDayBookmark,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNT_LUCKY_DAY_KEY }),
+  });
+}
+
+export function useDeleteAccountLuckyDayBookmark() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteAccountLuckyDayBookmark,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNT_LUCKY_DAY_KEY }),
+  });
+}
+
 // ─── 문의 API 훅 ─────────────────────────────────────────────
 
 export interface InquirySajuSnapshot {

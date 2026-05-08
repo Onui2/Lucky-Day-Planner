@@ -21,3 +21,4 @@ export * from "./auth";
 export * from "./savedSaju";
 export * from "./inquiries";
 export * from "./memberData";
+export * from "./luckyDayBookmarks";

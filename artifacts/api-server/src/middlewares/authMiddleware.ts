@@ -90,7 +90,6 @@ export async function authMiddleware(
     session = await getSession(sid);
   } catch (error) {
     console.error("[auth] failed to load session:", error);
-    await clearSession(res, sid);
     next();
     return;
   }

@@ -200,6 +200,31 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`CREATE INDEX IF NOT EXISTS saved_saju_user_created_idx ON saved_saju (user_id, created_at DESC)`);
 
         await client.query(`
+          CREATE TABLE IF NOT EXISTS lucky_day_bookmarks (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            entry_key varchar(80) NOT NULL,
+            title varchar(80) NOT NULL,
+            note text,
+            year integer NOT NULL,
+            month integer NOT NULL,
+            day integer NOT NULL,
+            purpose varchar(30) NOT NULL,
+            purpose_label varchar(30) NOT NULL,
+            ganzi varchar(10) NOT NULL,
+            ganzi_hanja varchar(10) NOT NULL,
+            grade varchar(10) NOT NULL,
+            score integer NOT NULL,
+            tags jsonb NOT NULL DEFAULT '[]'::jsonb,
+            href varchar(255) NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS lucky_day_bookmarks_user_entry_key_uidx ON lucky_day_bookmarks (user_id, entry_key)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS lucky_day_bookmarks_user_updated_idx ON lucky_day_bookmarks (user_id, updated_at DESC)`);
+
+        await client.query(`
           CREATE TABLE IF NOT EXISTS inquiries (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,

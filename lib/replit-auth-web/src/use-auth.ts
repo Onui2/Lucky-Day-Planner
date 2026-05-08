@@ -217,22 +217,14 @@ export function useAuth(): AuthState {
         if (isSupabaseEnabled()) {
           const client = getSupabaseClient();
           await client!.auth.signOut();
-        } else {
-          await fetch(`${BASE}/api/logout`, {
-            credentials: "include",
-          });
         }
+        await fetch(`${BASE}/api/logout`, {
+          credentials: "include",
+        });
+      } catch {
+        // Best-effort logout cleanup.
       } finally {
         clearStoredSupabaseTokens();
-
-        try {
-          await fetch(`${BASE}/api/logout`, {
-            credentials: "include",
-          });
-        } catch {
-          // Best-effort legacy session cleanup.
-        }
-
         setUser(null);
         window.location.href = `${BASE}/`;
       }

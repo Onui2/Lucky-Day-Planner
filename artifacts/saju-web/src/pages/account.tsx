@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
-import { clearRecentActivities, formatBookmarkDate, getLuckyDayBookmarks, getRecentActivities, type LuckyDayBookmark, type RecentActivityItem } from "@/lib/member-insights";
+import { clearRecentActivities, formatBookmarkDate, getRecentActivities, type RecentActivityItem } from "@/lib/member-insights";
+import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 import {
   UserCircle2, KeyRound, Trash2, Loader2,
   CheckCircle2, AlertTriangle, ShieldCheck, Mail,
@@ -64,8 +65,8 @@ export default function AccountPage() {
   const { isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { profile, profileReady } = useUser();
   const [tab, setTab] = useState<Tab>("info");
-  const [bookmarks, setBookmarks] = useState<LuckyDayBookmark[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivityItem[]>([]);
+  const { bookmarks } = useLuckyDayBookmarks();
 
   const { data: account, isLoading: accountLoading } = useGetAccount();
   const updateName = useUpdateAccountName();
@@ -96,19 +97,13 @@ export default function AccountPage() {
     let cancelled = false;
 
     if (!account?.id) {
-      setBookmarks([]);
       setRecentActivities([]);
       return;
     }
 
     void (async () => {
-      const [nextBookmarks, nextRecentActivities] = await Promise.all([
-        getLuckyDayBookmarks(account.id),
-        getRecentActivities(account.id),
-      ]);
-
+      const nextRecentActivities = await getRecentActivities(account.id);
       if (cancelled) return;
-      setBookmarks(nextBookmarks);
       setRecentActivities(nextRecentActivities);
     })();
 

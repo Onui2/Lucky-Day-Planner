@@ -19,11 +19,8 @@ import {
   addRecentActivity,
   createLuckyDayBookmarkId,
   formatBookmarkDate,
-  getLuckyDayBookmarks,
-  removeLuckyDayBookmark,
-  upsertLuckyDayBookmark,
-  type LuckyDayBookmark,
 } from "@/lib/member-insights";
+import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
 const STEM_HANJA: Record<string,string> = { 갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸' };
@@ -83,6 +80,7 @@ export default function LuckyCalendarPage() {
   const searchParams = new URLSearchParams(rawSearch);
   const { profile, hasCachedProfile } = useResolvedProfile();
   const { user } = useAuth();
+  const { bookmarks, saveBookmark, removeBookmark, isSaving, isRemoving } = useLuckyDayBookmarks();
   const [profileOpen, setProfileOpen] = useState(false);
   const now = new Date();
   const initialYear = Number(searchParams.get("y")) || now.getFullYear();
@@ -98,7 +96,7 @@ export default function LuckyCalendarPage() {
   const [bookmarkTitle, setBookmarkTitle] = useState("");
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [saveDone, setSaveDone] = useState(false);
-  const [bookmarks, setBookmarks] = useState<LuckyDayBookmark[]>([]);
+  const [bookmarkMessage, setBookmarkMessage] = useState<string | null>(null);
 
   const prevMonth = () => {
     setRequestedDay(null);
@@ -124,25 +122,6 @@ export default function LuckyCalendarPage() {
     () => bookmarks.find((item) => item.id === selectedBookmarkId) ?? null,
     [bookmarks, selectedBookmarkId],
   );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!user?.id) {
-      setBookmarks([]);
-      return;
-    }
-
-    void (async () => {
-      const nextBookmarks = await getLuckyDayBookmarks(user.id);
-      if (cancelled) return;
-      setBookmarks(nextBookmarks);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
 
   useEffect(() => {
     if (!selectedDay || !data) {
@@ -187,42 +166,50 @@ export default function LuckyCalendarPage() {
   async function handleSaveBookmark() {
     if (!user?.id || !selectedDay || !data || !selectedBookmarkId) return;
 
-    const bookmark = {
-      id: selectedBookmarkId,
-      title: bookmarkTitle.trim() || `${formatBookmarkDate({ year, month, day: selectedDay.day })} ${data.purposeLabel}`,
-      note: bookmarkNote.trim() || undefined,
-      year,
-      month,
-      day: selectedDay.day,
-      purpose,
-      purposeLabel: data.purposeLabel,
-      ganzi: selectedDay.ganzi,
-      ganziHanja: selectedDay.ganziHanja,
-      grade: selectedDay.grade,
-      score: selectedDay.score,
-      tags: selectedDay.tags,
-      href: `/lucky-calendar?y=${year}&m=${month}&p=${encodeURIComponent(purpose)}&d=${selectedDay.day}`,
-      createdAt: new Date().toISOString(),
-    } satisfies LuckyDayBookmark;
+    try {
+      setBookmarkMessage(null);
+      const bookmark = await saveBookmark({
+        id: selectedBookmarkId,
+        title: bookmarkTitle.trim() || `${formatBookmarkDate({ year, month, day: selectedDay.day })} ${data.purposeLabel}`,
+        note: bookmarkNote.trim() || undefined,
+        year,
+        month,
+        day: selectedDay.day,
+        purpose,
+        purposeLabel: data.purposeLabel,
+        ganzi: selectedDay.ganzi,
+        ganziHanja: selectedDay.ganziHanja,
+        grade: selectedDay.grade,
+        score: selectedDay.score,
+        tags: selectedDay.tags,
+      });
 
-    const next = await upsertLuckyDayBookmark(user.id, bookmark);
-    void addRecentActivity(user.id, {
-      id: `lucky-day:${bookmark.id}`,
-      kind: "lucky-day",
-      title: bookmark.title,
-      subtitle: `${bookmark.purposeLabel} · ${bookmark.ganziHanja} · ${bookmark.grade}`,
-      href: bookmark.href,
-      createdAt: new Date().toISOString(),
-    });
+      void addRecentActivity(user.id, {
+        id: `lucky-day:${bookmark.id}`,
+        kind: "lucky-day",
+        title: bookmark.title,
+        subtitle: `${bookmark.purposeLabel} · ${bookmark.ganziHanja} · ${bookmark.grade}`,
+        href: bookmark.href,
+        createdAt: new Date().toISOString(),
+      });
 
-    setBookmarks(next);
-    setSaveDone(true);
-    window.setTimeout(() => setSaveDone(false), 1800);
+      setSaveDone(true);
+      setBookmarkMessage(null);
+      window.setTimeout(() => setSaveDone(false), 1800);
+    } catch (error) {
+      setSaveDone(false);
+      setBookmarkMessage(error instanceof Error ? error.message : "길일 저장 실패");
+    }
   }
 
   async function handleRemoveBookmark(bookmarkId: string) {
-    if (!user?.id) return;
-    setBookmarks(await removeLuckyDayBookmark(user.id, bookmarkId));
+    try {
+      setBookmarkMessage(null);
+      await removeBookmark(bookmarkId);
+      setSaveDone(false);
+    } catch (error) {
+      setBookmarkMessage(error instanceof Error ? error.message : "길일 삭제 실패");
+    }
   }
 
   return (
@@ -436,10 +423,11 @@ export default function LuckyCalendarPage() {
                       {selectedBookmark && (
                         <button
                           type="button"
-                          onClick={() => handleRemoveBookmark(selectedBookmark.id)}
-                          className="inline-flex items-center gap-1.5 text-xs text-rose-300 hover:text-rose-200 transition-colors"
+                          onClick={() => void handleRemoveBookmark(selectedBookmark.id)}
+                          disabled={isRemoving}
+                          className="inline-flex items-center gap-1.5 text-xs text-rose-300 hover:text-rose-200 transition-colors disabled:opacity-50"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          {isRemoving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                           저장 취소
                         </button>
                       )}
@@ -459,14 +447,17 @@ export default function LuckyCalendarPage() {
                     />
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button type="button" onClick={handleSaveBookmark} className="gap-2">
-                        {saveDone ? <CheckCheck className="w-4 h-4" /> : <BookmarkPlus className="w-4 h-4" />}
+                      <Button type="button" onClick={() => void handleSaveBookmark()} className="gap-2" disabled={isSaving}>
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveDone ? <CheckCheck className="w-4 h-4" /> : <BookmarkPlus className="w-4 h-4" />}
                         {selectedBookmark ? "저장 내용 업데이트" : "길일 저장"}
                       </Button>
                       {saveDone && (
                         <span className="text-xs text-emerald-400">저장 완료</span>
                       )}
                     </div>
+                    {bookmarkMessage && (
+                      <p className="text-xs text-rose-300">{bookmarkMessage}</p>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -516,10 +507,11 @@ export default function LuckyCalendarPage() {
 
                         <button
                           type="button"
-                          onClick={() => handleRemoveBookmark(bookmark.id)}
-                          className="text-muted-foreground hover:text-rose-300 transition-colors"
+                          onClick={() => void handleRemoveBookmark(bookmark.id)}
+                          disabled={isRemoving}
+                          className="text-muted-foreground hover:text-rose-300 transition-colors disabled:opacity-50"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {isRemoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                         </button>
                       </div>
                     ))}

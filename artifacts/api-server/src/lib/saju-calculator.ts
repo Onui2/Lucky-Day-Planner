@@ -146,15 +146,17 @@ function getSajuMonthBranch(year: number, month: number, day: number, birthHour:
   const targetDate = new Date(year, month - 1, day);
 
   // Build chronological list of all month-starting terms around the target date
-  const terms: Array<{ branch: number; year: number; month: number; day: number }> = [];
+  // 소한(b=1, month=1)은 해당 데이터 연도의 다음 해 1월이므로 actualYear = termYear+1
+  const terms: Array<{ branch: number; actualYear: number; month: number; day: number }> = [];
   for (const termYear of [year - 1, year, year + 1]) {
     for (let b = 0; b < 12; b++) {
       const { month: tm, day: td } = getMonthTermDay(termYear, b);
-      terms.push({ branch: b, year: termYear, month: tm, day: td });
+      const actualYear = tm === 1 ? termYear + 1 : termYear;
+      terms.push({ branch: b, actualYear, month: tm, day: td });
     }
   }
   terms.sort((a, b) => {
-    if (a.year !== b.year) return a.year - b.year;
+    if (a.actualYear !== b.actualYear) return a.actualYear - b.actualYear;
     if (a.month !== b.month) return a.month - b.month;
     return a.day - b.day;
   });
@@ -162,14 +164,14 @@ function getSajuMonthBranch(year: number, month: number, day: number, birthHour:
   // Find the most recently passed month-starting term
   let currentBranch = 1; // fallback: 축월
   for (const term of terms) {
-    const termDate = new Date(term.year, term.month - 1, term.day);
+    const termDate = new Date(term.actualYear, term.month - 1, term.day);
     if (termDate < targetDate) {
       currentBranch = term.branch;
     } else if (termDate.getTime() === targetDate.getTime()) {
       // 생일이 절기 당일 → 절기 발생 시각과 비교 필요
       if (term.branch === 2) {
         // 입춘: 정확한 KST 시각 테이블 사용
-        const ipchunHour = IPCHUN_HOUR[term.year] ?? 4;
+        const ipchunHour = IPCHUN_HOUR[term.actualYear] ?? 4;
         if (birthHour !== -1) {
           if (birthHour >= ipchunHour) currentBranch = term.branch;
         } else {
@@ -546,11 +548,13 @@ export function getDaeun(
   const birthDate = new Date(birthYear, birthMonth - 1, birthDay);
 
   // 주변 3년치 절기 수집 (12개 월령 절기만)
+  // 소한(b=1, month=1)은 해당 데이터 연도의 다음 해 1월이므로 ty+1 사용
   const terms: Date[] = [];
   for (const ty of [birthYear - 1, birthYear, birthYear + 1]) {
     for (let b = 0; b < 12; b++) {
       const { month: tm, day: td } = getMonthTermDay(ty, b);
-      terms.push(new Date(ty, tm - 1, td));
+      const termYear = tm === 1 ? ty + 1 : ty;
+      terms.push(new Date(termYear, tm - 1, td));
     }
   }
   terms.sort((a, b) => a.getTime() - b.getTime());

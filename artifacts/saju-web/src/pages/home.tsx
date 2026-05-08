@@ -3,21 +3,36 @@ import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search, BookmarkPlus, History, UserCircle2 } from "lucide-react";
 import { useAuth } from "@workspace/replit-auth-web";
+import { useGetDailyFortune } from "@workspace/api-client-react";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
-import { formatBookmarkDate, getLuckyDayBookmarks, getRecentActivities, type LuckyDayBookmark, type RecentActivityItem } from "@/lib/member-insights";
+import { formatBookmarkDate, getRecentActivities, type RecentActivityItem } from "@/lib/member-insights";
+import { getSeoulTodayString } from "@/lib/seoul-date";
+import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 
 type InquiryType = "general" | "saju" | "gungap";
 
 export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
-  const [bookmarks, setBookmarks] = useState<LuckyDayBookmark[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivityItem[]>([]);
+  const [todayDate, setTodayDate] = useState(() => getSeoulTodayString());
   const { user, isAuthenticated } = useAuth();
   const { profile } = useResolvedProfile();
+  const { bookmarks } = useLuckyDayBookmarks();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const { data: dailyFortune, isLoading: dailyFortuneLoading } = useGetDailyFortune(
+    { date: todayDate },
+    {
+      query: {
+        queryKey: ["/api/fortune/daily", { date: todayDate }, "home-dashboard"],
+        staleTime: 60_000,
+        refetchInterval: 300_000,
+        enabled: isAuthenticated,
+      },
+    },
+  );
 
   function openInquiry(type: InquiryType) {
     setInquiryType(type);
@@ -43,19 +58,13 @@ export default function Home() {
     let cancelled = false;
 
     if (!user?.id) {
-      setBookmarks([]);
       setRecentActivities([]);
       return;
     }
 
     void (async () => {
-      const [nextBookmarks, nextRecentActivities] = await Promise.all([
-        getLuckyDayBookmarks(user.id),
-        getRecentActivities(user.id),
-      ]);
-
+      const nextRecentActivities = await getRecentActivities(user.id);
       if (cancelled) return;
-      setBookmarks(nextBookmarks);
       setRecentActivities(nextRecentActivities);
     })();
 
@@ -63,6 +72,15 @@ export default function Home() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      const next = getSeoulTodayString();
+      setTodayDate((current) => (current === next ? current : next));
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
@@ -153,6 +171,69 @@ export default function Home() {
               </div>
 
               <div className="grid grid-cols-1 gap-5">
+                <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Sun className="w-4 h-4 text-primary" />
+                      <h3 className="font-medium text-foreground">오늘의 일진 요약</h3>
+                    </div>
+                    <Link href="/daily-fortune" className="text-xs text-primary hover:underline">전체 보기</Link>
+                  </div>
+
+                  {dailyFortuneLoading ? (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-muted-foreground">
+                      오늘 운세 불러오는 중.
+                    </div>
+                  ) : dailyFortune ? (
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border border-primary/15 bg-primary/8 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[11px] text-muted-foreground">{todayDate}</div>
+                            <div className="text-lg font-semibold text-foreground mt-1">
+                              {dailyFortune.dayGanzi} · {dailyFortune.dayElement}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[11px] text-muted-foreground">종합 점수</div>
+                            <div className="text-xl font-bold text-primary">{dailyFortune.overallScore}점</div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-foreground/80 leading-relaxed mt-3 line-clamp-3">
+                          {dailyFortune.overallFortune}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                          <div className="text-muted-foreground">재물운</div>
+                          <div className="font-semibold text-foreground mt-1">{dailyFortune.moneyScore}점</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                          <div className="text-muted-foreground">애정운</div>
+                          <div className="font-semibold text-foreground mt-1">{dailyFortune.loveScore}점</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                          <div className="text-muted-foreground">직업운</div>
+                          <div className="font-semibold text-foreground mt-1">{dailyFortune.careerScore}점</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                          <div className="text-muted-foreground">건강운</div>
+                          <div className="font-semibold text-foreground mt-1">{dailyFortune.healthScore}점</div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-muted-foreground">
+                        오늘 한마디: <span className="text-foreground/80">{dailyFortune.advice}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-muted-foreground">
+                      오늘 운세를 아직 불러오지 못함.
+                    </div>
+                  )}
+                </div>
+
                 <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2">

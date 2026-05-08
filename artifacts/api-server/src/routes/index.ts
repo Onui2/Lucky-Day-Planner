@@ -16,6 +16,7 @@ import calendarRouter from "./calendar.js";
 import loveFortuneRouter from "./love-fortune.js";
 import daeunMonthlyRouter from "./daeun-monthly.js";
 import memberDataRouter from "./member-data.js";
+import luckyDayBookmarksRouter from "./lucky-day-bookmarks.js";
 
 const router = Router();
 
@@ -36,5 +37,6 @@ router.use(calendarRouter);
 router.use(loveFortuneRouter);
 router.use(daeunMonthlyRouter);
 router.use(memberDataRouter);
+router.use(luckyDayBookmarksRouter);
 
 export default router;
