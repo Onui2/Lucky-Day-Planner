@@ -28,11 +28,17 @@ export default function LoginPage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const returnTo = sanitizeReturnTo(params.get("returnTo"));
-  const { isAuthenticated, isLoading, refreshUser, setAuthenticatedUser } = useAuth();
+  const { isAuthenticated, isLoading, refreshUser } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const SAVED_EMAIL_KEY = "myunghae_saved_email";
+  const [email, setEmail] = useState(() => {
+    try { return localStorage.getItem(SAVED_EMAIL_KEY) ?? ""; } catch { return ""; }
+  });
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    try { return Boolean(localStorage.getItem(SAVED_EMAIL_KEY)); } catch { return false; }
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setupStatus, setSetupStatus] = useState<AuthSetupStatus | null>(null);
@@ -76,10 +82,13 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      const authenticatedUser = await loginWithPassword({ email: email.trim(), password });
-      if (authenticatedUser) {
-        setAuthenticatedUser(authenticatedUser);
+      if (rememberMe) {
+        try { localStorage.setItem(SAVED_EMAIL_KEY, email.trim()); } catch {}
+      } else {
+        try { localStorage.removeItem(SAVED_EMAIL_KEY); } catch {}
       }
+
+      await loginWithPassword({ email: email.trim(), password });
       await refreshUser();
       navigate(returnTo);
     } catch (loginError) {
@@ -198,7 +207,19 @@ export default function LoginPage() {
               </motion.div>
             )}
 
-            <div className="text-right -mt-1">
+            <div className="flex items-center justify-between -mt-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none group">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border border-primary/30 bg-background/40 accent-primary cursor-pointer"
+                  disabled={submitting}
+                />
+                <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                  로그인 정보 저장
+                </span>
+              </label>
               <Link
                 href="/forgot-password"
                 className="text-xs text-muted-foreground/70 hover:text-primary transition-colors"
