@@ -146,13 +146,205 @@ const BRANCH_DESC: Record<string, string> = {
   술:"의리와 책임감이 강한 날",
   해:"자유로움과 직관력이 살아있는 날",
 };
-const SCORE_ADVICE: Record<string, { good: string[]; avoid: string[] }> = {
-  대길:{ good:["새로운 시작·계약","투자·사업 결정","중요한 만남","이사·개업"], avoid:["게으름·지체"] },
-  길: { good:["중요한 미팅","계획 발표","프로젝트 시작","협력 요청"], avoid:["큰 지출 무계획","조급한 판단"] },
-  평: { good:["일상 업무·공부","유지 관리","자기 계발"], avoid:["무리한 도전","큰 변화 강행"] },
-  주의:{ good:["현황 점검·정리","준비·학습","신중한 확인"], avoid:["계약·서명","큰 결정","새로운 투자"] },
-  흉: { good:["휴식·재충전","내면 성찰","주변 정리"], avoid:["무리한 행동","갈등 유발","큰 지출·계약"] },
+const STEM_INDEX: Record<string, number> = {
+  갑: 0, 을: 1, 병: 2, 정: 3, 무: 4, 기: 5, 경: 6, 신: 7, 임: 8, 계: 9,
 };
+const BRANCH_INDEX: Record<string, number> = {
+  자: 0, 축: 1, 인: 2, 묘: 3, 진: 4, 사: 5, 오: 6, 미: 7, 신: 8, 유: 9, 술: 10, 해: 11,
+};
+
+const ACTION_GOOD_BY_LABEL: Record<string, string[]> = {
+  대길: [
+    "새 제안서 제출이나 중요한 발표",
+    "프로젝트 킥오프와 역할 정리",
+    "파트너십 제안이나 협업 미팅",
+    "계약 조건 최종 조율",
+    "브랜드 공개·런칭 공지",
+    "고객 설득이나 영업 미팅",
+    "오랫동안 준비한 안건 결정",
+    "대외적으로 존재감을 드러내는 일",
+  ],
+  길: [
+    "중요한 미팅 잡기",
+    "계획 발표와 진행 공유",
+    "작게라도 새 일 시작하기",
+    "도움이 필요한 곳에 협력 요청하기",
+    "실행 일정과 우선순위 정리",
+    "고객·동료와 후속 연락 이어가기",
+    "다음 단계 제안서나 기획안 보내기",
+    "막혀 있던 일을 다시 추진하기",
+  ],
+  평: [
+    "루틴 업무와 백로그 정리",
+    "공부·복습·문서 읽기",
+    "업무 환경 정비와 파일 정리",
+    "작은 개선 작업과 유지보수",
+    "예산·지출 점검",
+    "회의 메모 정리와 후속 액션 적기",
+    "반복 작업 자동화 아이디어 정리",
+    "몸 상태 챙기며 꾸준히 밀기",
+  ],
+  주의: [
+    "현황 점검과 리스크 체크",
+    "서류 초안 검토와 오탈자 수정",
+    "일정 완충 시간 확보",
+    "중요 결정 전에 한 번 더 확인",
+    "미뤄둔 백업·정리·청소",
+    "상황 관찰과 데이터 수집",
+    "조용한 준비와 사전 학습",
+    "작은 단위 테스트와 검증",
+  ],
+  흉: [
+    "휴식과 재충전",
+    "불필요한 약속 줄이기",
+    "마감보다 컨디션 회복 우선",
+    "주변 정리와 마음 정돈",
+    "혼자 조용히 생각 정리하기",
+    "무리 없는 가벼운 루틴 유지",
+    "지출 멈추고 현재 흐름 점검",
+    "갈등 거리에서 한 발 물러나기",
+  ],
+};
+
+const ACTION_AVOID_BY_LABEL: Record<string, string[]> = {
+  대길: [
+    "기세 좋다고 검토 없이 밀어붙이기",
+    "한 번에 너무 많은 약속 잡기",
+    "과한 자신감으로 세부 확인 생략",
+    "충동적인 올인 투자",
+    "과속 일정으로 체력 바닥내기",
+  ],
+  길: [
+    "큰 지출을 즉흥적으로 결정하기",
+    "조급한 판단으로 결론 서두르기",
+    "검토 없이 당일 계약 확정하기",
+    "사소한 말실수로 분위기 깨기",
+    "한꺼번에 여러 일을 벌이기",
+  ],
+  평: [
+    "무리한 확장이나 큰 승부",
+    "준비 안 된 변화 강행",
+    "실력보다 운에 기대는 선택",
+    "당장 결과만 보고 방향 틀기",
+    "감정 기복에 따라 일정 바꾸기",
+  ],
+  주의: [
+    "중요 계약·서명",
+    "큰돈 들어가는 구매",
+    "감정 섞인 대립",
+    "근거 부족한 투자 판단",
+    "즉답을 강요하는 협상",
+  ],
+  흉: [
+    "무리한 행동이나 승부수",
+    "갈등이 큰 자리 정면돌파",
+    "큰 지출·계약 체결",
+    "체력 무시한 야근과 강행군",
+    "홧김에 관계를 끊는 말",
+  ],
+};
+
+const ACTION_GOOD_BY_STEM: Record<string, string[]> = {
+  갑: ["첫 발을 떼는 실행", "미래 방향을 정하는 로드맵 작성", "주도권 잡는 제안"],
+  을: ["관계 다듬는 조율", "부드러운 협상과 후속 연락", "함께하는 공동 작업"],
+  병: ["발표·홍보·브랜딩", "새 사람 만나는 네트워킹", "팀 사기 올리는 커뮤니케이션"],
+  정: ["집중력 필요한 깊은 작업", "세밀한 문장 다듬기", "창작·디자인 보정"],
+  무: ["중장기 계획 재정비", "자산·시스템 구조 점검", "기반 다지는 의사결정"],
+  기: ["문서·서류 정리", "예산과 일정 세부 조정", "꼼꼼한 체크리스트 실행"],
+  경: ["미뤄둔 결단", "원칙 세우는 협상", "불필요한 것 정리·정돈"],
+  신: ["품질 검수와 수정", "브랜딩·스타일 손보기", "정밀한 검토 작업"],
+  임: ["정보 탐색과 시장 조사", "낯선 분야 공부", "시야 넓히는 외부 접촉"],
+  계: ["조용한 전략 구상", "내면 정리와 메모", "은근히 준비하는 장기 플랜"],
+};
+
+const ACTION_AVOID_BY_BRANCH: Record<string, string[]> = {
+  자: ["늦은 밤 감정적으로 연락 보내기", "피곤한 상태에서 중요한 결정하기", "야식·과음으로 리듬 깨기"],
+  축: ["답답하다고 억지로 속도 올리기", "준비 없이 새 일 벌이기", "고집으로 조율 막기"],
+  인: ["성급하게 결론 내리고 돌진하기", "승부욕으로 관계 거칠게 만들기", "검토 전 선공개하기"],
+  묘: ["모호한 말로 기대만 키우기", "눈치만 보며 결정을 미루기", "가벼운 말로 신뢰 흔들기"],
+  진: ["범위만 크게 벌리고 수습 못 하기", "지난 문제를 다시 끌고 오기", "완고하게 한 방향만 고집하기"],
+  사: ["흥분해서 말 수위 높이기", "비밀·속내를 과하게 드러내기", "휴식 없이 스케줄 꽉 채우기"],
+  오: ["과열된 논쟁에 들어가기", "자신감만 믿고 검증 건너뛰기", "위험한 소비나 투기 결정"],
+  미: ["결정을 계속 미루기", "배려만 하다 내 일정 놓치기", "집중력 분산시키는 다중작업"],
+  신: ["영리한 척 무리수 두기", "검증 안 된 제안을 크게 약속하기", "즉흥 이동·즉흥 투자"],
+  유: ["완벽주의로 마감 늦추기", "타인 실수만 집요하게 지적하기", "체면 때문에 무리한 선택하기"],
+  술: ["버티다 한 번에 폭발하기", "술자리에서 과한 말 하기", "홧김에 관계 정리 선언하기"],
+  해: ["막연한 기대감으로 돈 쓰기", "불분명한 약속 여러 개 잡기", "중요 정보 관리 느슨하게 하기"],
+};
+
+const ACTION_GOOD_BY_REL: Record<string, string[]> = {
+  인성: ["학습·자격 준비", "멘토와 상담", "중요 결정 전 자료 정리"],
+  비겁: ["내 몫 명확히 정리하기", "경쟁 분석", "독립적으로 밀어붙일 일 처리"],
+  식상: ["발표·콘텐츠 제작", "아이디어 제안", "피드백 주고받기"],
+  재성: ["견적·매출·정산 챙기기", "실속 있는 협상", "수익화 포인트 점검"],
+  관살: ["규정·리스크 점검", "보고 체계 정리", "우선순위 재정렬"],
+  천간합: ["협업 제안", "관계 회복 대화", "조율이 필요한 미팅"],
+  지지육합: ["파트너십 움직임", "실무 협의", "합의안 다듬기"],
+  지지반합: ["인맥 연결", "중간자 역할", "함께하는 일정 조율"],
+  지지삼합: ["팀플레이", "연합 제안", "여러 사람 모이는 자리"],
+  지지방합: ["장기 협력 구조 설계", "조직 정비", "공동 목표 합의"],
+  지지암합: ["조용한 협상", "비공개 조율", "속도보다 신뢰 쌓기"],
+};
+
+const ACTION_AVOID_BY_REL: Record<string, string[]> = {
+  비겁: ["불필요한 비교 의식", "역할 경계 흐린 협업", "자존심 경쟁"],
+  식상: ["말이 앞서는 과한 약속", "체력 이상으로 에너지 소모", "감정 섞인 직설"],
+  재성: ["욕심 섞인 소비 결정", "단기 수익만 보는 선택", "가격만 보고 품질 무시"],
+  관살: ["권위와 정면충돌", "규칙 무시한 강행", "압박감에 휩쓸린 즉답"],
+  천간충: ["말 한마디로 판 키우기", "욱해서 결론 내리기", "일정 무리하게 당기기"],
+  지지충: ["급한 이동·급한 계약", "갈등 자리 장시간 머물기", "불안정한 상태의 승부수"],
+  지지형: ["고집과 집착으로 버티기", "사소한 일에 예민하게 반응하기", "스스로 압박 높이기"],
+  지지해: ["오해를 방치하기", "애매한 표현 남기기", "뒤끝 남는 대화"],
+  지지원진: ["감정 해석 과잉", "서운함 쌓아두기", "관계 시험하기"],
+  지지귀문: ["부정적 상상에 빠지기", "혼자 결론내고 단절하기", "예민한 상태의 큰 결정"],
+};
+
+function pickActionItems(pool: string[], count: number, seed: number): string[] {
+  if (pool.length <= count) return [...pool];
+
+  const picked: string[] = [];
+  for (let step = 0; step < pool.length && picked.length < count; step += 1) {
+    const index = (seed + step * 3) % pool.length;
+    const item = pool[index];
+    if (!picked.includes(item)) {
+      picked.push(item);
+    }
+  }
+  return picked;
+}
+
+function mergeUniqueActionItems(...groups: string[][]): string[] {
+  const merged: string[] = [];
+  for (const group of groups) {
+    for (const item of group) {
+      if (!merged.includes(item)) {
+        merged.push(item);
+      }
+    }
+  }
+  return merged;
+}
+
+function buildScoreAdvice(label: string, stem: string, branch: string, relType?: string | null) {
+  const stemIndex = STEM_INDEX[stem] ?? 0;
+  const branchIndex = BRANCH_INDEX[branch] ?? 0;
+  const relSeed = relType ? relType.length : 0;
+  const seed = stemIndex * 11 + branchIndex * 7 + relSeed;
+
+  const good = mergeUniqueActionItems(
+    pickActionItems(ACTION_GOOD_BY_LABEL[label] ?? ACTION_GOOD_BY_LABEL["평"], 2, seed),
+    pickActionItems(ACTION_GOOD_BY_STEM[stem] ?? ACTION_GOOD_BY_STEM["갑"], 2, seed + 2),
+    relType ? pickActionItems(ACTION_GOOD_BY_REL[relType] ?? [], 1, seed + 4) : [],
+  ).slice(0, 4);
+
+  const avoid = mergeUniqueActionItems(
+    pickActionItems(ACTION_AVOID_BY_LABEL[label] ?? ACTION_AVOID_BY_LABEL["평"], 2, seed + 1),
+    pickActionItems(ACTION_AVOID_BY_BRANCH[branch] ?? ACTION_AVOID_BY_BRANCH["자"], 2, seed + 3),
+    relType ? pickActionItems(ACTION_AVOID_BY_REL[relType] ?? [], 1, seed + 5) : [],
+  ).slice(0, 4);
+
+  return { good, avoid };
+}
 
 const REL_WHY: Record<string, string> = {
   인성: "오늘의 오행이 내 일간(日干)을 생(生)하는 구조로, 하늘의 기운이 나를 보호하고 뒷받침합니다. 주변의 도움을 받기 쉽고 심신이 안정되는 좋은 날입니다.",
@@ -553,7 +745,12 @@ export default function ManseryokPage() {
         {selected && (() => {
           const sub = getSubScores(selected.score, selected.dayData.dayElement);
           const label = scoreLabel(selected.score);
-          const advice = SCORE_ADVICE[label] ?? SCORE_ADVICE["평"];
+          const actionAdvice = buildScoreAdvice(
+            label,
+            selected.dayData.dayHeavenlyStem,
+            selected.dayData.dayEarthlyBranch,
+            selected.rel?.type,
+          );
           const direction = ELEM_DIRECTION[selected.dayData.dayElement];
           const luckyColors = ELEM_LUCKY_COLORS[selected.dayData.dayElement] ?? [];
           const branchDesc = BRANCH_DESC[selected.dayData.dayEarthlyBranch] ?? "";
@@ -777,7 +974,7 @@ export default function ManseryokPage() {
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5">
                   <p className="text-[10px] font-semibold text-emerald-400 mb-1.5">✔ 하면 좋은 일</p>
                   <ul className="space-y-1">
-                    {advice.good.map(item => (
+                    {actionAdvice.good.map(item => (
                       <li key={item} className="text-[11px] text-foreground/80 leading-snug">• {item}</li>
                     ))}
                   </ul>
@@ -785,7 +982,7 @@ export default function ManseryokPage() {
                 <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2.5">
                   <p className="text-[10px] font-semibold text-red-400 mb-1.5">✗ 피할 것</p>
                   <ul className="space-y-1">
-                    {advice.avoid.map(item => (
+                    {actionAdvice.avoid.map(item => (
                       <li key={item} className="text-[11px] text-foreground/80 leading-snug">• {item}</li>
                     ))}
                   </ul>

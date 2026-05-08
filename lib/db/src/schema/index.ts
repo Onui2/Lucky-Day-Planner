@@ -22,3 +22,4 @@ export * from "./savedSaju";
 export * from "./inquiries";
 export * from "./memberData";
 export * from "./luckyDayBookmarks";
+export * from "./announcements";

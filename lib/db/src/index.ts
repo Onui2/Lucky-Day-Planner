@@ -354,6 +354,27 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS recent_activities_user_activity_idx ON recent_activities (user_id, activity_id)`);
         await client.query(`CREATE INDEX IF NOT EXISTS recent_activities_user_updated_idx ON recent_activities (user_id, updated_at DESC)`);
         await client.query(`CREATE INDEX IF NOT EXISTS recent_activities_kind_updated_idx ON recent_activities (kind, updated_at DESC)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS announcements (
+            id serial PRIMARY KEY,
+            title varchar(100) NOT NULL,
+            content text NOT NULL,
+            type varchar(20) NOT NULL DEFAULT 'info',
+            is_active boolean NOT NULL DEFAULT true,
+            is_pinned boolean NOT NULL DEFAULT false,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS type varchar(20) DEFAULT 'info'`);
+        await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true`);
+        await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_pinned boolean DEFAULT false`);
+        await client.query(`UPDATE announcements SET type = 'info' WHERE type IS NULL`);
+        await client.query(`UPDATE announcements SET is_active = true WHERE is_active IS NULL`);
+        await client.query(`UPDATE announcements SET is_pinned = false WHERE is_pinned IS NULL`);
+        await client.query(`CREATE INDEX IF NOT EXISTS announcements_active_pinned_idx ON announcements (is_active, is_pinned)`);
+
         databaseReady = true;
         lastDatabaseError = null;
       } finally {

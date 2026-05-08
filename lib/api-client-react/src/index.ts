@@ -663,6 +663,75 @@ export function useAdminMarkAllRead() {
   });
 }
 
+// ─── 공지사항 ──────────────────────────────────────────────────
+
+export interface Announcement {
+  id: number;
+  title: string;
+  content: string;
+  type: string;
+  isActive: boolean;
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const ANNOUNCEMENTS_KEY = ["announcements"] as const;
+const ADMIN_ANNOUNCEMENTS_KEY = ["admin", "announcements"] as const;
+
+export function useGetAnnouncements() {
+  return useQuery<Announcement[]>({
+    queryKey: ANNOUNCEMENTS_KEY,
+    queryFn: () => customFetch<Announcement[]>("/api/announcements").catch(() => []),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+export function useGetAdminAnnouncements() {
+  return useQuery<Announcement[]>({
+    queryKey: ADMIN_ANNOUNCEMENTS_KEY,
+    queryFn: () => customFetch<Announcement[]>("/api/admin/announcements"),
+    staleTime: 10_000,
+  });
+}
+
+export function useCreateAnnouncement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { title: string; content: string; type?: string; isActive?: boolean; isPinned?: boolean }) =>
+      customFetch<Announcement>("/api/admin/announcements", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ADMIN_ANNOUNCEMENTS_KEY });
+      qc.invalidateQueries({ queryKey: ANNOUNCEMENTS_KEY });
+    },
+  });
+}
+
+export function useUpdateAnnouncement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: number; title?: string; content?: string; type?: string; isActive?: boolean; isPinned?: boolean }) =>
+      customFetch<Announcement>(`/api/admin/announcements/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ADMIN_ANNOUNCEMENTS_KEY });
+      qc.invalidateQueries({ queryKey: ANNOUNCEMENTS_KEY });
+    },
+  });
+}
+
+export function useDeleteAnnouncement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      customFetch<{ ok: boolean }>(`/api/admin/announcements/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ADMIN_ANNOUNCEMENTS_KEY });
+      qc.invalidateQueries({ queryKey: ANNOUNCEMENTS_KEY });
+    },
+  });
+}
+
 // ─── 연간 운세 ─────────────────────────────────────────────────
 
 export interface YearFortuneData {

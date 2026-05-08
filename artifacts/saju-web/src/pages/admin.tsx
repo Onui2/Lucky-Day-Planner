@@ -13,6 +13,11 @@ import {
   useAdminSetUserRole,
   useAdminDeleteUser,
   useGetAdminUserDetail,
+  useGetAdminAnnouncements,
+  useCreateAnnouncement,
+  useUpdateAnnouncement,
+  useDeleteAnnouncement,
+  type Announcement,
   type AdminStatsResponse,
   type AdminStatsRecentInquiry,
   type AdminStatsRecentUser,
@@ -49,6 +54,13 @@ import {
   Mail,
   TrendingUp,
   Database,
+  Bell,
+  Pin,
+  PinOff,
+  PlusCircle,
+  Info,
+  AlertTriangle as AlertIcon,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBirthHourLabel } from "@/components/ProfileModal";
@@ -1166,6 +1178,171 @@ function UsersTab({
 }
 
 /* ─── 어드민 페이지 ───────────────────────────── */
+/* ─── 공지사항 탭 ─────────────────────────────── */
+const TYPE_STYLE: Record<string, { bg: string; text: string; border: string; label: string; Icon: typeof Info }> = {
+  info:    { bg: "bg-sky-500/10",    text: "text-sky-400",    border: "border-sky-500/30",    label: "정보",   Icon: Info },
+  warning: { bg: "bg-amber-500/10",  text: "text-amber-400",  border: "border-amber-500/30",  label: "주의",   Icon: AlertIcon },
+  notice:  { bg: "bg-primary/10",    text: "text-primary",    border: "border-primary/30",    label: "공지",   Icon: FileText },
+};
+
+function AnnouncementsTab() {
+  const { data: items = [], isLoading, refetch } = useGetAdminAnnouncements();
+  const createMut  = useCreateAnnouncement();
+  const updateMut  = useUpdateAnnouncement();
+  const deleteMut  = useDeleteAnnouncement();
+
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [type, setType] = useState("info");
+  const [isActive, setIsActive] = useState(true);
+  const [isPinned, setIsPinned] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<number | null>(null);
+
+  function openCreate() {
+    setEditId(null); setTitle(""); setContent(""); setType("info"); setIsActive(true); setIsPinned(false);
+    setShowForm(true);
+  }
+
+  function openEdit(a: Announcement) {
+    setEditId(a.id); setTitle(a.title); setContent(a.content); setType(a.type);
+    setIsActive(a.isActive); setIsPinned(a.isPinned);
+    setShowForm(true);
+  }
+
+  async function handleSave() {
+    if (!title.trim() || !content.trim()) return;
+    const body = { title: title.trim(), content: content.trim(), type, isActive, isPinned };
+    if (editId) {
+      await updateMut.mutateAsync({ id: editId, ...body });
+    } else {
+      await createMut.mutateAsync(body);
+    }
+    setShowForm(false);
+    refetch();
+  }
+
+  const saving = createMut.isPending || updateMut.isPending;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">총 {items.length}개</span>
+        <Button size="sm" onClick={openCreate} className="gap-1.5 bg-primary/20 text-primary hover:bg-primary/30 border border-primary/40">
+          <PlusCircle className="w-4 h-4" /> 공지 작성
+        </Button>
+      </div>
+
+      {/* 작성/수정 폼 */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="glass-panel border border-primary/25 rounded-2xl p-5 space-y-3">
+            <h3 className="font-medium text-sm">{editId ? "공지 수정" : "공지 작성"}</h3>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목 (최대 100자)"
+              className="bg-white/5 border-white/10" maxLength={100} />
+            <textarea value={content} onChange={(e) => setContent(e.target.value)}
+              placeholder="내용을 입력하세요..."
+              className="w-full h-28 resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+            <div className="flex flex-wrap gap-4 items-center text-sm">
+              <div className="flex gap-2">
+                {(["info", "notice", "warning"] as const).map((t) => (
+                  <button key={t} onClick={() => setType(t)}
+                    className={cn("px-3 py-1 rounded-full text-xs border transition-all",
+                      type === t ? cn(TYPE_STYLE[t].bg, TYPE_STYLE[t].text, TYPE_STYLE[t].border)
+                        : "border-white/10 text-muted-foreground hover:text-foreground")}>
+                    {TYPE_STYLE[t].label}
+                  </button>
+                ))}
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground">
+                <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="accent-primary" />
+                활성화
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground">
+                <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} className="accent-primary" />
+                상단 고정
+              </label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>취소</Button>
+              <Button size="sm" onClick={handleSave} disabled={saving || !title.trim() || !content.trim()}
+                className="bg-primary hover:bg-primary/90 gap-1.5">
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {editId ? "수정" : "작성"}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 목록 */}
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>등록된 공지사항이 없습니다.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((a) => {
+            const s = TYPE_STYLE[a.type] ?? TYPE_STYLE.info;
+            return (
+              <motion.div key={a.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className={cn("glass-panel border rounded-2xl p-4 transition-all",
+                  a.isActive ? cn(s.bg, s.border) : "border-white/10 opacity-50")}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", s.bg, s.text, s.border)}>
+                      {s.label}
+                    </span>
+                    {a.isPinned && <span className="text-xs text-amber-400 flex items-center gap-0.5"><Pin className="w-3 h-3" /> 고정</span>}
+                    {!a.isActive && <span className="text-xs text-muted-foreground">비활성</span>}
+                    <span className="text-sm font-medium text-foreground truncate">{a.title}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                      onClick={() => updateMut.mutate({ id: a.id, isPinned: !a.isPinned }, { onSuccess: () => refetch() })}>
+                      {a.isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                      onClick={() => updateMut.mutate({ id: a.id, isActive: !a.isActive }, { onSuccess: () => refetch() })}>
+                      {a.isActive ? <Eye className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 opacity-40" />}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                      onClick={() => openEdit(a)}>
+                      <Send className="w-3.5 h-3.5" />
+                    </Button>
+                    {confirmDel === a.id ? (
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="ghost" className="h-7 text-xs px-2 text-rose-400"
+                          onClick={() => deleteMut.mutate(a.id, { onSuccess: () => { refetch(); setConfirmDel(null); } })}>삭제</Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs px-2 text-muted-foreground"
+                          onClick={() => setConfirmDel(null)}>취소</Button>
+                      </div>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-400"
+                        onClick={() => setConfirmDel(a.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-2">{a.content}</p>
+                <p className="text-[10px] text-muted-foreground/50 mt-1.5">
+                  {new Date(a.createdAt).toLocaleDateString("ko-KR")}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatsCard({
   icon: Icon,
   label,
@@ -1414,7 +1591,7 @@ export default function AdminPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "inquiries" | "users"
+    "dashboard" | "inquiries" | "users" | "announcements"
   >("dashboard");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(
@@ -1533,6 +1710,18 @@ export default function AdminPage() {
           >
             <Users className="w-4 h-4" />
             회원 관리
+          </button>
+          <button
+            onClick={() => setActiveTab("announcements")}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all",
+              activeTab === "announcements"
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Bell className="w-4 h-4" />
+            공지사항
           </button>
         </div>
 
@@ -1654,6 +1843,16 @@ export default function AdminPage() {
                 currentUserId={String(user?.id ?? "")}
                 currentUserRole={user?.role ?? "user"}
               />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="announcements"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <AnnouncementsTab />
             </motion.div>
           )}
         </AnimatePresence>

@@ -37,6 +37,7 @@ import ProfileModal from "@/components/ProfileModal";
 import {
   useMyUnreadCount,
   useAdminUnreadCount,
+  useGetAnnouncements,
 } from "@workspace/api-client-react";
 
 interface LayoutProps {
@@ -75,6 +76,17 @@ export function Layout({ children }: LayoutProps) {
   >(null);
 
   const { data: myUnread } = useMyUnreadCount(isAuthenticated);
+  const { data: announcements = [] } = useGetAnnouncements();
+  const [dismissedIds, setDismissedIds] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem("dismissed_announcements") ?? "[]"); } catch { return []; }
+  });
+  const visibleAnnouncements = announcements.filter((a) => !dismissedIds.includes(a.id));
+
+  function dismissAnnouncement(id: number) {
+    const next = [...dismissedIds, id];
+    setDismissedIds(next);
+    try { localStorage.setItem("dismissed_announcements", JSON.stringify(next)); } catch {}
+  }
   const { data: adminUnread } = useAdminUnreadCount(isAdmin);
 
   useEffect(() => {
@@ -724,6 +736,37 @@ export function Layout({ children }: LayoutProps) {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* 공지사항 배너 */}
+      <AnimatePresence>
+        {visibleAnnouncements.slice(0, 2).map((a) => {
+          const typeStyle =
+            a.type === "warning"
+              ? "bg-amber-500/15 border-amber-500/40 text-amber-200"
+              : a.type === "notice"
+                ? "bg-primary/15 border-primary/40 text-primary-foreground"
+                : "bg-sky-500/10 border-sky-500/30 text-sky-200";
+          return (
+            <motion.div
+              key={a.id}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className={`border-b px-4 py-2.5 text-sm flex items-center gap-3 ${typeStyle}`}
+            >
+              <Bell className="w-3.5 h-3.5 shrink-0 opacity-80" />
+              {a.isPinned && <span className="text-xs font-bold opacity-70">[공지]</span>}
+              <span className="flex-1 truncate">{a.title} — {a.content}</span>
+              <button
+                onClick={() => dismissAnnouncement(a.id)}
+                className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
 
       <main className="flex-1 container mx-auto px-4 py-8 md:py-12">

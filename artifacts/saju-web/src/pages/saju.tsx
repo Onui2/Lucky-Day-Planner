@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import html2canvas from "html2canvas";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCalculateSaju, useSaveSaju, useGetSavedSaju, useSubmitInquiry } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
-import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown } from "lucide-react";
 import { getDayPillarAnalysis } from "@/data/dayPillarAnalysis";
 
 // ─── 한자 변환 ───────────────────────────────────────────
@@ -214,6 +215,29 @@ export default function SajuPage() {
   const [saveLabel, setSaveLabel] = useState("");
   const [justSaved, setJustSaved] = useState(false);
   const saveLabelRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const [savingImage, setSavingImage] = useState(false);
+
+  async function handleSaveImage() {
+    if (!resultRef.current || savingImage) return;
+    setSavingImage(true);
+    try {
+      const canvas = await html2canvas(resultRef.current, {
+        backgroundColor: "#0d0d1a",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const link = document.createElement("a");
+      link.download = `명해원_사주.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (err) {
+      console.error("이미지 저장 실패:", err);
+    } finally {
+      setSavingImage(false);
+    }
+  }
 
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [inquiryMessage, setInquiryMessage] = useState("");
@@ -985,7 +1009,7 @@ export default function SajuPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
+      <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }} ref={resultRef}>
 
         {/* 헤더 */}
         <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
@@ -1043,6 +1067,10 @@ export default function SajuPage() {
             </Select>
             <Button variant="outline" size="sm" onClick={handleShare} className="gap-2">
               {copied ? <><CheckCheck className="w-4 h-4 text-green-400" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSaveImage} disabled={savingImage} className="gap-2">
+              {savingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
+              이미지 저장
             </Button>
             {showAccountActions && (
               <Button
