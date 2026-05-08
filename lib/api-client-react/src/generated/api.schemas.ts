@@ -82,12 +82,12 @@ export interface SajuBirthInfo {
 }
 
 export interface SajuResult {
+  birthInfo?: SajuBirthInfo;
   yearPillar: SajuPillar;
   monthPillar: SajuPillar;
   dayPillar: SajuPillar;
   hourPillar?: SajuPillar;
   elementBalance: ElementCount;
-  birthInfo?: SajuBirthInfo;
   /** The strongest element in the chart */
   dominantElement: string;
   /** The weakest element in the chart */
@@ -151,6 +151,33 @@ export interface DailyFortune {
   avoidThings: string[];
 }
 
+export interface ManseryokPersonalizedRelation {
+  type: string;
+  label: string;
+  fortune: string;
+  why: string;
+  colorClass: string;
+  borderClass: string;
+  emoji: string;
+  score: number;
+  positive: boolean;
+}
+
+export interface ManseryokPersonalizedBadges {
+  lucky: boolean;
+  inauspicious: boolean;
+  caution: boolean;
+  genericLucky: boolean;
+  genericCaution: boolean;
+}
+
+export interface ManseryokPersonalized {
+  score: number;
+  label: string;
+  relation?: ManseryokPersonalizedRelation | null;
+  badges: ManseryokPersonalizedBadges;
+}
+
 export interface ManseryokDay {
   /** Solar date (YYYY-MM-DD) */
   solar: string;
@@ -169,6 +196,7 @@ export interface ManseryokDay {
   luckyDay: boolean;
   inauspiciousDay: boolean;
   dayDescription?: string;
+  personalized?: ManseryokPersonalized;
 }
 
 export interface ManseryokDate {
@@ -226,9 +254,33 @@ export type GetManseryokDateParams = {
    * Date in YYYY-MM-DD format
    */
   date: string;
+  /**
+   * Personalized day master element for relation-based scoring
+   */
+  dayMasterElement?: string;
+  dayMasterStem?: string;
+  dayMasterBranch?: string;
+  yearStem?: string;
+  yearBranch?: string;
+  monthStem?: string;
+  monthBranch?: string;
+  hourStem?: string;
+  hourBranch?: string;
 };
 
 export type GetManseryokMonthParams = {
   year: string;
   month: string;
+  /**
+   * Personalized day master element for relation-based scoring
+   */
+  dayMasterElement?: string;
+  dayMasterStem?: string;
+  dayMasterBranch?: string;
+  yearStem?: string;
+  yearBranch?: string;
+  monthStem?: string;
+  monthBranch?: string;
+  hourStem?: string;
+  hourBranch?: string;
 };

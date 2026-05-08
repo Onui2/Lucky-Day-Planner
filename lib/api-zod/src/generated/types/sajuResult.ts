@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ElementCount } from "./elementCount";
+import type { SajuBirthInfo } from "./sajuBirthInfo";
 import type { SajuPillar } from "./sajuPillar";
 
 export interface SajuResult {
+  birthInfo?: SajuBirthInfo;
   yearPillar: SajuPillar;
   monthPillar: SajuPillar;
   dayPillar: SajuPillar;

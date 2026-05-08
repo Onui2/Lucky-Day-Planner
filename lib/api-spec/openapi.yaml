@@ -104,6 +104,52 @@ paths:
           schema:
             type: string
             description: Date in YYYY-MM-DD format
+        - name: dayMasterElement
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Personalized day master element for relation-based scoring
+        - name: dayMasterStem
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dayMasterBranch
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: yearStem
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: yearBranch
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: monthStem
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: monthBranch
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: hourStem
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: hourBranch
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Manseryok date info
@@ -127,6 +173,52 @@ paths:
         - name: month
           in: query
           required: true
+          schema:
+            type: string
+        - name: dayMasterElement
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Personalized day master element for relation-based scoring
+        - name: dayMasterStem
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dayMasterBranch
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: yearStem
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: yearBranch
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: monthStem
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: monthBranch
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: hourStem
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: hourBranch
+          in: query
+          required: false
           schema:
             type: string
       responses:
@@ -271,9 +363,36 @@ components:
         - metal
         - water
 
+    SajuBirthInfo:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        day:
+          type: integer
+        hour:
+          type: integer
+        minute:
+          type: integer
+        gender:
+          type: string
+        calendarType:
+          type: string
+      required:
+        - year
+        - month
+        - day
+        - hour
+        - gender
+        - calendarType
+
     SajuResult:
       type: object
       properties:
+        birthInfo:
+          $ref: "#/components/schemas/SajuBirthInfo"
         yearPillar:
           $ref: "#/components/schemas/SajuPillar"
         monthPillar:
@@ -409,6 +528,16 @@ components:
           type: string
         yearGanzi:
           type: string
+        goodThings:
+          type: array
+          description: Recommended activities for today
+          items:
+            type: string
+        avoidThings:
+          type: array
+          description: Activities to avoid today
+          items:
+            type: string
       required:
         - date
         - lunarDate
@@ -435,6 +564,8 @@ components:
         - advice
         - monthGanzi
         - yearGanzi
+        - goodThings
+        - avoidThings
 
     ManseryokDay:
       type: object
@@ -468,6 +599,8 @@ components:
           type: boolean
         dayDescription:
           type: string
+        personalized:
+          $ref: "#/components/schemas/ManseryokPersonalized"
       required:
         - solar
         - lunar
@@ -479,6 +612,76 @@ components:
         - dayZodiac
         - luckyDay
         - inauspiciousDay
+
+    ManseryokPersonalizedBadges:
+      type: object
+      properties:
+        lucky:
+          type: boolean
+        inauspicious:
+          type: boolean
+        caution:
+          type: boolean
+        genericLucky:
+          type: boolean
+        genericCaution:
+          type: boolean
+      required:
+        - lucky
+        - inauspicious
+        - caution
+        - genericLucky
+        - genericCaution
+
+    ManseryokPersonalizedRelation:
+      type: object
+      properties:
+        type:
+          type: string
+        label:
+          type: string
+        fortune:
+          type: string
+        why:
+          type: string
+        colorClass:
+          type: string
+        borderClass:
+          type: string
+        emoji:
+          type: string
+        score:
+          type: integer
+        positive:
+          type: boolean
+      required:
+        - type
+        - label
+        - fortune
+        - why
+        - colorClass
+        - borderClass
+        - emoji
+        - score
+        - positive
+
+    ManseryokPersonalized:
+      type: object
+      properties:
+        score:
+          type: integer
+        label:
+          type: string
+        relation:
+          anyOf:
+            - $ref: "#/components/schemas/ManseryokPersonalizedRelation"
+            - type: "null"
+        badges:
+          $ref: "#/components/schemas/ManseryokPersonalizedBadges"
+      required:
+        - score
+        - label
+        - badges
 
     ManseryokDate:
       type: object
@@ -544,6 +747,9 @@ components:
           type: string
           nullable: true
         profileImageUrl:
+          type: string
+          nullable: true
+        role:
           type: string
           nullable: true
 

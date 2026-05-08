@@ -34,6 +34,10 @@ function getDayRelation(
   myBranch: string | null,
   relationContext?: ReturnType<typeof getProfileRelationContext>,
 ) {
+  if (dayData?.personalized?.relation) {
+    return dayData.personalized.relation;
+  }
+
   if (!myElem || !dayData?.dayElement) {
     return null;
   }
@@ -56,6 +60,10 @@ function calcDayScore(
   myBranch: string | null,
   relationContext?: ReturnType<typeof getProfileRelationContext>,
 ): number {
+  if (typeof dayData?.personalized?.score === "number") {
+    return dayData.personalized.score;
+  }
+
   const relation = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
 
   if (!relation) {
@@ -103,6 +111,10 @@ function getDayBadges(
   rel: ReturnType<typeof getElementRelation> | null,
   personalized: boolean,
 ) {
+  if (dayData?.personalized?.badges) {
+    return dayData.personalized.badges;
+  }
+
   if (!dayData || score == null) {
     return {
       lucky: false,
@@ -448,20 +460,50 @@ export default function ManseryokPage() {
   const currentMonthKey = `${yearStr}-${monthStr}`;
   const isCurrentMonth = currentMonthKey === TODAY_MONTH;
   const accessScope = canAccessFutureDates ? "privileged" : "standard";
-
-  const { data, isLoading, error } = useGetManseryokMonth(
-    { year: yearStr, month: monthStr },
-    {
-      query: {
-        queryKey: ["/api/manseryok/month", { year: yearStr, month: monthStr }, accessScope],
-      },
-    },
-  );
   const myElem = profile?.dayMasterElement ?? null;
   const myStem = profile?.dayMasterStem ?? null;
   const myBranch = profile?.dayMasterBranch ?? null;
   const relationContext = useMemo(() => getProfileRelationContext(profile), [profile]);
   const isPersonalized = Boolean(myElem);
+  const personalizationParams = useMemo(() => (
+    profile?.dayMasterElement
+      ? {
+          dayMasterElement: profile.dayMasterElement,
+          dayMasterStem: profile.dayMasterStem,
+          dayMasterBranch: profile.dayMasterBranch,
+          yearStem: profile.yearStem,
+          yearBranch: profile.yearBranch,
+          monthStem: profile.monthStem,
+          monthBranch: profile.monthBranch,
+          hourStem: profile.hourStem,
+          hourBranch: profile.hourBranch,
+        }
+      : {}
+  ), [profile]);
+  const personalizationKey = useMemo(() => (
+    profile?.dayMasterElement
+      ? [
+          profile.dayMasterElement,
+          profile.dayMasterStem ?? "",
+          profile.dayMasterBranch ?? "",
+          profile.yearStem ?? "",
+          profile.yearBranch ?? "",
+          profile.monthStem ?? "",
+          profile.monthBranch ?? "",
+          profile.hourStem ?? "",
+          profile.hourBranch ?? "",
+        ].join(":")
+      : "no-profile"
+  ), [profile]);
+
+  const { data, isLoading, error } = useGetManseryokMonth(
+    { year: yearStr, month: monthStr, ...personalizationParams },
+    {
+      query: {
+        queryKey: ["/api/manseryok/month", { year: yearStr, month: monthStr, personalizationKey }, accessScope],
+      },
+    },
+  );
 
   useEffect(() => {
     if (!canAccessFutureDates && currentMonthKey > TODAY_MONTH) {

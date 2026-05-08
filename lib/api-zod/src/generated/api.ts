@@ -37,6 +37,17 @@ export const CalculateSajuBody = zod.object({
 });
 
 export const CalculateSajuResponse = zod.object({
+  birthInfo: zod
+    .object({
+      year: zod.number(),
+      month: zod.number(),
+      day: zod.number(),
+      hour: zod.number(),
+      minute: zod.number().optional(),
+      gender: zod.string(),
+      calendarType: zod.string(),
+    })
+    .optional(),
   yearPillar: zod.object({
     heavenlyStem: zod.string().describe("Heavenly stem (천간)"),
     earthlyBranch: zod.string().describe("Earthly branch (지지)"),
@@ -155,6 +166,10 @@ export const GetDailyFortuneResponse = zod.object({
   advice: zod.string().describe("Daily advice"),
   monthGanzi: zod.string(),
   yearGanzi: zod.string(),
+  goodThings: zod
+    .array(zod.string())
+    .describe("Recommended activities for today"),
+  avoidThings: zod.array(zod.string()).describe("Activities to avoid today"),
 });
 
 /**
@@ -163,6 +178,15 @@ export const GetDailyFortuneResponse = zod.object({
  */
 export const GetManseryokDateQueryParams = zod.object({
   date: zod.coerce.string(),
+  dayMasterElement: zod.coerce.string().optional(),
+  dayMasterStem: zod.coerce.string().optional(),
+  dayMasterBranch: zod.coerce.string().optional(),
+  yearStem: zod.coerce.string().optional(),
+  yearBranch: zod.coerce.string().optional(),
+  monthStem: zod.coerce.string().optional(),
+  monthBranch: zod.coerce.string().optional(),
+  hourStem: zod.coerce.string().optional(),
+  hourBranch: zod.coerce.string().optional(),
 });
 
 export const GetManseryokDateResponse = zod.object({
@@ -182,6 +206,35 @@ export const GetManseryokDateResponse = zod.object({
     luckyDay: zod.boolean(),
     inauspiciousDay: zod.boolean(),
     dayDescription: zod.string().optional(),
+    personalized: zod
+      .object({
+        score: zod.number(),
+        label: zod.string(),
+        relation: zod
+          .union([
+            zod.object({
+              type: zod.string(),
+              label: zod.string(),
+              fortune: zod.string(),
+              why: zod.string(),
+              colorClass: zod.string(),
+              borderClass: zod.string(),
+              emoji: zod.string(),
+              score: zod.number(),
+              positive: zod.boolean(),
+            }),
+            zod.null(),
+          ])
+          .optional(),
+        badges: zod.object({
+          lucky: zod.boolean(),
+          inauspicious: zod.boolean(),
+          caution: zod.boolean(),
+          genericLucky: zod.boolean(),
+          genericCaution: zod.boolean(),
+        }),
+      })
+      .optional(),
   }),
   yearGanzi: zod.string(),
   monthGanzi: zod.string(),
@@ -197,6 +250,15 @@ export const GetManseryokDateResponse = zod.object({
 export const GetManseryokMonthQueryParams = zod.object({
   year: zod.coerce.string(),
   month: zod.coerce.string(),
+  dayMasterElement: zod.coerce.string().optional(),
+  dayMasterStem: zod.coerce.string().optional(),
+  dayMasterBranch: zod.coerce.string().optional(),
+  yearStem: zod.coerce.string().optional(),
+  yearBranch: zod.coerce.string().optional(),
+  monthStem: zod.coerce.string().optional(),
+  monthBranch: zod.coerce.string().optional(),
+  hourStem: zod.coerce.string().optional(),
+  hourBranch: zod.coerce.string().optional(),
 });
 
 export const GetManseryokMonthResponse = zod.object({
@@ -222,6 +284,35 @@ export const GetManseryokMonthResponse = zod.object({
       luckyDay: zod.boolean(),
       inauspiciousDay: zod.boolean(),
       dayDescription: zod.string().optional(),
+      personalized: zod
+        .object({
+          score: zod.number(),
+          label: zod.string(),
+          relation: zod
+            .union([
+              zod.object({
+                type: zod.string(),
+                label: zod.string(),
+                fortune: zod.string(),
+                why: zod.string(),
+                colorClass: zod.string(),
+                borderClass: zod.string(),
+                emoji: zod.string(),
+                score: zod.number(),
+                positive: zod.boolean(),
+              }),
+              zod.null(),
+            ])
+            .optional(),
+          badges: zod.object({
+            lucky: zod.boolean(),
+            inauspicious: zod.boolean(),
+            caution: zod.boolean(),
+            genericLucky: zod.boolean(),
+            genericCaution: zod.boolean(),
+          }),
+        })
+        .optional(),
     }),
   ),
 });

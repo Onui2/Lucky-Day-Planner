@@ -5,6 +5,7 @@
  * API specification for Saju & Fortune website
  * OpenAPI spec version: 0.1.0
  */
+import type { ManseryokPersonalized } from "./manseryokPersonalized";
 
 export interface ManseryokDay {
   /** Solar date (YYYY-MM-DD) */
@@ -24,4 +25,5 @@ export interface ManseryokDay {
   luckyDay: boolean;
   inauspiciousDay: boolean;
   dayDescription?: string;
+  personalized?: ManseryokPersonalized;
 }

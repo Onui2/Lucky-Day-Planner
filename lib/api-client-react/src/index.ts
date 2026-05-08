@@ -7,8 +7,12 @@ export { customFetch } from "./custom-fetch";
 import { ApiError, customFetch } from "./custom-fetch";
 
 export interface SavedSajuBirthInfo {
-  year: number; month: number; day: number; hour: number;
-  gender: string; calendarType: string;
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  gender: string;
+  calendarType: string;
 }
 
 export interface SavedSajuItem {
@@ -23,7 +27,8 @@ const SAVED_SAJU_KEY = ["saju", "saved"] as const;
 
 const env =
   typeof import.meta !== "undefined"
-    ? (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {}
+    ? ((import.meta as unknown as { env?: Record<string, string | undefined> })
+        .env ?? {})
     : {};
 
 const SUPABASE_URL = env.VITE_SUPABASE_URL?.trim() ?? "";
@@ -40,11 +45,15 @@ interface SupabaseAuthUser {
 }
 
 function canUseBrowserStorage(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  return (
+    typeof window !== "undefined" && typeof window.localStorage !== "undefined"
+  );
 }
 
 function isSupabaseMetadataStorageEnabled(): boolean {
-  return Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && canUseBrowserStorage());
+  return Boolean(
+    SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && canUseBrowserStorage(),
+  );
 }
 
 function getSupabaseAccessToken(): string | null {
@@ -74,10 +83,16 @@ function shouldUseSupabaseSavedFallback(error: unknown): boolean {
 
   const code = (error.data as Record<string, unknown>).error;
   const message = (error.data as Record<string, unknown>).message;
-  return code === "DB_NOT_CONFIGURED" || message === "서버 데이터베이스 설정이 누락되었습니다.";
+  return (
+    code === "DB_NOT_CONFIGURED" ||
+    message === "서버 데이터베이스 설정이 누락되었습니다."
+  );
 }
 
-function normalizeSavedSajuItems(raw: unknown, userId: string): SavedSajuItem[] {
+function normalizeSavedSajuItems(
+  raw: unknown,
+  userId: string,
+): SavedSajuItem[] {
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -217,7 +232,10 @@ export function useGetSavedSaju(enabled = true) {
 export function useSaveSaju() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { label: string; birthInfo: SavedSajuBirthInfo }) => {
+    mutationFn: async (body: {
+      label: string;
+      birthInfo: SavedSajuBirthInfo;
+    }) => {
       try {
         return await customFetch<SavedSajuItem>("/api/saju/saved", {
           method: "POST",
@@ -233,7 +251,8 @@ export function useSaveSaju() {
             throw new Error("최대 20개까지 저장할 수 있습니다.");
           }
 
-          const nextId = items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+          const nextId =
+            items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
           return [
             ...items,
             {
@@ -270,11 +289,15 @@ export function useRenameSavedSaju() {
         const normalizedLabel = label.trim().slice(0, 50);
         const result = await setSupabaseSavedSaju((items) =>
           items.map((item) =>
-            item.id === id ? { ...item, label: normalizedLabel || "내 사주" } : item,
+            item.id === id
+              ? { ...item, label: normalizedLabel || "내 사주" }
+              : item,
           ),
         );
 
-        const updated = (result as SavedSajuItem[]).find((item) => item.id === id);
+        const updated = (result as SavedSajuItem[]).find(
+          (item) => item.id === id,
+        );
         if (!updated) {
           throw new Error("항목을 찾을 수 없습니다.");
         }
@@ -291,13 +314,17 @@ export function useDeleteSavedSaju() {
   return useMutation({
     mutationFn: async (id: number) => {
       try {
-        return await customFetch<{ ok: boolean }>(`/api/saju/saved/${id}`, { method: "DELETE" });
+        return await customFetch<{ ok: boolean }>(`/api/saju/saved/${id}`, {
+          method: "DELETE",
+        });
       } catch (error) {
         if (!shouldUseSupabaseSavedFallback(error)) {
           throw error;
         }
 
-        await setSupabaseSavedSaju((items) => items.filter((item) => item.id !== id));
+        await setSupabaseSavedSaju((items) =>
+          items.filter((item) => item.id !== id),
+        );
         return { ok: true };
       }
     },
@@ -333,7 +360,9 @@ export type LuckyDayBookmarkInput = Omit<
 
 const ACCOUNT_LUCKY_DAY_KEY = ["account", "lucky-days"] as const;
 
-export async function fetchAccountLuckyDayBookmarks(): Promise<LuckyDayBookmarkItem[]> {
+export async function fetchAccountLuckyDayBookmarks(): Promise<
+  LuckyDayBookmarkItem[]
+> {
   return customFetch<LuckyDayBookmarkItem[]>("/api/account/lucky-days");
 }
 
@@ -427,7 +456,12 @@ const ADMIN_UNREAD_KEY = ["inquiries", "admin-unread"] as const;
 export function useSubmitInquiry() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { message: string; sajuSnapshot?: InquirySajuSnapshot | null; userLabel?: string; inquiryType?: string }) =>
+    mutationFn: (body: {
+      message: string;
+      sajuSnapshot?: InquirySajuSnapshot | null;
+      userLabel?: string;
+      inquiryType?: string;
+    }) =>
       customFetch<{ inquiry: Inquiry }>("/api/inquiries", {
         method: "POST",
         body: JSON.stringify(body),
@@ -442,7 +476,8 @@ export function useSubmitInquiry() {
 export function useGetMyInquiries(page = 1, enabled = true) {
   return useQuery<InquiryListResponse>({
     queryKey: [...MY_INQUIRIES_KEY, page],
-    queryFn: () => customFetch<InquiryListResponse>(`/api/inquiries/my?page=${page}`),
+    queryFn: () =>
+      customFetch<InquiryListResponse>(`/api/inquiries/my?page=${page}`),
     staleTime: 15_000,
     enabled,
   });
@@ -452,7 +487,9 @@ export function useMyUnreadCount(enabled = true) {
   return useQuery<{ count: number }>({
     queryKey: MY_UNREAD_KEY,
     queryFn: () =>
-      customFetch<{ count: number }>("/api/inquiries/my/unread-count").catch(() => ({ count: 0 })),
+      customFetch<{ count: number }>("/api/inquiries/my/unread-count").catch(
+        () => ({ count: 0 }),
+      ),
     refetchInterval: 30_000,
     staleTime: 20_000,
     retry: false,
@@ -464,7 +501,9 @@ export function useMarkInquiryReadByUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      customFetch<{ ok: boolean }>(`/api/inquiries/${id}/read`, { method: "PATCH" }),
+      customFetch<{ ok: boolean }>(`/api/inquiries/${id}/read`, {
+        method: "PATCH",
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: MY_INQUIRIES_KEY });
       qc.invalidateQueries({ queryKey: MY_UNREAD_KEY });
@@ -477,7 +516,8 @@ export function useGetAdminInquiries(page = 1, status?: string) {
   if (status) params.set("status", status);
   return useQuery<InquiryListResponse>({
     queryKey: [...ADMIN_INQUIRIES_KEY, page, status],
-    queryFn: () => customFetch<InquiryListResponse>(`/api/admin/inquiries?${params}`),
+    queryFn: () =>
+      customFetch<InquiryListResponse>(`/api/admin/inquiries?${params}`),
     staleTime: 15_000,
   });
 }
@@ -486,7 +526,9 @@ export function useAdminUnreadCount(enabled = true) {
   return useQuery<{ count: number }>({
     queryKey: ADMIN_UNREAD_KEY,
     queryFn: () =>
-      customFetch<{ count: number }>("/api/admin/inquiries/unread-count").catch(() => ({ count: 0 })),
+      customFetch<{ count: number }>("/api/admin/inquiries/unread-count").catch(
+        () => ({ count: 0 }),
+      ),
     refetchInterval: 30_000,
     staleTime: 20_000,
     retry: false,
@@ -510,7 +552,9 @@ export function useAdminMarkRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      customFetch<{ ok: boolean }>(`/api/admin/inquiries/${id}/read`, { method: "PATCH" }),
+      customFetch<{ ok: boolean }>(`/api/admin/inquiries/${id}/read`, {
+        method: "PATCH",
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ADMIN_INQUIRIES_KEY });
       qc.invalidateQueries({ queryKey: ADMIN_UNREAD_KEY });
@@ -522,7 +566,9 @@ export function useAdminDeleteInquiry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      customFetch<{ ok: boolean }>(`/api/admin/inquiries/${id}`, { method: "DELETE" }),
+      customFetch<{ ok: boolean }>(`/api/admin/inquiries/${id}`, {
+        method: "DELETE",
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ADMIN_INQUIRIES_KEY });
       qc.invalidateQueries({ queryKey: ADMIN_UNREAD_KEY });
@@ -596,7 +642,7 @@ export function useGetAdminUsers(page = 1, search = "") {
     queryKey: [...ADMIN_USERS_KEY, page, search],
     queryFn: () =>
       customFetch<AdminUsersResponse>(
-        `/api/admin/users?page=${page}&search=${encodeURIComponent(search)}`
+        `/api/admin/users?page=${page}&search=${encodeURIComponent(search)}`,
       ),
     staleTime: 10_000,
   });
@@ -628,7 +674,9 @@ export function useAdminDeleteUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      customFetch<{ ok: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" }),
+      customFetch<{ ok: boolean }>(`/api/admin/users/${id}`, {
+        method: "DELETE",
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ADMIN_USERS_KEY });
       qc.invalidateQueries({ queryKey: ADMIN_STATS_KEY });
@@ -645,7 +693,8 @@ export interface AdminUserDetail {
 export function useGetAdminUserDetail(id: string, enabled: boolean) {
   return useQuery<AdminUserDetail>({
     queryKey: ["admin", "user-detail", id],
-    queryFn: () => customFetch<AdminUserDetail>(`/api/admin/users/${id}/detail`),
+    queryFn: () =>
+      customFetch<AdminUserDetail>(`/api/admin/users/${id}/detail`),
     enabled,
     staleTime: 30_000,
   });
@@ -655,7 +704,9 @@ export function useAdminMarkAllRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      customFetch<{ ok: boolean }>("/api/admin/inquiries/read-all", { method: "PATCH" }),
+      customFetch<{ ok: boolean }>("/api/admin/inquiries/read-all", {
+        method: "PATCH",
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inquiries", "admin"] });
       qc.invalidateQueries({ queryKey: ADMIN_STATS_KEY });
@@ -682,7 +733,8 @@ const ADMIN_ANNOUNCEMENTS_KEY = ["admin", "announcements"] as const;
 export function useGetAnnouncements() {
   return useQuery<Announcement[]>({
     queryKey: ANNOUNCEMENTS_KEY,
-    queryFn: () => customFetch<Announcement[]>("/api/announcements").catch(() => []),
+    queryFn: () =>
+      customFetch<Announcement[]>("/api/announcements").catch(() => []),
     staleTime: 5 * 60_000,
     retry: false,
   });
@@ -699,8 +751,17 @@ export function useGetAdminAnnouncements() {
 export function useCreateAnnouncement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { title: string; content: string; type?: string; isActive?: boolean; isPinned?: boolean }) =>
-      customFetch<Announcement>("/api/admin/announcements", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body: {
+      title: string;
+      content: string;
+      type?: string;
+      isActive?: boolean;
+      isPinned?: boolean;
+    }) =>
+      customFetch<Announcement>("/api/admin/announcements", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ADMIN_ANNOUNCEMENTS_KEY });
       qc.invalidateQueries({ queryKey: ANNOUNCEMENTS_KEY });
@@ -711,8 +772,21 @@ export function useCreateAnnouncement() {
 export function useUpdateAnnouncement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: number; title?: string; content?: string; type?: string; isActive?: boolean; isPinned?: boolean }) =>
-      customFetch<Announcement>(`/api/admin/announcements/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: number;
+      title?: string;
+      content?: string;
+      type?: string;
+      isActive?: boolean;
+      isPinned?: boolean;
+    }) =>
+      customFetch<Announcement>(`/api/admin/announcements/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ADMIN_ANNOUNCEMENTS_KEY });
       qc.invalidateQueries({ queryKey: ANNOUNCEMENTS_KEY });
@@ -724,7 +798,9 @@ export function useDeleteAnnouncement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      customFetch<{ ok: boolean }>(`/api/admin/announcements/${id}`, { method: "DELETE" }),
+      customFetch<{ ok: boolean }>(`/api/admin/announcements/${id}`, {
+        method: "DELETE",
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ADMIN_ANNOUNCEMENTS_KEY });
       qc.invalidateQueries({ queryKey: ANNOUNCEMENTS_KEY });
@@ -745,21 +821,38 @@ export interface YearFortuneData {
   relation: string;
   overallScore: number;
   overallText: string;
-  moneyScore: number; moneyText: string;
-  loveScore: number; loveText: string;
-  careerScore: number; careerText: string;
-  healthScore: number; healthText: string;
+  moneyScore: number;
+  moneyText: string;
+  loveScore: number;
+  loveText: string;
+  careerScore: number;
+  careerText: string;
+  healthScore: number;
+  healthText: string;
   quarters: { name: string; score: number; theme: string; advice: string }[];
-  monthlyScores: { month: number; score: number; monthStem?: string; monthBranch?: string }[];
+  monthlyScores: {
+    month: number;
+    score: number;
+    monthStem?: string;
+    monthBranch?: string;
+  }[];
   keyAdvice: string[];
 }
 
 export function useYearFortune() {
   return useMutation({
     mutationFn: (body: {
-      birthYear: number; birthMonth: number; birthDay: number;
-      birthHour?: number; birthMinute?: number; targetYear?: number;
-    }) => customFetch<YearFortuneData>("/api/year-fortune", { method: "POST", body: JSON.stringify(body) }),
+      birthYear: number;
+      birthMonth: number;
+      birthDay: number;
+      birthHour?: number;
+      birthMinute?: number;
+      targetYear?: number;
+    }) =>
+      customFetch<YearFortuneData>("/api/year-fortune", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   });
 }
 
@@ -769,10 +862,14 @@ export interface NameAnalysisData {
   name: string;
   syllables: number;
   strokes: { char: string; strokes: number }[];
-  wonGyeok: number; wonGyeokSuri: { name: string; fortune: string; score: number };
-  hyeongGyeok: number; hyeongGyeokSuri: { name: string; fortune: string; score: number };
-  iGyeok: number; iGyeokSuri: { name: string; fortune: string; score: number };
-  jeongGyeok: number; jeongGyeokSuri: { name: string; fortune: string; score: number };
+  wonGyeok: number;
+  wonGyeokSuri: { name: string; fortune: string; score: number };
+  hyeongGyeok: number;
+  hyeongGyeokSuri: { name: string; fortune: string; score: number };
+  iGyeok: number;
+  iGyeokSuri: { name: string; fortune: string; score: number };
+  jeongGyeok: number;
+  jeongGyeokSuri: { name: string; fortune: string; score: number };
   overallScore: number;
   overallGrade: string;
   elements: string[];
@@ -789,7 +886,10 @@ export interface NameAnalysisData {
 export function useNameAnalysis() {
   return useMutation({
     mutationFn: (name: string) =>
-      customFetch<NameAnalysisData>("/api/name-analysis", { method: "POST", body: JSON.stringify({ name }) }),
+      customFetch<NameAnalysisData>("/api/name-analysis", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
   });
 }
 
@@ -822,7 +922,8 @@ export function useZodiacFortune(date?: string) {
   const params = date ? `?date=${date}` : "";
   return useQuery<ZodiacFortuneData>({
     queryKey: [...ZODIAC_FORTUNE_KEY, date ?? "today"],
-    queryFn: () => customFetch<ZodiacFortuneData>(`/api/fortune/zodiac${params}`),
+    queryFn: () =>
+      customFetch<ZodiacFortuneData>(`/api/fortune/zodiac${params}`),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -853,17 +954,26 @@ export function useUpdateAccountName() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (name: string) =>
-      customFetch<{ user: { id: string; firstName: string; email: string } }>("/api/account/name", {
-        method: "PATCH",
-        body: JSON.stringify({ name }),
-      }),
+      customFetch<{ user: { id: string; firstName: string; email: string } }>(
+        "/api/account/name",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ name }),
+        },
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNT_KEY }),
   });
 }
 
 export function useChangePassword() {
   return useMutation({
-    mutationFn: ({ currentPassword, newPassword }: { currentPassword?: string; newPassword: string }) =>
+    mutationFn: ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword?: string;
+      newPassword: string;
+    }) =>
       customFetch<{ ok: boolean }>("/api/account/password", {
         method: "PATCH",
         body: JSON.stringify({ currentPassword, newPassword }),
@@ -884,7 +994,7 @@ export function useDeleteAccount() {
 // ─── 연애운 ──────────────────────────────────────────────────
 
 export interface LoveFortuneResult {
-  status: 'solo' | 'dating';
+  status: "solo" | "dating";
   myElement: string;
   myStem: string;
   loveScore: number;
@@ -913,10 +1023,24 @@ export interface LoveFortuneResult {
 export function useLoveFortune() {
   return useMutation({
     mutationFn: (body: {
-      birthYear: number; birthMonth: number; birthDay: number;
-      birthHour?: number; birthMinute?: number; gender: string; status: string; targetYear?: number;
-      partnerYear?: number; partnerMonth?: number; partnerDay?: number;
-      partnerHour?: number; partnerMinute?: number; partnerGender?: string;
-    }) => customFetch<LoveFortuneResult>("/api/love-fortune", { method: "POST", body: JSON.stringify(body) }),
+      birthYear: number;
+      birthMonth: number;
+      birthDay: number;
+      birthHour?: number;
+      birthMinute?: number;
+      gender: string;
+      status: string;
+      targetYear?: number;
+      partnerYear?: number;
+      partnerMonth?: number;
+      partnerDay?: number;
+      partnerHour?: number;
+      partnerMinute?: number;
+      partnerGender?: string;
+    }) =>
+      customFetch<LoveFortuneResult>("/api/love-fortune", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   });
 }

@@ -5,6 +5,11 @@ import { requireDatabase } from "../lib/database-guard.js";
 
 const router = Router();
 
+function parseAnnouncementId(value: string | string[]): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return parseInt(raw, 10);
+}
+
 function requireAdmin(
   req: Request,
   res: Response,
@@ -90,7 +95,7 @@ router.patch("/admin/announcements/:id", async (req: Request, res: Response) => 
   if (!requireAdmin(req, res)) return;
   if (!(await requireDatabase(res))) return;
 
-  const id = parseInt(req.params.id, 10);
+  const id = parseAnnouncementId(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "유효하지 않은 ID입니다." }); return; }
 
   const { title, content, type, isActive, isPinned } = req.body as Record<string, unknown>;
@@ -121,7 +126,7 @@ router.delete("/admin/announcements/:id", async (req: Request, res: Response) =>
   if (!requireAdmin(req, res)) return;
   if (!(await requireDatabase(res))) return;
 
-  const id = parseInt(req.params.id, 10);
+  const id = parseAnnouncementId(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "유효하지 않은 ID입니다." }); return; }
 
   try {

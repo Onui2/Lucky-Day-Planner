@@ -9,4 +9,16 @@
 export type GetManseryokMonthParams = {
   year: string;
   month: string;
+  /**
+   * Personalized day master element for relation-based scoring
+   */
+  dayMasterElement?: string;
+  dayMasterStem?: string;
+  dayMasterBranch?: string;
+  yearStem?: string;
+  yearBranch?: string;
+  monthStem?: string;
+  monthBranch?: string;
+  hourStem?: string;
+  hourBranch?: string;
 };
