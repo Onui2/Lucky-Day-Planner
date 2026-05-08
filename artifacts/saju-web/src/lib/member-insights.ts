@@ -167,6 +167,11 @@ export function createLuckyDayBookmarkId(
   return `${year}-${month}-${day}:${purpose}`;
 }
 
+// localStorage만 읽는 동기 함수 (서버 미업로드 데이터 마이그레이션 전용)
+export function getLocalLuckyDayBookmarks(userId?: string | null) {
+  return readScopedArray<LuckyDayBookmark>("lucky-day-bookmarks", userId);
+}
+
 export async function getLuckyDayBookmarks(userId?: string | null) {
   const data = await loadInsights(userId);
   return data.bookmarks;

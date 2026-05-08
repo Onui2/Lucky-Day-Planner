@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, inquiriesTable, savedSajuTable, usersTable } from "@workspace/db";
-import { count, desc, eq, gte, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, or } from "drizzle-orm";
 import { requireDatabase } from "../lib/database-guard.js";
 
 const router = Router();
@@ -239,7 +239,7 @@ router.get("/admin/users/:id/detail", async (req: Request, res: Response) => {
   const targetId = String(req.params.id);
   const [savedSajuCount] = await db.select({ count: count() }).from(savedSajuTable).where(eq(savedSajuTable.userId, targetId));
   const [inquiryCount] = await db.select({ count: count() }).from(inquiriesTable).where(eq(inquiriesTable.userId, targetId));
-  const [pendingCount] = await db.select({ count: count() }).from(inquiriesTable).where(eq(inquiriesTable.userId, targetId)).where(eq(inquiriesTable.status, "pending"));
+  const [pendingCount] = await db.select({ count: count() }).from(inquiriesTable).where(and(eq(inquiriesTable.userId, targetId), eq(inquiriesTable.status, "pending")));
 
   res.json({
     savedSajuCount: Number(savedSajuCount?.count ?? 0),

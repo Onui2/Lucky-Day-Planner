@@ -9,12 +9,20 @@ import {
 } from "@workspace/api-client-react";
 import {
   clearLuckyDayBookmarks,
-  getLuckyDayBookmarks,
+  getLocalLuckyDayBookmarks,
 } from "@/lib/member-insights";
+
+function normalizeBookmarkGrade(grade: string): LuckyDayBookmarkInput["grade"] {
+  return ["대길", "길", "보통", "흉", "대흉"].includes(grade)
+    ? (grade as LuckyDayBookmarkInput["grade"])
+    : "보통";
+}
 
 export function useLuckyDayBookmarks() {
   const { user, isAuthenticated } = useAuth();
-  const query = useGetAccountLuckyDayBookmarks(Boolean(isAuthenticated && user?.id));
+  const query = useGetAccountLuckyDayBookmarks(
+    Boolean(isAuthenticated && user?.id),
+  );
   const saveMutation = useSaveAccountLuckyDayBookmark();
   const deleteMutation = useDeleteAccountLuckyDayBookmark();
   const migrationKeyRef = useRef<string | null>(null);
@@ -29,18 +37,18 @@ export function useLuckyDayBookmarks() {
       return;
     }
 
-    const localBookmarks = getLuckyDayBookmarks(user.id);
-    if (localBookmarks.length === 0) {
-      return;
-    }
-
     if (migrationKeyRef.current === user.id) {
       return;
     }
 
-    migrationKeyRef.current = user.id;
-
     void (async () => {
+      const localBookmarks = getLocalLuckyDayBookmarks(user.id);
+      if (localBookmarks.length === 0) {
+        return;
+      }
+
+      migrationKeyRef.current = user.id;
+
       try {
         for (const bookmark of localBookmarks) {
           await saveAccountLuckyDayBookmark({
@@ -54,7 +62,7 @@ export function useLuckyDayBookmarks() {
             purposeLabel: bookmark.purposeLabel,
             ganzi: bookmark.ganzi,
             ganziHanja: bookmark.ganziHanja,
-            grade: bookmark.grade,
+            grade: normalizeBookmarkGrade(bookmark.grade),
             score: bookmark.score,
             tags: bookmark.tags,
           });
@@ -73,7 +81,8 @@ export function useLuckyDayBookmarks() {
     bookmarks: query.data ?? [],
     isLoading: query.isLoading,
     error: query.error,
-    saveBookmark: (bookmark: LuckyDayBookmarkInput) => saveMutation.mutateAsync(bookmark),
+    saveBookmark: (bookmark: LuckyDayBookmarkInput) =>
+      saveMutation.mutateAsync(bookmark),
     removeBookmark: (id: string) => deleteMutation.mutateAsync(id),
     isSaving: saveMutation.isPending,
     isRemoving: deleteMutation.isPending,
