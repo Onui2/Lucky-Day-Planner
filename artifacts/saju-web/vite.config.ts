@@ -8,21 +8,25 @@ const rawPort = process.env.WEB_PORT ?? process.env.PORT;
 const port = Number(rawPort ?? "3000");
 
 if (Number.isNaN(port) || port <= 0) {
-  console.warn(`Warning: Invalid PORT value: "${rawPort}". Using default 3000.`);
+  console.warn(
+    `Warning: Invalid PORT value: "${rawPort}". Using default 3000.`,
+  );
 }
 
 const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
   base: basePath,
-  plugins: [
-    react(),
-    tailwindcss(),
-  ],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
-      "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+      "@assets": path.resolve(
+        import.meta.dirname,
+        "..",
+        "..",
+        "attached_assets",
+      ),
     },
     dedupe: ["react", "react-dom"],
   },
@@ -30,6 +34,36 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return;
+          }
+
+          if (id.includes("@tanstack")) {
+            return "query-vendor";
+          }
+
+          if (id.includes("framer-motion")) {
+            return "motion-vendor";
+          }
+
+          if (id.includes("recharts") || id.includes("d3-")) {
+            return "chart-vendor";
+          }
+
+          if (
+            id.includes("@radix-ui") ||
+            id.includes("class-variance-authority") ||
+            id.includes("clsx") ||
+            id.includes("tailwind-merge")
+          ) {
+            return "ui-vendor";
+          }
+        },
+      },
+    },
   },
   server: {
     port,

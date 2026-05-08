@@ -32,12 +32,20 @@ export default function LoginPage() {
 
   const SAVED_EMAIL_KEY = "myunghae_saved_email";
   const [email, setEmail] = useState(() => {
-    try { return localStorage.getItem(SAVED_EMAIL_KEY) ?? ""; } catch { return ""; }
+    try {
+      return localStorage.getItem(SAVED_EMAIL_KEY) ?? "";
+    } catch {
+      return "";
+    }
   });
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => {
-    try { return Boolean(localStorage.getItem(SAVED_EMAIL_KEY)); } catch { return false; }
+    try {
+      return Boolean(localStorage.getItem(SAVED_EMAIL_KEY));
+    } catch {
+      return false;
+    }
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,9 +91,13 @@ export default function LoginPage() {
 
     try {
       if (rememberMe) {
-        try { localStorage.setItem(SAVED_EMAIL_KEY, email.trim()); } catch {}
+        try {
+          localStorage.setItem(SAVED_EMAIL_KEY, email.trim());
+        } catch {}
       } else {
-        try { localStorage.removeItem(SAVED_EMAIL_KEY); } catch {}
+        try {
+          localStorage.removeItem(SAVED_EMAIL_KEY);
+        } catch {}
       }
 
       await loginWithPassword({ email: email.trim(), password });
@@ -123,7 +135,10 @@ export default function LoginPage() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md"
       >
-        <Link href="/" className="flex items-center justify-center gap-3 mb-8 group">
+        <Link
+          href="/"
+          className="flex items-center justify-center gap-3 mb-8 group"
+        >
           <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             <Moon className="w-5 h-5 text-primary" />
           </div>
@@ -134,7 +149,9 @@ export default function LoginPage() {
 
         <div className="glass-panel border border-primary/25 rounded-3xl p-8 shadow-2xl">
           <div className="mb-7 text-center">
-            <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">로그인</h1>
+            <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">
+              로그인
+            </h1>
             <p className="text-sm text-muted-foreground">
               이메일과 비밀번호로 로그인해 주세요.
             </p>
@@ -145,14 +162,17 @@ export default function LoginPage() {
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
               <p className="leading-relaxed">
                 로컬 로그인을 사용하려면 서버 데이터베이스 연결이 필요합니다.
-                `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해 주세요.
+                `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해
+                주세요.
               </p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">이메일</label>
+              <label className="text-sm font-medium text-foreground/80">
+                이메일
+              </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -169,7 +189,9 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">비밀번호</label>
+              <label className="text-sm font-medium text-foreground/80">
+                비밀번호
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -248,7 +270,10 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             아직 계정이 없으신가요?{" "}
-            <Link href={buildAuthHref("/register", returnTo)} className="text-primary hover:underline font-medium">
+            <Link
+              href={buildAuthHref("/register", returnTo)}
+              className="text-primary hover:underline font-medium"
+            >
               회원가입
             </Link>
           </div>

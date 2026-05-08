@@ -30,7 +30,7 @@ export default function RegisterPage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const returnTo = sanitizeReturnTo(params.get("returnTo"));
-  const { isAuthenticated, isLoading, refreshUser, setAuthenticatedUser } = useAuth();
+  const { isAuthenticated, isLoading, refreshUser } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -96,14 +96,11 @@ export default function RegisterPage() {
     setSubmitting(true);
 
     try {
-      const authenticatedUser = await registerWithPassword({
+      await registerWithPassword({
         email: email.trim(),
         password,
         name: name.trim(),
       });
-      if (authenticatedUser) {
-        setAuthenticatedUser(authenticatedUser);
-      }
       await refreshUser();
       navigate(returnTo);
     } catch (registerError) {
@@ -119,8 +116,10 @@ export default function RegisterPage() {
 
   if (isLoading) return null;
 
-  const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
-  const localSignupUnavailable = setupStatus?.localPasswordAuthEnabled === false;
+  const passwordMismatch =
+    confirmPassword.length > 0 && password !== confirmPassword;
+  const localSignupUnavailable =
+    setupStatus?.localPasswordAuthEnabled === false;
   const canSelfBootstrapAdmin = setupStatus?.canSelfBootstrapAdmin === true;
 
   return (
@@ -140,7 +139,10 @@ export default function RegisterPage() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md"
       >
-        <Link href="/" className="flex items-center justify-center gap-3 mb-8 group">
+        <Link
+          href="/"
+          className="flex items-center justify-center gap-3 mb-8 group"
+        >
           <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             <Moon className="w-5 h-5 text-primary" />
           </div>
@@ -151,7 +153,9 @@ export default function RegisterPage() {
 
         <div className="glass-panel border border-primary/25 rounded-3xl p-8 shadow-2xl">
           <div className="mb-7 text-center">
-            <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">회원가입</h1>
+            <h1 className="text-2xl font-serif font-bold text-primary mb-1.5">
+              회원가입
+            </h1>
             <p className="text-sm text-muted-foreground">
               계정을 만들고 저장 기능과 문의 기능을 이용해 보세요.
             </p>
@@ -162,7 +166,8 @@ export default function RegisterPage() {
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
               <p className="leading-relaxed">
                 회원가입을 사용하려면 서버 데이터베이스 연결이 필요합니다.
-                `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해 주세요.
+                `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해
+                주세요.
               </p>
             </div>
           )}
@@ -171,14 +176,17 @@ export default function RegisterPage() {
             <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-100">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
               <p className="leading-relaxed">
-                현재 관리자 이메일 설정이 없어 첫 가입 계정은 최고관리자로 등록됩니다.
+                현재 관리자 이메일 설정이 없어 첫 가입 계정은 최고관리자로
+                등록됩니다.
               </p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">이름</label>
+              <label className="text-sm font-medium text-foreground/80">
+                이름
+              </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -194,7 +202,9 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">이메일</label>
+              <label className="text-sm font-medium text-foreground/80">
+                이메일
+              </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -210,7 +220,9 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">비밀번호</label>
+              <label className="text-sm font-medium text-foreground/80">
+                비밀번호
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -238,7 +250,9 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">비밀번호 확인</label>
+              <label className="text-sm font-medium text-foreground/80">
+                비밀번호 확인
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -285,7 +299,9 @@ export default function RegisterPage() {
 
             <Button
               type="submit"
-              disabled={submitting || passwordMismatch || localSignupUnavailable}
+              disabled={
+                submitting || passwordMismatch || localSignupUnavailable
+              }
               className="w-full h-11 text-base font-semibold gap-2 bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
             >
               {submitting ? (
@@ -303,7 +319,10 @@ export default function RegisterPage() {
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             이미 계정이 있으신가요?{" "}
-            <Link href={buildAuthHref("/login", returnTo)} className="text-primary hover:underline font-medium">
+            <Link
+              href={buildAuthHref("/login", returnTo)}
+              className="text-primary hover:underline font-medium"
+            >
               로그인
             </Link>
           </div>

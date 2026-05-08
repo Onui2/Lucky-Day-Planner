@@ -4,24 +4,51 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import {
-  Moon, Sun, Sparkles, Calendar, Heart,
-  UserCircle2, LogIn, LogOut, Menu, X, ChevronUp,
-  BookMarked, MessageSquare, ShieldCheck, Bell,
-  CalendarDays, Type, Orbit, ChevronDown, Settings,
-  MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search,
+  Moon,
+  Sun,
+  Sparkles,
+  Calendar,
+  Heart,
+  UserCircle2,
+  LogIn,
+  LogOut,
+  Menu,
+  X,
+  ChevronUp,
+  BookMarked,
+  MessageSquare,
+  ShieldCheck,
+  Bell,
+  CalendarDays,
+  Type,
+  Orbit,
+  ChevronDown,
+  Settings,
+  MoonStar,
+  TrendingUp,
+  BookOpen,
+  Star,
+  TableProperties,
+  Search,
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@workspace/replit-auth-web";
 import ProfileModal from "@/components/ProfileModal";
-import { useMyUnreadCount, useAdminUnreadCount } from "@workspace/api-client-react";
+import {
+  useMyUnreadCount,
+  useAdminUnreadCount,
+} from "@workspace/api-client-react";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const ELEM_COLOR: Record<string, string> = {
-  목: "text-green-400", 화: "text-red-400",
-  토: "text-yellow-400", 금: "text-gray-300", 수: "text-blue-400",
+  목: "text-green-400",
+  화: "text-red-400",
+  토: "text-yellow-400",
+  금: "text-gray-300",
+  수: "text-blue-400",
 };
 
 function UnreadBadge({ count }: { count: number }) {
@@ -43,7 +70,9 @@ export function Layout({ children }: LayoutProps) {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [mobileServiceGroupOpen, setMobileServiceGroupOpen] = useState<string | null>(null);
+  const [mobileServiceGroupOpen, setMobileServiceGroupOpen] = useState<
+    string | null
+  >(null);
 
   const { data: myUnread } = useMyUnreadCount(isAuthenticated);
   const { data: adminUnread } = useAdminUnreadCount(isAdmin);
@@ -90,44 +119,111 @@ export function Layout({ children }: LayoutProps) {
     { href: "/saju", label: "사주팔자", icon: Sparkles },
     { href: "/daily-fortune", label: "오늘의 일진", icon: Sun },
     { href: "/manseryok", label: "만세력", icon: Calendar },
-    ...(isAuthenticated ? [
-      { href: "/gungap", label: "궁합", icon: Heart },
-      { href: "/saved", label: "저장함", icon: BookMarked },
-      {
-        href: "/inquiries",
-        label: "문의 관리",
-        icon: MessageSquare,
-        badge: myUnread?.count ?? 0,
-      },
-    ] : []),
+    ...(isAuthenticated
+      ? [
+          { href: "/gungap", label: "궁합", icon: Heart },
+          { href: "/saved", label: "저장함", icon: BookMarked },
+          {
+            href: "/inquiries",
+            label: "문의 관리",
+            icon: MessageSquare,
+            badge: myUnread?.count ?? 0,
+          },
+        ]
+      : []),
   ];
 
-  const memberExtraServices = isAuthenticated ? [
-    { href: "/daeun", label: "대운 계산기", icon: TrendingUp, desc: "10년 단위 대운 타임라인" },
-    { href: "/monthly-fortune", label: "월운 분석", icon: CalendarDays, desc: "세운·월건 십신 분석" },
-    { href: "/lucky-calendar", label: "길일 달력", icon: Calendar, desc: "목적별 최적 날짜 선택" },
-    { href: "/year-fortune", label: "연간 운세", icon: CalendarDays, desc: "올 한 해의 운세 흐름" },
-    { href: "/name-analysis", label: "이름 풀이", icon: Type, desc: "수리사주 성명 분석" },
-    { href: "/zodiac", label: "띠별 운세", icon: Orbit, desc: "12지신 오늘의 운세" },
-    { href: "/dream", label: "꿈 해몽", icon: MoonStar, desc: "꿈 키워드로 길흉 풀이" },
-  ] : [];
+  const memberExtraServices = isAuthenticated
+    ? [
+        {
+          href: "/daeun",
+          label: "대운 계산기",
+          icon: TrendingUp,
+          desc: "10년 단위 대운 타임라인",
+        },
+        {
+          href: "/monthly-fortune",
+          label: "월운 분석",
+          icon: CalendarDays,
+          desc: "세운·월건 십신 분석",
+        },
+        {
+          href: "/lucky-calendar",
+          label: "길일 달력",
+          icon: Calendar,
+          desc: "목적별 최적 날짜 선택",
+        },
+        {
+          href: "/year-fortune",
+          label: "연간 운세",
+          icon: CalendarDays,
+          desc: "올 한 해의 운세 흐름",
+        },
+        {
+          href: "/name-analysis",
+          label: "이름 풀이",
+          icon: Type,
+          desc: "수리사주 성명 분석",
+        },
+        {
+          href: "/zodiac",
+          label: "띠별 운세",
+          icon: Orbit,
+          desc: "12지신 오늘의 운세",
+        },
+        {
+          href: "/dream",
+          label: "꿈 해몽",
+          icon: MoonStar,
+          desc: "꿈 키워드로 길흉 풀이",
+        },
+      ]
+    : [];
 
-  const adminExtraServices = isAdmin ? [
-    { href: "/sinsal-guide", label: "신살 안내", icon: Star, desc: "도화·역마·천을귀인 등 해설" },
-    { href: "/glossary", label: "사주 용어 사전", icon: BookOpen, desc: "천간·지지·십신 용어 정리" },
-    { href: "/saju-tables", label: "이론 조견표", icon: TableProperties, desc: "합충형·삼재·귀문살·장간 등" },
-    { href: "/day-pillar-analysis", label: "일주 분석 검색", icon: Search, desc: "60갑자 일주 해석 검색" },
-  ] : [];
+  const adminExtraServices = isAdmin
+    ? [
+        {
+          href: "/sinsal-guide",
+          label: "신살 안내",
+          icon: Star,
+          desc: "도화·역마·천을귀인 등 해설",
+        },
+        {
+          href: "/glossary",
+          label: "사주 용어 사전",
+          icon: BookOpen,
+          desc: "천간·지지·십신 용어 정리",
+        },
+        {
+          href: "/saju-tables",
+          label: "이론 조견표",
+          icon: TableProperties,
+          desc: "합충형·삼재·귀문살·장간 등",
+        },
+        {
+          href: "/day-pillar-analysis",
+          label: "일주 분석 검색",
+          icon: Search,
+          desc: "60갑자 일주 해석 검색",
+        },
+      ]
+    : [];
 
   const extraServiceGroups = [
-    ...(memberExtraServices.length > 0 ? [{ key: "member", label: "회원 전용", items: memberExtraServices }] : []),
-    ...(adminExtraServices.length > 0 ? [{ key: "admin", label: "관리자 전용", items: adminExtraServices }] : []),
+    ...(memberExtraServices.length > 0
+      ? [{ key: "member", label: "회원 전용", items: memberExtraServices }]
+      : []),
+    ...(adminExtraServices.length > 0
+      ? [{ key: "admin", label: "관리자 전용", items: adminExtraServices }]
+      : []),
   ];
   const extraServices = extraServiceGroups.flatMap((group) => group.items);
   const activeExtraServiceGroupKey =
-    extraServiceGroups.find((group) => group.items.some((item) => item.href === location))?.key
-    ?? extraServiceGroups[0]?.key
-    ?? null;
+    extraServiceGroups.find((group) =>
+      group.items.some((item) => item.href === location),
+    )?.key ??
+    extraServiceGroups[0]?.key ??
+    null;
 
   useEffect(() => {
     if (!mobileMenuOpen) {
@@ -147,10 +243,15 @@ export function Layout({ children }: LayoutProps) {
 
   const closeMobile = () => setMobileMenuOpen(false);
 
-  const renderNavLink = (item: {
-    href: string; label: string; icon: React.ElementType;
-    badge?: number;
-  }, onClick?: () => void) => {
+  const renderNavLink = (
+    item: {
+      href: string;
+      label: string;
+      icon: React.ElementType;
+      badge?: number;
+    },
+    onClick?: () => void,
+  ) => {
     const isActive = location === item.href;
     const Icon = item.icon;
     return (
@@ -159,7 +260,7 @@ export function Layout({ children }: LayoutProps) {
         href={item.href}
         className={cn(
           "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary relative py-2",
-          isActive ? "text-primary" : "text-muted-foreground"
+          isActive ? "text-primary" : "text-muted-foreground",
         )}
         onClick={onClick}
       >
@@ -175,9 +276,15 @@ export function Layout({ children }: LayoutProps) {
     );
   };
 
-  const renderMobileNavLink = (item: {
-    href: string; label: string; icon: React.ElementType; badge?: number;
-  }, onClick?: () => void) => {
+  const renderMobileNavLink = (
+    item: {
+      href: string;
+      label: string;
+      icon: React.ElementType;
+      badge?: number;
+    },
+    onClick?: () => void,
+  ) => {
     const isActive = location === item.href;
     const Icon = item.icon;
     return (
@@ -187,7 +294,9 @@ export function Layout({ children }: LayoutProps) {
         onClick={onClick ?? closeMobile}
         className={cn(
           "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors",
-          isActive ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-primary/8 hover:text-primary"
+          isActive
+            ? "bg-primary/15 text-primary"
+            : "text-muted-foreground hover:bg-primary/8 hover:text-primary",
         )}
       >
         <span className="relative">
@@ -218,7 +327,11 @@ export function Layout({ children }: LayoutProps) {
       <header className="sticky top-0 z-50 w-full border-b border-primary/10 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40">
         <div className="container mx-auto px-4 h-16 md:h-20 flex items-center justify-between">
           {/* 로고 */}
-          <Link href="/" className="flex items-center gap-3 group" onClick={closeMobile}>
+          <Link
+            href="/"
+            className="flex items-center gap-3 group"
+            onClick={closeMobile}
+          >
             <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/30 group-hover:scale-110 transition-transform duration-300">
               <Moon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </div>
@@ -233,61 +346,77 @@ export function Layout({ children }: LayoutProps) {
 
             {/* 더보기 드롭다운 */}
             {extraServices.length > 0 && (
-            <div className="relative">
-              <button
-                onClick={() => setServicesOpen(o => !o)}
-                onBlur={() => setTimeout(() => setServicesOpen(false), 150)}
-                className={cn(
-                  "flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary py-2",
-                  extraServices.some(s => location === s.href) ? "text-primary" : "text-muted-foreground"
-                )}
-              >
-                더보기 <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", servicesOpen && "rotate-180")} />
-              </button>
-              <AnimatePresence>
-                {servicesOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.97 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute top-full mt-2 right-0 w-56 max-h-[min(32rem,calc(100vh-7rem))] overflow-y-auto overscroll-contain glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50"
-                  >
-                    {extraServiceGroups.map((group) => (
-                      <div key={group.key} className="px-1">
-                        <div className="px-2 pt-1 pb-1.5 text-[10px] font-semibold tracking-[0.18em] text-primary/60 uppercase">
-                          {group.label}
+              <div className="relative">
+                <button
+                  onClick={() => setServicesOpen((o) => !o)}
+                  onBlur={() => setTimeout(() => setServicesOpen(false), 150)}
+                  className={cn(
+                    "flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary py-2",
+                    extraServices.some((s) => location === s.href)
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  더보기{" "}
+                  <ChevronDown
+                    className={cn(
+                      "w-3.5 h-3.5 transition-transform",
+                      servicesOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+                <AnimatePresence>
+                  {servicesOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute top-full mt-2 right-0 w-56 max-h-[min(32rem,calc(100vh-7rem))] overflow-y-auto overscroll-contain glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50"
+                    >
+                      {extraServiceGroups.map((group) => (
+                        <div key={group.key} className="px-1">
+                          <div className="px-2 pt-1 pb-1.5 text-[10px] font-semibold tracking-[0.18em] text-primary/60 uppercase">
+                            {group.label}
+                          </div>
+                          {group.items.map((s) => {
+                            const Icon = s.icon;
+                            const isActive = location === s.href;
+                            return (
+                              <Link
+                                key={s.href}
+                                href={s.href}
+                                onClick={() => setServicesOpen(false)}
+                                className={cn(
+                                  "flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors",
+                                  isActive
+                                    ? "bg-primary/15 text-primary"
+                                    : "hover:bg-primary/8 text-muted-foreground hover:text-primary",
+                                )}
+                              >
+                                <Icon className="w-4 h-4 shrink-0 mt-0.5" />
+                                <div>
+                                  <div className="text-sm font-medium">
+                                    {s.label}
+                                  </div>
+                                  <div className="text-[11px] opacity-70">
+                                    {s.desc}
+                                  </div>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                          {group.key !==
+                            extraServiceGroups[extraServiceGroups.length - 1]
+                              ?.key && (
+                            <div className="h-px bg-primary/10 my-1" />
+                          )}
                         </div>
-                        {group.items.map((s) => {
-                          const Icon = s.icon;
-                          const isActive = location === s.href;
-                          return (
-                            <Link
-                              key={s.href}
-                              href={s.href}
-                              onClick={() => setServicesOpen(false)}
-                              className={cn(
-                                "flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors",
-                                isActive ? "bg-primary/15 text-primary" : "hover:bg-primary/8 text-muted-foreground hover:text-primary"
-                              )}
-                            >
-                              <Icon className="w-4 h-4 shrink-0 mt-0.5" />
-                              <div>
-                                <div className="text-sm font-medium">{s.label}</div>
-                                <div className="text-[11px] opacity-70">{s.desc}</div>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                        {group.key !== extraServiceGroups[extraServiceGroups.length - 1]?.key && (
-                          <div className="h-px bg-primary/10 my-1" />
-                        )}
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
 
             {isAuthenticated && isAdmin && renderNavLink(adminNavItem)}
@@ -296,85 +425,106 @@ export function Layout({ children }: LayoutProps) {
 
             {/* 알림 벨 — 관리자만 표시 */}
             {!isLoading && isAuthenticated && isAdmin && (
-              <Link href="/admin" className="relative text-muted-foreground hover:text-primary transition-colors">
+              <Link
+                href="/admin"
+                className="relative text-muted-foreground hover:text-primary transition-colors"
+              >
                 <Bell className="w-5 h-5" />
                 <UnreadBadge count={adminUnread?.count ?? 0} />
               </Link>
             )}
 
             {/* 로그인 / 사용자 영역 (데스크탑) */}
-            {!isLoading && (isAuthenticated ? (
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(o => !o)}
-                  onBlur={() => setTimeout(() => setUserMenuOpen(false), 150)}
-                  className={cn(
-                    "flex items-center gap-2 text-sm font-medium transition-all py-1.5 px-3 rounded-full border",
-                    profile
-                      ? "border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
-                      : "border-primary/20 text-muted-foreground hover:text-primary hover:border-primary/40"
-                  )}
-                >
-                  <UserCircle2 className="w-4 h-4" />
-                  {profile ? (
-                    <span>
-                      {profile.name ?? (user?.firstName ?? "내 사주")}
-                      {profile.dayMasterElement && (
-                        <span className={cn("ml-1 font-serif font-bold", ELEM_COLOR[profile.dayMasterElement])}>
-                          {profile.dayMasterStem}{profile.dayMasterBranch ?? ""}
-                        </span>
+            {!isLoading &&
+              (isAuthenticated ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen((o) => !o)}
+                    onBlur={() => setTimeout(() => setUserMenuOpen(false), 150)}
+                    className={cn(
+                      "flex items-center gap-2 text-sm font-medium transition-all py-1.5 px-3 rounded-full border",
+                      profile
+                        ? "border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+                        : "border-primary/20 text-muted-foreground hover:text-primary hover:border-primary/40",
+                    )}
+                  >
+                    <UserCircle2 className="w-4 h-4" />
+                    {profile ? (
+                      <span>
+                        {profile.name ?? user?.firstName ?? "내 사주"}
+                        {profile.dayMasterElement && (
+                          <span
+                            className={cn(
+                              "ml-1 font-serif font-bold",
+                              ELEM_COLOR[profile.dayMasterElement],
+                            )}
+                          >
+                            {profile.dayMasterStem}
+                            {profile.dayMasterBranch ?? ""}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span>{user?.firstName ?? "내 정보"}</span>
+                    )}
+                    <ChevronDown
+                      className={cn(
+                        "w-3 h-3 transition-transform",
+                        userMenuOpen && "rotate-180",
                       )}
-                    </span>
-                  ) : (
-                    <span>{user?.firstName ?? "내 정보"}</span>
-                  )}
-                  <ChevronDown className={cn("w-3 h-3 transition-transform", userMenuOpen && "rotate-180")} />
+                    />
+                  </button>
+                  <AnimatePresence>
+                    {userMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute top-full mt-2 right-0 w-52 glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50"
+                      >
+                        <Link
+                          href="/account"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-primary/8 hover:text-primary transition-colors"
+                        >
+                          <Settings className="w-4 h-4" />
+                          회원정보 관리
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            setProfileOpen(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-primary/8 hover:text-primary transition-colors"
+                        >
+                          <UserCircle2 className="w-4 h-4" />
+                          {profile ? "내 사주 수정" : "내 사주 등록"}
+                        </button>
+                        <div className="h-px bg-primary/10 my-1" />
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            logout();
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          로그아웃
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <button
+                  onClick={() => navigate(buildAuthHref("/login"))}
+                  className="flex items-center gap-2 text-sm font-medium transition-all py-2 px-4 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60"
+                >
+                  <LogIn className="w-4 h-4" />
+                  로그인
                 </button>
-                <AnimatePresence>
-                  {userMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 6, scale: 0.97 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full mt-2 right-0 w-52 glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50"
-                    >
-                      <Link
-                        href="/account"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-primary/8 hover:text-primary transition-colors"
-                      >
-                        <Settings className="w-4 h-4" />
-                        회원정보 관리
-                      </Link>
-                      <button
-                        onClick={() => { setUserMenuOpen(false); setProfileOpen(true); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-primary/8 hover:text-primary transition-colors"
-                      >
-                        <UserCircle2 className="w-4 h-4" />
-                        {profile ? "내 사주 수정" : "내 사주 등록"}
-                      </button>
-                      <div className="h-px bg-primary/10 my-1" />
-                      <button
-                        onClick={() => { setUserMenuOpen(false); logout(); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        로그아웃
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ) : (
-              <button
-                onClick={() => navigate(buildAuthHref("/login"))}
-                className="flex items-center gap-2 text-sm font-medium transition-all py-2 px-4 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60"
-              >
-                <LogIn className="w-4 h-4" />
-                로그인
-              </button>
-            ))}
+              ))}
           </nav>
 
           {/* 모바일: 오른쪽 영역 */}
@@ -389,7 +539,10 @@ export function Layout({ children }: LayoutProps) {
               </button>
             )}
             {!isLoading && isAuthenticated && isAdmin && (
-              <Link href="/admin" className="relative text-muted-foreground hover:text-primary transition-colors p-1">
+              <Link
+                href="/admin"
+                className="relative text-muted-foreground hover:text-primary transition-colors p-1"
+              >
                 <Bell className="w-5 h-5" />
                 <UnreadBadge count={adminUnread?.count ?? 0} />
               </Link>
@@ -399,11 +552,14 @@ export function Layout({ children }: LayoutProps) {
               className="w-9 h-9 flex items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/15 transition-colors"
               aria-label="메뉴"
             >
-              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              {mobileMenuOpen ? (
+                <X className="w-4 h-4" />
+              ) : (
+                <Menu className="w-4 h-4" />
+              )}
             </button>
           </div>
         </div>
-
       </header>
 
       <AnimatePresence>
@@ -441,7 +597,11 @@ export function Layout({ children }: LayoutProps) {
                         >
                           <button
                             type="button"
-                            onClick={() => setMobileServiceGroupOpen((current) => current === group.key ? null : group.key)}
+                            onClick={() =>
+                              setMobileServiceGroupOpen((current) =>
+                                current === group.key ? null : group.key,
+                              )
+                            }
                             className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
                           >
                             <div>
@@ -452,7 +612,12 @@ export function Layout({ children }: LayoutProps) {
                                 {group.items.length}개 메뉴
                               </div>
                             </div>
-                            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+                            <ChevronDown
+                              className={cn(
+                                "w-4 h-4 text-muted-foreground transition-transform",
+                                isOpen && "rotate-180",
+                              )}
+                            />
                           </button>
 
                           <AnimatePresence initial={false}>
@@ -465,7 +630,9 @@ export function Layout({ children }: LayoutProps) {
                                 className="overflow-hidden"
                               >
                                 <div className="px-2 pb-2 flex flex-col gap-1">
-                                  {group.items.map((s) => renderMobileNavLink(s, closeMobile))}
+                                  {group.items.map((s) =>
+                                    renderMobileNavLink(s, closeMobile),
+                                  )}
                                 </div>
                               </motion.div>
                             )}
@@ -478,61 +645,81 @@ export function Layout({ children }: LayoutProps) {
 
                 <div className="h-px bg-primary/10 my-1" />
 
-                {isAuthenticated && isAdmin && renderMobileNavLink(adminNavItem, closeMobile)}
+                {isAuthenticated &&
+                  isAdmin &&
+                  renderMobileNavLink(adminNavItem, closeMobile)}
 
                 <div className="h-px bg-primary/10 my-1" />
 
-                {!isLoading && (isAuthenticated ? (
-                  <>
-                    <Link
-                      href="/account"
-                      onClick={closeMobile}
-                      className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-primary/8 hover:text-primary transition-colors"
-                    >
-                      <Settings className="w-4 h-4" />
-                      회원정보 관리
-                    </Link>
-                    <button
-                      onClick={() => { setProfileOpen(true); closeMobile(); }}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors w-full text-left",
-                        profile
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-primary/8 hover:text-primary"
-                      )}
-                    >
-                      <UserCircle2 className="w-4 h-4" />
-                      {profile ? (
-                        <span>
-                          {profile.name ?? (user?.firstName ?? "내 사주")}
-                          {profile.dayMasterElement && (
-                            <span className={cn("ml-1 font-serif font-bold", ELEM_COLOR[profile.dayMasterElement])}>
-                              {profile.dayMasterStem}{profile.dayMasterBranch ?? ""}
+                {!isLoading &&
+                  (isAuthenticated ? (
+                    <>
+                      <Link
+                        href="/account"
+                        onClick={closeMobile}
+                        className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-primary/8 hover:text-primary transition-colors"
+                      >
+                        <Settings className="w-4 h-4" />
+                        회원정보 관리
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setProfileOpen(true);
+                          closeMobile();
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors w-full text-left",
+                          profile
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-primary/8 hover:text-primary",
+                        )}
+                      >
+                        <UserCircle2 className="w-4 h-4" />
+                        {profile ? (
+                          <span>
+                            {profile.name ?? user?.firstName ?? "내 사주"}
+                            {profile.dayMasterElement && (
+                              <span
+                                className={cn(
+                                  "ml-1 font-serif font-bold",
+                                  ELEM_COLOR[profile.dayMasterElement],
+                                )}
+                              >
+                                {profile.dayMasterStem}
+                                {profile.dayMasterBranch ?? ""}
+                              </span>
+                            )}
+                            <span className="ml-2 text-xs text-muted-foreground font-normal">
+                              사주 수정
                             </span>
-                          )}
-                          <span className="ml-2 text-xs text-muted-foreground font-normal">사주 수정</span>
-                        </span>
-                      ) : (
-                        <span>내 사주 등록하기</span>
-                      )}
-                    </button>
+                          </span>
+                        ) : (
+                          <span>내 사주 등록하기</span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          logout();
+                          closeMobile();
+                        }}
+                        className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors w-full text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        로그아웃
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={() => { logout(); closeMobile(); }}
-                      className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors w-full text-left"
+                      onClick={() => {
+                        navigate(buildAuthHref("/login"));
+                        closeMobile();
+                      }}
+                      className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium bg-primary/10 text-primary border border-primary/30 w-full"
                     >
-                      <LogOut className="w-4 h-4" />
-                      로그아웃
+                      <LogIn className="w-4 h-4" />
+                      로그인
                     </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => { navigate(buildAuthHref("/login")); closeMobile(); }}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium bg-primary/10 text-primary border border-primary/30 w-full"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    로그인
-                  </button>
-                ))}
+                  ))}
               </div>
             </motion.div>
           </div>
@@ -544,11 +731,17 @@ export function Layout({ children }: LayoutProps) {
       </main>
 
       <footer className="border-t border-primary/10 py-5 text-center text-muted-foreground/60 text-sm mt-auto glass-panel rounded-t-3xl">
-        <p className="font-serif tracking-widest">© {new Date().getFullYear()} 명해원(命海苑). 운명의 바다, 지혜가 모이는 곳.</p>
+        <p className="font-serif tracking-widest">
+          © {new Date().getFullYear()} 명해원(命海苑). 운명의 바다, 지혜가
+          모이는 곳.
+        </p>
       </footer>
 
       {isAuthenticated && (
-        <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+        <ProfileModal
+          open={profileOpen}
+          onClose={() => setProfileOpen(false)}
+        />
       )}
 
       <AnimatePresence>
