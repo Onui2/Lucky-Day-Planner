@@ -205,6 +205,57 @@ router.get("/admin/users", async (req: Request, res: Response) => {
   res.json({ users: rows, total: Number(total), page, limit });
 });
 
+router.delete("/admin/users/:id", async (req: Request, res: Response) => {
+  if (!requireSuperAdmin(req, res)) return;
+  if (!(await requireDatabase(res))) return;
+
+  const targetId = String(req.params.id);
+  const requesterId = String(req.user.id);
+
+  if (targetId === requesterId) {
+    res.status(400).json({ error: "자신의 계정은 삭제할 수 없습니다." });
+    return;
+  }
+
+  const [target] = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, targetId));
+  if (!target) {
+    res.status(404).json({ error: "회원을 찾을 수 없습니다." });
+    return;
+  }
+
+  if (target.role === "superadmin") {
+    res.status(400).json({ error: "최고 관리자 계정은 삭제할 수 없습니다." });
+    return;
+  }
+
+  await db.delete(usersTable).where(eq(usersTable.id, targetId));
+  res.json({ ok: true });
+});
+
+router.get("/admin/users/:id/detail", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  if (!(await requireDatabase(res))) return;
+
+  const targetId = String(req.params.id);
+  const [savedSajuCount] = await db.select({ count: count() }).from(savedSajuTable).where(eq(savedSajuTable.userId, targetId));
+  const [inquiryCount] = await db.select({ count: count() }).from(inquiriesTable).where(eq(inquiriesTable.userId, targetId));
+  const [pendingCount] = await db.select({ count: count() }).from(inquiriesTable).where(eq(inquiriesTable.userId, targetId)).where(eq(inquiriesTable.status, "pending"));
+
+  res.json({
+    savedSajuCount: Number(savedSajuCount?.count ?? 0),
+    inquiryCount: Number(inquiryCount?.count ?? 0),
+    pendingInquiryCount: Number(pendingCount?.count ?? 0),
+  });
+});
+
+router.patch("/admin/inquiries/read-all", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  if (!(await requireDatabase(res))) return;
+
+  await db.update(inquiriesTable).set({ readByAdmin: true }).where(eq(inquiriesTable.readByAdmin, false));
+  res.json({ ok: true });
+});
+
 router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
   if (!requireSuperAdmin(req, res)) return;
   if (!(await requireDatabase(res))) return;

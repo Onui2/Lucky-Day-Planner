@@ -7,10 +7,15 @@ import {
   useAdminReplyInquiry,
   useAdminMarkRead,
   useAdminDeleteInquiry,
+  useAdminMarkAllRead,
   useCalculateSaju,
   useGetAdminUsers,
   useAdminSetUserRole,
+  useAdminDeleteUser,
+  useGetAdminUserDetail,
   type AdminStatsResponse,
+  type AdminStatsRecentInquiry,
+  type AdminStatsRecentUser,
   type Inquiry,
   type InquirySajuSnapshot,
   type AdminUser,
@@ -18,10 +23,32 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  ShieldCheck, MessageSquare, Clock, CheckCircle2, Trash2,
-  ChevronLeft, ChevronRight, Send, Loader2, User, Calendar,
-  AlertTriangle, Eye, ChevronDown, ChevronUp, Sparkles, Heart, FileQuestion,
-  Users, Search, Crown, UserCheck, UserX, Mail, TrendingUp, Database,
+  ShieldCheck,
+  MessageSquare,
+  Clock,
+  CheckCircle2,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Send,
+  Loader2,
+  User,
+  Calendar,
+  AlertTriangle,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Heart,
+  FileQuestion,
+  Users,
+  Search,
+  Crown,
+  UserCheck,
+  UserX,
+  Mail,
+  TrendingUp,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBirthHourLabel } from "@/components/ProfileModal";
@@ -29,22 +56,40 @@ import { useLocation } from "wouter";
 
 /* ─── 헬퍼 ───────────────────────────────────── */
 const STEM_HANJA: Record<string, string> = {
-  갑:"甲",을:"乙",병:"丙",정:"丁",무:"戊",
-  기:"己",경:"庚",신:"辛",임:"壬",계:"癸",
+  갑: "甲",
+  을: "乙",
+  병: "丙",
+  정: "丁",
+  무: "戊",
+  기: "己",
+  경: "庚",
+  신: "辛",
+  임: "壬",
+  계: "癸",
 };
 const BRANCH_HANJA: Record<string, string> = {
-  자:"子",축:"丑",인:"寅",묘:"卯",진:"辰",사:"巳",
-  오:"午",미:"未",신:"申",유:"酉",술:"戌",해:"亥",
+  자: "子",
+  축: "丑",
+  인: "寅",
+  묘: "卯",
+  진: "辰",
+  사: "巳",
+  오: "午",
+  미: "未",
+  신: "申",
+  유: "酉",
+  술: "戌",
+  해: "亥",
 };
-const toH = (k: string) => STEM_HANJA[k]   ?? k;
+const toH = (k: string) => STEM_HANJA[k] ?? k;
 const toB = (k: string) => BRANCH_HANJA[k] ?? k;
 
 const ELEM_BG: Record<string, string> = {
-  목:"bg-emerald-500/10 text-emerald-300",
-  화:"bg-rose-500/10 text-rose-300",
-  토:"bg-amber-500/10 text-amber-300",
-  금:"bg-slate-400/10 text-slate-200",
-  수:"bg-blue-500/10 text-blue-300",
+  목: "bg-emerald-500/10 text-emerald-300",
+  화: "bg-rose-500/10 text-rose-300",
+  토: "bg-amber-500/10 text-amber-300",
+  금: "bg-slate-400/10 text-slate-200",
+  수: "bg-blue-500/10 text-blue-300",
 };
 
 function elemStyle(el: string) {
@@ -54,8 +99,11 @@ function elemStyle(el: string) {
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString("ko-KR", {
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -111,7 +159,7 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
         calendarType: snap.calendarType as "solar" | "lunar",
       },
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (isPending) {
@@ -135,11 +183,32 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
   const eb = r.elementBalance as unknown as Record<string, number>;
   const elemTotal = Object.values(eb).reduce((a, b) => a + b, 0) || 1;
 
-  const yongsin = r.yongsin as { yongsin?: string; heegsin?: string; geesin?: string; explanation?: string } | undefined;
-  const sinGangYak = r.sinGangYak as { label?: string; score?: number; description?: string } | undefined;
-  const daeun = r.daeun as Array<{ age?: number; stem?: string; branch?: string; stemElement?: string; startYear?: number }> | undefined;
-  const samjae = r.samjae as { isSamjae?: boolean; type?: string; targetYears?: number[] } | undefined;
-  const yongsinItems = r.yongsinItems as Array<{ category?: string; items?: string[] }> | undefined;
+  const yongsin = r.yongsin as
+    | {
+        yongsin?: string;
+        heegsin?: string;
+        geesin?: string;
+        explanation?: string;
+      }
+    | undefined;
+  const sinGangYak = r.sinGangYak as
+    | { label?: string; score?: number; description?: string }
+    | undefined;
+  const daeun = r.daeun as
+    | Array<{
+        age?: number;
+        stem?: string;
+        branch?: string;
+        stemElement?: string;
+        startYear?: number;
+      }>
+    | undefined;
+  const samjae = r.samjae as
+    | { isSamjae?: boolean; type?: string; targetYears?: number[] }
+    | undefined;
+  const yongsinItems = r.yongsinItems as
+    | Array<{ category?: string; items?: string[] }>
+    | undefined;
 
   return (
     <motion.div
@@ -150,26 +219,54 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
     >
       {/* ① 사주팔자 표 */}
       <div>
-        <p className="text-xs font-bold text-primary/80 uppercase tracking-widest mb-2">사주팔자 (四柱八字)</p>
+        <p className="text-xs font-bold text-primary/80 uppercase tracking-widest mb-2">
+          사주팔자 (四柱八字)
+        </p>
         <div className="grid grid-cols-4 gap-1.5">
           {pillars.map(({ label, pillar }) => {
-            const p = pillar as { heavenlyStem?: string; earthlyBranch?: string; heavenlyStemElement?: string; earthlyBranchElement?: string; zodiac?: string } | undefined;
+            const p = pillar as
+              | {
+                  heavenlyStem?: string;
+                  earthlyBranch?: string;
+                  heavenlyStemElement?: string;
+                  earthlyBranchElement?: string;
+                  zodiac?: string;
+                }
+              | undefined;
             const hs = p?.heavenlyStem ?? "?";
             const eb2 = p?.earthlyBranch ?? "?";
             const hse = p?.heavenlyStemElement ?? "";
             const ebe = p?.earthlyBranchElement ?? "";
             return (
               <div key={label} className="flex flex-col items-center gap-1">
-                <span className="text-[10px] text-muted-foreground font-medium">{label}</span>
-                <div className={cn("w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border", elemStyle(hse), "border-current/20")}>
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  {label}
+                </span>
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border",
+                    elemStyle(hse),
+                    "border-current/20",
+                  )}
+                >
                   <span className="text-base leading-none">{toH(hs)}</span>
                   <span className="text-[9px] opacity-60">{hs}</span>
                 </div>
-                <div className={cn("w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border", elemStyle(ebe), "border-current/20")}>
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold border",
+                    elemStyle(ebe),
+                    "border-current/20",
+                  )}
+                >
                   <span className="text-base leading-none">{toB(eb2)}</span>
                   <span className="text-[9px] opacity-60">{eb2}</span>
                 </div>
-                {p?.zodiac && <span className="text-[9px] text-muted-foreground">{p.zodiac}</span>}
+                {p?.zodiac && (
+                  <span className="text-[9px] text-muted-foreground">
+                    {p.zodiac}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -178,25 +275,51 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
 
       {/* ② 오행 균형 */}
       <div>
-        <p className="text-xs font-bold text-primary/80 uppercase tracking-widest mb-2">오행 균형</p>
+        <p className="text-xs font-bold text-primary/80 uppercase tracking-widest mb-2">
+          오행 균형
+        </p>
         <div className="flex gap-1.5 flex-wrap">
-          {(["목","화","토","금","수"] as const).map((elem) => {
+          {(["목", "화", "토", "금", "수"] as const).map((elem) => {
             const cnt = (eb[elem] ?? 0) as number;
             const pct = Math.round((cnt / elemTotal) * 100);
             return (
-              <div key={elem} className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", elemStyle(elem))}>
+              <div
+                key={elem}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+                  elemStyle(elem),
+                )}
+              >
                 <span className="font-bold">{elem}</span>
-                <span className="opacity-70">{cnt}개 ({pct}%)</span>
+                <span className="opacity-70">
+                  {cnt}개 ({pct}%)
+                </span>
               </div>
             );
           })}
         </div>
         <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
-          <span>일간: <strong className="text-foreground">{r.dayMasterStem as string}</strong> ({r.dayMasterElement as string})</span>
+          <span>
+            일간:{" "}
+            <strong className="text-foreground">
+              {r.dayMasterStem as string}
+            </strong>{" "}
+            ({r.dayMasterElement as string})
+          </span>
           <span>·</span>
-          <span>강: <strong className="text-foreground">{r.dominantElement as string}</strong></span>
+          <span>
+            강:{" "}
+            <strong className="text-foreground">
+              {r.dominantElement as string}
+            </strong>
+          </span>
           <span>·</span>
-          <span>약: <strong className="text-foreground">{r.lackingElement as string}</strong></span>
+          <span>
+            약:{" "}
+            <strong className="text-foreground">
+              {r.lackingElement as string}
+            </strong>
+          </span>
         </div>
       </div>
 
@@ -204,23 +327,55 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {sinGangYak && (
           <div className="p-3 rounded-xl border border-primary/15 bg-primary/5">
-            <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-1">신강/신약</p>
-            <p className="text-sm font-bold text-primary mb-1">{sinGangYak.label}</p>
+            <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-1">
+              신강/신약
+            </p>
+            <p className="text-sm font-bold text-primary mb-1">
+              {sinGangYak.label}
+            </p>
             {sinGangYak.description && (
-              <p className="text-xs text-muted-foreground leading-relaxed">{sinGangYak.description}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {sinGangYak.description}
+              </p>
             )}
           </div>
         )}
         {yongsin && (
           <div className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
-            <p className="text-[10px] font-bold text-amber-400/70 uppercase tracking-widest mb-1">용신/희신/기신</p>
+            <p className="text-[10px] font-bold text-amber-400/70 uppercase tracking-widest mb-1">
+              용신/희신/기신
+            </p>
             <div className="flex flex-wrap gap-1.5 mb-1.5">
-              {yongsin.yongsin && <span className={cn("text-xs px-2 py-0.5 rounded-full font-bold", elemStyle(yongsin.yongsin))}>용신 {yongsin.yongsin}</span>}
-              {yongsin.heegsin && <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium opacity-80", elemStyle(yongsin.heegsin))}>희신 {yongsin.heegsin}</span>}
-              {yongsin.geesin && <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 font-medium">기신 {yongsin.geesin}</span>}
+              {yongsin.yongsin && (
+                <span
+                  className={cn(
+                    "text-xs px-2 py-0.5 rounded-full font-bold",
+                    elemStyle(yongsin.yongsin),
+                  )}
+                >
+                  용신 {yongsin.yongsin}
+                </span>
+              )}
+              {yongsin.heegsin && (
+                <span
+                  className={cn(
+                    "text-xs px-2 py-0.5 rounded-full font-medium opacity-80",
+                    elemStyle(yongsin.heegsin),
+                  )}
+                >
+                  희신 {yongsin.heegsin}
+                </span>
+              )}
+              {yongsin.geesin && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 font-medium">
+                  기신 {yongsin.geesin}
+                </span>
+              )}
             </div>
             {yongsin.explanation && (
-              <p className="text-xs text-muted-foreground leading-relaxed">{yongsin.explanation}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {yongsin.explanation}
+              </p>
             )}
           </div>
         )}
@@ -229,12 +384,24 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
       {/* ④ 대운 */}
       {daeun && daeun.length > 0 && (
         <div>
-          <p className="text-xs font-bold text-primary/80 uppercase tracking-widest mb-2">대운 (大運)</p>
+          <p className="text-xs font-bold text-primary/80 uppercase tracking-widest mb-2">
+            대운 (大運)
+          </p>
           <div className="flex gap-1.5 flex-wrap">
             {daeun.slice(0, 8).map((d, i) => (
-              <div key={i} className={cn("flex flex-col items-center p-1.5 rounded-lg border text-xs", elemStyle(d.stemElement ?? ""))}>
-                <span className="font-bold text-sm leading-none">{toH(d.stem ?? "")+toB(d.branch ?? "")}</span>
-                <span className="text-[9px] opacity-70 mt-0.5">{d.startYear}년</span>
+              <div
+                key={i}
+                className={cn(
+                  "flex flex-col items-center p-1.5 rounded-lg border text-xs",
+                  elemStyle(d.stemElement ?? ""),
+                )}
+              >
+                <span className="font-bold text-sm leading-none">
+                  {toH(d.stem ?? "") + toB(d.branch ?? "")}
+                </span>
+                <span className="text-[9px] opacity-70 mt-0.5">
+                  {d.startYear}년
+                </span>
                 <span className="text-[9px] opacity-60">{d.age}세</span>
               </div>
             ))}
@@ -245,8 +412,12 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
       {/* ⑤ 삼재 */}
       {samjae?.isSamjae && (
         <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/8">
-          <p className="text-xs font-bold text-rose-400 mb-1">⚠ 삼재 ({samjae.type})</p>
-          <p className="text-xs text-muted-foreground">대상 연도: {samjae.targetYears?.join("년, ")}년</p>
+          <p className="text-xs font-bold text-rose-400 mb-1">
+            ⚠ 삼재 ({samjae.type})
+          </p>
+          <p className="text-xs text-muted-foreground">
+            대상 연도: {samjae.targetYears?.join("년, ")}년
+          </p>
         </div>
       )}
 
@@ -257,25 +428,36 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
           { label: "직업운", val: r.career },
           { label: "사랑운", val: r.love },
           { label: "건강운", val: r.health },
-        ].map(({ label, val }) => (
+        ].map(({ label, val }) =>
           val ? (
-            <div key={label} className="p-3 rounded-xl border border-primary/10 bg-primary/3">
-              <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-1">{label}</p>
-              <p className="text-xs text-foreground/80 leading-relaxed">{val as string}</p>
+            <div
+              key={label}
+              className="p-3 rounded-xl border border-primary/10 bg-primary/3"
+            >
+              <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-1">
+                {label}
+              </p>
+              <p className="text-xs text-foreground/80 leading-relaxed">
+                {val as string}
+              </p>
             </div>
-          ) : null
-        ))}
+          ) : null,
+        )}
       </div>
 
       {/* ⑦ 용신 아이템 */}
       {yongsinItems && yongsinItems.length > 0 && (
         <div>
-          <p className="text-xs font-bold text-primary/80 uppercase tracking-widest mb-2">용신 아이템</p>
+          <p className="text-xs font-bold text-primary/80 uppercase tracking-widest mb-2">
+            용신 아이템
+          </p>
           <div className="flex flex-wrap gap-2">
             {yongsinItems.map((cat, i) => (
               <div key={i} className="text-xs">
                 <span className="text-muted-foreground">{cat.category}: </span>
-                <span className="text-foreground/80">{cat.items?.join(", ")}</span>
+                <span className="text-foreground/80">
+                  {cat.items?.join(", ")}
+                </span>
               </div>
             ))}
           </div>
@@ -294,18 +476,36 @@ function SajuAnalysisPanel({ snap }: { snap: InquirySajuSnapshot }) {
 
 /* ─── 사주 요약 표시 ─────────────────────────── */
 function SajuInfoBar({ snap }: { snap: Inquiry["sajuSnapshot"] }) {
-  if (!snap) return <span className="text-muted-foreground text-xs italic">사주 정보 없음</span>;
+  if (!snap)
+    return (
+      <span className="text-muted-foreground text-xs italic">
+        사주 정보 없음
+      </span>
+    );
 
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-      <span>📅 {snap.birthYear}년 {snap.birthMonth}월 {snap.birthDay}일</span>
+      <span>
+        📅 {snap.birthYear}년 {snap.birthMonth}월 {snap.birthDay}일
+      </span>
       {snap.birthHour !== undefined && snap.birthHour >= 0 && (
-        <span>🕐 {getBirthHourLabel(snap.birthHour).split(' ')[0]}</span>
+        <span>🕐 {getBirthHourLabel(snap.birthHour).split(" ")[0]}</span>
       )}
       <span>{snap.gender === "male" ? "♂ 남성" : "♀ 여성"}</span>
-      {snap.calendarType === "lunar" && <span className="text-primary/70">음력</span>}
-      {snap.dayPillarStem && <span>일간: <strong className="text-foreground">{snap.dayPillarStem}</strong></span>}
-      {snap.sajuSummary && <span className="text-foreground/50 max-w-xs truncate">{snap.sajuSummary}</span>}
+      {snap.calendarType === "lunar" && (
+        <span className="text-primary/70">음력</span>
+      )}
+      {snap.dayPillarStem && (
+        <span>
+          일간:{" "}
+          <strong className="text-foreground">{snap.dayPillarStem}</strong>
+        </span>
+      )}
+      {snap.sajuSummary && (
+        <span className="text-foreground/50 max-w-xs truncate">
+          {snap.sajuSummary}
+        </span>
+      )}
     </div>
   );
 }
@@ -339,7 +539,10 @@ function InquiryCard({
     }
   };
 
-  const snapObj = inquiry.sajuSnapshot as Record<string, unknown> | null | undefined;
+  const snapObj = inquiry.sajuSnapshot as
+    | Record<string, unknown>
+    | null
+    | undefined;
   const hasSaju = !!snapObj && !!snapObj.birthYear;
 
   return (
@@ -350,7 +553,7 @@ function InquiryCard({
         "glass-panel border rounded-2xl p-5 transition-all",
         !inquiry.readByAdmin
           ? "border-violet-500/40 bg-violet-500/5"
-          : "border-primary/20"
+          : "border-primary/20",
       )}
     >
       {/* 헤더 */}
@@ -359,12 +562,18 @@ function InquiryCard({
           <StatusBadge status={inquiry.status} />
           <InquiryTypeBadge type={inquiry.inquiryType} />
           {!inquiry.readByAdmin && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">NEW</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">
+              NEW
+            </span>
           )}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="w-3.5 h-3.5" />
-            {inquiry.userFirstName || inquiry.userEmail?.split("@")[0] || "이용자"}
-            {inquiry.userEmail && <span className="text-foreground/40">({inquiry.userEmail})</span>}
+            {inquiry.userFirstName ||
+              inquiry.userEmail?.split("@")[0] ||
+              "이용자"}
+            {inquiry.userEmail && (
+              <span className="text-foreground/40">({inquiry.userEmail})</span>
+            )}
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Calendar className="w-3.5 h-3.5" />
@@ -373,18 +582,42 @@ function InquiryCard({
         </div>
         <div className="flex items-center gap-2">
           {!inquiry.readByAdmin && (
-            <Button variant="ghost" size="sm" onClick={() => onMarkRead(inquiry.id)} className="h-7 text-xs text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onMarkRead(inquiry.id)}
+              className="h-7 text-xs text-muted-foreground"
+            >
               <Eye className="w-3.5 h-3.5 mr-1" /> 읽음 처리
             </Button>
           )}
           {confirmDelete ? (
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-rose-400">삭제하시겠습니까?</span>
-              <Button variant="ghost" size="sm" onClick={() => onDelete(inquiry.id)} className="h-7 text-xs text-rose-400 hover:text-rose-300">확인</Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} className="h-7 text-xs">취소</Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(inquiry.id)}
+                className="h-7 text-xs text-rose-400 hover:text-rose-300"
+              >
+                확인
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmDelete(false)}
+                className="h-7 text-xs"
+              >
+                취소
+              </Button>
             </div>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)} className="h-7 text-muted-foreground hover:text-rose-400">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmDelete(true)}
+              className="h-7 text-muted-foreground hover:text-rose-400"
+            >
               <Trash2 className="w-3.5 h-3.5" />
             </Button>
           )}
@@ -398,19 +631,27 @@ function InquiryCard({
           "w-full text-left mb-3 p-2.5 rounded-xl border transition-all",
           hasSaju
             ? "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 cursor-pointer"
-            : "border-primary/10 bg-primary/3 cursor-default"
+            : "border-primary/10 bg-primary/3 cursor-default",
         )}
       >
         <div className="flex items-center justify-between gap-2">
           <SajuInfoBar snap={inquiry.sajuSnapshot as Inquiry["sajuSnapshot"]} />
           {hasSaju && (
-            <div className={cn(
-              "flex items-center gap-1 text-xs font-medium transition-colors shrink-0",
-              showSaju ? "text-primary" : "text-muted-foreground hover:text-primary"
-            )}>
+            <div
+              className={cn(
+                "flex items-center gap-1 text-xs font-medium transition-colors shrink-0",
+                showSaju
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-primary",
+              )}
+            >
               <Sparkles className="w-3.5 h-3.5" />
               {showSaju ? "사주 접기" : "사주 분석 보기"}
-              {showSaju ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {showSaju ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
             </div>
           )}
         </div>
@@ -418,7 +659,9 @@ function InquiryCard({
         <AnimatePresence>
           {showSaju && inquiry.sajuSnapshot && (
             <div onClick={(e) => e.stopPropagation()}>
-              <SajuAnalysisPanel snap={inquiry.sajuSnapshot as InquirySajuSnapshot} />
+              <SajuAnalysisPanel
+                snap={inquiry.sajuSnapshot as InquirySajuSnapshot}
+              />
             </div>
           )}
         </AnimatePresence>
@@ -426,15 +669,23 @@ function InquiryCard({
 
       {/* 문의 내용 */}
       <div className="mb-4">
-        <p className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">문의 내용</p>
-        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{inquiry.message}</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">
+          문의 내용
+        </p>
+        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+          {inquiry.message}
+        </p>
       </div>
 
       {/* 기존 답변 */}
       {inquiry.adminReply && !showReplyForm && (
         <div className="mb-3 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
-          <p className="text-xs font-semibold text-emerald-400 mb-1.5">답변 ({inquiry.repliedAt ? formatDate(inquiry.repliedAt) : ""})</p>
-          <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">{inquiry.adminReply}</p>
+          <p className="text-xs font-semibold text-emerald-400 mb-1.5">
+            답변 ({inquiry.repliedAt ? formatDate(inquiry.repliedAt) : ""})
+          </p>
+          <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+            {inquiry.adminReply}
+          </p>
         </div>
       )}
 
@@ -449,16 +700,28 @@ function InquiryCard({
             autoFocus
           />
           <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">{replyText.length}/3000</span>
+            <span className="text-xs text-muted-foreground">
+              {replyText.length}/3000
+            </span>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setShowReplyForm(false)}>취소</Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowReplyForm(false)}
+              >
+                취소
+              </Button>
               <Button
                 size="sm"
                 onClick={handleReplySubmit}
                 disabled={!replyText.trim() || submitting}
                 className="gap-1.5 bg-primary hover:bg-primary/90"
               >
-                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {submitting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
                 답변 저장
               </Button>
             </div>
@@ -466,7 +729,8 @@ function InquiryCard({
         </div>
       ) : (
         <Button
-          variant="outline" size="sm"
+          variant="outline"
+          size="sm"
           onClick={() => setShowReplyForm(true)}
           className="mt-2 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
         >
@@ -480,7 +744,11 @@ function InquiryCard({
 
 /* ─── 회원 관리 탭 ──────────────────────────── */
 function formatJoinDate(iso: string) {
-  return new Date(iso).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return new Date(iso).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 function UserRow({
@@ -488,20 +756,29 @@ function UserRow({
   currentUserId,
   currentUserRole,
   onRoleChange,
+  onDelete,
   pending,
 }: {
   member: AdminUser;
   currentUserId: string;
   currentUserRole: string;
   onRoleChange: (id: string, role: "admin" | "user") => void;
+  onDelete: (id: string) => void;
   pending: boolean;
 }) {
-  const [confirm, setConfirm] = useState<"promote" | "demote" | "demote-super" | null>(null);
+  const [confirm, setConfirm] = useState<
+    "promote" | "demote" | "demote-super" | "delete" | null
+  >(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const { data: detail, isLoading: detailLoading } = useGetAdminUserDetail(member.id, showDetail);
+
   const isMe = member.id === currentUserId;
   const isAdmin = member.role === "admin";
   const isSuperAdmin = member.role === "superadmin";
   const canManage = currentUserRole === "superadmin" && !isMe && !isSuperAdmin;
-  const canDemoteSuperAdmin = currentUserRole === "superadmin" && !isMe && isSuperAdmin;
+  const canDemoteSuperAdmin =
+    currentUserRole === "superadmin" && !isMe && isSuperAdmin;
+  const canDelete = currentUserRole === "superadmin" && !isMe && !isSuperAdmin;
 
   return (
     <motion.div
@@ -509,24 +786,32 @@ function UserRow({
       animate={{ opacity: 1, y: 0 }}
       className={cn(
         "glass-panel border rounded-2xl px-5 py-4 flex flex-wrap items-center gap-4 transition-all",
-        isSuperAdmin ? "border-amber-400/40 bg-amber-400/5"
-        : isAdmin ? "border-primary/30 bg-primary/5"
-        : "border-white/10"
+        isSuperAdmin
+          ? "border-amber-400/40 bg-amber-400/5"
+          : isAdmin
+            ? "border-primary/30 bg-primary/5"
+            : "border-white/10",
       )}
     >
       {/* 아바타 + 이름 */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className={cn(
-          "w-9 h-9 rounded-full flex items-center justify-center shrink-0 border",
-          isSuperAdmin ? "bg-amber-400/20 border-amber-400/40"
-          : isAdmin ? "bg-primary/20 border-primary/40"
-          : "bg-white/8 border-white/15"
-        )}>
-          {isSuperAdmin
-            ? <Crown className="w-4 h-4 text-amber-400" />
-            : isAdmin
-            ? <Crown className="w-4 h-4 text-primary" />
-            : <User className="w-4 h-4 text-muted-foreground" />}
+        <div
+          className={cn(
+            "w-9 h-9 rounded-full flex items-center justify-center shrink-0 border",
+            isSuperAdmin
+              ? "bg-amber-400/20 border-amber-400/40"
+              : isAdmin
+                ? "bg-primary/20 border-primary/40"
+                : "bg-white/8 border-white/15",
+          )}
+        >
+          {isSuperAdmin ? (
+            <Crown className="w-4 h-4 text-amber-400" />
+          ) : isAdmin ? (
+            <Crown className="w-4 h-4 text-primary" />
+          ) : (
+            <User className="w-4 h-4 text-muted-foreground" />
+          )}
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -558,18 +843,78 @@ function UserRow({
         </div>
       </div>
 
-      {/* 가입일 */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
-        <Calendar className="w-3.5 h-3.5" />
-        {formatJoinDate(member.createdAt)}
+      {/* 가입일 + 상세 토글 */}
+      <div className="flex items-center gap-3 shrink-0">
+        <button
+          onClick={() => setShowDetail((v) => !v)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+        >
+          <Calendar className="w-3.5 h-3.5" />
+          {formatJoinDate(member.createdAt)}
+          {showDetail ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </button>
       </div>
+
+      {/* 삭제 버튼 (superadmin → 일반/admin만) */}
+      {canDelete && (
+        <div className="shrink-0">
+          {confirm !== "delete" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              onClick={() => setConfirm("delete")}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-rose-400">삭제할까요?</span>
+              <Button size="sm" variant="ghost" disabled={pending}
+                onClick={() => { onDelete(member.id); setConfirm(null); }}
+                className="h-7 text-xs px-2 text-rose-400">
+                {pending ? <Loader2 className="w-3 h-3 animate-spin" /> : "삭제"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirm(null)}
+                className="h-7 text-xs px-2 text-muted-foreground">취소</Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 상세 정보 패널 */}
+      {showDetail && (
+        <div className="w-full mt-1 pt-3 border-t border-white/8">
+          {detailLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin" /> 불러오는 중...
+            </div>
+          ) : detail ? (
+            <div className="flex flex-wrap gap-4 text-xs">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Database className="w-3.5 h-3.5 text-primary/60" />
+                저장된 사주 <strong className="text-foreground">{detail.savedSajuCount}</strong>개
+              </div>
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <MessageSquare className="w-3.5 h-3.5 text-sky-400/70" />
+                전체 문의 <strong className="text-foreground">{detail.inquiryCount}</strong>건
+                {detail.pendingInquiryCount > 0 && (
+                  <span className="text-amber-400">({detail.pendingInquiryCount}건 미처리)</span>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* 최고관리자 → 관리자 다운그레이드 버튼 */}
       {canDemoteSuperAdmin && (
         <div className="shrink-0">
           {confirm !== "demote-super" ? (
             <Button
-              variant="outline" size="sm"
+              variant="outline"
+              size="sm"
               disabled={pending}
               onClick={() => setConfirm("demote-super")}
               className="gap-1.5 text-xs h-8 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
@@ -579,16 +924,31 @@ function UserRow({
             </Button>
           ) : (
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">관리자로 변경할까요?</span>
+              <span className="text-xs text-muted-foreground">
+                관리자로 변경할까요?
+              </span>
               <Button
-                size="sm" variant="ghost"
+                size="sm"
+                variant="ghost"
                 disabled={pending}
-                onClick={() => { onRoleChange(member.id, "admin"); setConfirm(null); }}
+                onClick={() => {
+                  onRoleChange(member.id, "admin");
+                  setConfirm(null);
+                }}
                 className="h-7 text-xs px-2 text-amber-400"
               >
-                {pending ? <Loader2 className="w-3 h-3 animate-spin" /> : "확인"}
+                {pending ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  "확인"
+                )}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirm(null)} className="h-7 text-xs px-2 text-muted-foreground">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setConfirm(null)}
+                className="h-7 text-xs px-2 text-muted-foreground"
+              >
                 취소
               </Button>
             </div>
@@ -601,36 +961,59 @@ function UserRow({
         <div className="shrink-0">
           {confirm === null ? (
             <Button
-              variant="outline" size="sm"
+              variant="outline"
+              size="sm"
               disabled={pending}
               onClick={() => setConfirm(isAdmin ? "demote" : "promote")}
               className={cn(
                 "gap-1.5 text-xs h-8",
                 isAdmin
                   ? "border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
-                  : "border-primary/30 text-primary hover:bg-primary/10"
+                  : "border-primary/30 text-primary hover:bg-primary/10",
               )}
             >
-              {isAdmin ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+              {isAdmin ? (
+                <UserX className="w-3.5 h-3.5" />
+              ) : (
+                <UserCheck className="w-3.5 h-3.5" />
+              )}
               {isAdmin ? "관리자 해제" : "관리자 승격"}
             </Button>
           ) : (
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground">
-                {confirm === "promote" ? "관리자로 승격할까요?" : "관리자를 해제할까요?"}
+                {confirm === "promote"
+                  ? "관리자로 승격할까요?"
+                  : "관리자를 해제할까요?"}
               </span>
               <Button
-                size="sm" variant="ghost"
+                size="sm"
+                variant="ghost"
                 disabled={pending}
                 onClick={() => {
-                  onRoleChange(member.id, confirm === "promote" ? "admin" : "user");
+                  onRoleChange(
+                    member.id,
+                    confirm === "promote" ? "admin" : "user",
+                  );
                   setConfirm(null);
                 }}
-                className={cn("h-7 text-xs px-2", confirm === "promote" ? "text-primary" : "text-rose-400")}
+                className={cn(
+                  "h-7 text-xs px-2",
+                  confirm === "promote" ? "text-primary" : "text-rose-400",
+                )}
               >
-                {pending ? <Loader2 className="w-3 h-3 animate-spin" /> : "확인"}
+                {pending ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  "확인"
+                )}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirm(null)} className="h-7 text-xs px-2 text-muted-foreground">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setConfirm(null)}
+                className="h-7 text-xs px-2 text-muted-foreground"
+              >
                 취소
               </Button>
             </div>
@@ -641,48 +1024,90 @@ function UserRow({
   );
 }
 
-function UsersTab({ currentUserId, currentUserRole }: { currentUserId: string; currentUserRole: string }) {
+function UsersTab({
+  currentUserId,
+  currentUserRole,
+}: {
+  currentUserId: string;
+  currentUserRole: string;
+}) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "user">("all");
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
     return () => clearTimeout(t);
   }, [search]);
 
   const { data, isLoading, refetch } = useGetAdminUsers(page, debouncedSearch);
   const roleMut = useAdminSetUserRole();
+  const deleteMut = useAdminDeleteUser();
 
   const handleRoleChange = (id: string, role: "admin" | "user") => {
     setPendingId(id);
-    roleMut.mutate({ id, role }, {
+    roleMut.mutate(
+      { id, role },
+      {
+        onSuccess: () => { refetch(); setPendingId(null); },
+        onError: () => setPendingId(null),
+      },
+    );
+  };
+
+  const handleDelete = (id: string) => {
+    setPendingId(id);
+    deleteMut.mutate(id, {
       onSuccess: () => { refetch(); setPendingId(null); },
       onError: () => setPendingId(null),
     });
   };
 
+  const filteredUsers = data?.users.filter((u) => {
+    if (roleFilter === "admin") return u.role === "admin" || u.role === "superadmin";
+    if (roleFilter === "user") return u.role === "user";
+    return true;
+  }) ?? [];
+
   const totalPages = data ? Math.ceil(data.total / data.limit) : 1;
 
   return (
     <div className="space-y-4">
-      {/* 검색 */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="이름 또는 이메일 검색..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 bg-white/5 border-white/10"
-        />
+      {/* 검색 + 역할 필터 */}
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="이름 또는 이메일 검색..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-white/5 border-white/10"
+          />
+        </div>
+        <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10 shrink-0">
+          {(["all", "admin", "user"] as const).map((f) => (
+            <button key={f}
+              onClick={() => { setRoleFilter(f); setPage(1); }}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                roleFilter === f ? "bg-primary/20 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground"
+              )}>
+              {f === "all" ? "전체" : f === "admin" ? "관리자" : "일반"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 통계 */}
       {data && (
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>전체 <strong className="text-foreground">{data.total}</strong>명</span>
-          <span>관리자 <strong className="text-primary">{data.users.filter(u => u.role === "admin" || u.role === "superadmin").length}</strong>명</span>
+          <span>표시 <strong className="text-foreground">{filteredUsers.length}</strong>명</span>
+          <span>관리자 <strong className="text-primary">{data.users.filter((u) => u.role === "admin" || u.role === "superadmin").length}</strong>명</span>
         </div>
       )}
 
@@ -691,20 +1116,21 @@ function UsersTab({ currentUserId, currentUserRole }: { currentUserId: string; c
         <div className="flex justify-center py-20">
           <Loader2 className="w-7 h-7 animate-spin text-primary" />
         </div>
-      ) : !data?.users?.length ? (
+      ) : !filteredUsers.length ? (
         <div className="text-center py-16 text-muted-foreground">
           <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>{debouncedSearch ? "검색 결과가 없습니다." : "등록된 회원이 없습니다."}</p>
+          <p>{debouncedSearch || roleFilter !== "all" ? "검색 결과가 없습니다." : "등록된 회원이 없습니다."}</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {data.users.map((member) => (
+          {filteredUsers.map((member) => (
             <UserRow
               key={member.id}
               member={member}
               currentUserId={currentUserId}
               currentUserRole={currentUserRole}
               onRoleChange={handleRoleChange}
+              onDelete={handleDelete}
               pending={pendingId === member.id}
             />
           ))}
@@ -714,11 +1140,23 @@ function UsersTab({ currentUserId, currentUserRole }: { currentUserId: string; c
       {/* 페이지네이션 */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-3 pt-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+          <span className="text-sm text-muted-foreground">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
@@ -754,8 +1192,12 @@ function StatsCard({
     <div className={cn("glass-panel border rounded-2xl p-5", toneClass)}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-widest opacity-70 mb-1">{label}</p>
-          <p className="text-3xl font-semibold text-foreground">{value.toLocaleString("ko-KR")}</p>
+          <p className="text-xs uppercase tracking-widest opacity-70 mb-1">
+            {label}
+          </p>
+          <p className="text-3xl font-semibold text-foreground">
+            {value.toLocaleString("ko-KR")}
+          </p>
         </div>
         <div className="w-10 h-10 rounded-2xl border border-current/20 bg-black/10 flex items-center justify-center">
           <Icon className="w-5 h-5" />
@@ -794,7 +1236,8 @@ function DashboardTab() {
     { key: "saju", label: "사주", color: "bg-primary" },
     { key: "gungap", label: "궁합", color: "bg-rose-400" },
   ];
-  const inquiryTypeTotal = Object.values(data.inquiryTypes).reduce(
+  const inquiryTypeValues = Object.values(data.inquiryTypes) as number[];
+  const inquiryTypeTotal = inquiryTypeValues.reduce(
     (sum, value) => sum + value,
     0,
   );
@@ -857,7 +1300,9 @@ function DashboardTab() {
                   <div className="h-2 rounded-full bg-white/8 overflow-hidden">
                     <div
                       className={cn("h-full rounded-full", entry.color)}
-                      style={{ width: `${Math.max(ratio, value > 0 ? 8 : 0)}%` }}
+                      style={{
+                        width: `${Math.max(ratio, value > 0 ? 8 : 0)}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -867,12 +1312,20 @@ function DashboardTab() {
 
           <div className="grid grid-cols-2 gap-3 mt-5 text-sm">
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="text-[11px] text-muted-foreground mb-1">관리자 계정</div>
-              <div className="font-semibold text-foreground">{data.counts.adminUsers}명</div>
+              <div className="text-[11px] text-muted-foreground mb-1">
+                관리자 계정
+              </div>
+              <div className="font-semibold text-foreground">
+                {data.counts.adminUsers}명
+              </div>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="text-[11px] text-muted-foreground mb-1">오늘 답변</div>
-              <div className="font-semibold text-foreground">{data.counts.answeredToday}건</div>
+              <div className="text-[11px] text-muted-foreground mb-1">
+                오늘 답변
+              </div>
+              <div className="font-semibold text-foreground">
+                {data.counts.answeredToday}건
+              </div>
             </div>
           </div>
         </div>
@@ -886,10 +1339,15 @@ function DashboardTab() {
 
             <div className="space-y-3">
               {data.recentUsers.length === 0 ? (
-                <div className="text-sm text-muted-foreground">최근 가입 사용자가 없습니다.</div>
+                <div className="text-sm text-muted-foreground">
+                  최근 가입 사용자가 없습니다.
+                </div>
               ) : (
-                data.recentUsers.map((member) => (
-                  <div key={member.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                data.recentUsers.map((member: AdminStatsRecentUser) => (
+                  <div
+                    key={member.id}
+                    className="rounded-xl border border-white/10 bg-white/5 p-3"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-foreground truncate">
@@ -920,13 +1378,20 @@ function DashboardTab() {
 
             <div className="space-y-3">
               {data.recentInquiries.length === 0 ? (
-                <div className="text-sm text-muted-foreground">최근 문의가 없습니다.</div>
+                <div className="text-sm text-muted-foreground">
+                  최근 문의가 없습니다.
+                </div>
               ) : (
-                data.recentInquiries.map((inquiry) => (
-                  <div key={inquiry.id} className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                data.recentInquiries.map((inquiry: AdminStatsRecentInquiry) => (
+                  <div
+                    key={inquiry.id}
+                    className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-sm font-medium text-foreground">
-                        {inquiry.userLabel || inquiry.userEmail || `문의 #${inquiry.id}`}
+                        {inquiry.userLabel ||
+                          inquiry.userEmail ||
+                          `문의 #${inquiry.id}`}
                       </div>
                       <StatusBadge status={inquiry.status} />
                     </div>
@@ -948,14 +1413,23 @@ function DashboardTab() {
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "inquiries" | "users">("dashboard");
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "inquiries" | "users"
+  >("dashboard");
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(
+    undefined,
+  );
 
-  const { data, refetch, isLoading: listLoading } = useGetAdminInquiries(page, statusFilter);
+  const {
+    data,
+    refetch,
+    isLoading: listLoading,
+  } = useGetAdminInquiries(page, statusFilter);
   const replyMut = useAdminReplyInquiry();
   const markReadMut = useAdminMarkRead();
   const deleteMut = useAdminDeleteInquiry();
+  const markAllReadMut = useAdminMarkAllRead();
 
   if (isLoading) {
     return (
@@ -965,7 +1439,10 @@ export default function AdminPage() {
     );
   }
 
-  if (!isAuthenticated || (user?.role !== "admin" && user?.role !== "superadmin")) {
+  if (
+    !isAuthenticated ||
+    (user?.role !== "admin" && user?.role !== "superadmin")
+  ) {
     return (
       <div className="max-w-md mx-auto text-center py-20">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
@@ -973,7 +1450,9 @@ export default function AdminPage() {
         </div>
         <h2 className="text-xl font-semibold mb-2">접근 권한 없음</h2>
         <p className="text-muted-foreground mb-6">관리자 전용 페이지입니다.</p>
-        <Button onClick={() => navigate("/")} variant="outline">홈으로</Button>
+        <Button onClick={() => navigate("/")} variant="outline">
+          홈으로
+        </Button>
       </div>
     );
   }
@@ -995,14 +1474,19 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
         {/* 헤더 */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
             <ShieldCheck className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-serif text-primary">관리자 대시보드</h1>
+            <h1 className="text-2xl font-serif text-primary">
+              관리자 대시보드
+            </h1>
             <p className="text-sm text-muted-foreground">명해원 운영 관리</p>
           </div>
         </div>
@@ -1015,7 +1499,7 @@ export default function AdminPage() {
               "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all",
               activeTab === "dashboard"
                 ? "bg-primary/20 text-primary border border-primary/30"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <TrendingUp className="w-4 h-4" />
@@ -1027,7 +1511,7 @@ export default function AdminPage() {
               "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all",
               activeTab === "inquiries"
                 ? "bg-primary/20 text-primary border border-primary/30"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <MessageSquare className="w-4 h-4" />
@@ -1044,7 +1528,7 @@ export default function AdminPage() {
               "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all",
               activeTab === "users"
                 ? "bg-primary/20 text-primary border border-primary/30"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Users className="w-4 h-4" />
@@ -1055,13 +1539,25 @@ export default function AdminPage() {
         {/* 탭 콘텐츠 */}
         <AnimatePresence mode="wait">
           {activeTab === "dashboard" ? (
-            <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} transition={{ duration: 0.2 }}>
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+            >
               <DashboardTab />
             </motion.div>
           ) : activeTab === "inquiries" ? (
-            <motion.div key="inquiries" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}>
+            <motion.div
+              key="inquiries"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2 }}
+            >
               {/* 문의 필터 */}
-              <div className="flex gap-2 mb-6">
+              <div className="flex flex-wrap gap-2 mb-6 items-center">
                 {[
                   { label: "전체", value: undefined },
                   { label: "대기중", value: "pending" },
@@ -1074,17 +1570,27 @@ export default function AdminPage() {
                       "px-4 py-1.5 rounded-full text-sm font-medium border transition-all",
                       statusFilter === f.value
                         ? "bg-primary/20 border-primary/50 text-primary"
-                        : "border-primary/20 text-muted-foreground hover:text-primary hover:border-primary/30"
+                        : "border-primary/20 text-muted-foreground hover:text-primary hover:border-primary/30",
                     )}
                   >
                     {f.label}
                   </button>
                 ))}
                 {data && (
-                  <span className="ml-auto text-sm text-muted-foreground self-center">
+                  <span className="text-sm text-muted-foreground">
                     총 {data.total}건
                   </span>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto gap-1.5 border-primary/20 text-muted-foreground hover:text-primary h-8 text-xs"
+                  disabled={markAllReadMut.isPending}
+                  onClick={() => markAllReadMut.mutate(undefined, { onSuccess: () => refetch() })}
+                >
+                  {markAllReadMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                  전체 읽음 처리
+                </Button>
               </div>
 
               {/* 문의 목록 */}
@@ -1114,19 +1620,40 @@ export default function AdminPage() {
               {/* 페이지네이션 */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-3 mt-8">
-                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                  <span className="text-sm text-muted-foreground">
+                    {page} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
               )}
             </motion.div>
           ) : (
-            <motion.div key="users" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }}>
-              <UsersTab currentUserId={String(user?.id ?? "")} currentUserRole={user?.role ?? "user"} />
+            <motion.div
+              key="users"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <UsersTab
+                currentUserId={String(user?.id ?? "")}
+                currentUserRole={user?.role ?? "user"}
+              />
             </motion.div>
           )}
         </AnimatePresence>

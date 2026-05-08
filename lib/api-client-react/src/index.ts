@@ -624,6 +624,45 @@ export function useAdminSetUserRole() {
   });
 }
 
+export function useAdminDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      customFetch<{ ok: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ADMIN_USERS_KEY });
+      qc.invalidateQueries({ queryKey: ADMIN_STATS_KEY });
+    },
+  });
+}
+
+export interface AdminUserDetail {
+  savedSajuCount: number;
+  inquiryCount: number;
+  pendingInquiryCount: number;
+}
+
+export function useGetAdminUserDetail(id: string, enabled: boolean) {
+  return useQuery<AdminUserDetail>({
+    queryKey: ["admin", "user-detail", id],
+    queryFn: () => customFetch<AdminUserDetail>(`/api/admin/users/${id}/detail`),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminMarkAllRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      customFetch<{ ok: boolean }>("/api/admin/inquiries/read-all", { method: "PATCH" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inquiries", "admin"] });
+      qc.invalidateQueries({ queryKey: ADMIN_STATS_KEY });
+    },
+  });
+}
+
 // ─── 연간 운세 ─────────────────────────────────────────────────
 
 export interface YearFortuneData {
