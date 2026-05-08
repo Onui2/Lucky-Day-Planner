@@ -14,6 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
+import {
+  clampBirthDayValue,
+  getBirthDateError,
+  getBirthDayMax,
+  sanitizeBirthDayInput,
+  sanitizeBirthMonthInput,
+  sanitizeBirthYearInput,
+} from "@/lib/birth-date";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown } from "lucide-react";
 import { getDayPillarAnalysis } from "@/data/dayPillarAnalysis";
@@ -200,6 +208,7 @@ export default function SajuPage() {
     return { birthYear: "", birthMonth: "", birthDay: "", birthHour: -1, birthMinute: "", gender: "male", calendarType: "solar" };
   });
   const [formError, setFormError] = useState<string | null>(null);
+  const maxBirthDay = getBirthDayMax(inputForm.birthYear, inputForm.birthMonth, inputForm.calendarType);
   const [compactMode, setCompactMode] = useState(() => searchParams.get("compact") === "1");
   const [visibleSections, setVisibleSections] = useState<Record<SectionKey, boolean>>(
     () =>
@@ -718,12 +727,19 @@ export default function SajuPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    const dateError = getBirthDateError({
+      birthYear: inputForm.birthYear,
+      birthMonth: inputForm.birthMonth,
+      birthDay: inputForm.birthDay,
+      calendarType: inputForm.calendarType,
+      yearMin: 1900,
+      yearMax: 2100,
+    });
+    if (dateError) { setFormError(dateError); return; }
+
     const year = parseInt(inputForm.birthYear);
     const month = parseInt(inputForm.birthMonth);
     const day = parseInt(inputForm.birthDay);
-    if (!inputForm.birthYear || isNaN(year) || year < 1900 || year > 2100) { setFormError("년도를 올바르게 입력해주세요. (1900~2100)"); return; }
-    if (!inputForm.birthMonth || isNaN(month) || month < 1 || month > 12)   { setFormError("월을 올바르게 입력해주세요. (1~12)"); return; }
-    if (!inputForm.birthDay   || isNaN(day)   || day < 1   || day > 31)     { setFormError("일을 올바르게 입력해주세요. (1~31)"); return; }
     const minute = inputForm.birthMinute ? parseInt(inputForm.birthMinute) : 0;
     pendingResultSourceRef.current = "manual";
     calculateSaju({ data: { birthYear: year, birthMonth: month, birthDay: day, birthHour: inputForm.birthHour, birthMinute: isNaN(minute) ? 0 : minute, gender: inputForm.gender, calendarType: inputForm.calendarType } });
@@ -840,8 +856,27 @@ export default function SajuPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name === "birthHour") setInputForm(prev => ({ ...prev, birthHour: Number(value) }));
-    else setInputForm(prev => ({ ...prev, [name]: value }));
+    if (name === "birthHour") {
+      setInputForm(prev => ({ ...prev, birthHour: Number(value) }));
+      return;
+    }
+
+    setInputForm((prev) => {
+      const next = { ...prev };
+
+      if (name === "birthYear") {
+        next.birthYear = sanitizeBirthYearInput(value);
+      } else if (name === "birthMonth") {
+        next.birthMonth = sanitizeBirthMonthInput(value);
+      } else if (name === "birthDay") {
+        next.birthDay = sanitizeBirthDayInput(value, prev.birthYear, prev.birthMonth, prev.calendarType);
+      } else {
+        (next as any)[name] = value;
+      }
+
+      next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth, next.calendarType);
+      return next;
+    });
   };
 
   // ─── 입력 폼 ───────────────────────────────────────
@@ -944,7 +979,11 @@ export default function SajuPage() {
                       <div className="flex bg-background/50 rounded-xl p-1 border border-primary/20">
                         {opts.map(o => (
                           <button key={o.v} type="button"
-                            onClick={() => setInputForm(prev => ({ ...prev, [name]: o.v as any }))}
+                            onClick={() => setInputForm(prev => {
+                              const next = { ...prev, [name]: o.v as any };
+                              next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth, next.calendarType);
+                              return next;
+                            })}
                             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${val === o.v ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}>
                             {o.l}
                           </button>
@@ -961,7 +1000,7 @@ export default function SajuPage() {
                     <div key={f.name} className="space-y-2">
                       <label className="text-sm font-medium text-foreground/80">{f.label}</label>
                       <Input type="number" name={f.name} value={(inputForm as any)[f.name]} onChange={handleChange}
-                        placeholder={f.ph} min={f.min} max={f.max} className="placeholder:text-muted-foreground/40" />
+                        placeholder={f.ph} min={f.min} max={f.name === "birthDay" ? maxBirthDay : f.max} inputMode="numeric" className="placeholder:text-muted-foreground/40" />
                     </div>
                   ))}
                 </div>

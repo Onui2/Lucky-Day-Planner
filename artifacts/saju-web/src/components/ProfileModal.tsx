@@ -7,6 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUser, type UserProfile } from "@/contexts/UserContext";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Loader2, UserCircle2, Trash2, Sparkles } from "lucide-react";
+import {
+  clampBirthDayValue,
+  getBirthDateError,
+  getBirthDayMax,
+  sanitizeBirthDayInput,
+  sanitizeBirthMonthInput,
+  sanitizeBirthYearInput,
+} from "@/lib/birth-date";
 
 function getSiName(h: number): string {
   if (h === 23 || h === 0) return '자시';
@@ -68,6 +76,7 @@ export default function ProfileModal({ open, onClose }: Props) {
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const maxBirthDay = getBirthDayMax(form.birthYear, form.birthMonth, form.calendarType);
 
   useEffect(() => {
     if (open) {
@@ -95,12 +104,19 @@ export default function ProfileModal({ open, onClose }: Props) {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+    const dateError = getBirthDateError({
+      birthYear: form.birthYear,
+      birthMonth: form.birthMonth,
+      birthDay: form.birthDay,
+      calendarType: form.calendarType,
+      yearMin: 1900,
+      yearMax: 2050,
+    });
+    if (dateError) { setError(dateError); return; }
+
     const year = Number(form.birthYear);
     const month = Number(form.birthMonth);
     const day = Number(form.birthDay);
-    if (!form.birthYear || isNaN(year) || year < 1900 || year > 2050) { setError("년도를 올바르게 입력해주세요. (1900~2050)"); return; }
-    if (!form.birthMonth || isNaN(month) || month < 1 || month > 12) { setError("월을 올바르게 입력해주세요. (1~12)"); return; }
-    if (!form.birthDay || isNaN(day) || day < 1 || day > 31) { setError("일을 올바르게 입력해주세요. (1~31)"); return; }
 
     const p: UserProfile = {
       name: form.name || undefined,
@@ -119,6 +135,23 @@ export default function ProfileModal({ open, onClose }: Props) {
   const handleClear = () => {
     clearProfile();
     onClose();
+  };
+
+  const updateBirthField = (key: "birthYear" | "birthMonth" | "birthDay", rawValue: string) => {
+    setForm((prev) => {
+      const next = { ...prev };
+
+      if (key === "birthYear") {
+        next.birthYear = sanitizeBirthYearInput(rawValue);
+      } else if (key === "birthMonth") {
+        next.birthMonth = sanitizeBirthMonthInput(rawValue);
+      } else {
+        next.birthDay = sanitizeBirthDayInput(rawValue, prev.birthYear, prev.birthMonth, prev.calendarType);
+      }
+
+      next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth, next.calendarType);
+      return next;
+    });
   };
 
   return (
@@ -154,7 +187,11 @@ export default function ProfileModal({ open, onClose }: Props) {
                 {(["solar","lunar"] as const).map(t => (
                   <button key={t} type="button"
                     className={`flex-1 py-2 text-sm font-medium transition-colors ${form.calendarType === t ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}
-                    onClick={() => setForm(f => ({ ...f, calendarType: t }))}
+                    onClick={() => setForm(f => {
+                      const next = { ...f, calendarType: t };
+                      next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth, next.calendarType);
+                      return next;
+                    })}
                   >{t === "solar" ? "양력" : "음력"}</button>
                 ))}
               </div>
@@ -185,7 +222,10 @@ export default function ProfileModal({ open, onClose }: Props) {
                   type="number"
                   placeholder={ph}
                   value={(form as any)[key]}
-                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  onChange={e => updateBirthField(key as "birthYear" | "birthMonth" | "birthDay", e.target.value)}
+                  min={key === "birthYear" ? 1900 : 1}
+                  max={key === "birthYear" ? 2050 : key === "birthMonth" ? 12 : maxBirthDay}
+                  inputMode="numeric"
                   className="bg-input/40 border-primary/20"
                 />
               </div>

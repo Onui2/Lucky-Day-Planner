@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem } from "lucide-react";
 import { getElementStyles, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { getElementRelation } from "@/lib/saju-relation";
+import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
 import { Link } from "wouter";
 import {
   getStemLucky,
@@ -32,6 +32,7 @@ function getDayRelation(
   myElem: string | null,
   myStem: string | null,
   myBranch: string | null,
+  relationContext?: ReturnType<typeof getProfileRelationContext>,
 ) {
   if (!myElem || !dayData?.dayElement) {
     return null;
@@ -44,6 +45,7 @@ function getDayRelation(
     dayData.dayHeavenlyStem,
     myBranch,
     dayData.dayEarthlyBranch,
+    relationContext,
   );
 }
 
@@ -52,8 +54,9 @@ function calcDayScore(
   myElem: string | null,
   myStem: string | null,
   myBranch: string | null,
+  relationContext?: ReturnType<typeof getProfileRelationContext>,
 ): number {
-  const relation = getDayRelation(dayData, myElem, myStem, myBranch);
+  const relation = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
 
   if (!relation) {
     let base = 5;
@@ -63,9 +66,76 @@ function calcDayScore(
   }
 
   let base = relation.score;
-  if (dayData.luckyDay)        base = Math.min(10, base + 1);
-  if (dayData.inauspiciousDay) base = Math.max(1,  base - 1);
+  if (dayData.luckyDay && relation.positive) {
+    base = Math.min(10, base + 1);
+  }
+  if (dayData.inauspiciousDay && !relation.positive) {
+    base = Math.max(1, base - 1);
+  }
   return base;
+}
+
+const STRONG_POSITIVE_REL_TYPES = new Set([
+  "인성",
+  "식상",
+  "재성",
+  "천간합",
+  "지지육합",
+  "지지반합",
+  "지지삼합",
+  "지지방합",
+  "지지암합",
+]);
+
+const STRONG_NEGATIVE_REL_TYPES = new Set([
+  "관살",
+  "천간충",
+  "지지충",
+  "지지형",
+  "지지해",
+  "지지원진",
+  "지지귀문",
+]);
+
+function getDayBadges(
+  dayData: any,
+  score: number | null,
+  rel: ReturnType<typeof getElementRelation> | null,
+  personalized: boolean,
+) {
+  if (!dayData || score == null) {
+    return {
+      lucky: false,
+      inauspicious: false,
+      caution: false,
+      genericLucky: false,
+      genericCaution: false,
+    };
+  }
+
+  if (!personalized) {
+    return {
+      lucky: Boolean(dayData.luckyDay),
+      inauspicious: Boolean(dayData.inauspiciousDay),
+      caution: false,
+      genericLucky: false,
+      genericCaution: false,
+    };
+  }
+
+  const strongPositive = Boolean(rel?.type && STRONG_POSITIVE_REL_TYPES.has(rel.type));
+  const strongNegative = Boolean(rel?.type && STRONG_NEGATIVE_REL_TYPES.has(rel.type));
+  const lucky = score >= 8 || (score >= 7 && Boolean(rel?.positive) && strongPositive);
+  const inauspicious = score <= 2 || (score <= 3 && Boolean(rel && !rel.positive) && strongNegative);
+  const caution = !lucky && !inauspicious && (score <= 4 || (Boolean(rel && !rel.positive) && score <= 5));
+
+  return {
+    lucky,
+    inauspicious,
+    caution,
+    genericLucky: Boolean(dayData.luckyDay) && !lucky,
+    genericCaution: Boolean(dayData.inauspiciousDay) && !inauspicious,
+  };
 }
 
 function scoreLabel(score: number): string {
@@ -390,6 +460,8 @@ export default function ManseryokPage() {
   const myElem = profile?.dayMasterElement ?? null;
   const myStem = profile?.dayMasterStem ?? null;
   const myBranch = profile?.dayMasterBranch ?? null;
+  const relationContext = useMemo(() => getProfileRelationContext(profile), [profile]);
+  const isPersonalized = Boolean(myElem);
 
   useEffect(() => {
     if (!canAccessFutureDates && currentMonthKey > TODAY_MONTH) {
@@ -407,8 +479,8 @@ export default function ManseryokPage() {
     const todayStr = `${yearStr}-${monthStr}-${todayNum.toString().padStart(2, "0")}`;
     const todayData = data.days.find((d: any) => d.solar === todayStr);
     if (!todayData) return;
-    const score = calcDayScore(todayData, myElem, myStem, myBranch);
-    const rel = getDayRelation(todayData, myElem, myStem, myBranch);
+    const score = calcDayScore(todayData, myElem, myStem, myBranch, relationContext);
+    const rel = getDayRelation(todayData, myElem, myStem, myBranch, relationContext);
     setSelected({ dayNum: todayNum, dayData: todayData, score, rel });
   }, [
     data,
@@ -420,6 +492,7 @@ export default function ManseryokPage() {
     myBranch,
     myElem,
     myStem,
+    relationContext,
   ]);
 
   useEffect(() => {
@@ -455,10 +528,10 @@ export default function ManseryokPage() {
       const dayStr = dayNum.toString().padStart(2, "0");
       const fullDate = `${yearStr}-${monthStr}-${dayStr}`;
       const dayData = data.days.find((d: any) => d.solar === fullDate);
-      if (dayData) map[dayNum] = calcDayScore(dayData, myElem, myStem, myBranch);
+      if (dayData) map[dayNum] = calcDayScore(dayData, myElem, myStem, myBranch, relationContext);
     });
     return map;
-  }, [data, monthStr, myBranch, myElem, myStem, yearStr]);
+  }, [data, monthStr, myBranch, myElem, myStem, relationContext, yearStr]);
 
   const scoreValues = Object.values(dayScores);
   const avgScore = scoreValues.length > 0
@@ -474,8 +547,8 @@ export default function ManseryokPage() {
   function handleDayClick(dayNum: number, dayData: any) {
     if (!dayData) return;
     if (selected?.dayNum === dayNum) { setSelected(null); return; }
-    const score = calcDayScore(dayData, myElem, myStem, myBranch);
-    const rel = getDayRelation(dayData, myElem, myStem, myBranch);
+    const score = calcDayScore(dayData, myElem, myStem, myBranch, relationContext);
+    const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
     setSelected({ dayNum, dayData, score, rel });
   }
 
@@ -615,8 +688,9 @@ export default function ManseryokPage() {
                 const dateColor = dayOfWeek === 0 ? "text-destructive" : dayOfWeek === 6 ? "text-blue-400" : "text-foreground";
                 const isTodayDate = fullDate === TODAY;
                 const isBlockedFutureDate = !canAccessFutureDates && fullDate > TODAY;
-                const rel = getDayRelation(dayData, myElem, myStem, myBranch);
+                const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
                 const score = dayData ? dayScores[dayNum] : null;
+                const badges = getDayBadges(dayData, score, rel, isPersonalized);
                 const isSelected = selected?.dayNum === dayNum;
                 const canSelectDay = Boolean(dayData) && !isBlockedFutureDate;
 
@@ -693,10 +767,13 @@ export default function ManseryokPage() {
                         </div>
 
                         {/* 길일/흉일 점 */}
-                        {(dayData.luckyDay || dayData.inauspiciousDay) && (
+                        {(badges.lucky || badges.inauspicious || badges.caution || badges.genericLucky || badges.genericCaution) && (
                           <div className="flex gap-0.5">
-                            {dayData.luckyDay && <span className="w-1 h-1 rounded-full bg-primary" title="길일" />}
-                            {dayData.inauspiciousDay && <span className="w-1 h-1 rounded-full bg-destructive" title="흉일" />}
+                            {badges.lucky && <span className="w-1 h-1 rounded-full bg-primary" title={isPersonalized ? "개인 길일" : "길일"} />}
+                            {badges.inauspicious && <span className="w-1 h-1 rounded-full bg-destructive" title={isPersonalized ? "개인 흉일" : "흉일"} />}
+                            {badges.caution && <span className="w-1 h-1 rounded-full bg-orange-400" title="개인 주의일" />}
+                            {badges.genericLucky && <span className="w-1 h-1 rounded-full bg-primary/60" title="공통 길 흐름" />}
+                            {badges.genericCaution && <span className="w-1 h-1 rounded-full bg-slate-400" title="공통 주의 흐름" />}
                           </div>
                         )}
                       </>
@@ -724,8 +801,10 @@ export default function ManseryokPage() {
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" />평</div>
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-400" />주의</div>
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" />흉</div>
-              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" />길일</div>
-              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-destructive" />흉일</div>
+              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" />{isPersonalized ? "개인 길일" : "길일"}</div>
+              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-destructive" />{isPersonalized ? "개인 흉일" : "흉일"}</div>
+              {isPersonalized && <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-400" />개인 주의일</div>}
+              {isPersonalized && <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" />공통 주의 흐름</div>}
               {myElem && (
                 <>
                   <div className="flex items-center gap-1"><span className="text-emerald-400 font-bold text-xs">★</span> 인성</div>
@@ -745,6 +824,7 @@ export default function ManseryokPage() {
         {selected && (() => {
           const sub = getSubScores(selected.score, selected.dayData.dayElement);
           const label = scoreLabel(selected.score);
+          const badges = getDayBadges(selected.dayData, selected.score, selected.rel, isPersonalized);
           const actionAdvice = buildScoreAdvice(
             label,
             selected.dayData.dayHeavenlyStem,
@@ -811,8 +891,11 @@ export default function ManseryokPage() {
               {/* ── 음력·길흉일·관계 ── */}
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex gap-3">
-                  {selected.dayData.luckyDay && <span className="text-primary font-medium">✦ 길일</span>}
-                  {selected.dayData.inauspiciousDay && <span className="text-destructive font-medium">✦ 흉일</span>}
+                  {badges.lucky && <span className="text-primary font-medium">✦ {isPersonalized ? "개인 길일" : "길일"}</span>}
+                  {badges.inauspicious && <span className="text-destructive font-medium">✦ {isPersonalized ? "개인 흉일" : "흉일"}</span>}
+                  {badges.caution && <span className="text-orange-300 font-medium">✦ 개인 주의일</span>}
+                  {badges.genericLucky && <span className="text-primary/70 font-medium">✦ 공통 길 흐름</span>}
+                  {badges.genericCaution && <span className="text-muted-foreground font-medium">✦ 공통 주의 흐름</span>}
                   <span>음력 {selected.dayData.lunar}</span>
                 </div>
                 {selected.rel && (
@@ -829,6 +912,21 @@ export default function ManseryokPage() {
                 {selected.rel ? (
                   <>
                     <p className="text-sm text-foreground/90 leading-relaxed">
+                      {badges.lucky
+                        ? "원국과 오늘 일진을 함께 보면 조화와 추진력이 살아나는 개인 길일에 가깝습니다."
+                        : badges.inauspicious
+                        ? "원국과 오늘 일진의 충돌이 크게 체감되어 개인 흉일로 보는 편이 맞습니다."
+                        : badges.caution
+                        ? "원국과 오늘 일진을 합쳐 보면 흉일까지는 아니지만, 압박과 꼬임이 섞인 개인 주의일에 가깝습니다."
+                        : "원국과 오늘 일진을 함께 보면 공통 길흉보다 개인 체감은 중립에 가깝습니다."}
+                      {badges.genericCaution && !badges.inauspicious
+                        ? " 전통 분류상으로는 공통 주의 흐름이 있지만, 개인 사주 기준으로는 흉일까지는 아닙니다."
+                        : ""}
+                      {badges.genericLucky && !badges.lucky
+                        ? " 전통 분류상 공통 길 흐름은 있으나, 개인 사주와 합치면 체감은 보통권에 머물 수 있습니다."
+                        : ""}
+                    </p>
+                    <p className="text-sm text-foreground/90 leading-relaxed">
                       {selected.rel.why || REL_WHY[selected.rel.type] || ""}
                     </p>
                     <p className={cn("text-xs font-medium leading-relaxed border-t border-white/10 pt-2", selected.rel.colorClass)}>
@@ -844,14 +942,24 @@ export default function ManseryokPage() {
                       : "내 사주를 등록하면 오행 상호작용에 따른 맞춤 운세 해설을 확인할 수 있습니다."}
                   </p>
                 )}
-                {selected.dayData.inauspiciousDay && (
+                {badges.inauspicious && (
                   <p className="text-[11px] text-destructive/80 border-t border-white/10 pt-2">
-                    ※ 흉일 — 중요한 행사·계약·이사·수술 등을 피하고 기존 업무에 집중하세요.
+                    ※ 개인 흉일 — 중요한 행사·계약·이사·수술 등은 미루고, 충돌 가능성이 큰 결정은 한 박자 늦추세요.
                   </p>
                 )}
-                {selected.dayData.luckyDay && (
+                {badges.caution && (
+                  <p className="text-[11px] text-orange-300/80 border-t border-white/10 pt-2">
+                    ※ 개인 주의일 — 크게 나쁜 날은 아니지만, 서두르기보다 확인과 조율을 먼저 두는 편이 안전합니다.
+                  </p>
+                )}
+                {badges.lucky && (
                   <p className="text-[11px] text-primary/80 border-t border-white/10 pt-2">
-                    ※ 길일 — 결혼·계약·개업·이사 등 중요한 일정을 잡기 좋은 날입니다.
+                    ※ 개인 길일 — 계약·협의·런칭·중요 일정처럼 결과를 만들어야 하는 일을 잡기 좋은 날입니다.
+                  </p>
+                )}
+                {badges.genericCaution && !badges.inauspicious && (
+                  <p className="text-[11px] text-muted-foreground border-t border-white/10 pt-2">
+                    ※ 공통 주의 흐름 — 전통 만세력상 조심하라는 신호는 있으나, 개인 사주 기준으로는 보조 참고 정도로 보는 편이 맞습니다.
                   </p>
                 )}
               </div>

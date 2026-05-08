@@ -13,6 +13,14 @@ import {
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";
 import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
+import {
+  clampBirthDayValue,
+  getBirthDateError,
+  getBirthDayMax,
+  sanitizeBirthDayInput,
+  sanitizeBirthMonthInput,
+  sanitizeBirthYearInput,
+} from "@/lib/birth-date";
 
 const ELEM_KOR: Record<string, string> = { 목:'木', 화:'火', 토:'土', 금:'金', 수:'水' };
 const ELEM_COLOR: Record<string, string> = {
@@ -261,6 +269,8 @@ export default function YearFortunePage() {
     targetYear: currentYear.toString(),
   });
   const [fromProfile, setFromProfile] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const maxBirthDay = getBirthDayMax(form.birthYear, form.birthMonth);
 
   function loadMyProfile() {
     if (!profile) return;
@@ -275,9 +285,39 @@ export default function YearFortunePage() {
     setFromProfile(true);
   }
 
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: string, v: string) => {
+    setForm((prev) => {
+      const next = { ...prev };
+
+      if (k === "birthYear") {
+        next.birthYear = sanitizeBirthYearInput(v);
+      } else if (k === "birthMonth") {
+        next.birthMonth = sanitizeBirthMonthInput(v);
+      } else if (k === "birthDay") {
+        next.birthDay = sanitizeBirthDayInput(v, prev.birthYear, prev.birthMonth);
+      } else {
+        (next as any)[k] = v;
+      }
+
+      next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth);
+      return next;
+    });
+  };
 
   const handleSubmit = () => {
+    setValidationError(null);
+    const dateError = getBirthDateError({
+      birthYear: form.birthYear,
+      birthMonth: form.birthMonth,
+      birthDay: form.birthDay,
+      yearMin: 1900,
+      yearMax: 2100,
+    });
+    if (dateError) {
+      setValidationError(dateError);
+      return;
+    }
+
     if (!form.birthYear || !form.birthMonth || !form.birthDay) return;
     mut.mutate({
       birthYear: Number(form.birthYear),
@@ -333,17 +373,17 @@ export default function YearFortunePage() {
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">출생 연도</Label>
               <Input placeholder="예: 1990" value={form.birthYear} onChange={e => set('birthYear', e.target.value)}
-                className="bg-white/5 border-white/10" type="number" />
+                className="bg-white/5 border-white/10" type="number" min={1900} max={2100} inputMode="numeric" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">월</Label>
               <Input placeholder="1-12" value={form.birthMonth} onChange={e => set('birthMonth', e.target.value)}
-                className="bg-white/5 border-white/10" type="number" min={1} max={12} />
+                className="bg-white/5 border-white/10" type="number" min={1} max={12} inputMode="numeric" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">일</Label>
               <Input placeholder="1-31" value={form.birthDay} onChange={e => set('birthDay', e.target.value)}
-                className="bg-white/5 border-white/10" type="number" min={1} max={31} />
+                className="bg-white/5 border-white/10" type="number" min={1} max={maxBirthDay} inputMode="numeric" />
             </div>
           </div>
 
@@ -386,7 +426,10 @@ export default function YearFortunePage() {
             {mut.isPending ? <><Loader2 className="w-4 h-4 animate-spin" />분석 중...</> : <><Sparkles className="w-4 h-4" />연간 운세 보기</>}
           </Button>
 
-          {mut.isError && (
+          {validationError && (
+            <p className="text-sm text-rose-400 text-center">{validationError}</p>
+          )}
+          {mut.isError && !validationError && (
             <p className="text-sm text-rose-400 text-center">{(mut.error as any)?.message ?? '오류가 발생했습니다.'}</p>
           )}
         </div>

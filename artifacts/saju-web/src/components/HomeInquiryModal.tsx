@@ -7,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { useSubmitInquiry } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useLocation } from "wouter";
+import {
+  clampBirthDayValue,
+  getBirthDateError,
+  getBirthDayMax,
+  sanitizeBirthDayInput,
+  sanitizeBirthMonthInput,
+  sanitizeBirthYearInput,
+} from "@/lib/birth-date";
 
 type InquiryType = "general" | "saju" | "gungap";
 
@@ -61,6 +69,8 @@ function BirthSection({ label, fields, onChange }: {
   fields: BirthFields;
   onChange: (f: Partial<BirthFields>) => void;
 }) {
+  const maxDay = getBirthDayMax(fields.year, fields.month);
+
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
@@ -93,21 +103,30 @@ function BirthSection({ label, fields, onChange }: {
           placeholder="출생연도"
           value={fields.year}
           onChange={e => onChange({ year: e.target.value })}
-          maxLength={4}
+          type="number"
+          min={1900}
+          max={2100}
+          inputMode="numeric"
           className="bg-white/5 border-white/10 text-center"
         />
         <Input
           placeholder="월"
           value={fields.month}
           onChange={e => onChange({ month: e.target.value })}
-          maxLength={2}
+          type="number"
+          min={1}
+          max={12}
+          inputMode="numeric"
           className="bg-white/5 border-white/10 text-center"
         />
         <Input
           placeholder="일"
           value={fields.day}
           onChange={e => onChange({ day: e.target.value })}
-          maxLength={2}
+          type="number"
+          min={1}
+          max={maxDay}
+          inputMode="numeric"
           className="bg-white/5 border-white/10 text-center"
         />
       </div>
@@ -129,6 +148,25 @@ function BirthSection({ label, fields, onChange }: {
 
 const defaultBirth = (): BirthFields => ({ name: "", year: "", month: "", day: "", hour: HOUR_OPTIONS[0], gender: "male" });
 
+function applyBirthFieldsPatch(prev: BirthFields, patch: Partial<BirthFields>): BirthFields {
+  const next = { ...prev, ...patch };
+
+  if (patch.year !== undefined) {
+    next.year = sanitizeBirthYearInput(patch.year);
+  }
+
+  if (patch.month !== undefined) {
+    next.month = sanitizeBirthMonthInput(patch.month);
+  }
+
+  if (patch.day !== undefined) {
+    next.day = sanitizeBirthDayInput(patch.day, next.year, next.month);
+  }
+
+  next.day = clampBirthDayValue(next.day, next.year, next.month);
+  return next;
+}
+
 export default function HomeInquiryModal({ open, type, onClose }: Props) {
   const meta = TYPE_META[type];
   const { user } = useAuth();
@@ -138,6 +176,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
   const [person2, setPerson2] = useState<BirthFields>(defaultBirth);
   const [message, setMessage] = useState("");
   const [done, setDone] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const submit = useSubmitInquiry();
 
@@ -164,6 +203,36 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
     }
     if (!message.trim()) return;
 
+    setValidationError(null);
+
+    if (type === "saju" || type === "gungap") {
+      const person1Error = getBirthDateError({
+        birthYear: person1.year,
+        birthMonth: person1.month,
+        birthDay: person1.day,
+        yearMin: 1900,
+        yearMax: 2100,
+      });
+      if (person1Error) {
+        setValidationError(`본인 정보: ${person1Error}`);
+        return;
+      }
+    }
+
+    if (type === "gungap") {
+      const person2Error = getBirthDateError({
+        birthYear: person2.year,
+        birthMonth: person2.month,
+        birthDay: person2.day,
+        yearMin: 1900,
+        yearMax: 2100,
+      });
+      if (person2Error) {
+        setValidationError(`상대방 정보: ${person2Error}`);
+        return;
+      }
+    }
+
     await submit.mutateAsync({
       message: message.trim(),
       userLabel: buildUserLabel(),
@@ -176,6 +245,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
   function handleClose() {
     setDone(false);
     setMessage("");
+    setValidationError(null);
     setPerson1(defaultBirth());
     setPerson2(defaultBirth());
     onClose();
@@ -234,7 +304,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
                     <BirthSection
                       label="본인 정보"
                       fields={person1}
-                      onChange={f => setPerson1(prev => ({ ...prev, ...f }))}
+                      onChange={f => setPerson1(prev => applyBirthFieldsPatch(prev, f))}
                     />
                   )}
                   {type === "gungap" && (
@@ -242,13 +312,13 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
                       <BirthSection
                         label="본인 정보"
                         fields={person1}
-                        onChange={f => setPerson1(prev => ({ ...prev, ...f }))}
+                        onChange={f => setPerson1(prev => applyBirthFieldsPatch(prev, f))}
                       />
                       <div className="border-t border-white/10" />
                       <BirthSection
                         label="상대방 정보"
                         fields={person2}
-                        onChange={f => setPerson2(prev => ({ ...prev, ...f }))}
+                        onChange={f => setPerson2(prev => applyBirthFieldsPatch(prev, f))}
                       />
                     </>
                   )}
@@ -271,6 +341,12 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
                   {!user && (
                     <p className="text-xs text-amber-400/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
                       문의를 남기려면 로그인이 필요합니다. 제출 시 로그인 페이지로 이동합니다.
+                    </p>
+                  )}
+
+                  {validationError && (
+                    <p className="text-xs text-rose-400/90 bg-rose-400/10 border border-rose-400/20 rounded-lg px-3 py-2">
+                      {validationError}
                     </p>
                   )}
 

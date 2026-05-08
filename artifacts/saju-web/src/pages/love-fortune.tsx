@@ -10,6 +10,14 @@ import { Loader2, Heart, UserCircle2, Sparkles, ChevronDown, ChevronUp, Star, Us
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";
 import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
+import {
+  clampBirthDayValue,
+  getBirthDateError,
+  getBirthDayMax,
+  sanitizeBirthDayInput,
+  sanitizeBirthMonthInput,
+  sanitizeBirthYearInput,
+} from "@/lib/birth-date";
 
 const ELEM_COLOR: Record<string, string> = {
   목:'text-green-400', 화:'text-red-400', 토:'text-yellow-400', 금:'text-gray-300', 수:'text-blue-400',
@@ -306,6 +314,23 @@ function BirthBlock({
   state: BirthFieldState; onChange: (s: BirthFieldState) => void;
   gender?: string; setGender?: (v: string) => void;
 }) {
+  const maxDay = getBirthDayMax(state.year, state.month);
+
+  const updateField = (key: "year" | "month" | "day", rawValue: string) => {
+    const next = { ...state };
+
+    if (key === "year") {
+      next.year = sanitizeBirthYearInput(rawValue);
+    } else if (key === "month") {
+      next.month = sanitizeBirthMonthInput(rawValue);
+    } else {
+      next.day = sanitizeBirthDayInput(rawValue, state.year, state.month);
+    }
+
+    next.day = clampBirthDayValue(next.day, next.year, next.month);
+    onChange(next);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -316,7 +341,11 @@ function BirthBlock({
           <Label className="text-xs text-muted-foreground mb-1 block">연도</Label>
           <Input
             placeholder="예) 1995" value={state.year}
-            onChange={e => onChange({ ...state, year: e.target.value })}
+            onChange={e => updateField("year", e.target.value)}
+            type="number"
+            min={1900}
+            max={2100}
+            inputMode="numeric"
             className="bg-white/5 border-white/10 text-sm"
           />
         </div>
@@ -324,7 +353,11 @@ function BirthBlock({
           <Label className="text-xs text-muted-foreground mb-1 block">월</Label>
           <Input
             placeholder="1~12" value={state.month}
-            onChange={e => onChange({ ...state, month: e.target.value })}
+            onChange={e => updateField("month", e.target.value)}
+            type="number"
+            min={1}
+            max={12}
+            inputMode="numeric"
             className="bg-white/5 border-white/10 text-sm"
           />
         </div>
@@ -332,7 +365,11 @@ function BirthBlock({
           <Label className="text-xs text-muted-foreground mb-1 block">일</Label>
           <Input
             placeholder="1~31" value={state.day}
-            onChange={e => onChange({ ...state, day: e.target.value })}
+            onChange={e => updateField("day", e.target.value)}
+            type="number"
+            min={1}
+            max={maxDay}
+            inputMode="numeric"
             className="bg-white/5 border-white/10 text-sm"
           />
         </div>
@@ -403,6 +440,7 @@ export default function LoveFortunePage() {
   const [myBirth, setMyBirth] = useState<BirthFieldState>(EMPTY_BIRTH);
   const [partnerBirth, setPartnerBirth] = useState<BirthFieldState>(EMPTY_BIRTH);
   const [result, setResult] = useState<LoveFortuneResult | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const { mutate, isPending, error } = useLoveFortune();
 
   function loadMyProfile() {
@@ -420,6 +458,20 @@ export default function LoveFortunePage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setValidationError(null);
+
+    const myBirthError = getBirthDateError({
+      birthYear: myBirth.year,
+      birthMonth: myBirth.month,
+      birthDay: myBirth.day,
+      yearMin: 1900,
+      yearMax: 2100,
+    });
+    if (myBirthError) {
+      setValidationError(myBirthError);
+      return;
+    }
+
     const body: Parameters<ReturnType<typeof useLoveFortune>['mutate']>[0] = {
       birthYear: Number(myBirth.year),
       birthMonth: Number(myBirth.month),
@@ -558,7 +610,10 @@ export default function LoveFortunePage() {
           </Button>
         </form>
 
-        {error && (
+        {validationError && (
+          <p className="text-sm text-rose-400 text-center">{validationError}</p>
+        )}
+        {error && !validationError && (
           <p className="text-sm text-rose-400 text-center">{(error as any)?.message ?? "오류가 발생했습니다."}</p>
         )}
       </motion.div>

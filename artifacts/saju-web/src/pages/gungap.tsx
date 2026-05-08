@@ -16,6 +16,14 @@ import { useLoveFortune, type LoveFortuneResult } from "@workspace/api-client-re
 import { cn } from "@/lib/utils";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
 import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
+import {
+  clampBirthDayValue,
+  getBirthDateError,
+  getBirthDayMax,
+  sanitizeBirthDayInput,
+  sanitizeBirthMonthInput,
+  sanitizeBirthYearInput,
+} from "@/lib/birth-date";
 
 // ── 공통 상수 ────────────────────────────────────────────────
 const CURRENT_YEAR = new Date().getFullYear();
@@ -398,6 +406,29 @@ function GungapTab() {
   const [p1FromProfile, setP1FromProfile] = useState(false);
   const [copied, setCopied] = useState(false);
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  const p1MaxBirthDay = getBirthDayMax(p1.birthYear, p1.birthMonth);
+  const p2MaxBirthDay = getBirthDayMax(p2.birthYear, p2.birthMonth);
+
+  const updateBirthField = (
+    setState: React.Dispatch<React.SetStateAction<PersonForm>>,
+    key: "birthYear" | "birthMonth" | "birthDay",
+    rawValue: string,
+  ) => {
+    setState((prev) => {
+      const next = { ...prev };
+
+      if (key === "birthYear") {
+        next.birthYear = sanitizeBirthYearInput(rawValue);
+      } else if (key === "birthMonth") {
+        next.birthMonth = sanitizeBirthMonthInput(rawValue);
+      } else {
+        next.birthDay = sanitizeBirthDayInput(rawValue, prev.birthYear, prev.birthMonth);
+      }
+
+      next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth);
+      return next;
+    });
+  };
 
   function loadMyProfile() {
     if (!profile) return;
@@ -414,10 +445,14 @@ function GungapTab() {
     e.preventDefault();
     setError(null);
     for (const [label, p] of [["첫 번째", p1], ["두 번째", p2]] as [string, PersonForm][]) {
-      const y = parseInt(p.birthYear), m = parseInt(p.birthMonth), d = parseInt(p.birthDay);
-      if (!p.birthYear || isNaN(y) || y < 1900 || y > 2100) { setError(`${label} 사람의 년도를 올바르게 입력해주세요.`); return; }
-      if (!p.birthMonth || isNaN(m) || m < 1 || m > 12) { setError(`${label} 사람의 월을 올바르게 입력해주세요.`); return; }
-      if (!p.birthDay || isNaN(d) || d < 1 || d > 31) { setError(`${label} 사람의 일을 올바르게 입력해주세요.`); return; }
+      const dateError = getBirthDateError({
+        birthYear: p.birthYear,
+        birthMonth: p.birthMonth,
+        birthDay: p.birthDay,
+        yearMin: 1900,
+        yearMax: 2100,
+      });
+      if (dateError) { setError(`${label} 사람의 ${dateError}`); return; }
     }
     setLoading(true);
     try { setResult(await fetchGungap(p1, p2)); }
@@ -506,7 +541,10 @@ function GungapTab() {
                         <Input
                           type="number" placeholder={f.ph}
                           value={(state as any)[f.name]}
-                          onChange={(e) => setState((prev) => ({ ...prev, [f.name]: e.target.value }))}
+                          onChange={(e) => updateBirthField(setState, f.name as "birthYear" | "birthMonth" | "birthDay", e.target.value)}
+                          min={f.name === "birthYear" ? 1900 : 1}
+                          max={f.name === "birthYear" ? 2100 : f.name === "birthMonth" ? 12 : isMe ? p1MaxBirthDay : p2MaxBirthDay}
+                          inputMode="numeric"
                           className="placeholder:text-muted-foreground/40 text-sm"
                         />
                       </div>
