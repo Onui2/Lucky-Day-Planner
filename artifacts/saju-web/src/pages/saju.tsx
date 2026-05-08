@@ -240,7 +240,9 @@ export default function SajuPage() {
       const link = document.createElement("a");
       link.download = `명해원_사주.png`;
       link.href = canvas.toDataURL("image/png");
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error("이미지 저장 실패:", err);
     } finally {
