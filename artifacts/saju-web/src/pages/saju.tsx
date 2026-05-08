@@ -233,16 +233,25 @@ export default function SajuPage() {
     try {
       const canvas = await html2canvas(resultRef.current, {
         backgroundColor: "#0d0d1a",
-        scale: 2,
+        scale: 1,
         useCORS: true,
         logging: false,
+        allowTaint: true,
       });
-      const link = document.createElement("a");
-      link.download = `명해원_사주.png`;
-      link.href = canvas.toDataURL("image/png");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await new Promise<void>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error("blob null")); return; }
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.download = "명해원_사주.png";
+          link.href = url;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          resolve();
+        }, "image/png");
+      });
     } catch (err) {
       console.error("이미지 저장 실패:", err);
     } finally {
