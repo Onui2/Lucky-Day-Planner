@@ -1831,7 +1831,7 @@ export default function AdminPage() {
                 </div>
               )}
             </motion.div>
-          ) : (
+          ) : activeTab === "users" ? (
             <motion.div
               key="users"
               initial={{ opacity: 0, x: 10 }}
