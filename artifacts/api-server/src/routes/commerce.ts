@@ -82,6 +82,8 @@ router.post("/commerce/orders", async (req, res) => {
     return;
   }
 
+  const isAdmin = (req.user as any).role === "admin" || (req.user as any).role === "superadmin";
+
   try {
     const sajuResult = buildSajuResult({
       birthYear: birthInfo.year,
@@ -96,6 +98,48 @@ router.post("/commerce/orders", async (req, res) => {
     const title =
       label ??
       `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 ${product.title}`;
+
+    // 관리자는 결제 없이 즉시 PDF 생성
+    if (isAdmin) {
+      const payload = await db.transaction(async (tx) => {
+        const [snapshot] = await tx
+          .insert(analysisSnapshotsTable)
+          .values({ userId: req.user.id, kind: "saju", title, birthInfo, sajuResult })
+          .returning();
+        const [order] = await tx
+          .insert(ordersTable)
+          .values({
+            orderId,
+            userId: req.user.id,
+            productType: product.type,
+            status: "paid",
+            currency: "KRW",
+            amount: 0,
+            snapshotId: snapshot.id,
+            metadata: { productTitle: product.title, productDescription: product.description },
+          })
+          .returning();
+        const [report] = await tx
+          .insert(pdfReportsTable)
+          .values({ userId: req.user.id, orderId: order.id, snapshotId: snapshot.id, productType: product.type, title, status: "pending" })
+          .returning();
+        return { order, report, snapshot, sajuResult };
+      });
+
+      const generated = await generateSajuReportPdf(title, payload.sajuResult as Record<string, any>);
+      const [updatedReport] = await db
+        .update(pdfReportsTable)
+        .set({ status: "ready", previewText: generated.previewText, htmlContent: generated.htmlContent, fileName: generated.fileName, fileDataBase64: generated.fileDataBase64, generatedAt: new Date(), updatedAt: new Date() })
+        .where(eq(pdfReportsTable.id, payload.report.id))
+        .returning();
+
+      return res.json({
+        product,
+        checkoutMode: "admin",
+        order: { id: payload.order.id, orderId: payload.order.orderId, status: "paid", amount: 0, currency: "KRW" },
+        report: { id: updatedReport.id, status: updatedReport.status, title: updatedReport.title, fileName: updatedReport.fileName },
+      });
+    }
 
     const payload = await db.transaction(async (tx) => {
       const [snapshot] = await tx

@@ -42,6 +42,13 @@ export function ReportPurchaseCard({
         label: `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 정밀 사주 리포트`,
       });
 
+      if (created.checkoutMode === "admin") {
+        setLatestReportId(created.report.id);
+        setLatestReportName(created.report.fileName ?? created.report.title);
+        setMessage("관리자 권한으로 PDF 리포트가 즉시 생성되었습니다.");
+        return;
+      }
+
       if (created.checkoutMode === "dev") {
         const confirmed = await confirmPayment.mutateAsync({
           orderId: created.order.orderId,
