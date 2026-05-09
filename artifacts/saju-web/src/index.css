@@ -137,4 +137,8 @@
   .text-gradient-gold {
     @apply bg-gradient-to-r from-[#F5EDD8] via-[#E8C84A] to-[#B98A10] text-transparent bg-clip-text;
   }
+
+  .bg-layout-pattern {
+    background-image: url('/images/mystical-bg.png');
+  }
 }

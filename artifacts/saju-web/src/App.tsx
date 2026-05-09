@@ -43,6 +43,8 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      staleTime: 3 * 60 * 1000,   // 3분간 fresh 유지 — 불필요 재호출 방지
+      gcTime: 10 * 60 * 1000,     // 10분간 캐시 보존
     },
   },
 });

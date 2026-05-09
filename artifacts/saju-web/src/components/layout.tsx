@@ -328,12 +328,21 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-primary/30 selection:text-primary">
       <div
-        className="fixed inset-0 z-[-1] opacity-40 mix-blend-screen pointer-events-none"
+        className="fixed inset-0 z-[-1] opacity-40 mix-blend-screen pointer-events-none bg-layout-pattern"
         style={{
-          backgroundImage: `url(${import.meta.env.BASE_URL}images/mystical-bg.png)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
+          // 배경 이미지를 paint 이후 로드 (렌더 블로킹 방지)
+          contentVisibility: "auto",
         }}
+      />
+      {/* 배경 이미지를 비동기 로드 — LCP 블로킹 방지 */}
+      <link
+        rel="preload"
+        as="image"
+        href={`${import.meta.env.BASE_URL}images/mystical-bg.png`}
+        // @ts-ignore fetchpriority
+        fetchpriority="low"
       />
 
       <header className="sticky top-0 z-50 w-full border-b border-primary/10 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40">
