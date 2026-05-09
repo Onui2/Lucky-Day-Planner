@@ -45,7 +45,7 @@ export function ReportPurchaseCard({
       if (created.checkoutMode === "admin") {
         setLatestReportId(created.report.id);
         setLatestReportName(created.report.fileName ?? created.report.title);
-        setMessage("관리자 권한으로 PDF 리포트가 즉시 생성되었습니다.");
+        setMessage("PDF 리포트가 즉시 생성되었습니다.");
         return;
       }
 
