@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
+// @ts-ignore — esbuild base64 loader inlines font at build time
+import nanumGothicBase64 from "../../assets/fonts/NanumGothic-Regular.ttf";
 
 function escapeHtml(value: string) {
   return value
@@ -29,24 +31,21 @@ function sectionHtml(title: string, body: string) {
   `;
 }
 
-function getFontPath(): string | null {
-  const name = "NanumGothic-Regular.ttf";
-  const candidates: string[] = [];
-
-  // ESM 번들 기준 (Vercel: api/fonts/ 에 복사됨)
-  try {
-    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-    candidates.push(path.join(moduleDir, "fonts", name));
-  } catch { /* CJS 환경 */ }
-
-  // 로컬 개발 환경 (프로젝트 루트 기준)
-  candidates.push(path.join(process.cwd(), "artifacts", "api-server", "assets", "fonts", name));
-  candidates.push(path.join(process.cwd(), "assets", "fonts", name));
-
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
+function getFontBuffer(): Buffer {
+  // esbuild base64 loader로 번들에 임베드된 경우 (Vercel)
+  if (typeof nanumGothicBase64 === "string" && nanumGothicBase64.length > 100) {
+    return Buffer.from(nanumGothicBase64, "base64");
   }
-  return null;
+  // 로컬 개발 환경 — 파일 시스템에서 읽기
+  const candidates = [
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "fonts", "NanumGothic-Regular.ttf"),
+    path.join(process.cwd(), "artifacts", "api-server", "assets", "fonts", "NanumGothic-Regular.ttf"),
+    path.join(process.cwd(), "assets", "fonts", "NanumGothic-Regular.ttf"),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return fs.readFileSync(p);
+  }
+  throw new Error("한글 폰트를 찾을 수 없습니다.");
 }
 
 export function buildSajuReportHtml(title: string, result: Record<string, any>) {
@@ -106,11 +105,9 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     },
   });
 
-  const fontPath = getFontPath();
-  if (fontPath) {
-    doc.registerFont("nanum", fontPath);
-    doc.font("nanum");
-  }
+  const fontBuffer = getFontBuffer();
+  doc.registerFont("nanum", fontBuffer);
+  doc.font("nanum");
 
   const chunks: Buffer[] = [];
   doc.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));

@@ -69,6 +69,7 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
+    loader: { ".ttf": "base64" },
   };
 
   await esbuild({
@@ -96,6 +97,7 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
+    loader: { ".ttf": "base64" },
   });
 
   // 한글 폰트를 Vercel 번들 옆에 복사 (런타임에 import.meta.url 기준으로 로드)
