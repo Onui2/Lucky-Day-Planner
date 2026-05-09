@@ -14,11 +14,26 @@ import { Loader2, Crown, FileText, Sparkles } from "lucide-react";
 interface ReportPurchaseCardProps {
   birthInfo: MonetizationBirthInfo;
   isAuthenticated: boolean;
+  isAdmin?: boolean;
+}
+
+type OrderCreationPayload = {
+  checkoutMode?: string;
+  order: {
+    orderId: string;
+  };
+  report: {
+    id: number;
+    status: string;
+    title: string;
+    fileName?: string | null;
+  };
 }
 
 export function ReportPurchaseCard({
   birthInfo,
   isAuthenticated,
+  isAdmin = false,
 }: ReportPurchaseCardProps) {
   const createOrder = useCreateCommerceOrder();
   const confirmPayment = useConfirmCommercePayment();
@@ -36,16 +51,27 @@ export function ReportPurchaseCard({
     setMessage(null);
 
     try {
-      const created = await createOrder.mutateAsync({
+      const created = (await createOrder.mutateAsync({
         productType: "saju_pdf",
         birthInfo,
         label: `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 정밀 사주 리포트`,
-      });
+      })) as OrderCreationPayload;
 
       if (created.checkoutMode === "admin") {
         setLatestReportId(created.report.id);
         setLatestReportName(created.report.fileName ?? created.report.title);
-        setMessage("PDF 리포트가 즉시 생성되었습니다.");
+        setMessage(
+          created.report.status === "ready"
+            ? "관리자 권한으로 무료 리포트가 즉시 생성되었습니다."
+            : "관리자 무료 리포트 생성이 지연되고 있습니다. 다시 시도하거나 마이페이지에서 확인해주세요.",
+        );
+
+        if (created.report.status === "ready") {
+          await downloadReportFile(
+            created.report.id,
+            created.report.fileName ?? created.report.title,
+          );
+        }
         return;
       }
 
@@ -92,13 +118,17 @@ export function ReportPurchaseCard({
                 정밀 사주 PDF 리포트
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                결제 후 즉시 생성되고, 마이페이지에서 다시 다운로드할 수 있습니다.
+                {isAdmin
+                  ? "관리자 권한이면 결제 없이 즉시 생성되고, 마이페이지에서 다시 다운로드할 수 있습니다."
+                  : "결제 후 즉시 생성되고, 마이페이지에서 다시 다운로드할 수 있습니다."}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-xl font-serif text-amber-300">4,900원</div>
+              <div className="text-xl font-serif text-amber-300">
+                {isAdmin ? "무료" : "4,900원"}
+              </div>
               <div className="text-[11px] text-muted-foreground">
-                PDF 재다운로드 포함
+                {isAdmin ? "관리자 무료 다운로드" : "PDF 재다운로드 포함"}
               </div>
             </div>
           </div>
@@ -125,7 +155,7 @@ export function ReportPurchaseCard({
               ) : (
                 <Sparkles className="w-4 h-4" />
               )}
-              정밀 리포트 구매하기
+              {isAdmin ? "관리자 무료 리포트 받기" : "정밀 리포트 구매하기"}
             </Button>
 
             {(latestReportId || latestReadyReport) && (

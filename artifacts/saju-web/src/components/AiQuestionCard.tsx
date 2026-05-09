@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  AI_QUESTIONS_QUERY_KEY,
   useAskSajuQuestion,
   useGetMyAiQuestions,
   type MonetizationBirthInfo,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,13 +22,64 @@ export function AiQuestionCard({
   isAuthenticated,
 }: AiQuestionCardProps) {
   const [question, setQuestion] = useState("");
+  const [historyReady, setHistoryReady] = useState(!isAuthenticated);
+  const queryClient = useQueryClient();
   const ask = useAskSajuQuestion();
   const { data, isLoading } = useGetMyAiQuestions(isAuthenticated);
+
+  useEffect(() => {
+    setQuestion("");
+
+    if (!isAuthenticated) {
+      setHistoryReady(true);
+      return;
+    }
+
+    let active = true;
+    setHistoryReady(false);
+    void queryClient
+      .resetQueries({ queryKey: AI_QUESTIONS_QUERY_KEY, exact: true })
+      .finally(() => {
+      if (active) {
+        setHistoryReady(true);
+      }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    birthInfo.year,
+    birthInfo.month,
+    birthInfo.day,
+    birthInfo.hour,
+    birthInfo.minute,
+    birthInfo.gender,
+    birthInfo.calendarType,
+    isAuthenticated,
+    queryClient,
+  ]);
 
   const remainingLabel = useMemo(() => {
     if (!data) return "확인 중";
     return `${data.remaining}/${data.limit}`;
   }, [data]);
+
+  const questionHistory = useMemo(
+    () =>
+      [...(data?.questions ?? [])]
+        .reverse()
+        .map((item) => ({
+          ...item,
+          createdLabel: new Date(item.createdAt).toLocaleString("ko-KR", {
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        })),
+    [data],
+  );
 
   async function handleAsk() {
     if (!question.trim()) return;
@@ -102,20 +155,52 @@ export function AiQuestionCard({
               </div>
             )}
 
-            <div className="space-y-3">
-              {(data?.questions ?? []).slice(0, 3).map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
-                >
-                  <div className="text-sm font-medium text-foreground">
-                    Q. {item.question}
-                  </div>
-                  <div className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">
-                    {item.answer}
-                  </div>
+            <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-medium text-foreground">
+                  질문 기록
                 </div>
-              ))}
+                <div className="text-xs text-muted-foreground">
+                  최근 대화형 히스토리
+                </div>
+              </div>
+
+              {!historyReady || isLoading ? (
+                <div className="flex min-h-[180px] items-center justify-center text-sm text-muted-foreground">
+                  기록을 새로 불러오는 중...
+                </div>
+              ) : questionHistory.length === 0 ? (
+                <div className="min-h-[180px] rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-6 text-sm text-muted-foreground">
+                  아직 질문 기록이 없습니다. 위에서 첫 질문을 보내보세요.
+                </div>
+              ) : (
+                <div className="max-h-[320px] space-y-4 overflow-y-auto pr-1">
+                  {questionHistory.map((item) => (
+                    <div key={item.id} className="space-y-2">
+                      <div className="flex justify-end">
+                        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-violet-500/20 px-4 py-3 text-sm text-violet-50">
+                          <div className="whitespace-pre-line leading-6">
+                            {item.question}
+                          </div>
+                          <div className="mt-2 text-[11px] text-violet-100/70">
+                            {item.createdLabel}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex justify-start">
+                        <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-white/10 bg-white/5 px-4 py-3 text-sm text-muted-foreground">
+                          <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-violet-200/80">
+                            AI 답변
+                          </div>
+                          <div className="whitespace-pre-line leading-7">
+                            {item.answer}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}

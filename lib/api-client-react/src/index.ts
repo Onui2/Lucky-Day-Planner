@@ -1085,7 +1085,7 @@ export interface AiQuestionsResponse {
 
 const ORDERS_KEY = ["commerce", "orders"] as const;
 const REPORTS_KEY = ["reports"] as const;
-const AI_QUESTIONS_KEY = ["ai", "questions"] as const;
+export const AI_QUESTIONS_QUERY_KEY = ["ai", "questions"] as const;
 
 export function useGetMyOrders(enabled = true) {
   return useQuery<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" }>({
@@ -1180,7 +1180,7 @@ export async function downloadReportFile(reportId: number, fallbackFileName?: st
 
 export function useGetMyAiQuestions(enabled = true) {
   return useQuery<AiQuestionsResponse>({
-    queryKey: AI_QUESTIONS_KEY,
+    queryKey: AI_QUESTIONS_QUERY_KEY,
     queryFn: () => customFetch<AiQuestionsResponse>("/api/ai/questions"),
     staleTime: 15_000,
     retry: false,
@@ -1203,7 +1203,7 @@ export function useAskSajuQuestion() {
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: AI_QUESTIONS_KEY });
+      qc.invalidateQueries({ queryKey: AI_QUESTIONS_QUERY_KEY });
     },
   });
 }
