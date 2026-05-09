@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
 
 function escapeHtml(value: string) {
@@ -28,15 +29,24 @@ function sectionHtml(title: string, body: string) {
   `;
 }
 
-function getFontPath() {
-  return path.join(
-    process.cwd(),
-    "artifacts",
-    "api-server",
-    "assets",
-    "fonts",
-    "NanumGothic-Regular.ttf",
-  );
+function getFontPath(): string | null {
+  const name = "NanumGothic-Regular.ttf";
+  const candidates: string[] = [];
+
+  // ESM 번들 기준 (Vercel: api/fonts/ 에 복사됨)
+  try {
+    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+    candidates.push(path.join(moduleDir, "fonts", name));
+  } catch { /* CJS 환경 */ }
+
+  // 로컬 개발 환경 (프로젝트 루트 기준)
+  candidates.push(path.join(process.cwd(), "artifacts", "api-server", "assets", "fonts", name));
+  candidates.push(path.join(process.cwd(), "assets", "fonts", name));
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
 }
 
 export function buildSajuReportHtml(title: string, result: Record<string, any>) {
@@ -86,7 +96,6 @@ export function buildSajuReportPreview(result: Record<string, any>) {
 }
 
 export async function generateSajuReportPdf(title: string, result: Record<string, any>) {
-  const fontPath = getFontPath();
   const doc = new PDFDocument({
     size: "A4",
     margin: 50,
@@ -97,7 +106,8 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     },
   });
 
-  if (fs.existsSync(fontPath)) {
+  const fontPath = getFontPath();
+  if (fontPath) {
     doc.registerFont("nanum", fontPath);
     doc.font("nanum");
   }

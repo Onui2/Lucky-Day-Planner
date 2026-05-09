@@ -1,7 +1,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as esbuild } from "esbuild";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, copyFile, mkdir } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -97,6 +97,13 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  // 한글 폰트를 Vercel 번들 옆에 복사 (런타임에 import.meta.url 기준으로 로드)
+  const fontSrc = path.resolve(__dirname, "assets", "fonts", "NanumGothic-Regular.ttf");
+  const fontDestDir = path.resolve(__dirname, "..", "saju-web", "api", "fonts");
+  await mkdir(fontDestDir, { recursive: true });
+  await copyFile(fontSrc, path.join(fontDestDir, "NanumGothic-Regular.ttf"));
+  console.log("font copied to vercel api/fonts/");
 }
 
 buildAll().catch((err) => {
