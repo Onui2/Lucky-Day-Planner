@@ -106,7 +106,7 @@ router.post("/ai/questions", async (req, res) => {
       gender: birthInfo.gender,
       calendarType: birthInfo.calendarType,
     });
-    const answer = buildSajuQuestionAnswer(
+    const answer = await buildSajuQuestionAnswer(
       question,
       sajuResult as Record<string, any>,
     );

@@ -1,90 +1,99 @@
-import type { ReportBirthInfo } from "@workspace/db";
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 function oneLine(value: unknown) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }
 
-function pickFocus(question: string) {
-  const normalized = question.toLowerCase();
-  if (/연애|궁합|결혼|사랑/.test(normalized)) return "love";
-  if (/돈|재물|수입|투자|매출/.test(normalized)) return "money";
-  if (/직업|이직|사업|커리어|회사|취업/.test(normalized)) return "career";
-  if (/건강|몸|컨디션|질병/.test(normalized)) return "health";
-  return "general";
-}
-
-function safeJoin(parts: string[]) {
-  return parts.filter(Boolean).join(" ");
-}
-
-function formatBirthInfo(birthInfo?: Partial<ReportBirthInfo> | null) {
-  if (!birthInfo?.year || !birthInfo?.month || !birthInfo?.day) {
-    return "";
-  }
-
-  return `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일`;
-}
-
-export function buildSajuQuestionAnswer(
-  question: string,
-  result: Record<string, any>,
-) {
-  const focus = pickFocus(question);
-  const title = formatBirthInfo(result.birthInfo);
-  const yongsinAdvice = oneLine(result.yongsin?.advice);
-  const samjaeAdvice = oneLine(result.samjae?.advice);
-  const generalFortune = oneLine(result.fortune);
-  const career = oneLine(result.career);
-  const love = oneLine(result.love);
-  const health = oneLine(result.health);
-  const personality = oneLine(result.personality);
-  const careful = Array.isArray(result.carefulThings)
-    ? result.carefulThings
-        .map((item) => oneLine(item))
-        .filter(Boolean)
-        .slice(0, 2)
-        .join(", ")
+function buildSajuContext(result: Record<string, any>): string {
+  const bi = result.birthInfo ?? {};
+  const birth = bi.year
+    ? `${bi.year}년 ${bi.month}월 ${bi.day}일 ${bi.hour >= 0 ? bi.hour + "시" : "시간미상"} ${bi.gender === "male" ? "남성" : "여성"}`
     : "";
 
-  let lead = `${title ? `${title} 기준으로 보면 ` : ""}${question.trim()}에 대한 흐름은 `;
-  let body = "";
+  const year = result.yearPillar ?? {};
+  const month = result.monthPillar ?? {};
+  const day = result.dayPillar ?? {};
+  const hour = result.hourPillar ?? {};
 
-  if (focus === "career") {
-    body = safeJoin([
-      career || generalFortune,
-      yongsinAdvice ? `실무적으로는 ${yongsinAdvice}` : "",
-      careful ? `특히 ${careful} 같은 조급한 선택은 한 번 더 점검하는 편이 좋습니다.` : "",
-    ]);
-  } else if (focus === "love") {
-    body = safeJoin([
-      love || personality,
-      yongsinAdvice ? `관계에서는 ${yongsinAdvice}` : "",
-      careful ? `감정이 급해질 때는 ${careful} 흐름을 조심하세요.` : "",
-    ]);
-  } else if (focus === "health") {
-    body = safeJoin([
-      health || personality,
-      careful ? `생활 리듬에서는 ${careful}를 줄이는 쪽이 안정적입니다.` : "",
-      samjaeAdvice ? `또한 ${samjaeAdvice}` : "",
-    ]);
-  } else if (focus === "money") {
-    body = safeJoin([
-      generalFortune || career,
-      yongsinAdvice ? `금전 판단은 ${yongsinAdvice}` : "",
-      careful ? `충동성으로 이어질 수 있는 ${careful}는 피하는 편이 좋습니다.` : "",
-    ]);
-  } else {
-    body = safeJoin([
-      generalFortune,
-      personality ? `기본 성향으로는 ${personality}` : "",
-      yongsinAdvice,
-      samjaeAdvice,
-    ]);
+  const pillars = [
+    `년주: ${year.heavenlyStem ?? ""}${year.earthlyBranch ?? ""} (${year.heavenlyStemElement ?? ""}/${year.earthlyBranchElement ?? ""})`,
+    `월주: ${month.heavenlyStem ?? ""}${month.earthlyBranch ?? ""} (${month.heavenlyStemElement ?? ""}/${month.earthlyBranchElement ?? ""})`,
+    `일주: ${day.heavenlyStem ?? ""}${day.earthlyBranch ?? ""} (${day.heavenlyStemElement ?? ""}/${day.earthlyBranchElement ?? ""})`,
+    hour.heavenlyStem
+      ? `시주: ${hour.heavenlyStem}${hour.earthlyBranch} (${hour.heavenlyStemElement}/${hour.earthlyBranchElement})`
+      : "",
+  ].filter(Boolean).join("\n");
+
+  const balance = result.elementBalance
+    ? Object.entries(result.elementBalance as Record<string, number>)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(" ")
+    : "";
+
+  const daeun = Array.isArray(result.daeun?.periods)
+    ? result.daeun.periods
+        .slice(0, 4)
+        .map((p: any) => `${p.stem}${p.branch}(${p.startAge}~${p.endAge}세)`)
+        .join(" → ")
+    : "";
+
+  const lines = [
+    birth ? `## 기본 정보\n${birth}` : "",
+    pillars ? `## 사주팔자\n${pillars}` : "",
+    balance ? `## 오행 분포\n${balance}` : "",
+    result.dayMasterElement ? `## 일간 오행: ${result.dayMasterElement}` : "",
+    result.sinGangYak?.label ? `## 신강/신약: ${result.sinGangYak.label}` : "",
+    result.yongsin?.yongsin ? `## 용신: ${result.yongsin.yongsin}` : "",
+    result.samjae?.isSamjae ? `## 삼재: ${result.samjae.advice ?? "해당"}` : "",
+    daeun ? `## 대운 흐름\n${daeun}` : "",
+    result.personality ? `## 성격/기질\n${oneLine(result.personality).slice(0, 200)}` : "",
+    result.fortune ? `## 종합 운세\n${oneLine(result.fortune).slice(0, 200)}` : "",
+    result.career ? `## 직업운\n${oneLine(result.career).slice(0, 150)}` : "",
+    result.love ? `## 애정운\n${oneLine(result.love).slice(0, 150)}` : "",
+    result.health ? `## 건강운\n${oneLine(result.health).slice(0, 150)}` : "",
+  ].filter(Boolean).join("\n\n");
+
+  return lines;
+}
+
+export async function buildSajuQuestionAnswer(
+  question: string,
+  result: Record<string, any>,
+): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("AI 서비스가 설정되지 않았습니다.");
   }
 
-  if (!body) {
-    body = "현재 흐름은 한쪽으로 단정하기보다 강점과 주의 지점을 함께 보면서 움직이는 편이 좋습니다.";
+  const sajuContext = buildSajuContext(result);
+
+  const systemPrompt = `당신은 명해원(命海苑)의 사주 전문 AI 상담사입니다.
+사용자의 사주팔자 분석 결과를 바탕으로 질문에 구체적이고 실용적으로 답변합니다.
+
+답변 원칙:
+- 사주 데이터에 근거한 구체적인 해석을 제공합니다
+- 일간 오행, 용신, 대운 흐름을 질문과 연결해서 설명합니다
+- 전문 용어는 간단히 풀어서 설명합니다
+- 300~500자 내외로 핵심만 전달합니다
+- 마지막에 항상 한 줄 참고 안내를 추가합니다: "※ 본 답변은 사주 해석 기반의 참고 정보이며, 중요한 결정은 전문가와 상담하세요."
+
+아래는 이 사용자의 사주 분석 데이터입니다:
+
+${sajuContext}`;
+
+  const message = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 800,
+    system: systemPrompt,
+    messages: [{ role: "user", content: question }],
+  });
+
+  const content = message.content[0];
+  if (content.type !== "text") {
+    throw new Error("AI 응답 형식 오류");
   }
 
-  return `${lead}${body}\n\n참고용 안내: 명해원 답변은 사주 해석 기반의 참고 콘텐츠이며, 의료·법률·투자·진로·결혼 등의 최종 판단을 대신하지 않습니다.`;
+  return content.text;
 }
