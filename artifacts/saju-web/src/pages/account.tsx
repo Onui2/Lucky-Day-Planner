@@ -7,6 +7,10 @@ import {
   useUpdateAccountName,
   useChangePassword,
   useDeleteAccount,
+  useGetMyReports,
+  useGetMyOrders,
+  useRegenerateReport,
+  downloadReportFile,
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +76,9 @@ export default function AccountPage() {
   const updateName = useUpdateAccountName();
   const changePassword = useChangePassword();
   const deleteAccount = useDeleteAccount();
+  const { data: reportsData } = useGetMyReports(isAuthenticated);
+  const { data: ordersData } = useGetMyOrders(isAuthenticated);
+  const regenerateReport = useRegenerateReport();
 
   const [name, setName] = useState("");
   const [nameMsg, setNameMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -211,6 +218,141 @@ export default function AccountPage() {
             <p className={`text-sm font-medium ${account?.role === "superadmin" ? "text-amber-400" : account?.role === "admin" ? "text-primary" : "text-foreground"}`}>
               {account?.role === "superadmin" ? "최고관리자" : account?.role === "admin" ? "관리자" : "일반 회원"}
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+        <div className="glass-panel rounded-2xl border border-primary/15 p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg font-serif text-primary">내 리포트</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                구매한 정밀 리포트를 다시 다운로드하거나 재생성할 수 있습니다.
+              </p>
+            </div>
+            <Sparkles className="w-5 h-5 text-primary/70 shrink-0" />
+          </div>
+
+          <div className="space-y-3">
+            {(reportsData?.reports ?? []).slice(0, 3).map((report) => (
+              <div
+                key={report.id}
+                className="rounded-2xl border border-white/10 bg-white/5 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-foreground">
+                      {report.title}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {report.status === "ready"
+                        ? "다운로드 가능"
+                        : report.status === "failed"
+                          ? "생성 실패"
+                          : "생성 대기 중"}
+                    </div>
+                  </div>
+                  <div
+                    className={`px-2 py-1 rounded-full text-[11px] border ${
+                      report.status === "ready"
+                        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                        : report.status === "failed"
+                          ? "border-destructive/30 bg-destructive/10 text-destructive"
+                          : "border-amber-400/30 bg-amber-400/10 text-amber-300"
+                    }`}
+                  >
+                    {report.status}
+                  </div>
+                </div>
+
+                {report.previewText && (
+                  <div className="mt-2 text-xs leading-6 text-muted-foreground">
+                    {report.previewText}
+                  </div>
+                )}
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {report.status === "ready" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        downloadReportFile(
+                          report.id,
+                          report.fileName ?? report.title,
+                        )
+                      }
+                    >
+                      PDF 다운로드
+                    </Button>
+                  )}
+                  {report.status === "failed" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => regenerateReport.mutate(report.id)}
+                      disabled={regenerateReport.isPending}
+                    >
+                      {regenerateReport.isPending ? "재생성 중..." : "다시 생성"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {(reportsData?.reports?.length ?? 0) === 0 && (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+                아직 구매한 리포트가 없습니다. 사주 결과 화면에서 정밀 리포트를 구매해보세요.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="glass-panel rounded-2xl border border-primary/15 p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg font-serif text-primary">최근 주문</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                결제 상태와 연결된 리포트 진행 상황을 확인할 수 있습니다.
+              </p>
+            </div>
+            <History className="w-5 h-5 text-primary/70 shrink-0" />
+          </div>
+
+          <div className="space-y-3">
+            {(ordersData?.orders ?? []).slice(0, 4).map((order) => (
+              <div
+                key={order.orderId}
+                className="rounded-2xl border border-white/10 bg-white/5 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-foreground">
+                      {order.reportTitle ?? order.productType}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      주문번호 {order.orderId}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold text-foreground">
+                      {order.amount.toLocaleString("ko-KR")}원
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {order.status}
+                      {order.reportStatus ? ` · 리포트 ${order.reportStatus}` : ""}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {(ordersData?.orders?.length ?? 0) === 0 && (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+                아직 생성된 주문이 없습니다.
+              </div>
+            )}
           </div>
         </div>
       </div>

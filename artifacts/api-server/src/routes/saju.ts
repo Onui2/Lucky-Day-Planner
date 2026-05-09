@@ -1,36 +1,8 @@
 import { Router } from "express";
 import {
-  getSajuYear,
-  getYearPillar,
-  getMonthPillar,
-  getDayPillar,
-  getHourPillar,
-  countElements,
-  getElementStats,
-  getPersonality,
-  getFortuneText,
-  getCareerText,
-  getLoveText,
-  getHealthText,
-  getLuckyNumbers,
-  getLuckyColors,
-  getLuckyDirections,
-  getDaeun,
-  getSeun,
-  getYongsin,
-  getSinGangYak,
-  getCarefulThings,
   calculateGungap,
-  getSamjae,
-  getYongsinItems,
-  getPillarScore,
-  getDayPillarScore,
-  ZODIAC_KR,
-  getGeokguk,
-  getShinsal,
-  getHapChung,
-  getPillarTenGods,
 } from "../lib/saju-calculator.js";
+import { buildSajuResult } from "../lib/saju-result.js";
 
 const router = Router();
 
@@ -46,114 +18,15 @@ router.post("/saju/calculate", (req, res) => {
       return res.status(400).json({ error: "필수 입력 값이 누락되었습니다." });
     }
 
-    const year  = Number(birthYear);
-    const month = Number(birthMonth);
-    const day   = Number(birthDay);
-    const hour  = birthHour === -1 ? -1 : Number(birthHour);
-    const minute = hour === -1 ? 0 : Number(birthMinute);
-
-    // 입춘 시각 기준으로 정확한 사주 연도 계산 (입춘 전 출생자는 전년도 간지)
-    const sajuYearNum = getSajuYear(year, month, day, hour);
-    const yearPillar  = getYearPillar(sajuYearNum);
-    const monthPillar = getMonthPillar(year, month, day, hour);
-    const dayPillar   = getDayPillar(year, month, day);
-    const hourPillar  = hour >= 0 ? getHourPillar(dayPillar.stemIndex, hour) : null;
-
-    const pillars = [yearPillar, monthPillar, dayPillar];
-    if (hourPillar) pillars.push(hourPillar);
-
-    const elementBalance = countElements(pillars);
-    const { dominant, lacking } = getElementStats(elementBalance);
-    const dayElement = dayPillar.stemElement;
-
-    const makePillarResponse = (p: typeof yearPillar | null) => {
-      if (!p) return {
-        heavenlyStem: "?", earthlyBranch: "?",
-        heavenlyStemElement: "?", earthlyBranchElement: "?",
-        heavenlyStemKorean: "?", earthlyBranchKorean: "?",
-        zodiac: "시간 미입력", stemIndex: -1, branchIndex: -1
-      };
-      return {
-        heavenlyStem: p.stem, earthlyBranch: p.branch,
-        heavenlyStemElement: p.stemElement, earthlyBranchElement: p.branchElement,
-        heavenlyStemKorean: p.stem, earthlyBranchKorean: p.branch,
-        zodiac: p.zodiac, stemIndex: p.stemIndex, branchIndex: p.branchIndex
-      };
-    };
-
-    const result = {
-      birthInfo: { year, month, day, hour, minute, gender, calendarType },
-      yearPillar:  makePillarResponse(yearPillar),
-      monthPillar: makePillarResponse(monthPillar),
-      dayPillar:   makePillarResponse(dayPillar),
-      hourPillar:  makePillarResponse(hourPillar),
-      elementBalance,
-      dominantElement: dominant,
-      lackingElement:  lacking,
-      dayMasterElement: dayElement,
-      dayMasterStem:    dayPillar.stem,
-      personality: getPersonality(
-        dayPillar.stem,
-        dayPillar.branch,
-        dayElement,
-        dayPillar.branchElement,
-        dominant,
-      ),
-      fortune: getFortuneText(
-        dayPillar.stem,
-        dayPillar.branch,
-        dayElement,
-        dayPillar.branchElement,
-      ),
-      career: getCareerText(
-        dayPillar.stem,
-        dayPillar.branch,
-        dayElement,
-        dayPillar.branchElement,
-      ),
-      love: getLoveText(
-        dayPillar.stem,
-        dayPillar.branch,
-        dayElement,
-        dayPillar.branchElement,
-      ),
-      health: getHealthText(
-        dayPillar.stem,
-        dayPillar.branch,
-        dayElement,
-        dayPillar.branchElement,
-      ),
-      luckyNumbers:    getLuckyNumbers(dayPillar.stemIndex, dayPillar.branchIndex),
-      luckyColors:     getLuckyColors(dayElement, dayPillar.stem),
-      luckyDirections: getLuckyDirections(dayElement, dayPillar.stem),
-      zodiac:      yearPillar.zodiac,
-      // 신규 기능
-      daeun:       getDaeun(year, month, day, gender as 'male' | 'female', yearPillar, monthPillar),
-      seun:        getSeun(year, 30),
-      yongsin:     getYongsin(elementBalance, dayElement),
-      sinGangYak:  getSinGangYak(yearPillar, monthPillar, dayPillar, hourPillar),
-      carefulThings: getCarefulThings(dayPillar, monthPillar, yearPillar, elementBalance),
-      samjae:      getSamjae(yearPillar.branchIndex, new Date().getFullYear()),
-      yongsinItems: getYongsinItems(getYongsin(elementBalance, dayElement).yongsin),
-      pillarScores: (() => {
-        const { yongsin: y, heegsin: h, geesin: g } = getYongsin(elementBalance, dayElement);
-        return {
-          year:  getPillarScore(yearPillar.stemElement,  yearPillar.branchElement,  y, h, g),
-          month: getPillarScore(monthPillar.stemElement, monthPillar.branchElement, y, h, g),
-          day:   getPillarScore(dayPillar.stemElement,   dayPillar.branchElement,   y, h, g),
-          hour:  hourPillar ? getPillarScore(hourPillar.stemElement, hourPillar.branchElement, y, h, g) : null,
-        };
-      })(),
-      dayPillarScore: (() => {
-        const { yongsin: y, heegsin: h, geesin: g } = getYongsin(elementBalance, dayElement);
-        return getDayPillarScore(dayPillar.stemElement, dayPillar.branchElement, y, h, g, elementBalance);
-      })(),
-      // ── 고급 분석 ──
-      geokguk:    getGeokguk(dayPillar.stem, { branch: dayPillar.branch }, elementBalance),
-      shinsal:    getShinsal(yearPillar, monthPillar, dayPillar, hourPillar, dayPillar.stem),
-      hapChung:   getHapChung(yearPillar, monthPillar, dayPillar, hourPillar),
-      pillarTenGods: getPillarTenGods(dayPillar.stem, yearPillar, monthPillar, dayPillar, hourPillar),
-    };
+    const result = buildSajuResult({
+      birthYear: Number(birthYear),
+      birthMonth: Number(birthMonth),
+      birthDay: Number(birthDay),
+      birthHour,
+      birthMinute,
+      gender,
+      calendarType,
+    });
 
     return res.json(result);
   } catch (error) {

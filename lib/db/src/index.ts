@@ -375,6 +375,128 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`UPDATE announcements SET is_pinned = false WHERE is_pinned IS NULL`);
         await client.query(`CREATE INDEX IF NOT EXISTS announcements_active_pinned_idx ON announcements (is_active, is_pinned)`);
 
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS analysis_snapshots (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            kind varchar(30) NOT NULL DEFAULT 'saju',
+            title varchar(120) NOT NULL DEFAULT '사주 분석',
+            birth_info jsonb NOT NULL,
+            saju_result jsonb NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS analysis_snapshots_user_created_idx ON analysis_snapshots (user_id, created_at DESC)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS analysis_snapshots_kind_created_idx ON analysis_snapshots (kind, created_at DESC)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS orders (
+            id serial PRIMARY KEY,
+            order_id varchar(80) NOT NULL UNIQUE,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            product_type varchar(40) NOT NULL,
+            status varchar(20) NOT NULL DEFAULT 'pending',
+            currency varchar(10) NOT NULL DEFAULT 'KRW',
+            amount integer NOT NULL,
+            snapshot_id integer REFERENCES analysis_snapshots(id) ON DELETE SET NULL,
+            metadata jsonb,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS orders_user_created_idx ON orders (user_id, created_at DESC)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS orders_status_created_idx ON orders (status, created_at DESC)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS payments (
+            id serial PRIMARY KEY,
+            order_id integer NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+            provider varchar(20) NOT NULL DEFAULT 'toss',
+            payment_key varchar(200) UNIQUE,
+            method varchar(40),
+            status varchar(20) NOT NULL DEFAULT 'ready',
+            amount integer NOT NULL,
+            raw_response jsonb,
+            approved_at timestamptz,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS payments_status_created_idx ON payments (status, created_at DESC)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS purchase_entitlements (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            order_id integer NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+            product_type varchar(40) NOT NULL,
+            resource_type varchar(40) NOT NULL,
+            resource_id integer,
+            status varchar(20) NOT NULL DEFAULT 'active',
+            expires_at timestamptz,
+            created_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS purchase_entitlements_order_product_uidx ON purchase_entitlements (order_id, product_type)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS purchase_entitlements_user_status_idx ON purchase_entitlements (user_id, status)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS pdf_reports (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            order_id integer NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+            snapshot_id integer NOT NULL REFERENCES analysis_snapshots(id) ON DELETE CASCADE,
+            product_type varchar(40) NOT NULL DEFAULT 'saju_pdf',
+            title varchar(160) NOT NULL,
+            status varchar(20) NOT NULL DEFAULT 'pending',
+            format varchar(20) NOT NULL DEFAULT 'pdf',
+            preview_text text,
+            html_content text,
+            file_name varchar(200),
+            mime_type varchar(120) NOT NULL DEFAULT 'application/pdf',
+            file_data_base64 text,
+            failed_reason text,
+            generated_at timestamptz,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS pdf_reports_user_status_idx ON pdf_reports (user_id, status)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS pdf_reports_snapshot_idx ON pdf_reports (snapshot_id)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS user_subscriptions (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            plan_code varchar(30) NOT NULL,
+            status varchar(20) NOT NULL DEFAULT 'active',
+            current_period_start timestamptz NOT NULL,
+            current_period_end timestamptz NOT NULL,
+            cancel_at_period_end boolean NOT NULL DEFAULT false,
+            metadata jsonb,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS user_subscriptions_user_status_idx ON user_subscriptions (user_id, status)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS user_subscriptions_period_end_idx ON user_subscriptions (current_period_end)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS ai_questions (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            subscription_plan_code varchar(30),
+            monthly_bucket varchar(7) NOT NULL,
+            question text NOT NULL,
+            answer text NOT NULL,
+            birth_info jsonb,
+            saju_result jsonb,
+            created_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_user_bucket_idx ON ai_questions (user_id, monthly_bucket)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_user_created_idx ON ai_questions (user_id, created_at DESC)`);
+
         databaseReady = true;
         lastDatabaseError = null;
       } finally {

@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
+import { ReportPurchaseCard } from "@/components/ReportPurchaseCard";
+import { AiQuestionCard } from "@/components/AiQuestionCard";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
 import {
   clampBirthDayValue,
@@ -1056,6 +1058,15 @@ export default function SajuPage() {
   const currentAge = r?.birthInfo
     ? getCurrentAge(r.birthInfo.year, r.birthInfo.month, r.birthInfo.day)
     : null;
+  const monetizationBirthInfo = {
+    year: Number(bi.year),
+    month: Number(bi.month),
+    day: Number(bi.day),
+    hour: Number(bi.hour ?? -1),
+    minute: Number(bi.minute ?? 0),
+    gender: (bi.gender === "female" ? "female" : "male") as "male" | "female",
+    calendarType: (bi.calendarType === "lunar" ? "lunar" : "solar") as "solar" | "lunar",
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -1136,6 +1147,17 @@ export default function SajuPage() {
               <ArrowLeft className="w-4 h-4 mr-2" /> 다시 분석
             </Button>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-8">
+          <ReportPurchaseCard
+            birthInfo={monetizationBirthInfo}
+            isAuthenticated={isAuthenticated}
+          />
+          <AiQuestionCard
+            birthInfo={monetizationBirthInfo}
+            isAuthenticated={isAuthenticated}
+          />
         </div>
 
         {/* 섹션 토글 버튼 */}

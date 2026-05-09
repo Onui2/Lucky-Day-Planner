@@ -18,6 +18,9 @@ import daeunMonthlyRouter from "./daeun-monthly.js";
 import memberDataRouter from "./member-data.js";
 import luckyDayBookmarksRouter from "./lucky-day-bookmarks.js";
 import announcementsRouter from "./announcements.js";
+import commerceRouter from "./commerce.js";
+import reportsRouter from "./reports.js";
+import aiRouter from "./ai.js";
 
 const router = Router();
 
@@ -40,5 +43,8 @@ router.use(daeunMonthlyRouter);
 router.use(memberDataRouter);
 router.use(luckyDayBookmarksRouter);
 router.use(announcementsRouter);
+router.use(commerceRouter);
+router.use(reportsRouter);
+router.use(aiRouter);
 
 export default router;

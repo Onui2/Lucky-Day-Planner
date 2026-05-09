@@ -991,6 +991,223 @@ export function useDeleteAccount() {
   });
 }
 
+// ─── 결제 / 리포트 / AI 질문 ───────────────────────────────────────────────
+
+export interface MonetizationBirthInfo {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute?: number;
+  gender: "male" | "female";
+  calendarType: "solar" | "lunar";
+}
+
+export interface CommerceProduct {
+  type: string;
+  title: string;
+  amount: number;
+  description: string;
+}
+
+export interface CommerceOrderSummary {
+  id: number;
+  orderId: string;
+  status: string;
+  amount: number;
+  currency: string;
+}
+
+export interface ReportSummary {
+  id: number;
+  title: string;
+  status: string;
+  productType: string;
+  previewText?: string | null;
+  fileName?: string | null;
+  generatedAt?: string | null;
+  createdAt: string;
+}
+
+export interface OrderListItem {
+  id: number;
+  orderId: string;
+  productType: string;
+  status: string;
+  amount: number;
+  currency: string;
+  createdAt: string;
+  reportId?: number | null;
+  reportStatus?: string | null;
+  reportTitle?: string | null;
+}
+
+export interface CreateCommerceOrderResponse {
+  product: CommerceProduct;
+  checkoutMode: "dev" | "provider";
+  order: CommerceOrderSummary;
+  report: {
+    id: number;
+    status: string;
+    title: string;
+  };
+}
+
+export interface ConfirmCommercePaymentResponse {
+  order: CommerceOrderSummary;
+  report: ReportSummary & {
+    fileDataBase64?: string | null;
+    failedReason?: string | null;
+  };
+  payment?: {
+    provider: string;
+    method: string;
+    approvedAt: string | Date;
+  };
+  alreadyPaid?: boolean;
+}
+
+export interface AiQuestionItem {
+  id: number;
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
+export interface AiQuestionsResponse {
+  planCode?: string | null;
+  limit: number;
+  used: number;
+  remaining: number;
+  monthlyBucket: string;
+  questions: AiQuestionItem[];
+}
+
+const ORDERS_KEY = ["commerce", "orders"] as const;
+const REPORTS_KEY = ["reports"] as const;
+const AI_QUESTIONS_KEY = ["ai", "questions"] as const;
+
+export function useGetMyOrders(enabled = true) {
+  return useQuery<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" }>({
+    queryKey: ORDERS_KEY,
+    queryFn: () =>
+      customFetch<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" }>(
+        "/api/commerce/orders",
+      ),
+    staleTime: 30_000,
+    retry: false,
+    enabled,
+  });
+}
+
+export function useGetMyReports(enabled = true) {
+  return useQuery<{ reports: ReportSummary[] }>({
+    queryKey: REPORTS_KEY,
+    queryFn: () => customFetch<{ reports: ReportSummary[] }>("/api/reports"),
+    staleTime: 30_000,
+    retry: false,
+    enabled,
+  });
+}
+
+export function useCreateCommerceOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      productType: string;
+      birthInfo: MonetizationBirthInfo;
+      label?: string;
+    }) =>
+      customFetch<CreateCommerceOrderResponse>("/api/commerce/orders", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ORDERS_KEY });
+      qc.invalidateQueries({ queryKey: REPORTS_KEY });
+    },
+  });
+}
+
+export function useConfirmCommercePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { orderId: string; paymentKey?: string }) =>
+      customFetch<ConfirmCommercePaymentResponse>("/api/commerce/payments/confirm", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ORDERS_KEY });
+      qc.invalidateQueries({ queryKey: REPORTS_KEY });
+    },
+  });
+}
+
+export function useRegenerateReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reportId: number) =>
+      customFetch<{ report: ReportSummary }>(`/api/reports/${reportId}/regenerate`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: REPORTS_KEY });
+      qc.invalidateQueries({ queryKey: ORDERS_KEY });
+    },
+  });
+}
+
+export async function downloadReportFile(reportId: number, fallbackFileName?: string) {
+  const blob = await customFetch<Blob>(`/api/reports/${reportId}/download`, {
+    responseType: "blob",
+  });
+
+  if (typeof window === "undefined") {
+    return blob;
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fallbackFileName ?? `report-${reportId}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+  return blob;
+}
+
+export function useGetMyAiQuestions(enabled = true) {
+  return useQuery<AiQuestionsResponse>({
+    queryKey: AI_QUESTIONS_KEY,
+    queryFn: () => customFetch<AiQuestionsResponse>("/api/ai/questions"),
+    staleTime: 15_000,
+    retry: false,
+    enabled,
+  });
+}
+
+export function useAskSajuQuestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { question: string; birthInfo: MonetizationBirthInfo }) =>
+      customFetch<{
+        question: AiQuestionItem;
+        limit: number;
+        used: number;
+        remaining: number;
+        planCode?: string | null;
+      }>("/api/ai/questions", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: AI_QUESTIONS_KEY });
+    },
+  });
+}
+
 // ─── 연애운 ──────────────────────────────────────────────────
 
 export interface LoveFortuneResult {
