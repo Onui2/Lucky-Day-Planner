@@ -65,7 +65,8 @@ export function getCheckoutMode() {
 }
 
 export function isDevelopmentPaymentMode() {
-  return !process.env.TOSS_SECRET_KEY && process.env.NODE_ENV !== "production";
+  // Toss 키 없으면 항상 dev 시뮬레이션 — NODE_ENV 무관
+  return !process.env.TOSS_SECRET_KEY;
 }
 
 export function getPlanQuestionLimit(planCode?: string | null): number {

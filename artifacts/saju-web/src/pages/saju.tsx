@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCalculateSaju, useSaveSaju, useGetSavedSaju, useSubmitInquiry } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -233,27 +233,25 @@ export default function SajuPage() {
     if (!resultRef.current || savingImage) return;
     setSavingImage(true);
     try {
-      const canvas = await html2canvas(resultRef.current, {
+      const dataUrl = await toPng(resultRef.current, {
         backgroundColor: "#0d0d1a",
-        scale: 1,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
+        pixelRatio: 1.5,
+        skipFonts: false,
+        // 배경 오버레이·블렌드 레이어는 캡처 제외
+        filter: (node) => {
+          if (node instanceof HTMLElement) {
+            if (node.classList.contains("bg-layout-pattern")) return false;
+            if (node.classList.contains("fixed") && node.style.zIndex === "-1" ) return false;
+          }
+          return true;
+        },
       });
-      await new Promise<void>((resolve, reject) => {
-        canvas.toBlob((blob) => {
-          if (!blob) { reject(new Error("blob null")); return; }
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.download = "명해원_사주.png";
-          link.href = url;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-          resolve();
-        }, "image/png");
-      });
+      const link = document.createElement("a");
+      link.download = "명해원_사주.png";
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error("이미지 저장 실패:", err);
     } finally {
