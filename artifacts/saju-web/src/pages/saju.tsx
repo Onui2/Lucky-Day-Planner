@@ -1157,6 +1157,7 @@ export default function SajuPage() {
           <AiQuestionCard
             birthInfo={monetizationBirthInfo}
             isAuthenticated={isAuthenticated}
+            isAdmin={isAdmin}
           />
         </div>
 

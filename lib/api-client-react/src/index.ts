@@ -1080,6 +1080,7 @@ export interface AiQuestionsResponse {
   used: number;
   remaining: number;
   monthlyBucket: string;
+  unlimited?: boolean;
   questions: AiQuestionItem[];
 }
 
@@ -1198,6 +1199,7 @@ export function useAskSajuQuestion() {
         used: number;
         remaining: number;
         planCode?: string | null;
+        unlimited?: boolean;
       }>("/api/ai/questions", {
         method: "POST",
         body: JSON.stringify(body),

@@ -15,17 +15,22 @@ import { Loader2, MessageCircleQuestion, Send } from "lucide-react";
 interface AiQuestionCardProps {
   birthInfo: MonetizationBirthInfo;
   isAuthenticated: boolean;
+  isAdmin?: boolean;
 }
 
 export function AiQuestionCard({
   birthInfo,
   isAuthenticated,
+  isAdmin = false,
 }: AiQuestionCardProps) {
   const [question, setQuestion] = useState("");
   const [historyReady, setHistoryReady] = useState(!isAuthenticated);
   const queryClient = useQueryClient();
   const ask = useAskSajuQuestion();
   const { data, isLoading } = useGetMyAiQuestions(isAuthenticated);
+  const hasUnlimitedAccess = Boolean(
+    isAdmin || (data as { unlimited?: boolean } | undefined)?.unlimited,
+  );
 
   useEffect(() => {
     setQuestion("");
@@ -62,8 +67,13 @@ export function AiQuestionCard({
 
   const remainingLabel = useMemo(() => {
     if (!data) return "확인 중";
+    if (hasUnlimitedAccess) return "무제한";
     return `${data.remaining}/${data.limit}`;
-  }, [data]);
+  }, [data, hasUnlimitedAccess]);
+
+  const description = isAdmin
+    ? "현재 사주 결과를 바탕으로 추가 질문을 남길 수 있습니다. 관리자는 무제한으로 사용할 수 있습니다."
+    : "현재 사주 결과를 바탕으로 추가 질문을 남길 수 있습니다. 무료 회원은 월 3회까지 사용 가능합니다.";
 
   const questionHistory = useMemo(
     () =>
@@ -102,9 +112,7 @@ export function AiQuestionCard({
           <MessageCircleQuestion className="w-5 h-5" />
           AI 질문하기
         </CardTitle>
-        <CardDescription>
-          현재 사주 결과를 바탕으로 추가 질문을 남길 수 있습니다. 무료 회원은 월 3회까지 사용 가능합니다.
-        </CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!isAuthenticated ? (
@@ -119,7 +127,9 @@ export function AiQuestionCard({
         ) : (
           <>
             <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div className="text-sm text-foreground">이번 달 남은 질문</div>
+              <div className="text-sm text-foreground">
+                {isAdmin ? "이번 달 질문 가능 횟수" : "이번 달 남은 질문"}
+              </div>
               <div className="text-sm font-semibold text-violet-200">
                 {isLoading ? "불러오는 중..." : remainingLabel}
               </div>

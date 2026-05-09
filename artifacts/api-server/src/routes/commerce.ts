@@ -133,12 +133,13 @@ router.post("/commerce/orders", async (req, res) => {
         .where(eq(pdfReportsTable.id, payload.report.id))
         .returning();
 
-      return res.json({
+      res.json({
         product,
         checkoutMode: "admin",
         order: { id: payload.order.id, orderId: payload.order.orderId, status: "paid", amount: 0, currency: "KRW" },
         report: { id: updatedReport.id, status: updatedReport.status, title: updatedReport.title, fileName: updatedReport.fileName },
       });
+      return;
     }
 
     const payload = await db.transaction(async (tx) => {
@@ -201,9 +202,11 @@ router.post("/commerce/orders", async (req, res) => {
         title: payload.report.title,
       },
     });
+    return;
   } catch (error) {
     console.error("commerce order create error:", error);
     res.status(500).json({ error: "주문 생성에 실패했습니다." });
+    return;
   }
 });
 

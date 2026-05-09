@@ -10,6 +10,7 @@ import {
   parseBirthInfo,
 } from "../lib/commerce.js";
 import { requireDatabase } from "../lib/database-guard.js";
+import { isPrivilegedRole } from "../lib/date-access.js";
 import { buildSajuResult } from "../lib/saju-result.js";
 
 const router = Router();
@@ -23,13 +24,14 @@ function requireAuth(req: Request, res: Response): req is Request & { user: Expr
   return true;
 }
 
-async function getUsageSummary(userId: string) {
+async function getUsageSummary(userId: string, role?: string | null) {
   const subscription = await getActiveSubscription(userId);
   const planCode = subscription?.planCode ?? null;
-  const limit = getPlanQuestionLimit(planCode);
+  const unlimited = isPrivilegedRole(role);
+  const limit = unlimited ? 0 : getPlanQuestionLimit(planCode);
   const monthlyBucket = getMonthlyBucket();
   const used = await getMonthlyQuestionUsage(userId, monthlyBucket);
-  const remaining = Math.max(0, limit - used);
+  const remaining = unlimited ? 0 : Math.max(0, limit - used);
 
   return {
     planCode,
@@ -37,6 +39,7 @@ async function getUsageSummary(userId: string) {
     used,
     remaining,
     monthlyBucket,
+    unlimited,
   };
 }
 
@@ -45,7 +48,7 @@ router.get("/ai/questions", async (req, res) => {
   if (!(await requireDatabase(res))) return;
 
   try {
-    const usage = await getUsageSummary(req.user.id);
+    const usage = await getUsageSummary(req.user.id, req.user.role);
     const questions = await db
       .select({
         id: aiQuestionsTable.id,
@@ -88,8 +91,8 @@ router.post("/ai/questions", async (req, res) => {
   }
 
   try {
-    const usage = await getUsageSummary(req.user.id);
-    if (usage.used >= usage.limit) {
+    const usage = await getUsageSummary(req.user.id, req.user.role);
+    if (!usage.unlimited && usage.used >= usage.limit) {
       res.status(403).json({
         error: "이번 달 질문 가능 횟수를 모두 사용했습니다.",
         ...usage,
@@ -128,8 +131,9 @@ router.post("/ai/questions", async (req, res) => {
       question: saved,
       limit: usage.limit,
       used: usage.used + 1,
-      remaining: Math.max(0, usage.limit - usage.used - 1),
+      remaining: usage.unlimited ? 0 : Math.max(0, usage.limit - usage.used - 1),
       planCode: usage.planCode,
+      unlimited: usage.unlimited,
     });
   } catch (error) {
     console.error("ai question create error:", error);
