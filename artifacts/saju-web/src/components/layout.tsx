@@ -336,15 +336,6 @@ export function Layout({ children }: LayoutProps) {
           contentVisibility: "auto",
         }}
       />
-      {/* 배경 이미지를 비동기 로드 — LCP 블로킹 방지 */}
-      <link
-        rel="preload"
-        as="image"
-        href={`${import.meta.env.BASE_URL}images/mystical-bg.png`}
-        // @ts-ignore fetchpriority
-        fetchpriority="low"
-      />
-
       <header className="sticky top-0 z-50 w-full border-b border-primary/10 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40">
         <div className="container mx-auto px-4 h-16 md:h-20 flex items-center justify-between">
           {/* 로고 */}

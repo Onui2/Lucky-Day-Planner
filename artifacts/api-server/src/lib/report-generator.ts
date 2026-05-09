@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
+// @ts-ignore — esbuild base64 loader inlines font at build time
+import nanumGothicBase64 from "../../assets/fonts/NanumGothic-Regular.ttf";
 
 const FONT_FILE_NAME = "NanumGothic-Regular.ttf";
 
@@ -68,6 +71,17 @@ function getFontCandidates() {
 }
 
 function getFontBuffer(): Buffer {
+  // esbuild base64 loader로 번들에 임베드된 경우 (Vercel 최우선)
+  if (typeof nanumGothicBase64 === "string" && nanumGothicBase64.length > 100) {
+    return Buffer.from(nanumGothicBase64, "base64");
+  }
+  // 로컬 개발: import.meta.url 기준
+  try {
+    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+    const p = path.join(moduleDir, "fonts", FONT_FILE_NAME);
+    if (fs.existsSync(p)) return fs.readFileSync(p);
+  } catch {}
+  // 마지막 fallback: process.cwd() 기반 다중 경로
   for (const p of getFontCandidates()) {
     if (fs.existsSync(p)) return fs.readFileSync(p);
   }
