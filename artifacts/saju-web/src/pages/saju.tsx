@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
-import { ReportPurchaseCard } from "@/components/ReportPurchaseCard";
-import { AiQuestionCard } from "@/components/AiQuestionCard";
+import { ReportPurchaseButton } from "@/components/ReportPurchaseButton";
+import { AiChatPanel } from "@/components/AiChatPanel";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
 import {
   clampBirthDayValue,
@@ -1149,12 +1149,14 @@ export default function SajuPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-8">
-          <ReportPurchaseCard
+        {/* 플로팅 액션 버튼 — 우하단 고정 */}
+        <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-2">
+          <AiChatPanel
             birthInfo={monetizationBirthInfo}
             isAuthenticated={isAuthenticated}
+            isAdmin={isAdmin}
           />
-          <AiQuestionCard
+          <ReportPurchaseButton
             birthInfo={monetizationBirthInfo}
             isAuthenticated={isAuthenticated}
             isAdmin={isAdmin}
