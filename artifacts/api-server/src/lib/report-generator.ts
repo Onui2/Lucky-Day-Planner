@@ -1,9 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
-// @ts-ignore — esbuild base64 loader inlines font at build time
-import nanumGothicBase64 from "../../assets/fonts/NanumGothic-Regular.ttf";
+
+const FONT_FILE_NAME = "NanumGothic-Regular.ttf";
 
 function escapeHtml(value: string) {
   return value
@@ -53,21 +52,28 @@ function pillarCardHtml(label: string, value: string) {
   `;
 }
 
+function getFontCandidates() {
+  const cwd = process.cwd();
+  return Array.from(
+    new Set([
+      path.join(cwd, "artifacts", "api-server", "assets", "fonts", FONT_FILE_NAME),
+      path.join(cwd, "artifacts", "api-server", "dist", "fonts", FONT_FILE_NAME),
+      path.join(cwd, "artifacts", "saju-web", "api", "fonts", FONT_FILE_NAME),
+      path.join(cwd, "assets", "fonts", FONT_FILE_NAME),
+      path.join(cwd, "dist", "fonts", FONT_FILE_NAME),
+      path.join(cwd, "api", "fonts", FONT_FILE_NAME),
+      path.join(cwd, "fonts", FONT_FILE_NAME),
+    ]),
+  );
+}
+
 function getFontBuffer(): Buffer {
-  // esbuild base64 loader로 번들에 임베드된 경우 (Vercel)
-  if (typeof nanumGothicBase64 === "string" && nanumGothicBase64.length > 100) {
-    return Buffer.from(nanumGothicBase64, "base64");
-  }
-  // 로컬 개발 환경 — 파일 시스템에서 읽기
-  const candidates = [
-    path.join(path.dirname(fileURLToPath(import.meta.url)), "fonts", "NanumGothic-Regular.ttf"),
-    path.join(process.cwd(), "artifacts", "api-server", "assets", "fonts", "NanumGothic-Regular.ttf"),
-    path.join(process.cwd(), "assets", "fonts", "NanumGothic-Regular.ttf"),
-  ];
-  for (const p of candidates) {
+  for (const p of getFontCandidates()) {
     if (fs.existsSync(p)) return fs.readFileSync(p);
   }
-  throw new Error("한글 폰트를 찾을 수 없습니다.");
+  throw new Error(
+    `한글 폰트를 찾을 수 없습니다. 확인한 경로: ${getFontCandidates().join(", ")}`,
+  );
 }
 
 export function buildSajuReportHtml(title: string, result: Record<string, any>) {
@@ -248,6 +254,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   const pageHeight = doc.page.height;
   const margin = 50;
   const contentWidth = pageWidth - margin * 2;
+  const footerTop = pageHeight - margin - 12;
 
   const drawPageChrome = () => {
     doc.save();
@@ -258,8 +265,8 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     doc.fillColor("#7d7364").fontSize(8.5).text(
       "하늘의 뜻을 읽어 내일을 준비하다",
       margin,
-      pageHeight - 28,
-      { width: contentWidth, align: "left" },
+      footerTop,
+      { width: contentWidth, align: "left", lineBreak: false },
     );
     doc.restore();
     doc.font("nanum").fillColor("#1f1722");

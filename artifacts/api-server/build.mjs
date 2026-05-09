@@ -100,12 +100,15 @@ async function buildAll() {
     loader: { ".ttf": "base64" },
   });
 
-  // 한글 폰트를 Vercel 번들 옆에 복사 (런타임에 import.meta.url 기준으로 로드)
+  // 한글 폰트를 서버 번들/베르셀 번들 옆에 복사
   const fontSrc = path.resolve(__dirname, "assets", "fonts", "NanumGothic-Regular.ttf");
+  const distFontDir = path.resolve(distDir, "fonts");
   const fontDestDir = path.resolve(__dirname, "..", "saju-web", "api", "fonts");
+  await mkdir(distFontDir, { recursive: true });
   await mkdir(fontDestDir, { recursive: true });
+  await copyFile(fontSrc, path.join(distFontDir, "NanumGothic-Regular.ttf"));
   await copyFile(fontSrc, path.join(fontDestDir, "NanumGothic-Regular.ttf"));
-  console.log("font copied to vercel api/fonts/");
+  console.log("font copied to dist/fonts/ and vercel api/fonts/");
 }
 
 buildAll().catch((err) => {
