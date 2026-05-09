@@ -1,6 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 function oneLine(value: unknown) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
@@ -58,18 +56,7 @@ function buildSajuContext(result: Record<string, any>): string {
   return lines;
 }
 
-export async function buildSajuQuestionAnswer(
-  question: string,
-  result: Record<string, any>,
-): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("AI 서비스가 설정되지 않았습니다.");
-  }
-
-  const sajuContext = buildSajuContext(result);
-
-  const systemPrompt = `당신은 명해원(命海苑)의 사주 전문 AI 상담사입니다.
+const SYSTEM_PROMPT = `당신은 명해원(命海苑)의 사주 전문 AI 상담사입니다.
 사용자의 사주팔자 분석 결과를 바탕으로 질문에 구체적이고 실용적으로 답변합니다.
 
 답변 원칙:
@@ -77,23 +64,26 @@ export async function buildSajuQuestionAnswer(
 - 일간 오행, 용신, 대운 흐름을 질문과 연결해서 설명합니다
 - 전문 용어는 간단히 풀어서 설명합니다
 - 300~500자 내외로 핵심만 전달합니다
-- 마지막에 항상 한 줄 참고 안내를 추가합니다: "※ 본 답변은 사주 해석 기반의 참고 정보이며, 중요한 결정은 전문가와 상담하세요."
+- 마지막에 항상 한 줄 추가: "※ 본 답변은 사주 해석 기반의 참고 정보이며, 중요한 결정은 전문가와 상담하세요."`;
 
-아래는 이 사용자의 사주 분석 데이터입니다:
-
-${sajuContext}`;
-
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 800,
-    system: systemPrompt,
-    messages: [{ role: "user", content: question }],
-  });
-
-  const content = message.content[0];
-  if (content.type !== "text") {
-    throw new Error("AI 응답 형식 오류");
+export async function buildSajuQuestionAnswer(
+  question: string,
+  result: Record<string, any>,
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("AI 서비스가 설정되지 않았습니다.");
   }
 
-  return content.text;
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: SYSTEM_PROMPT,
+  });
+
+  const sajuContext = buildSajuContext(result);
+  const prompt = `아래는 이 사용자의 사주 분석 데이터입니다:\n\n${sajuContext}\n\n질문: ${question}`;
+
+  const response = await model.generateContent(prompt);
+  return response.response.text();
 }
