@@ -16,6 +16,7 @@ import {
   getProductConfig,
   parseBirthInfo,
 } from "../lib/commerce.js";
+import { isPrivilegedRole } from "../lib/date-access.js";
 import { generateSajuReportPdf } from "../lib/report-generator.js";
 import { buildSajuResult } from "../lib/saju-result.js";
 
@@ -82,7 +83,7 @@ router.post("/commerce/orders", async (req, res) => {
     return;
   }
 
-  const isAdmin = (req.user as any).role === "admin" || (req.user as any).role === "superadmin";
+  const hasAdminFreeAccess = isPrivilegedRole(req.user.role);
 
   try {
     const sajuResult = buildSajuResult({
@@ -100,7 +101,15 @@ router.post("/commerce/orders", async (req, res) => {
       `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 ${product.title}`;
 
     // 관리자는 결제 없이 즉시 PDF 생성
-    if (isAdmin) {
+    if (hasAdminFreeAccess) {
+      const generated = await generateSajuReportPdf(
+        title,
+        sajuResult as Record<string, any>,
+      ).catch((error: unknown) => {
+        console.error("admin report generation error:", error);
+        return null;
+      });
+
       const payload = await db.transaction(async (tx) => {
         const [snapshot] = await tx
           .insert(analysisSnapshotsTable)
@@ -116,28 +125,70 @@ router.post("/commerce/orders", async (req, res) => {
             currency: "KRW",
             amount: 0,
             snapshotId: snapshot.id,
-            metadata: { productTitle: product.title, productDescription: product.description },
+            metadata: {
+              productTitle: product.title,
+              productDescription: product.description,
+              adminFreeAccess: true,
+              grantedByRole: req.user.role ?? "user",
+            },
           })
           .returning();
         const [report] = await tx
           .insert(pdfReportsTable)
-          .values({ userId: req.user.id, orderId: order.id, snapshotId: snapshot.id, productType: product.type, title, status: "pending" })
+          .values({
+            userId: req.user.id,
+            orderId: order.id,
+            snapshotId: snapshot.id,
+            productType: product.type,
+            title,
+            status: generated ? "ready" : "failed",
+            previewText: generated?.previewText,
+            htmlContent: generated?.htmlContent,
+            fileName: generated?.fileName,
+            fileDataBase64: generated?.fileDataBase64,
+            failedReason: generated
+              ? null
+              : "관리자 무료 리포트 생성에 실패했습니다. 다시 시도해주세요.",
+            generatedAt: generated ? new Date() : null,
+          })
           .returning();
+
+        await tx.insert(paymentsTable).values({
+          orderId: order.id,
+          provider: "admin",
+          paymentKey: `admin_${order.orderId}`,
+          method: "ADMIN_GRANT",
+          status: "paid",
+          amount: 0,
+          rawResponse: {
+            adminFreeAccess: true,
+            role: req.user.role ?? "admin",
+          },
+          approvedAt: new Date(),
+        });
+
+        await tx.insert(purchaseEntitlementsTable).values({
+          userId: req.user.id,
+          orderId: order.id,
+          productType: order.productType,
+          resourceType: "pdf_report",
+          resourceId: report.id,
+          status: "active",
+        });
+
         return { order, report, snapshot, sajuResult };
       });
-
-      const generated = await generateSajuReportPdf(title, payload.sajuResult as Record<string, any>);
-      const [updatedReport] = await db
-        .update(pdfReportsTable)
-        .set({ status: "ready", previewText: generated.previewText, htmlContent: generated.htmlContent, fileName: generated.fileName, fileDataBase64: generated.fileDataBase64, generatedAt: new Date(), updatedAt: new Date() })
-        .where(eq(pdfReportsTable.id, payload.report.id))
-        .returning();
 
       res.json({
         product,
         checkoutMode: "admin",
         order: { id: payload.order.id, orderId: payload.order.orderId, status: "paid", amount: 0, currency: "KRW" },
-        report: { id: updatedReport.id, status: updatedReport.status, title: updatedReport.title, fileName: updatedReport.fileName },
+        report: {
+          id: payload.report.id,
+          status: payload.report.status,
+          title: payload.report.title,
+          fileName: payload.report.fileName,
+        },
       });
       return;
     }

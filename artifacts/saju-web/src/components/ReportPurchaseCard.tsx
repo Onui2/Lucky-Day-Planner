@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import {
+  customFetch,
   downloadReportFile,
   useConfirmCommercePayment,
   useCreateCommerceOrder,
   useGetMyReports,
   type MonetizationBirthInfo,
 } from "@workspace/api-client-react";
+import { useAuth } from "@workspace/replit-auth-web";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,12 +37,14 @@ export function ReportPurchaseCard({
   isAuthenticated,
   isAdmin = false,
 }: ReportPurchaseCardProps) {
+  const { setAuthenticatedUser } = useAuth();
   const createOrder = useCreateCommerceOrder();
   const confirmPayment = useConfirmCommercePayment();
   const { data: reportsData } = useGetMyReports(isAuthenticated);
   const [message, setMessage] = useState<string | null>(null);
   const [latestReportId, setLatestReportId] = useState<number | null>(null);
   const [latestReportName, setLatestReportName] = useState<string | null>(null);
+  const [isVerifyingSession, setIsVerifyingSession] = useState(false);
 
   const latestReadyReport = useMemo(
     () => reportsData?.reports.find((report) => report.status === "ready") ?? null,
@@ -49,8 +53,19 @@ export function ReportPurchaseCard({
 
   async function handlePurchase() {
     setMessage(null);
+    setIsVerifyingSession(true);
 
     try {
+      const authState = await customFetch<{ user: { id: string } | null }>(
+        "/api/auth/user",
+      );
+
+      if (!authState.user?.id) {
+        setAuthenticatedUser(null);
+        setMessage("로그인 세션이 만료되었습니다. 다시 로그인한 뒤 리포트를 요청해주세요.");
+        return;
+      }
+
       const created = (await createOrder.mutateAsync({
         productType: "saju_pdf",
         birthInfo,
@@ -93,9 +108,25 @@ export function ReportPurchaseCard({
         "주문은 생성되었습니다. 실제 토스 결제 위젯 연결 후 paymentKey 승인 단계만 추가하면 바로 운영 가능합니다.",
       );
     } catch (error) {
+      const status =
+        typeof error === "object" &&
+        error !== null &&
+        "status" in error &&
+        typeof (error as { status?: unknown }).status === "number"
+          ? (error as { status: number }).status
+          : null;
+
+      if (status === 401 || status === 403) {
+        setAuthenticatedUser(null);
+        setMessage("로그인 인증이 만료되었습니다. 다시 로그인한 뒤 이용해주세요.");
+        return;
+      }
+
       setMessage(
         error instanceof Error ? error.message : "리포트 주문 생성에 실패했습니다.",
       );
+    } finally {
+      setIsVerifyingSession(false);
     }
   }
 
@@ -147,10 +178,10 @@ export function ReportPurchaseCard({
           <div className="flex flex-wrap gap-3">
             <Button
               onClick={handlePurchase}
-              disabled={createOrder.isPending || confirmPayment.isPending}
+              disabled={isVerifyingSession || createOrder.isPending || confirmPayment.isPending}
               className="gap-2"
             >
-              {createOrder.isPending || confirmPayment.isPending ? (
+              {isVerifyingSession || createOrder.isPending || confirmPayment.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Sparkles className="w-4 h-4" />
