@@ -189,6 +189,12 @@ export function Layout({ children }: LayoutProps) {
           icon: MoonStar,
           desc: "꿈 키워드로 길흉 풀이",
         },
+        {
+          href: "/love-fortune",
+          label: "연애운",
+          icon: Heart,
+          desc: "솔로·연애중 맞춤 연애 분석",
+        },
       ]
     : [];
 

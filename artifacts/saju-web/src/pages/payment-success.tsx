@@ -119,7 +119,7 @@ export default function PaymentSuccessPage() {
   ]);
 
   const report = result?.report;
-  const isDownloading = false;
+  const [isDownloading, setIsDownloading] = useState(false);
 
   return (
     <div className="mx-auto flex min-h-[70vh] w-full max-w-2xl items-center justify-center px-4 py-12">
@@ -180,13 +180,18 @@ export default function PaymentSuccessPage() {
           {state === "ready" && report && (
             <Button
               className="gap-2"
-              onClick={() =>
-                downloadReportFile(report.id, report.fileName ?? report.title)
-              }
+              onClick={async () => {
+                setIsDownloading(true);
+                try {
+                  await downloadReportFile(report.id, report.fileName ?? report.title);
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
               disabled={isDownloading}
             >
-              <FileText className="h-4 w-4" />
-              PDF 다운로드
+              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {isDownloading ? "다운로드 중..." : "PDF 다운로드"}
             </Button>
           )}
 
