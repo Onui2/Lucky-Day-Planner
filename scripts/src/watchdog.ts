@@ -297,6 +297,17 @@ async function run() {
       STARTUP_TIMEOUT_MS,
     );
 
+    const healthDetails = await requestJson<{
+      status: string;
+      databaseConfigured: boolean;
+      localPasswordAuthEnabled: boolean;
+      oidcEnabled: boolean;
+      aiConfigured: boolean;
+      paymentMode: string;
+      tossClientKeyConfigured: boolean | null;
+    }>(`${apiBase}/api/healthz/details`, {}, cookieMap);
+    assert(healthDetails.status === "ok", "Detailed health endpoint did not return ok.");
+
     const setupStatus = await requestJson<{
       databaseConfigured: boolean;
       localPasswordAuthEnabled: boolean;
@@ -306,6 +317,10 @@ async function run() {
     assert(
       setupStatus.localPasswordAuthEnabled,
       "Local password auth is not enabled.",
+    );
+    assert(
+      healthDetails.databaseConfigured === setupStatus.databaseConfigured,
+      "Detailed health endpoint is out of sync with auth setup status.",
     );
 
     const announcementsResponse = await requestJson<unknown[]>(
@@ -505,7 +520,11 @@ async function run() {
 
     if (created.checkoutMode === "provider") {
       assert(
-        Boolean(env.VITE_TOSS_CLIENT_KEY?.trim()),
+        healthDetails.paymentMode === "provider",
+        "Detailed health endpoint reported the wrong payment mode.",
+      );
+      assert(
+        healthDetails.tossClientKeyConfigured === true,
         "Provider checkout mode requires VITE_TOSS_CLIENT_KEY for the browser checkout flow.",
       );
       const providerPaymentKey = env.WATCHDOG_PROVIDER_PAYMENT_KEY?.trim();
@@ -588,9 +607,10 @@ async function run() {
           apiBase,
           webBase,
           checkoutMode: created.checkoutMode,
+          paymentMode: healthDetails.paymentMode,
           reloginVerified: true,
           accountNameUpdated: true,
-          aiQuestionStatus,
+          aiQuestionStatus: healthDetails.aiConfigured ? aiQuestionStatus : "skipped_missing_gemini",
           reportId: confirmed.report.id,
           reportBytes: reportBuffer.length,
           regeneratedReportBytes: regeneratedBuffer.length,
