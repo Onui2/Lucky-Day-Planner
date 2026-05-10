@@ -88,7 +88,7 @@ export function AiChatPanel({ birthInfo, isAuthenticated, isAdmin = false, exter
     <>
       {/* 토글 버튼 */}
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600/90 hover:bg-violet-500 text-white text-sm font-medium shadow-lg shadow-violet-900/30 backdrop-blur transition-all"
       >
         <MessageCircleQuestion className="w-4 h-4" />

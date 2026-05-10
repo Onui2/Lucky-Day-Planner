@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
 import {
+  customFetch,
   downloadReportFile,
   useConfirmCommercePayment,
   useCreateCommerceOrder,
   useGetMyReports,
+  type CreateCommerceOrderResponse,
   type MonetizationBirthInfo,
 } from "@workspace/api-client-react";
+import { useAuth } from "@workspace/replit-auth-web";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crown, FileText, Loader2, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
-import { startTossCardPayment } from "@/lib/toss-payments";
-import { useAuth } from "@workspace/replit-auth-web";
+import { startTossCardPayment, type TossCheckoutUser } from "@/lib/toss-payments";
 
 interface ReportPurchaseButtonProps {
   birthInfo: MonetizationBirthInfo;
@@ -20,14 +22,8 @@ interface ReportPurchaseButtonProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-type OrderPayload = {
-  checkoutMode?: string;
-  order: { orderId: string };
-  report: { id: number; status: string; title: string; fileName?: string | null };
-};
-
 export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = false, externalOpen, onOpenChange }: ReportPurchaseButtonProps) {
-  const { user } = useAuth();
+  const { setAuthenticatedUser } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
   const setOpen = (v: boolean) => {
@@ -37,6 +33,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
   const [message, setMessage] = useState<string | null>(null);
   const [latestReportId, setLatestReportId] = useState<number | null>(null);
   const [latestReportName, setLatestReportName] = useState<string | null>(null);
+  const [isVerifyingSession, setIsVerifyingSession] = useState(false);
 
   const createOrder = useCreateCommerceOrder();
   const confirmPayment = useConfirmCommercePayment();
@@ -48,15 +45,28 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
   );
 
   const hasReport = latestReportId !== null || latestReadyReport !== null;
+  const orderLabel = `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 정밀 사주 리포트`;
 
   async function handlePurchase() {
     setMessage(null);
+    setIsVerifyingSession(true);
+
     try {
-      const created = (await createOrder.mutateAsync({
+      const authState = await customFetch<{ user: TossCheckoutUser | null }>(
+        "/api/auth/user",
+      );
+
+      if (!authState.user?.id) {
+        setAuthenticatedUser(null);
+        setMessage("로그인 세션이 만료되었습니다. 다시 로그인한 뒤 이용해주세요.");
+        return;
+      }
+
+      const created = await createOrder.mutateAsync({
         productType: "saju_pdf",
         birthInfo,
-        label: `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 정밀 사주 리포트`,
-      })) as OrderPayload;
+        label: orderLabel,
+      }) as CreateCommerceOrderResponse;
 
       if (created.checkoutMode === "admin") {
         setLatestReportId(created.report.id);
@@ -71,32 +81,47 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
         setMessage(confirmed.report.status === "ready" ? "PDF 리포트가 생성되었습니다." : "PDF 생성 중입니다. 마이페이지에서 확인하세요.");
         return;
       }
-      if (created.checkoutMode === "provider" && user) {
+
+      if (created.checkoutMode === "provider") {
+        setMessage("토스 결제창으로 이동합니다...");
         await startTossCardPayment({
-          user: {
-            id: user.id,
-            email: user.email ?? null,
-            firstName: user.firstName ?? null,
-          },
+          user: authState.user,
           orderId: created.order.orderId,
-          amount: 4900,
-          orderName: `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 정밀 사주 리포트`,
+          amount: created.order.amount,
+          orderName: created.report.fileName ?? created.report.title,
         });
         return;
       }
-      setMessage("주문이 생성되었습니다. 결제 연동 후 이용 가능합니다.");
+
+      setMessage("지원하지 않는 결제 모드입니다.");
     } catch (e) {
+      const status =
+        typeof e === "object" &&
+        e !== null &&
+        "status" in e &&
+        typeof (e as { status?: unknown }).status === "number"
+          ? (e as { status: number }).status
+          : null;
+
+      if (status === 401 || status === 403) {
+        setAuthenticatedUser(null);
+        setMessage("로그인 인증이 만료되었습니다. 다시 로그인한 뒤 이용해주세요.");
+        return;
+      }
+
       setMessage(e instanceof Error ? e.message : "주문 생성에 실패했습니다.");
+    } finally {
+      setIsVerifyingSession(false);
     }
   }
 
-  const busy = createOrder.isPending || confirmPayment.isPending;
+  const busy = isVerifyingSession || createOrder.isPending || confirmPayment.isPending;
 
   return (
     <>
       {/* 토글 버튼 */}
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-600/90 hover:bg-amber-500 text-white text-sm font-medium shadow-lg shadow-amber-900/30 backdrop-blur transition-all"
       >
         <Crown className="w-4 h-4" />

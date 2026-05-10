@@ -38,8 +38,6 @@ const GlossaryPage = lazy(() => import("@/pages/glossary"));
 const SajuTablesPage = lazy(() => import("@/pages/saju-tables"));
 const DayPillarAnalysisPage = lazy(() => import("@/pages/day-pillar-analysis"));
 const LoveFortunePage = lazy(() => import("@/pages/love-fortune"));
-const PaymentSuccessPage = lazy(() => import("@/pages/payment-success"));
-const PaymentFailPage = lazy(() => import("@/pages/payment-fail"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -89,15 +87,6 @@ function Router() {
                   </RequireAuth>
                 )}
               />
-              <Route
-                path="/payments/success"
-                component={() => (
-                  <RequireAuth>
-                    <PaymentSuccessPage />
-                  </RequireAuth>
-                )}
-              />
-              <Route path="/payments/fail" component={PaymentFailPage} />
               <Route path="/gungap" component={GungapPage} />
               <Route path="/love-fortune" component={LoveFortunePage} />
               <Route
