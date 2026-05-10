@@ -30,7 +30,7 @@ export function getCurrentReturnTo(): string {
 }
 
 export function buildAuthHref(
-  path: "/login" | "/register",
+  path: "/login" | "/register" | "/forgot-password" | "/reset-password",
   returnTo = getCurrentReturnTo(),
 ): string {
   const params = new URLSearchParams({

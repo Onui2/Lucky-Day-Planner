@@ -18,6 +18,7 @@ export interface BrowserSmokeParams {
 export interface BrowserSmokeResult {
   chromeExecutablePath: string;
   homeVerified: boolean;
+  authReturnToVerified: boolean;
   accountVerified: boolean;
   sajuVerified: boolean;
   paymentSuccessVerified: boolean;
@@ -76,10 +77,79 @@ export async function runBrowserSmoke({
     await page.goto(webBase, { waitUntil: "networkidle", timeout: DEFAULT_TIMEOUT_MS });
     await page.getByText("명해원").first().waitFor({ timeout: DEFAULT_TIMEOUT_MS });
 
-    await page.goto(
-      `${webBase}/login?returnTo=${encodeURIComponent("/account")}`,
-      { waitUntil: "networkidle", timeout: DEFAULT_TIMEOUT_MS },
-    );
+    await page.goto(`${webBase}/account`, {
+      waitUntil: "networkidle",
+      timeout: DEFAULT_TIMEOUT_MS,
+    });
+
+    const accountEntryUrl = new URL(page.url());
+    if (accountEntryUrl.pathname === "/account") {
+      const accountLoginLink = page.getByRole("link", { name: "로그인하기" });
+      await accountLoginLink.waitFor({ timeout: DEFAULT_TIMEOUT_MS });
+
+      const accountLoginHref = await accountLoginLink.getAttribute("href");
+      if (!accountLoginHref) {
+        throw new Error("회원정보 보호 화면의 로그인 링크 href를 찾지 못했습니다.");
+      }
+
+      const accountLoginUrl = new URL(accountLoginHref, webBase);
+      if (
+        accountLoginUrl.pathname !== "/login" ||
+        accountLoginUrl.searchParams.get("returnTo") !== "/account"
+      ) {
+        throw new Error(`회원정보 보호 화면 로그인 링크가 복귀 경로를 유지하지 않았습니다: ${accountLoginHref}`);
+      }
+
+      await Promise.all([
+        page.waitForURL(/\/login(?:[/?#]|$)/, { timeout: DEFAULT_TIMEOUT_MS }),
+        accountLoginLink.click(),
+      ]);
+    } else if (accountEntryUrl.pathname !== "/login") {
+      throw new Error(`회원정보 진입 시 예상하지 못한 경로로 이동했습니다: ${page.url()}`);
+    }
+
+    const loginUrl = new URL(page.url());
+    if (loginUrl.pathname !== "/login" || loginUrl.searchParams.get("returnTo") !== "/account") {
+      throw new Error(`로그인 복귀 경로가 /account 로 유지되지 않았습니다: ${page.url()}`);
+    }
+
+    const forgotPasswordLink = page.getByRole("link", { name: "비밀번호를 잊으셨나요?" });
+    const forgotPasswordHref = await forgotPasswordLink.getAttribute("href");
+    if (!forgotPasswordHref) {
+      throw new Error("비밀번호 재설정 링크 href를 찾지 못했습니다.");
+    }
+
+    const forgotPasswordUrl = new URL(forgotPasswordHref, webBase);
+    if (
+      forgotPasswordUrl.pathname !== "/forgot-password" ||
+      forgotPasswordUrl.searchParams.get("returnTo") !== "/account"
+    ) {
+      throw new Error(`비밀번호 재설정 링크가 복귀 경로를 유지하지 않았습니다: ${forgotPasswordHref}`);
+    }
+
+    await Promise.all([
+      page.waitForURL(/\/forgot-password(?:[/?#]|$)/, { timeout: DEFAULT_TIMEOUT_MS }),
+      forgotPasswordLink.click(),
+    ]);
+
+    const forgotPageUrl = new URL(page.url());
+    if (
+      forgotPageUrl.pathname !== "/forgot-password" ||
+      forgotPageUrl.searchParams.get("returnTo") !== "/account"
+    ) {
+      throw new Error(`비밀번호 찾기 페이지가 복귀 경로를 유지하지 않았습니다: ${page.url()}`);
+    }
+
+    await Promise.all([
+      page.waitForURL(/\/login(?:[/?#]|$)/, { timeout: DEFAULT_TIMEOUT_MS }),
+      page.getByRole("link", { name: "로그인으로 돌아가기" }).click(),
+    ]);
+
+    const loginReturnUrl = new URL(page.url());
+    if (loginReturnUrl.pathname !== "/login" || loginReturnUrl.searchParams.get("returnTo") !== "/account") {
+      throw new Error(`로그인 복귀 링크가 returnTo 를 유지하지 않았습니다: ${page.url()}`);
+    }
+
     await page.locator('input[type="email"]').fill(loginEmail);
     await page.locator('input[type="password"]').first().fill(loginPassword);
 
@@ -158,6 +228,7 @@ export async function runBrowserSmoke({
     return {
       chromeExecutablePath: executablePath,
       homeVerified: true,
+      authReturnToVerified: true,
       accountVerified: true,
       sajuVerified: true,
       paymentSuccessVerified,

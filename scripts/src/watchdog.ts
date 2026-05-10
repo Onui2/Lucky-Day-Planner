@@ -630,6 +630,7 @@ async function run() {
             ? {
                 enabled: true,
                 homeVerified: browserSmokeResult.homeVerified,
+                authReturnToVerified: browserSmokeResult.authReturnToVerified,
                 accountVerified: browserSmokeResult.accountVerified,
                 sajuVerified: browserSmokeResult.sajuVerified,
                 paymentSuccessVerified: browserSmokeResult.paymentSuccessVerified,

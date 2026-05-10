@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -13,8 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requestPasswordReset } from "@/lib/auth-client";
+import { buildAuthHref, sanitizeReturnTo } from "@/lib/auth-redirect";
 
 export default function ForgotPasswordPage() {
+  const search = useSearch();
+  const returnTo = sanitizeReturnTo(new URLSearchParams(search).get("returnTo"));
+  const loginHref = buildAuthHref("/login", returnTo);
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -86,7 +90,7 @@ export default function ForgotPasswordPage() {
                 <strong className="text-foreground">{email}</strong>
                 로 비밀번호 재설정 안내를 보냈습니다.
               </p>
-              <Link href="/login">
+              <Link href={loginHref}>
                 <Button variant="outline" className="mt-2 gap-2 border-primary/30 text-primary">
                   <ArrowLeft className="w-4 h-4" />
                   로그인으로 돌아가기
@@ -149,7 +153,7 @@ export default function ForgotPasswordPage() {
 
               <div className="mt-6 text-center">
                 <Link
-                  href="/login"
+                  href={loginHref}
                   className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />

@@ -17,13 +17,18 @@ import {
   resetPasswordWithToken,
   verifyResetPasswordToken,
 } from "@/lib/auth-client";
+import { buildAuthHref, sanitizeReturnTo } from "@/lib/auth-redirect";
 
 type PageState = "verifying" | "valid" | "invalid" | "submitting" | "done";
 
 export default function ResetPasswordPage() {
   const [, navigate] = useLocation();
   const search = useSearch();
-  const token = new URLSearchParams(search).get("token") ?? "";
+  const searchParams = new URLSearchParams(search);
+  const token = searchParams.get("token") ?? "";
+  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
+  const loginHref = buildAuthHref("/login", returnTo);
+  const forgotPasswordHref = buildAuthHref("/forgot-password", returnTo);
 
   const [pageState, setPageState] = useState<PageState>("verifying");
   const [invalidMessage, setInvalidMessage] = useState("");
@@ -136,7 +141,7 @@ export default function ResetPasswordPage() {
                 재설정 링크를 사용할 수 없습니다
               </p>
               <p className="text-sm text-muted-foreground text-center">{invalidMessage}</p>
-              <Link href="/forgot-password">
+              <Link href={forgotPasswordHref}>
                 <Button className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground">
                   재설정 메일 다시 받기
                 </Button>
@@ -266,7 +271,7 @@ export default function ResetPasswordPage() {
                 새 비밀번호로 다시 로그인해 주세요.
               </p>
               <Button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate(loginHref)}
                 className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 로그인하러 가기

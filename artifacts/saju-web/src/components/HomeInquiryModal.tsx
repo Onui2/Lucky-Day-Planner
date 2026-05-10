@@ -15,6 +15,7 @@ import {
   sanitizeBirthMonthInput,
   sanitizeBirthYearInput,
 } from "@/lib/birth-date";
+import { buildAuthHref } from "@/lib/auth-redirect";
 
 type InquiryType = "general" | "saju" | "gungap";
 
@@ -198,7 +199,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
 
   async function handleSubmit() {
     if (!user) {
-      navigate("/login");
+      navigate(buildAuthHref("/login"));
       return;
     }
     if (!message.trim()) return;

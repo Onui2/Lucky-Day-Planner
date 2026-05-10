@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, MessageCircleQuestion, Send } from "lucide-react";
+import { buildAuthHref } from "@/lib/auth-redirect";
 
 interface AiQuestionCardProps {
   birthInfo: MonetizationBirthInfo;
@@ -28,6 +29,7 @@ export function AiQuestionCard({
   const queryClient = useQueryClient();
   const ask = useAskSajuQuestion();
   const { data, isLoading } = useGetMyAiQuestions(isAuthenticated);
+  const loginHref = buildAuthHref("/login");
   const hasUnlimitedAccess = Boolean(
     isAdmin || (data as { unlimited?: boolean } | undefined)?.unlimited,
   );
@@ -119,7 +121,7 @@ export function AiQuestionCard({
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
             AI 질문 기능은 로그인 후 사용할 수 있습니다.
             <div className="mt-3">
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href={loginHref} className="text-primary hover:underline">
                 로그인하러 가기
               </Link>
             </div>

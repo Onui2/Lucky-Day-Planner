@@ -13,6 +13,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Crown, FileText, Sparkles } from "lucide-react";
+import { buildAuthHref } from "@/lib/auth-redirect";
 import { startTossCardPayment, type TossCheckoutUser } from "@/lib/toss-payments";
 
 interface ReportPurchaseCardProps {
@@ -30,6 +31,7 @@ export function ReportPurchaseCard({
   const createOrder = useCreateCommerceOrder();
   const confirmPayment = useConfirmCommercePayment();
   const { data: reportsData } = useGetMyReports(isAuthenticated);
+  const loginHref = buildAuthHref("/login");
   const [message, setMessage] = useState<string | null>(null);
   const [latestReportId, setLatestReportId] = useState<number | null>(null);
   const [latestReportName, setLatestReportName] = useState<string | null>(null);
@@ -165,7 +167,7 @@ export function ReportPurchaseCard({
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
             리포트 구매와 저장은 로그인 후 사용할 수 있습니다.
             <div className="mt-3">
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href={loginHref} className="text-primary hover:underline">
                 로그인하러 가기
               </Link>
             </div>

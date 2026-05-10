@@ -243,7 +243,7 @@ export default function LoginPage() {
                 </span>
               </label>
               <Link
-                href="/forgot-password"
+                href={buildAuthHref("/forgot-password", returnTo)}
                 className="text-xs text-muted-foreground/70 hover:text-primary transition-colors"
               >
                 비밀번호를 잊으셨나요?

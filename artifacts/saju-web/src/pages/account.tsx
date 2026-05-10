@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
+import { buildAuthHref } from "@/lib/auth-redirect";
 import { clearRecentActivities, formatBookmarkDate, getRecentActivities, type RecentActivityItem } from "@/lib/member-insights";
 import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 import {
@@ -93,8 +94,10 @@ export default function AccountPage() {
   const [delMsg, setDelMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) navigate("/login");
-  }, [authLoading, isAuthenticated]);
+    if (!authLoading && !isAuthenticated) {
+      navigate(buildAuthHref("/login"));
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
   useEffect(() => {
     if (account?.firstName) setName(account.firstName);

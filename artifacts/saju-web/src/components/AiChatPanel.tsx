@@ -10,6 +10,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Loader2, MessageCircleQuestion, Send, X, ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { buildAuthHref } from "@/lib/auth-redirect";
 
 interface AiChatPanelProps {
   birthInfo: MonetizationBirthInfo;
@@ -27,6 +28,7 @@ export function AiChatPanel({ birthInfo, isAuthenticated, isAdmin = false, exter
     else setInternalOpen(v);
   };
   const [question, setQuestion] = useState("");
+  const loginHref = buildAuthHref("/login");
   const [historyReady, setHistoryReady] = useState(!isAuthenticated);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -133,7 +135,7 @@ export function AiChatPanel({ birthInfo, isAuthenticated, isAdmin = false, exter
                 <div className="text-sm text-muted-foreground text-center py-8">
                   <MessageCircleQuestion className="w-8 h-8 mx-auto mb-3 opacity-40" />
                   <p>로그인 후 사용할 수 있습니다.</p>
-                  <Link href="/login" className="mt-3 inline-block text-primary hover:underline text-sm">
+                  <Link href={loginHref} className="mt-3 inline-block text-primary hover:underline text-sm">
                     로그인하러 가기
                   </Link>
                 </div>

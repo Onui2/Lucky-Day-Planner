@@ -12,6 +12,7 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crown, FileText, Loader2, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
+import { buildAuthHref } from "@/lib/auth-redirect";
 import { startTossCardPayment, type TossCheckoutUser } from "@/lib/toss-payments";
 
 interface ReportPurchaseButtonProps {
@@ -34,6 +35,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
   const [latestReportId, setLatestReportId] = useState<number | null>(null);
   const [latestReportName, setLatestReportName] = useState<string | null>(null);
   const [isVerifyingSession, setIsVerifyingSession] = useState(false);
+  const loginHref = buildAuthHref("/login");
 
   const createOrder = useCreateCommerceOrder();
   const confirmPayment = useConfirmCommercePayment();
@@ -167,7 +169,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
               {!isAuthenticated ? (
                 <div className="text-center py-2">
                   <p className="text-xs text-muted-foreground mb-2">로그인 후 구매할 수 있습니다.</p>
-                  <Link href="/login" className="text-xs text-primary hover:underline">로그인하러 가기</Link>
+                  <Link href={loginHref} className="text-xs text-primary hover:underline">로그인하러 가기</Link>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
