@@ -39,7 +39,6 @@ const shouldUseSsl =
   !sslExplicitlyDisabled &&
   (
     sslExplicitlyEnabled ||
-    process.env.NODE_ENV === "production" ||
     databaseHost.endsWith(".supabase.co") ||
     databaseHost.endsWith(".supabase.com") ||
     !isLocalDatabaseHost

@@ -2,8 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
-// @ts-ignore — esbuild base64 loader inlines font at build time
-import nanumGothicBase64 from "../../assets/fonts/NanumGothic-Regular.ttf";
 
 const FONT_FILE_NAME = "NanumGothic-Regular.ttf";
 
@@ -55,10 +53,14 @@ function pillarCardHtml(label: string, value: string) {
   `;
 }
 
-function getFontCandidates() {
+function getFontCandidates(moduleDir?: string) {
   const cwd = process.cwd();
   return Array.from(
     new Set([
+      moduleDir
+        ? path.resolve(moduleDir, "../../assets", "fonts", FONT_FILE_NAME)
+        : null,
+      moduleDir ? path.resolve(moduleDir, "fonts", FONT_FILE_NAME) : null,
       path.join(cwd, "artifacts", "api-server", "assets", "fonts", FONT_FILE_NAME),
       path.join(cwd, "artifacts", "api-server", "dist", "fonts", FONT_FILE_NAME),
       path.join(cwd, "artifacts", "saju-web", "api", "fonts", FONT_FILE_NAME),
@@ -66,27 +68,22 @@ function getFontCandidates() {
       path.join(cwd, "dist", "fonts", FONT_FILE_NAME),
       path.join(cwd, "api", "fonts", FONT_FILE_NAME),
       path.join(cwd, "fonts", FONT_FILE_NAME),
-    ]),
+    ].filter((value): value is string => Boolean(value))),
   );
 }
 
 function getFontBuffer(): Buffer {
-  // esbuild base64 loader로 번들에 임베드된 경우 (Vercel 최우선)
-  if (typeof nanumGothicBase64 === "string" && nanumGothicBase64.length > 100) {
-    return Buffer.from(nanumGothicBase64, "base64");
-  }
-  // 로컬 개발: import.meta.url 기준
+  let moduleDir: string | undefined;
   try {
-    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-    const p = path.join(moduleDir, "fonts", FONT_FILE_NAME);
-    if (fs.existsSync(p)) return fs.readFileSync(p);
+    moduleDir = path.dirname(fileURLToPath(import.meta.url));
   } catch {}
-  // 마지막 fallback: process.cwd() 기반 다중 경로
-  for (const p of getFontCandidates()) {
+
+  for (const p of getFontCandidates(moduleDir)) {
     if (fs.existsSync(p)) return fs.readFileSync(p);
   }
+
   throw new Error(
-    `한글 폰트를 찾을 수 없습니다. 확인한 경로: ${getFontCandidates().join(", ")}`,
+    `한글 폰트를 찾을 수 없습니다. 확인한 경로: ${getFontCandidates(moduleDir).join(", ")}`,
   );
 }
 
