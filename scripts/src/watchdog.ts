@@ -11,6 +11,17 @@ const workspaceRoot = path.resolve(__dirname, "..", "..");
 const STARTUP_TIMEOUT_MS = 90_000;
 const REQUEST_TIMEOUT_MS = 15_000;
 const POLL_INTERVAL_MS = 1_000;
+const WATCHDOG_BIRTH_INFO = {
+  year: 1990,
+  month: 1,
+  day: 1,
+  hour: 12,
+  minute: 0,
+  gender: "male",
+  calendarType: "solar",
+} as const;
+const INITIAL_PASSWORD = "watchdog1234";
+const UPDATED_PASSWORD = "watchdog5678";
 
 type CookieMap = Map<string, string>;
 
@@ -316,23 +327,167 @@ async function run() {
     );
 
     const email = `watchdog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@example.com`;
-    await requestJson(
+    const registered = await requestJson<{
+      user: {
+        id: string;
+        email?: string | null;
+        firstName?: string | null;
+      };
+    }>(
       `${apiBase}/api/auth/register`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          password: "watchdog1234",
+          password: INITIAL_PASSWORD,
           name: "Watchdog",
         }),
       },
       cookieMap,
     );
+    assert(registered.user.id, "Registration did not return a user id.");
+    assert(
+      registered.user.email === email,
+      "Registration did not return the expected email.",
+    );
+
+    const authUser = await requestJson<{
+      user: {
+        id: string;
+        email?: string | null;
+        firstName?: string | null;
+      } | null;
+    }>(`${apiBase}/api/auth/user`, {}, cookieMap);
+    assert(authUser.user?.id === registered.user.id, "Authenticated session was not created.");
+
+    const account = await requestJson<{
+      id: string;
+      email?: string | null;
+      firstName?: string | null;
+      hasPassword?: boolean;
+    }>(`${apiBase}/api/account`, {}, cookieMap);
+    assert(account.id === registered.user.id, "Account endpoint returned the wrong user.");
+    assert(account.email === email, "Account endpoint returned the wrong email.");
+    assert(account.hasPassword === true, "Account endpoint did not mark password auth as enabled.");
+
+    const updatedName = `Watchdog ${Date.now().toString().slice(-4)}`;
+    const renamed = await requestJson<{
+      user: {
+        id: string;
+        firstName?: string | null;
+      };
+    }>(
+      `${apiBase}/api/account/name`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: updatedName }),
+      },
+      cookieMap,
+    );
+    assert(
+      renamed.user.firstName === updatedName,
+      "Account name update did not persist the new name.",
+    );
+
+    const accountAfterRename = await requestJson<{
+      firstName?: string | null;
+    }>(`${apiBase}/api/account`, {}, cookieMap);
+    assert(
+      accountAfterRename.firstName === updatedName,
+      "Account endpoint did not reflect the updated name.",
+    );
+
+    const passwordChanged = await requestJson<{ ok: boolean }>(
+      `${apiBase}/api/account/password`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: INITIAL_PASSWORD,
+          newPassword: UPDATED_PASSWORD,
+        }),
+      },
+      cookieMap,
+    );
+    assert(passwordChanged.ok, "Password change endpoint did not return ok.");
+
+    const reloginCookies: CookieMap = new Map();
+    const reloggedIn = await requestJson<{
+      user: {
+        id: string;
+        email?: string | null;
+      };
+    }>(
+      `${apiBase}/api/auth/login-local`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password: UPDATED_PASSWORD,
+        }),
+      },
+      reloginCookies,
+    );
+    assert(
+      reloggedIn.user.id === registered.user.id,
+      "Re-login with the updated password failed.",
+    );
+
+    const reloggedInAuthUser = await requestJson<{
+      user: {
+        id: string;
+      } | null;
+    }>(`${apiBase}/api/auth/user`, {}, reloginCookies);
+    assert(
+      reloggedInAuthUser.user?.id === registered.user.id,
+      "Re-login session did not persist.",
+    );
+
+    const aiHistory = await requestJson<{
+      questions: Array<{ id: number }>;
+      used: number;
+      limit: number | null;
+      remaining: number | null;
+      unlimited?: boolean;
+    }>(`${apiBase}/api/ai/questions`, {}, cookieMap);
+    assert(Array.isArray(aiHistory.questions), "AI question history response is invalid.");
+
+    let aiQuestionStatus = "skipped_missing_gemini";
+    if (env.GEMINI_API_KEY?.trim()) {
+      const aiAnswer = await requestJson<{
+        question: {
+          id: number;
+          question: string;
+          answer: string;
+        };
+        used: number;
+        remaining: number | null;
+      }>(
+        `${apiBase}/api/ai/questions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: "올해 직업운에서 가장 주의할 점을 알려주세요.",
+            birthInfo: WATCHDOG_BIRTH_INFO,
+          }),
+        },
+        cookieMap,
+      );
+      assert(
+        typeof aiAnswer.question.answer === "string" &&
+          aiAnswer.question.answer.trim().length > 0,
+        "AI question endpoint returned an empty answer.",
+      );
+      aiQuestionStatus = "verified";
+    }
 
     const created = await requestJson<{
       checkoutMode: string;
-      order: { orderId: string };
+      order: { orderId: string; amount: number };
       report: { id: number; status: string };
     }>(
       `${apiBase}/api/commerce/orders`,
@@ -341,15 +496,7 @@ async function run() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productType: "saju_pdf",
-          birthInfo: {
-            year: 1990,
-            month: 1,
-            day: 1,
-            hour: 12,
-            minute: 0,
-            gender: "male",
-            calendarType: "solar",
-          },
+          birthInfo: WATCHDOG_BIRTH_INFO,
           label: "Watchdog PDF",
         }),
       },
@@ -357,6 +504,10 @@ async function run() {
     );
 
     if (created.checkoutMode === "provider") {
+      assert(
+        Boolean(env.VITE_TOSS_CLIENT_KEY?.trim()),
+        "Provider checkout mode requires VITE_TOSS_CLIENT_KEY for the browser checkout flow.",
+      );
       const providerPaymentKey = env.WATCHDOG_PROVIDER_PAYMENT_KEY?.trim();
       assert(
         providerPaymentKey,
@@ -393,6 +544,33 @@ async function run() {
       "Downloaded report is not a PDF.",
     );
 
+    const regenerated = await requestJson<{
+      report: {
+        id: number;
+        status: string;
+      };
+    }>(
+      `${apiBase}/api/reports/${confirmed.report.id}/regenerate`,
+      {
+        method: "POST",
+      },
+      cookieMap,
+    );
+    assert(
+      regenerated.report.status === "ready",
+      "Report regenerate endpoint did not return a ready report.",
+    );
+
+    const regeneratedBuffer = await requestBuffer(
+      `${apiBase}/api/reports/${confirmed.report.id}/download`,
+      {},
+      cookieMap,
+    );
+    assert(
+      regeneratedBuffer.subarray(0, 4).toString("utf8") === "%PDF",
+      "Regenerated report is not a PDF.",
+    );
+
     const reports = await requestJson<{ reports: Array<{ status: string }> }>(
       `${apiBase}/api/reports`,
       {},
@@ -410,8 +588,12 @@ async function run() {
           apiBase,
           webBase,
           checkoutMode: created.checkoutMode,
+          reloginVerified: true,
+          accountNameUpdated: true,
+          aiQuestionStatus,
           reportId: confirmed.report.id,
           reportBytes: reportBuffer.length,
+          regeneratedReportBytes: regeneratedBuffer.length,
         },
         null,
         2,
