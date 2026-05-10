@@ -15,10 +15,17 @@ interface AiChatPanelProps {
   birthInfo: MonetizationBirthInfo;
   isAuthenticated: boolean;
   isAdmin?: boolean;
+  externalOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function AiChatPanel({ birthInfo, isAuthenticated, isAdmin = false }: AiChatPanelProps) {
-  const [open, setOpen] = useState(false);
+export function AiChatPanel({ birthInfo, isAuthenticated, isAdmin = false, externalOpen, onOpenChange }: AiChatPanelProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
   const [question, setQuestion] = useState("");
   const [historyReady, setHistoryReady] = useState(!isAuthenticated);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -56,8 +63,8 @@ export function AiChatPanel({ birthInfo, isAuthenticated, isAdmin = false }: AiC
 
   const remainingLabel = useMemo(() => {
     if (!data) return "확인 중";
-    if (hasUnlimitedAccess) return "무제한";
-    return `${data.remaining}/${data.limit}회 남음`;
+    if (hasUnlimitedAccess || data.unlimited) return "무제한";
+    return `${data.remaining ?? 0}/${data.limit ?? 0}회 남음`;
   }, [data, hasUnlimitedAccess]);
 
   async function handleAsk() {
@@ -86,7 +93,7 @@ export function AiChatPanel({ birthInfo, isAuthenticated, isAdmin = false }: AiC
       >
         <MessageCircleQuestion className="w-4 h-4" />
         AI 상담
-        {!open && data && !hasUnlimitedAccess && data.remaining > 0 && (
+        {!open && data && !hasUnlimitedAccess && (data.remaining ?? 0) > 0 && (
           <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
             {data.remaining}
           </span>
@@ -184,12 +191,16 @@ export function AiChatPanel({ birthInfo, isAuthenticated, isAdmin = false }: AiC
               <div className="border-t border-white/10 bg-black/20 px-3 py-2.5 flex gap-2 items-end">
                 <textarea
                   value={question}
-                  onChange={e => setQuestion(e.target.value)}
+                  onChange={e => {
+                    setQuestion(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 112)}px`;
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder="질문 입력 (Shift+Enter 줄바꿈)"
                   rows={1}
-                  className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none leading-6 max-h-28 overflow-y-auto py-1"
-                  style={{ fieldSizing: "content" } as any}
+                  className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none leading-6 overflow-y-auto py-1"
+                  style={{ maxHeight: "112px" }}
                 />
                 <button
                   onClick={handleAsk}

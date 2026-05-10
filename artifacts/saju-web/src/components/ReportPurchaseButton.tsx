@@ -14,6 +14,8 @@ interface ReportPurchaseButtonProps {
   birthInfo: MonetizationBirthInfo;
   isAuthenticated: boolean;
   isAdmin?: boolean;
+  externalOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 type OrderPayload = {
@@ -22,8 +24,13 @@ type OrderPayload = {
   report: { id: number; status: string; title: string; fileName?: string | null };
 };
 
-export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = false }: ReportPurchaseButtonProps) {
-  const [open, setOpen] = useState(false);
+export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = false, externalOpen, onOpenChange }: ReportPurchaseButtonProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
   const [message, setMessage] = useState<string | null>(null);
   const [latestReportId, setLatestReportId] = useState<number | null>(null);
   const [latestReportName, setLatestReportName] = useState<string | null>(null);

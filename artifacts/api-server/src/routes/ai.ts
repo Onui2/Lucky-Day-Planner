@@ -35,9 +35,9 @@ async function getUsageSummary(userId: string, role?: string | null) {
 
   return {
     planCode,
-    limit,
+    limit: unlimited ? null : limit,
     used,
-    remaining,
+    remaining: unlimited ? null : remaining,
     monthlyBucket,
     unlimited,
   };
@@ -92,7 +92,7 @@ router.post("/ai/questions", async (req, res) => {
 
   try {
     const usage = await getUsageSummary(req.user.id, req.user.role);
-    if (!usage.unlimited && usage.used >= usage.limit) {
+    if (!usage.unlimited && usage.limit !== null && usage.used >= usage.limit) {
       res.status(403).json({
         error: "이번 달 질문 가능 횟수를 모두 사용했습니다.",
         ...usage,

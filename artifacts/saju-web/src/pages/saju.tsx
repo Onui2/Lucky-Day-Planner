@@ -262,6 +262,7 @@ export default function SajuPage() {
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [inquiryMessage, setInquiryMessage] = useState("");
   const [inquiryDone, setInquiryDone] = useState(false);
+  const [floatingPanel, setFloatingPanel] = useState<"ai" | "report" | null>(null);
 
   const { user, isAuthenticated } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
@@ -1153,11 +1154,15 @@ export default function SajuPage() {
             birthInfo={monetizationBirthInfo}
             isAuthenticated={isAuthenticated}
             isAdmin={isAdmin}
+            externalOpen={floatingPanel === "ai"}
+            onOpenChange={v => setFloatingPanel(v ? "ai" : null)}
           />
           <ReportPurchaseButton
             birthInfo={monetizationBirthInfo}
             isAuthenticated={isAuthenticated}
             isAdmin={isAdmin}
+            externalOpen={floatingPanel === "report"}
+            onOpenChange={v => setFloatingPanel(v ? "report" : null)}
           />
         </div>
 

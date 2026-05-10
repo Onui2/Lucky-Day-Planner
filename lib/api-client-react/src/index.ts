@@ -1044,12 +1044,13 @@ export interface OrderListItem {
 
 export interface CreateCommerceOrderResponse {
   product: CommerceProduct;
-  checkoutMode: "dev" | "provider";
+  checkoutMode: "admin" | "dev" | "provider";
   order: CommerceOrderSummary;
   report: {
     id: number;
     status: string;
     title: string;
+    fileName?: string | null;
   };
 }
 
@@ -1076,9 +1077,9 @@ export interface AiQuestionItem {
 
 export interface AiQuestionsResponse {
   planCode?: string | null;
-  limit: number;
+  limit: number | null;
   used: number;
-  remaining: number;
+  remaining: number | null;
   monthlyBucket: string;
   unlimited?: boolean;
   questions: AiQuestionItem[];
@@ -1195,9 +1196,9 @@ export function useAskSajuQuestion() {
     mutationFn: (body: { question: string; birthInfo: MonetizationBirthInfo }) =>
       customFetch<{
         question: AiQuestionItem;
-        limit: number;
+        limit: number | null;
         used: number;
-        remaining: number;
+        remaining: number | null;
         planCode?: string | null;
         unlimited?: boolean;
       }>("/api/ai/questions", {

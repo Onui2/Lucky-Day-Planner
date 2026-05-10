@@ -235,17 +235,21 @@ export default function AccountPage() {
           </div>
 
           <div className="space-y-3">
-            {(reportsData?.reports ?? []).slice(0, 3).map((report) => (
+            {(reportsData?.reports ?? []).slice(0, 5).map((report) => (
               <div
                 key={report.id}
                 className="rounded-2xl border border-white/10 bg-white/5 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">
                       {report.title}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
+                      {report.createdAt
+                        ? new Date(report.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })
+                        : ""}
+                      {" · "}
                       {report.status === "ready"
                         ? "다운로드 가능"
                         : report.status === "failed"
@@ -254,7 +258,7 @@ export default function AccountPage() {
                     </div>
                   </div>
                   <div
-                    className={`px-2 py-1 rounded-full text-[11px] border ${
+                    className={`shrink-0 px-2 py-1 rounded-full text-[11px] border ${
                       report.status === "ready"
                         ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
                         : report.status === "failed"
@@ -262,12 +266,12 @@ export default function AccountPage() {
                           : "border-amber-400/30 bg-amber-400/10 text-amber-300"
                     }`}
                   >
-                    {report.status}
+                    {report.status === "ready" ? "완료" : report.status === "failed" ? "실패" : "대기"}
                   </div>
                 </div>
 
                 {report.previewText && (
-                  <div className="mt-2 text-xs leading-6 text-muted-foreground">
+                  <div className="mt-2 text-xs leading-6 text-muted-foreground line-clamp-2">
                     {report.previewText}
                   </div>
                 )}
@@ -287,19 +291,27 @@ export default function AccountPage() {
                       PDF 다운로드
                     </Button>
                   )}
-                  {report.status === "failed" && (
+                  {(report.status === "failed" || report.status === "pending") && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => regenerateReport.mutate(report.id)}
                       disabled={regenerateReport.isPending}
                     >
-                      {regenerateReport.isPending ? "재생성 중..." : "다시 생성"}
+                      {regenerateReport.isPending ? (
+                        <><Loader2 className="w-3 h-3 mr-1 animate-spin" />재생성 중...</>
+                      ) : "다시 생성"}
                     </Button>
                   )}
                 </div>
               </div>
             ))}
+
+            {(reportsData?.reports?.length ?? 0) > 5 && (
+              <p className="text-xs text-muted-foreground text-center py-1">
+                최근 5개만 표시됩니다. (총 {reportsData!.reports.length}개)
+              </p>
+            )}
 
             {(reportsData?.reports?.length ?? 0) === 0 && (
               <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
