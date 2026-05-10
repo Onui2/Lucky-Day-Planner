@@ -127,11 +127,15 @@ router.post("/ai/questions", async (req, res) => {
       })
       .returning();
 
+    const remaining = usage.unlimited
+      ? null
+      : Math.max(0, (usage.limit ?? 0) - usage.used - 1);
+
     res.json({
       question: saved,
       limit: usage.limit,
       used: usage.used + 1,
-      remaining: usage.unlimited ? 0 : Math.max(0, usage.limit - usage.used - 1),
+      remaining,
       planCode: usage.planCode,
       unlimited: usage.unlimited,
     });
