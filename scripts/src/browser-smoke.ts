@@ -4,6 +4,7 @@ import process from "node:process";
 import { chromium } from "playwright-core";
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+const RESULT_TIMEOUT_MS = 30_000;
 
 export interface BrowserSmokeParams {
   webBase: string;
@@ -101,8 +102,15 @@ export async function runBrowserSmoke({
       waitUntil: "networkidle",
       timeout: DEFAULT_TIMEOUT_MS,
     });
-    await page.getByText("정밀 사주 PDF 리포트").first().waitFor({
-      timeout: DEFAULT_TIMEOUT_MS,
+    await page.locator('input[placeholder="예) 1990"]').fill("1990");
+    await page.locator('input[placeholder="1~12"]').fill("1");
+    await page.locator('input[placeholder="1~31"]').fill("1");
+    await page.getByRole("button", { name: "사주 확인하기" }).click();
+    await page.getByText("사주 분석 결과").waitFor({
+      timeout: RESULT_TIMEOUT_MS,
+    });
+    await page.getByRole("button", { name: /PDF 리포트 4,900원|리포트 무료 발급/ }).waitFor({
+      timeout: RESULT_TIMEOUT_MS,
     });
 
     let paymentSuccessVerified = false;

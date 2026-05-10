@@ -505,6 +505,22 @@ export default function Home() {
                 </div>
               </Link>
             </motion.div>
+
+            <motion.div variants={item}>
+              <Link href="/love-fortune" className="block group h-full">
+                <div className="h-full rounded-3xl border border-rose-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(251,113,133,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl group-hover:bg-rose-500/20 transition-colors" />
+                  <div className="w-14 h-14 rounded-2xl bg-rose-500/20 flex items-center justify-center mb-6 border border-rose-500/30 group-hover:scale-110 transition-transform">
+                    <Heart className="w-7 h-7 text-rose-400" />
+                  </div>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">연애운</h3>
+                  <p className="text-muted-foreground mb-8">솔로라면 인연 만날 월별 흐름을, 연인이 있다면 오행 궁합 점수와 조언을 분석합니다.</p>
+                  <div className="flex items-center text-rose-400 font-medium group-hover:gap-3 transition-all gap-2">
+                    분석하기 <ArrowRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
           </motion.div>
         </motion.div>
       )}
