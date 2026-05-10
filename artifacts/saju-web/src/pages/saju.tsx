@@ -624,6 +624,17 @@ export default function SajuPage() {
     navigator.clipboard.writeText(payload).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = payload;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     });
     return;
     const yp = r.yearPillar; const mp = r.monthPillar; const dp = r.dayPillar; const hp = r.hourPillar;

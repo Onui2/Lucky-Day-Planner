@@ -29,7 +29,7 @@ export default function Home() {
         queryKey: ["/api/fortune/daily", { date: todayDate }, "home-dashboard"],
         staleTime: 60_000,
         refetchInterval: 300_000,
-        enabled: isAuthenticated,
+        enabled: true,
       },
     },
   );
