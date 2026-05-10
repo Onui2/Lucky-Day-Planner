@@ -393,7 +393,12 @@ router.post("/auth/register", async (req: Request, res: Response) => {
 
   const { email, password, name } = req.body as Record<string, unknown>;
 
-  if (!email || typeof email !== "string" || !email.includes("@")) {
+  if (!email || typeof email !== "string") {
+    res.status(400).json({ error: "유효한 이메일 주소를 입력해주세요." });
+    return;
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizedEmail)) {
     res.status(400).json({ error: "유효한 이메일 주소를 입력해주세요." });
     return;
   }
@@ -401,8 +406,6 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     res.status(400).json({ error: "비밀번호는 6자 이상이어야 합니다." });
     return;
   }
-
-  const normalizedEmail = email.trim().toLowerCase();
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
   if (existing.length > 0) {
