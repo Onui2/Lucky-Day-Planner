@@ -3,6 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { runBrowserSmoke } from "./browser-smoke.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -518,6 +519,23 @@ async function run() {
       cookieMap,
     );
 
+    const browserSmokeEnabled = env.WATCHDOG_SKIP_BROWSER_SMOKE !== "1";
+    const browserPaymentSuccessUrl =
+      created.checkoutMode === "dev"
+        ? `${webBase}/payments/success?orderId=${encodeURIComponent(created.order.orderId)}&paymentKey=${encodeURIComponent(`dev_${created.order.orderId}`)}&amount=${created.order.amount}`
+        : null;
+
+    const browserSmokeResult = browserSmokeEnabled
+      ? await runBrowserSmoke({
+          webBase,
+          loginEmail: email,
+          loginPassword: UPDATED_PASSWORD,
+          accountEmail: email,
+          expectedDisplayName: updatedName,
+          paymentSuccessUrl: browserPaymentSuccessUrl,
+        })
+      : null;
+
     if (created.checkoutMode === "provider") {
       assert(
         healthDetails.paymentMode === "provider",
@@ -608,6 +626,20 @@ async function run() {
           webBase,
           checkoutMode: created.checkoutMode,
           paymentMode: healthDetails.paymentMode,
+          browserSmoke: browserSmokeResult
+            ? {
+                enabled: true,
+                homeVerified: browserSmokeResult.homeVerified,
+                accountVerified: browserSmokeResult.accountVerified,
+                sajuVerified: browserSmokeResult.sajuVerified,
+                paymentSuccessVerified: browserSmokeResult.paymentSuccessVerified,
+                paymentSuccessSkippedReason:
+                  browserSmokeResult.paymentSuccessSkippedReason ?? null,
+              }
+            : {
+                enabled: false,
+                skippedReason: "WATCHDOG_SKIP_BROWSER_SMOKE=1",
+              },
           reloginVerified: true,
           accountNameUpdated: true,
           aiQuestionStatus: healthDetails.aiConfigured ? aiQuestionStatus : "skipped_missing_gemini",

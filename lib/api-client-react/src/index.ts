@@ -607,6 +607,9 @@ export interface AdminStatsCountSummary {
   pendingInquiries: number;
   inquiriesToday: number;
   answeredToday: number;
+  totalOrders?: number;
+  paidOrders?: number;
+  revenueKrw?: number;
 }
 
 export interface AdminStatsRecentUser {

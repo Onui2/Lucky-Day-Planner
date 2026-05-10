@@ -1451,6 +1451,32 @@ function DashboardTab() {
         />
       </div>
 
+      {(data.counts.totalOrders !== undefined) && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatsCard
+            icon={FileText}
+            label="전체 주문"
+            value={data.counts.totalOrders}
+            hint={`결제 완료 ${data.counts.paidOrders ?? 0}건`}
+            tone="sky"
+          />
+          <StatsCard
+            icon={Sparkles}
+            label="결제 완료"
+            value={data.counts.paidOrders ?? 0}
+            hint="완료된 주문 수"
+            tone="emerald"
+          />
+          <StatsCard
+            icon={TrendingUp}
+            label="총 매출 (KRW)"
+            value={data.counts.revenueKrw ?? 0}
+            hint={`${((data.counts.revenueKrw ?? 0) / 10000).toFixed(1)}만원`}
+            tone="amber"
+          />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.95fr] gap-4">
         <div className="glass-panel border border-primary/20 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">

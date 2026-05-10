@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { db, inquiriesTable, savedSajuTable, usersTable } from "@workspace/db";
-import { and, count, desc, eq, gte, ilike, or } from "drizzle-orm";
+import { db, inquiriesTable, ordersTable, savedSajuTable, usersTable } from "@workspace/db";
+import { and, count, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { requireDatabase } from "../lib/database-guard.js";
 
 const router = Router();
@@ -74,6 +74,9 @@ router.get("/admin/stats", async (req: Request, res: Response) => {
     [{ generalInquiries }],
     [{ sajuInquiries }],
     [{ gungapInquiries }],
+    [{ totalOrders }],
+    [{ paidOrders }],
+    [{ revenueKrw }],
     recentUsers,
     recentInquiries,
   ] = await Promise.all([
@@ -116,6 +119,12 @@ router.get("/admin/stats", async (req: Request, res: Response) => {
       .select({ gungapInquiries: count() })
       .from(inquiriesTable)
       .where(eq(inquiriesTable.inquiryType, "gungap")),
+    db.select({ totalOrders: count() }).from(ordersTable),
+    db.select({ paidOrders: count() }).from(ordersTable).where(eq(ordersTable.status, "paid")),
+    db
+      .select({ revenueKrw: sql<number>`coalesce(sum(amount), 0)::bigint` })
+      .from(ordersTable)
+      .where(eq(ordersTable.status, "paid")),
     db
       .select({
         id: usersTable.id,
@@ -153,6 +162,9 @@ router.get("/admin/stats", async (req: Request, res: Response) => {
       pendingInquiries: Number(pendingInquiries),
       inquiriesToday: Number(inquiriesToday),
       answeredToday: Number(answeredToday),
+      totalOrders: Number(totalOrders),
+      paidOrders: Number(paidOrders),
+      revenueKrw: Number(revenueKrw),
     },
     inquiryTypes: {
       general: Number(generalInquiries),
