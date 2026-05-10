@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
 import { ReportPurchaseButton } from "@/components/ReportPurchaseButton";
 import { AiChatPanel } from "@/components/AiChatPanel";
+import { SajuShareCard } from "@/components/SajuShareCard";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
 import {
   clampBirthDayValue,
@@ -226,28 +227,22 @@ export default function SajuPage() {
   const [saveLabel, setSaveLabel] = useState("");
   const [justSaved, setJustSaved] = useState(false);
   const saveLabelRef = useRef<HTMLInputElement>(null);
-  const resultRef = useRef<HTMLDivElement>(null);
+  const shareCardRef = useRef<HTMLDivElement>(null);
   const [savingImage, setSavingImage] = useState(false);
 
   async function handleSaveImage() {
-    if (!resultRef.current || savingImage) return;
+    if (!shareCardRef.current || savingImage || !displayResult) return;
     setSavingImage(true);
     try {
-      const dataUrl = await toPng(resultRef.current, {
-        backgroundColor: "#0d0d1a",
-        pixelRatio: 1.5,
+      const dataUrl = await toPng(shareCardRef.current, {
+        pixelRatio: 2,
         skipFonts: false,
-        // 배경 오버레이·블렌드 레이어는 캡처 제외
-        filter: (node) => {
-          if (node instanceof HTMLElement) {
-            if (node.classList.contains("bg-layout-pattern")) return false;
-            if (node.classList.contains("fixed") && node.style.zIndex === "-1" ) return false;
-          }
-          return true;
-        },
+        cacheBust: true,
       });
+      const bi = displayResult.birthInfo ?? {};
+      const fileName = `명해원_${bi.year ?? ""}${bi.month ?? ""}${bi.day ?? ""}.png`;
       const link = document.createElement("a");
-      link.download = "명해원_사주.png";
+      link.download = fileName;
       link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
@@ -1080,7 +1075,12 @@ export default function SajuPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }} ref={resultRef}>
+      {/* 공유 카드 — 화면 밖에 숨겨두고 캡처 시 사용 */}
+      <div style={{ position: "fixed", left: -9999, top: 0, zIndex: -1, pointerEvents: "none" }}>
+        <SajuShareCard ref={shareCardRef} result={displayResult} />
+      </div>
+
+      <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
 
         {/* 헤더 */}
         <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
