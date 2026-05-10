@@ -69,24 +69,44 @@ const SYSTEM_PROMPT = `당신은 명해원(命海苑)의 사주 전문 AI 상담
 - 마지막 줄에 항상 추가: "※ 본 답변은 사주 해석 기반의 참고 정보이며, 중요한 결정은 전문가와 상담하세요."
 - 질문이 사주와 무관한 경우 정중히 사주 관련 질문으로 안내합니다`;
 
+const PREFERRED_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+const FALLBACK_MODEL = "gemini-1.5-flash";
+
 export async function buildSajuQuestionAnswer(
   question: string,
   result: Record<string, any>,
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error("AI 서비스가 설정되지 않았습니다.");
+    throw new Error("AI 서비스 키가 설정되지 않았습니다. GEMINI_API_KEY 환경변수를 확인하세요.");
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
-    systemInstruction: SYSTEM_PROMPT,
-  });
-
   const sajuContext = buildSajuContext(result);
   const prompt = `아래는 이 사용자의 사주 분석 데이터입니다:\n\n${sajuContext}\n\n질문: ${question}`;
 
-  const response = await model.generateContent(prompt);
-  return response.response.text();
+  const tryModel = async (modelName: string) => {
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      systemInstruction: SYSTEM_PROMPT,
+    });
+    const response = await model.generateContent(prompt);
+    return response.response.text();
+  };
+
+  try {
+    return await tryModel(PREFERRED_MODEL);
+  } catch (primaryError) {
+    if (PREFERRED_MODEL === FALLBACK_MODEL) throw primaryError;
+
+    const errorMsg = primaryError instanceof Error ? primaryError.message : String(primaryError);
+    console.warn(`[ai] ${PREFERRED_MODEL} 실패, ${FALLBACK_MODEL}로 재시도: ${errorMsg}`);
+
+    try {
+      return await tryModel(FALLBACK_MODEL);
+    } catch (fallbackError) {
+      const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      throw new Error(`AI 답변 생성에 실패했습니다. (${PREFERRED_MODEL}: ${errorMsg} / ${FALLBACK_MODEL}: ${fallbackMsg})`);
+    }
+  }
 }

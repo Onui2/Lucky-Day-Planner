@@ -141,7 +141,8 @@ router.post("/ai/questions", async (req, res) => {
     });
   } catch (error) {
     console.error("ai question create error:", error);
-    res.status(500).json({ error: "AI 질문 답변 생성에 실패했습니다." });
+    const message = error instanceof Error ? error.message : "AI 질문 답변 생성에 실패했습니다.";
+    res.status(500).json({ error: message });
   }
 });
 
