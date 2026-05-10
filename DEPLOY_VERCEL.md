@@ -27,6 +27,17 @@ The app also accepts Vercel/Supabase-style Postgres variables such as:
 - `ADMIN_EMAILS`: comma-separated admin email list
 - `SUPER_ADMIN_EMAILS`: comma-separated super admin email list
 
+### AI 상담 (Gemini)
+
+- `GEMINI_API_KEY`: Google AI Studio에서 발급. 없으면 AI 상담 기능이 비활성화됩니다.
+
+### 결제 (Toss Payments)
+
+- `TOSS_SECRET_KEY`: 토스 서버 시크릿 키 (없으면 dev 시뮬레이션 모드로 작동)
+- `VITE_TOSS_CLIENT_KEY`: 토스 클라이언트 키 (프론트엔드 빌드 시 포함됨)
+
+`TOSS_SECRET_KEY`가 없으면 결제가 시뮬레이션 모드(`dev`)로 동작하여 실제 과금 없이 테스트할 수 있습니다.
+
 ### Optional mail settings
 
 - `EMAIL_HOST`
