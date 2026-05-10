@@ -9,6 +9,8 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { Crown, FileText, Loader2, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
+import { startTossCardPayment } from "@/lib/toss-payments";
+import { useAuth } from "@workspace/replit-auth-web";
 
 interface ReportPurchaseButtonProps {
   birthInfo: MonetizationBirthInfo;
@@ -25,6 +27,7 @@ type OrderPayload = {
 };
 
 export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = false, externalOpen, onOpenChange }: ReportPurchaseButtonProps) {
+  const { user } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
   const setOpen = (v: boolean) => {
@@ -66,6 +69,19 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
         setLatestReportId(confirmed.report.id);
         setLatestReportName(confirmed.report.fileName ?? confirmed.report.title);
         setMessage(confirmed.report.status === "ready" ? "PDF 리포트가 생성되었습니다." : "PDF 생성 중입니다. 마이페이지에서 확인하세요.");
+        return;
+      }
+      if (created.checkoutMode === "provider" && user) {
+        await startTossCardPayment({
+          user: {
+            id: user.id,
+            email: user.email ?? null,
+            firstName: user.firstName ?? null,
+          },
+          orderId: created.order.orderId,
+          amount: 4900,
+          orderName: `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 정밀 사주 리포트`,
+        });
         return;
       }
       setMessage("주문이 생성되었습니다. 결제 연동 후 이용 가능합니다.");

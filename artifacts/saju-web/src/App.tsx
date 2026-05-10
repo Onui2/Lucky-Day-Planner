@@ -28,6 +28,8 @@ const LoginPage = lazy(() => import("@/pages/login"));
 const RegisterPage = lazy(() => import("@/pages/register"));
 const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
+const PaymentSuccessPage = lazy(() => import("@/pages/payment-success"));
+const PaymentFailPage = lazy(() => import("@/pages/payment-fail"));
 const DaeunPage = lazy(() => import("@/pages/daeun"));
 const MonthlyFortunePage = lazy(() => import("@/pages/monthly-fortune"));
 const LuckyCalendarPage = lazy(() => import("@/pages/lucky-calendar"));
@@ -36,6 +38,8 @@ const GlossaryPage = lazy(() => import("@/pages/glossary"));
 const SajuTablesPage = lazy(() => import("@/pages/saju-tables"));
 const DayPillarAnalysisPage = lazy(() => import("@/pages/day-pillar-analysis"));
 const LoveFortunePage = lazy(() => import("@/pages/love-fortune"));
+const PaymentSuccessPage = lazy(() => import("@/pages/payment-success"));
+const PaymentFailPage = lazy(() => import("@/pages/payment-fail"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -68,6 +72,8 @@ function Router() {
         <Route path="/register" component={RegisterPage} />
         <Route path="/forgot-password" component={ForgotPasswordPage} />
         <Route path="/reset-password" component={ResetPasswordPage} />
+        <Route path="/payments/success" component={PaymentSuccessPage} />
+        <Route path="/payments/fail" component={PaymentFailPage} />
         <Route>
           <Layout>
             <Switch>
@@ -83,6 +89,15 @@ function Router() {
                   </RequireAuth>
                 )}
               />
+              <Route
+                path="/payments/success"
+                component={() => (
+                  <RequireAuth>
+                    <PaymentSuccessPage />
+                  </RequireAuth>
+                )}
+              />
+              <Route path="/payments/fail" component={PaymentFailPage} />
               <Route path="/gungap" component={GungapPage} />
               <Route path="/love-fortune" component={LoveFortunePage} />
               <Route

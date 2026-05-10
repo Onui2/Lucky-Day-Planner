@@ -5,6 +5,7 @@ import {
   useConfirmCommercePayment,
   useCreateCommerceOrder,
   useGetMyReports,
+  type CreateCommerceOrderResponse,
   type MonetizationBirthInfo,
 } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -12,24 +13,12 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Crown, FileText, Sparkles } from "lucide-react";
+import { startTossCardPayment, type TossCheckoutUser } from "@/lib/toss-payments";
 
 interface ReportPurchaseCardProps {
   birthInfo: MonetizationBirthInfo;
   isAuthenticated: boolean;
   isAdmin?: boolean;
-}
-
-type OrderCreationPayload = {
-  checkoutMode?: string;
-  order: {
-    orderId: string;
-  };
-  report: {
-    id: number;
-    status: string;
-    title: string;
-    fileName?: string | null;
-  };
 }
 
 export function ReportPurchaseCard({
@@ -51,12 +40,15 @@ export function ReportPurchaseCard({
     [reportsData],
   );
 
+  const buildOrderLabel = () =>
+    `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 정밀 사주 리포트`;
+
   async function handlePurchase() {
     setMessage(null);
     setIsVerifyingSession(true);
 
     try {
-      const authState = await customFetch<{ user: { id: string } | null }>(
+      const authState = await customFetch<{ user: TossCheckoutUser | null }>(
         "/api/auth/user",
       );
 
@@ -66,11 +58,11 @@ export function ReportPurchaseCard({
         return;
       }
 
-      const created = (await createOrder.mutateAsync({
+      const created = await createOrder.mutateAsync({
         productType: "saju_pdf",
         birthInfo,
-        label: `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 정밀 사주 리포트`,
-      })) as OrderCreationPayload;
+        label: buildOrderLabel(),
+      }) as CreateCommerceOrderResponse;
 
       if (created.checkoutMode === "admin") {
         setLatestReportId(created.report.id);
@@ -104,9 +96,13 @@ export function ReportPurchaseCard({
         return;
       }
 
-      setMessage(
-        "주문은 생성되었습니다. 실제 토스 결제 위젯 연결 후 paymentKey 승인 단계만 추가하면 바로 운영 가능합니다.",
-      );
+      setMessage("토스 결제창으로 이동합니다...");
+      await startTossCardPayment({
+        user: authState.user,
+        orderId: created.order.orderId,
+        amount: created.order.amount,
+        orderName: created.report.fileName ?? created.report.title,
+      });
     } catch (error) {
       const status =
         typeof error === "object" &&
