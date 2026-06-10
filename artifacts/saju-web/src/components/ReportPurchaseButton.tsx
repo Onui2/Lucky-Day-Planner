@@ -77,7 +77,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
         className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-600/90 hover:bg-amber-500 text-white text-sm font-medium shadow-lg shadow-amber-900/30 backdrop-blur transition-all"
       >
         <Crown className="w-4 h-4" />
-        {isAdmin ? "리포트 무료 발급" : "PDF 리포트 4,900원"}
+        PDF 리포트 무료 발급
       </button>
 
       {/* 팝업 */}
@@ -105,16 +105,14 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
               {/* 설명 */}
               <p className="text-xs text-muted-foreground leading-5">
                 핵심 요약, 성격, 직업운, 연애운, 건강운, 대운 조언까지 한 번에 정리한 리포트입니다.
-                {isAdmin ? " 관리자는 무료로 즉시 발급됩니다." : " 결제 후 즉시 생성되고, 마이페이지에서 재다운로드 가능합니다."}
+                {isAdmin ? " 관리자는 무료로 즉시 발급됩니다." : " 현재 무료로 즉시 발급되며, 마이페이지에서 재다운로드 가능합니다."}
               </p>
 
               {/* 가격 */}
-              {!isAdmin && (
-                <div className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2">
-                  <span className="text-xs text-muted-foreground">정밀 사주 PDF</span>
-                  <span className="text-lg font-serif text-amber-700 font-semibold">4,900원</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2">
+                <span className="text-xs text-muted-foreground">정밀 사주 PDF</span>
+                <span className="text-lg font-serif text-amber-700 font-semibold">무료</span>
+              </div>
 
               {!isAuthenticated ? (
                 <div className="text-center py-2">
@@ -129,7 +127,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
                     className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
                   >
                     {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {isAdmin ? "무료 리포트 받기" : "리포트 구매하기"}
+                    무료 리포트 받기
                   </button>
 
                   {hasReport && (

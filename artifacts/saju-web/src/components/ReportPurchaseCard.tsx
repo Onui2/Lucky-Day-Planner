@@ -138,7 +138,7 @@ export function ReportPurchaseCard({
           정밀 사주 PDF 리포트
         </CardTitle>
         <CardDescription>
-          핵심 요약, 성격, 직업운, 연애운, 건강운, 대운 조언까지 한 번에 정리한 유료 리포트입니다.
+          핵심 요약, 성격, 직업운, 연애운, 건강운, 대운 조언까지 한 번에 정리한 정밀 리포트입니다. (현재 무료 이벤트 중)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -150,16 +150,16 @@ export function ReportPurchaseCard({
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {isAdmin
-                  ? "관리자 권한이면 결제 없이 즉시 생성되고, 마이페이지에서 다시 다운로드할 수 있습니다."
-                  : "결제 후 즉시 생성되고, 마이페이지에서 다시 다운로드할 수 있습니다."}
+                  ? "관리자 권한이면 즉시 생성되고, 마이페이지에서 다시 다운로드할 수 있습니다."
+                  : "현재 무료 이벤트로 즉시 생성되며, 마이페이지에서 다시 다운로드할 수 있습니다."}
               </div>
             </div>
             <div className="text-right">
               <div className="text-xl font-serif text-amber-700">
-                {isAdmin ? "무료" : "4,900원"}
+                무료
               </div>
               <div className="text-[11px] text-muted-foreground">
-                {isAdmin ? "관리자 무료 다운로드" : "PDF 재다운로드 포함"}
+                PDF 재다운로드 포함
               </div>
             </div>
           </div>
@@ -186,7 +186,7 @@ export function ReportPurchaseCard({
               ) : (
                 <Sparkles className="w-4 h-4" />
               )}
-              {isAdmin ? "관리자 무료 리포트 받기" : "정밀 리포트 구매하기"}
+              {isAdmin ? "관리자 무료 리포트 받기" : "무료 리포트 발급받기"}
             </Button>
 
             {(latestReportId || latestReadyReport) && (
