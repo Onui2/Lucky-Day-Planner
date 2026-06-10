@@ -66,6 +66,13 @@ const SYSTEM_PROMPT = `당신은 명해원(命海苑)의 사주 전문 AI 상담
 - 300~500자 내외로 핵심만 전달합니다
 - 마지막에 항상 한 줄 추가: "※ 본 답변은 사주 해석 기반의 참고 정보이며, 중요한 결정은 전문가와 상담하세요."`;
 
+function isTransientAiError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\[(429|500|503)[^\]]*\]|overloaded|high demand|quota/i.test(message);
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function buildSajuQuestionAnswer(
   question: string,
   result: Record<string, any>,
@@ -76,14 +83,44 @@ export async function buildSajuQuestionAnswer(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    systemInstruction: SYSTEM_PROMPT,
-  });
+  // gemini-1.5-flash는 단종됨 — 기본값은 현행 모델, 필요시 env로 교체
+  const primaryModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  // 과부하(503)/쿼터(429) 시 더 가벼운 모델로 폴백
+  const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash-lite";
 
   const sajuContext = buildSajuContext(result);
-  const prompt = `아래는 이 사용자의 사주 분석 데이터입니다:\n\n${sajuContext}\n\n질문: ${question}`;
+  const today = new Date().toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Seoul",
+  });
+  const prompt = `오늘 날짜: ${today}\n\n아래는 이 사용자의 사주 분석 데이터입니다:\n\n${sajuContext}\n\n질문: ${question}`;
 
-  const response = await model.generateContent(prompt);
-  return response.response.text();
+  const attempts: Array<{ modelName: string; delayMs: number }> = [
+    { modelName: primaryModel, delayMs: 0 },
+    { modelName: primaryModel, delayMs: 1500 },
+    { modelName: fallbackModel, delayMs: 1000 },
+  ];
+
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    if (attempt.delayMs > 0) await wait(attempt.delayMs);
+    try {
+      const model = genAI.getGenerativeModel({
+        model: attempt.modelName,
+        systemInstruction: SYSTEM_PROMPT,
+      });
+      const response = await model.generateContent(prompt);
+      return response.response.text();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientAiError(error)) throw error;
+      console.warn(`gemini ${attempt.modelName} transient error, retrying:`, error instanceof Error ? error.message.slice(0, 200) : error);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("AI 답변 생성에 실패했습니다.");
 }
