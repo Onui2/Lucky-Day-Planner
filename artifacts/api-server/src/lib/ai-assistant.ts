@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 function oneLine(value: unknown) {
@@ -74,25 +73,6 @@ function isTransientAiError(error: unknown): boolean {
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Gemini가 전부 실패했을 때의 서브 제공자 — ANTHROPIC_API_KEY 설정 시에만 동작
-async function askClaudeFallback(prompt: string): Promise<string | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-
-  const anthropic = new Anthropic();
-  const response = await anthropic.messages.create({
-    model: process.env.ANTHROPIC_MODEL || "claude-opus-4-8",
-    max_tokens: 16000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("");
-  return text || null;
-}
-
 export async function buildSajuQuestionAnswer(
   question: string,
   result: Record<string, any>,
@@ -138,14 +118,6 @@ export async function buildSajuQuestionAnswer(
       if (!isTransientAiError(error)) throw error;
       console.warn(`gemini ${attempt.modelName} transient error, retrying:`, error instanceof Error ? error.message.slice(0, 200) : error);
     }
-  }
-
-  // Gemini 전체 실패 — Claude 서브 제공자 시도 (키 없으면 건너뜀)
-  try {
-    const claudeAnswer = await askClaudeFallback(prompt);
-    if (claudeAnswer) return claudeAnswer;
-  } catch (error) {
-    console.warn("claude fallback error:", error instanceof Error ? error.message.slice(0, 200) : error);
   }
 
   throw lastError instanceof Error
