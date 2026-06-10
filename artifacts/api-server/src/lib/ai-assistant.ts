@@ -42,7 +42,7 @@ function buildSajuContext(result: Record<string, any>): string {
     pillars ? `## 사주팔자\n${pillars}` : "",
     balance ? `## 오행 분포\n${balance}` : "",
     result.dayMasterElement ? `## 일간 오행: ${result.dayMasterElement}` : "",
-    result.sinGangYak?.label ? `## 신강/신약: ${result.sinGangYak.label}` : "",
+    result.sinGangYak?.type ? `## 신강/신약: ${result.sinGangYak.type}` : "",
     result.yongsin?.yongsin ? `## 용신: ${result.yongsin.yongsin}` : "",
     result.samjae?.isSamjae ? `## 삼재: ${result.samjae.advice ?? "해당"}` : "",
     daeun ? `## 대운 흐름\n${daeun}` : "",
