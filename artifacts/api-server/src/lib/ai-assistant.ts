@@ -83,8 +83,8 @@ export async function buildSajuQuestionAnswer(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  // gemini-1.5-flash는 단종됨 — 기본값은 현행 모델, 필요시 env로 교체
-  const primaryModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  // 기본값은 현행 모델, 필요시 env로 교체
+  const primaryModel = process.env.GEMINI_MODEL || "gemini-3.5-flash";
   // 과부하(503)/쿼터(429) 시 더 가벼운 모델로 폴백
   const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash-lite";
 
