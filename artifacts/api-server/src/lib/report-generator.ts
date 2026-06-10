@@ -2,10 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
-// @ts-ignore — esbuild base64 loader inlines font at build time
-import nanumGothicBase64 from "../../assets/fonts/NanumGothic-Regular.ttf";
 
 const FONT_FILE_NAME = "NanumGothic-Regular.ttf";
+
+async function loadEmbeddedFontBase64(): Promise<string | null> {
+  try {
+    // @ts-ignore — esbuild base64 loader inlines font at build time
+    const mod = await import("../../assets/fonts/NanumGothic-Regular.ttf");
+    const data = (mod as { default?: unknown }).default;
+    return typeof data === "string" && data.length > 100 ? data : null;
+  } catch {
+    // dev(tsx)는 .ttf 모듈을 로드할 수 없음 — 파일시스템 폴백 사용
+    return null;
+  }
+}
 
 function escapeHtml(value: string) {
   return value
@@ -70,10 +80,11 @@ function getFontCandidates() {
   );
 }
 
-function getFontBuffer(): Buffer {
+async function getFontBuffer(): Promise<Buffer> {
   // esbuild base64 loader로 번들에 임베드된 경우 (Vercel 최우선)
-  if (typeof nanumGothicBase64 === "string" && nanumGothicBase64.length > 100) {
-    return Buffer.from(nanumGothicBase64, "base64");
+  const embedded = await loadEmbeddedFontBase64();
+  if (embedded) {
+    return Buffer.from(embedded, "base64");
   }
   // 로컬 개발: import.meta.url 기준
   try {
@@ -203,7 +214,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     },
   });
 
-  const fontBuffer = getFontBuffer();
+  const fontBuffer = await getFontBuffer();
   doc.registerFont("nanum", fontBuffer);
   doc.font("nanum");
 
