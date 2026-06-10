@@ -12,6 +12,7 @@ const vercelApiBundle = path.resolve(__dirname, "..", "saju-web", "api", "_app.m
 // which helps cold start times without risking some
 // packages that are not bundle compatible
 const allowlist = [
+  "@anthropic-ai/sdk",
   "@google/generative-ai",
   "axios",
   "bcryptjs",
