@@ -45,11 +45,11 @@ interface LayoutProps {
 }
 
 const ELEM_COLOR: Record<string, string> = {
-  목: "text-green-400",
-  화: "text-red-400",
-  토: "text-yellow-400",
-  금: "text-gray-300",
-  수: "text-blue-400",
+  목: "text-green-600",
+  화: "text-red-600",
+  토: "text-yellow-600",
+  금: "text-gray-700",
+  수: "text-blue-600",
 };
 
 function UnreadBadge({ count }: { count: number }) {
@@ -743,10 +743,10 @@ export function Layout({ children }: LayoutProps) {
         {visibleAnnouncements.slice(0, 2).map((a) => {
           const typeStyle =
             a.type === "warning"
-              ? "bg-amber-500/15 border-amber-500/40 text-amber-200"
+              ? "bg-amber-500/15 border-amber-500/40 text-amber-700"
               : a.type === "notice"
                 ? "bg-primary/15 border-primary/40 text-primary-foreground"
-                : "bg-sky-500/10 border-sky-500/30 text-sky-200";
+                : "bg-sky-500/10 border-sky-500/30 text-sky-700";
           return (
             <motion.div
               key={a.id}

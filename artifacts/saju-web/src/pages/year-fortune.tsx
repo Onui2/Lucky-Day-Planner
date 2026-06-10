@@ -24,7 +24,7 @@ import {
 
 const ELEM_KOR: Record<string, string> = { 목:'木', 화:'火', 토:'土', 금:'金', 수:'水' };
 const ELEM_COLOR: Record<string, string> = {
-  목:'text-green-400', 화:'text-red-400', 토:'text-yellow-400', 금:'text-gray-300', 수:'text-blue-400',
+  목:'text-green-600', 화:'text-red-600', 토:'text-yellow-600', 금:'text-gray-700', 수:'text-blue-600',
 };
 const ELEM_BG: Record<string, string> = {
   목:'bg-green-400', 화:'bg-red-400', 토:'bg-yellow-400', 금:'bg-gray-300', 수:'bg-blue-400',
@@ -46,7 +46,7 @@ const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9�
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
   return (
-    <div className="w-full bg-white/10 rounded-full h-2">
+    <div className="w-full bg-foreground/8 rounded-full h-2">
       <motion.div
         className={cn("h-2 rounded-full", color)}
         initial={{ width: 0 }}
@@ -66,11 +66,11 @@ function scoreLabel(s: number) {
 }
 
 function scoreColor(s: number) {
-  if (s >= 80) return 'text-emerald-400';
-  if (s >= 65) return 'text-blue-400';
-  if (s >= 50) return 'text-amber-400';
-  if (s >= 35) return 'text-orange-400';
-  return 'text-rose-400';
+  if (s >= 80) return 'text-emerald-600';
+  if (s >= 65) return 'text-blue-600';
+  if (s >= 50) return 'text-amber-600';
+  if (s >= 35) return 'text-orange-600';
+  return 'text-rose-600';
 }
 
 function CategoryCard({
@@ -78,7 +78,7 @@ function CategoryCard({
 }: { label: string; score: number; text: string; icon: any; barColor: string }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="glass-panel border border-white/10 rounded-2xl p-4">
+    <div className="glass-panel border border-foreground/10 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Icon className={cn("w-4 h-4", barColor.replace('bg-','text-'))} />
@@ -122,7 +122,7 @@ function MonthlyChart({ months }: { months: MonthScore[] }) {
   const max = Math.max(...months.map(m => m.score), 1);
   const currentMonth = new Date().getMonth() + 1;
   return (
-    <div className="glass-panel border border-white/10 rounded-2xl p-5">
+    <div className="glass-panel border border-foreground/10 rounded-2xl p-5">
       <h3 className="text-sm font-semibold text-muted-foreground mb-1">월별 운세 흐름</h3>
       <p className="text-[10px] text-muted-foreground/60 mb-4">각 달의 월주(月柱) 간지와 일간의 오행 관계를 분석한 점수입니다.</p>
       <div className="flex items-end gap-1" style={{ height: `${BAR_MAX_PX + 36}px` }}>
@@ -186,17 +186,17 @@ function ResultSection({ data }: { data: YearFortuneData }) {
         </div>
         <div className="text-sm text-muted-foreground mb-2">{data.yearStemMeaning.name} — {data.yearStemMeaning.energy}</div>
         <div className="flex items-center justify-center gap-2 flex-wrap">
-          <span className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/15">
+          <span className="text-xs px-2 py-1 rounded-full bg-foreground/8 border border-foreground/10">
             키워드: {data.yearStemMeaning.keyword}
           </span>
-          <span className={cn("text-xs px-2 py-1 rounded-full bg-white/10 border border-white/15", ELEM_COLOR[elem])}>
+          <span className={cn("text-xs px-2 py-1 rounded-full bg-foreground/8 border border-foreground/10", ELEM_COLOR[elem])}>
             일주 오행: {elem}({ELEM_KOR[elem]})
           </span>
         </div>
       </div>
 
       {/* 총운 */}
-      <div className="glass-panel border border-white/10 rounded-2xl p-5">
+      <div className="glass-panel border border-foreground/10 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold flex items-center gap-2"><Star className="w-4 h-4 text-primary" />올해의 총운</h3>
           <div className="flex items-center gap-1">
@@ -220,13 +220,13 @@ function ResultSection({ data }: { data: YearFortuneData }) {
       <MonthlyChart months={data.monthlyScores} />
 
       {/* 분기별 */}
-      <div className="glass-panel border border-white/10 rounded-2xl p-5">
+      <div className="glass-panel border border-foreground/10 rounded-2xl p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4 flex items-center gap-2">
           <CalendarDays className="w-4 h-4" />계절별 운세
         </h3>
         <div className="grid grid-cols-2 gap-3">
           {data.quarters.map((q, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3">
+            <div key={i} className="bg-foreground/5 border border-foreground/10 rounded-xl p-3">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-medium">{q.name}</span>
                 <span className={cn("text-xs font-bold", scoreColor(q.score))}>{q.score}점</span>
@@ -346,7 +346,7 @@ export default function YearFortunePage() {
         </div>
 
         {/* 입력 폼 */}
-        <div className="glass-panel border border-white/10 rounded-2xl p-5 mb-6 space-y-4">
+        <div className="glass-panel border border-foreground/10 rounded-2xl p-5 mb-6 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">생년월일 입력</span>
             {profile ? (
@@ -363,7 +363,7 @@ export default function YearFortunePage() {
                 {fromProfile ? "내 사주 ✓" : "내 사주 불러오기"}
               </button>
             ) : (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground/50 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground/50 bg-foreground/5 border border-foreground/10 px-2.5 py-1 rounded-full">
                 <UserCircle2 className="w-3 h-3" /> 사주 미등록
               </span>
             )}
@@ -373,17 +373,17 @@ export default function YearFortunePage() {
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">출생 연도</Label>
               <Input placeholder="예: 1990" value={form.birthYear} onChange={e => set('birthYear', e.target.value)}
-                className="bg-white/5 border-white/10" type="number" min={1900} max={2100} inputMode="numeric" />
+                className="bg-foreground/5 border-foreground/10" type="number" min={1900} max={2100} inputMode="numeric" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">월</Label>
               <Input placeholder="1-12" value={form.birthMonth} onChange={e => set('birthMonth', e.target.value)}
-                className="bg-white/5 border-white/10" type="number" min={1} max={12} inputMode="numeric" />
+                className="bg-foreground/5 border-foreground/10" type="number" min={1} max={12} inputMode="numeric" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">일</Label>
               <Input placeholder="1-31" value={form.birthDay} onChange={e => set('birthDay', e.target.value)}
-                className="bg-white/5 border-white/10" type="number" min={1} max={maxBirthDay} inputMode="numeric" />
+                className="bg-foreground/5 border-foreground/10" type="number" min={1} max={maxBirthDay} inputMode="numeric" />
             </div>
           </div>
 
@@ -391,7 +391,7 @@ export default function YearFortunePage() {
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">시 (Hour)</Label>
               <Select value={String(form.birthHour)} onValueChange={v => setForm(f => ({ ...f, birthHour: Number(v), birthMinute: Number(v) === -1 ? '' : f.birthMinute }))}>
-                <SelectTrigger className="bg-white/5 border-white/10">
+                <SelectTrigger className="bg-foreground/5 border-foreground/10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -406,7 +406,7 @@ export default function YearFortunePage() {
               <Input
                 value={form.birthMinute}
                 onChange={e => set('birthMinute', e.target.value)}
-                className="bg-white/5 border-white/10"
+                className="bg-foreground/5 border-foreground/10"
                 type="number"
                 min={0}
                 max={59}
@@ -417,7 +417,7 @@ export default function YearFortunePage() {
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">조회 연도</Label>
               <Input value={form.targetYear} onChange={e => set('targetYear', e.target.value)}
-                className="bg-white/5 border-white/10" type="number" min={2020} max={2040} />
+                className="bg-foreground/5 border-foreground/10" type="number" min={2020} max={2040} />
             </div>
           </div>
 
@@ -427,10 +427,10 @@ export default function YearFortunePage() {
           </Button>
 
           {validationError && (
-            <p className="text-sm text-rose-400 text-center">{validationError}</p>
+            <p className="text-sm text-rose-600 text-center">{validationError}</p>
           )}
           {mut.isError && !validationError && (
-            <p className="text-sm text-rose-400 text-center">{(mut.error as any)?.message ?? '오류가 발생했습니다.'}</p>
+            <p className="text-sm text-rose-600 text-center">{(mut.error as any)?.message ?? '오류가 발생했습니다.'}</p>
           )}
         </div>
 

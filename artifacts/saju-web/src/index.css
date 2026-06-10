@@ -39,34 +39,34 @@
 }
 
 :root {
-  /* Midnight Aurora Theme — deep navy with rich purple/teal aurora */
-  --background: 222 55% 8%;         /* deep midnight navy */
-  --foreground: 40 35% 96%;         /* warm bright off-white */
+  /* Hanji Light Theme — warm white paper with gold/ink accents */
+  --background: 40 40% 98%;         /* warm paper white */
+  --foreground: 230 25% 16%;        /* deep ink navy */
 
-  --card: 228 50% 13%;              /* clearly-distinct deep navy-blue */
-  --card-foreground: 40 35% 96%;
+  --card: 0 0% 100%;                /* clean white card */
+  --card-foreground: 230 25% 16%;
 
-  --popover: 228 50% 13%;
-  --popover-foreground: 40 35% 96%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 230 25% 16%;
 
-  --primary: 46 72% 56%;            /* warm gold */
-  --primary-foreground: 222 55% 8%;
+  --primary: 42 65% 42%;            /* deep gold (readable on white) */
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 245 42% 22%;         /* indigo */
-  --secondary-foreground: 40 35% 96%;
+  --secondary: 42 35% 92%;          /* soft warm beige */
+  --secondary-foreground: 230 25% 16%;
 
-  --muted: 245 40% 19%;
-  --muted-foreground: 240 22% 74%;  /* clearly readable */
+  --muted: 40 25% 93%;
+  --muted-foreground: 230 12% 42%;  /* clearly readable */
 
-  --accent: 268 78% 62%;            /* bright violet */
+  --accent: 268 55% 48%;            /* deep violet */
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive: 0 75% 50%;
+  --destructive-foreground: 0 0% 100%;
 
-  --border: 46 72% 56% / 0.18;
-  --input: 245 40% 22%;
-  --ring: 46 72% 56%;
+  --border: 42 40% 42% / 0.25;
+  --input: 40 25% 90%;
+  --ring: 42 65% 42%;
 
   --radius: 0.75rem;
 }
@@ -78,20 +78,15 @@
 
   body {
     @apply font-sans antialiased text-foreground;
-    background-color: hsl(222, 55%, 8%);
+    background-color: hsl(40, 40%, 98%);
 
-    /* Aurora / cosmic night sky — five layered radial gradients */
+    /* Hanji paper — soft warm gradients, barely-there gold/violet wash */
     background-image:
-      /* Violet aurora — upper-left */
-      radial-gradient(ellipse 80% 60% at 12% 0%,   hsl(268 72% 30% / 0.70), transparent 70%),
-      /* Deep sapphire — upper-right */
-      radial-gradient(ellipse 60% 50% at 90% 6%,   hsl(218 90% 28% / 0.55), transparent 65%),
-      /* Teal shimmer — lower-right */
-      radial-gradient(ellipse 65% 48% at 92% 96%,  hsl(196 80% 24% / 0.45), transparent 65%),
-      /* Indigo warmth — lower-left */
-      radial-gradient(ellipse 70% 42% at 8% 100%,  hsl(248 65% 26% / 0.50), transparent 65%),
-      /* Subtle gold centre glow */
-      radial-gradient(ellipse 45% 35% at 50% 50%,  hsl(46 65% 36% / 0.12),  transparent 70%);
+      radial-gradient(ellipse 80% 60% at 12% 0%,   hsl(268 45% 88% / 0.35), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 90% 6%,   hsl(218 60% 90% / 0.40), transparent 65%),
+      radial-gradient(ellipse 65% 48% at 92% 96%,  hsl(196 50% 90% / 0.30), transparent 65%),
+      radial-gradient(ellipse 70% 42% at 8% 100%,  hsl(42 60% 90% / 0.40),  transparent 65%),
+      radial-gradient(ellipse 45% 35% at 50% 50%,  hsl(46 70% 92% / 0.30),  transparent 70%);
 
     background-attachment: fixed;
     min-height: 100vh;
@@ -103,39 +98,39 @@
 
   /* native <select> 드롭다운 — 배경 고정 (반투명 방지) */
   select {
-    background-color: hsl(245, 40%, 20%);
-    color: hsl(40, 35%, 96%);
+    background-color: hsl(0, 0%, 100%);
+    color: hsl(230, 25%, 16%);
   }
   select option {
-    background-color: hsl(228, 50%, 14%);
-    color: hsl(40, 35%, 96%);
+    background-color: hsl(0, 0%, 100%);
+    color: hsl(230, 25%, 16%);
   }
   select option:hover,
   select option:checked {
-    background-color: hsl(245, 55%, 28%);
+    background-color: hsl(42, 50%, 90%);
   }
 
   /* Radix UI Select 드롭다운 — 배경 완전 불투명 강제 */
   [data-radix-popper-content-wrapper] [role="listbox"],
   [data-radix-select-content] {
-    background-color: hsl(228, 50%, 12%) !important;
+    background-color: hsl(0, 0%, 100%) !important;
     backdrop-filter: none !important;
   }
 }
 
 @layer utilities {
   .glass-panel {
-    background: hsl(228 52% 15% / 0.75);
+    background: hsl(0 0% 100% / 0.78);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid hsl(46 72% 56% / 0.22);
+    border: 1px solid hsl(42 50% 50% / 0.25);
     box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.50),
-      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      0 8px 32px rgba(120, 100, 60, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 
   .text-gradient-gold {
-    @apply bg-gradient-to-r from-[#F5EDD8] via-[#E8C84A] to-[#B98A10] text-transparent bg-clip-text;
+    @apply bg-gradient-to-r from-[#A87E10] via-[#C39A1F] to-[#8A6508] text-transparent bg-clip-text;
   }
 
   .bg-layout-pattern {

@@ -66,7 +66,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
       >
         <div className="glass-panel border border-primary/25 rounded-3xl p-10 text-center max-w-sm w-full shadow-xl">
           <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto mb-5">
-            <ShieldAlert className="w-7 h-7 text-amber-400" />
+            <ShieldAlert className="w-7 h-7 text-amber-600" />
           </div>
           <h2 className="text-xl font-serif font-bold mb-2">관리자 전용 기능입니다</h2>
           <p className="text-sm text-muted-foreground mb-6 leading-relaxed">

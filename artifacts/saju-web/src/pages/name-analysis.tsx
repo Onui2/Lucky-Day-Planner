@@ -15,7 +15,7 @@ import {
 
 const ELEM_KOR: Record<string, string> = { 목:'木', 화:'火', 토:'土', 금:'金', 수:'水' };
 const ELEM_COLOR: Record<string, string> = {
-  목:'text-green-400', 화:'text-red-400', 토:'text-yellow-400', 금:'text-gray-300', 수:'text-blue-400',
+  목:'text-green-600', 화:'text-red-600', 토:'text-yellow-600', 금:'text-gray-700', 수:'text-blue-600',
 };
 const ELEM_BG: Record<string, string> = {
   목:'bg-green-400/20 border-green-400/30', 화:'bg-red-400/20 border-red-400/30',
@@ -24,11 +24,11 @@ const ELEM_BG: Record<string, string> = {
 };
 
 function gradeColor(grade: string): string {
-  if (grade.includes('대길')) return 'text-emerald-400';
-  if (grade.includes('吉') && !grade.includes('중')) return 'text-blue-400';
-  if (grade.includes('중길')) return 'text-amber-400';
-  if (grade.includes('보통')) return 'text-orange-400';
-  return 'text-rose-400';
+  if (grade.includes('대길')) return 'text-emerald-600';
+  if (grade.includes('吉') && !grade.includes('중')) return 'text-blue-600';
+  if (grade.includes('중길')) return 'text-amber-600';
+  if (grade.includes('보통')) return 'text-orange-600';
+  return 'text-rose-600';
 }
 
 function ScoreArc({ score }: { score: number }) {
@@ -61,9 +61,9 @@ function GyeokCard({ label, hanja, strokes, suri }: {
   suri: { name: string; fortune: string; score: number };
 }) {
   const [open, setOpen] = useState(false);
-  const scoreC = suri.score >= 75 ? 'text-emerald-400' : suri.score >= 55 ? 'text-amber-400' : 'text-rose-400';
+  const scoreC = suri.score >= 75 ? 'text-emerald-600' : suri.score >= 55 ? 'text-amber-600' : 'text-rose-600';
   return (
-    <div className="glass-panel border border-white/10 rounded-xl p-4">
+    <div className="glass-panel border border-foreground/10 rounded-xl p-4">
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-semibold text-primary">{label}</span>
         <span className={cn("text-xs font-bold", scoreC)}>{suri.score}점</span>
@@ -124,7 +124,7 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
       </div>
 
       {/* 오행 분석 */}
-      <div className="glass-panel border border-white/10 rounded-2xl p-5">
+      <div className="glass-panel border border-foreground/10 rounded-2xl p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-3">오행(五行) 분석</h3>
         <div className="flex items-center gap-2 flex-wrap mb-3">
           {data.elements.map((el, i) => (
@@ -139,15 +139,15 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
 
       {/* 성격 & 직업 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="glass-panel border border-white/10 rounded-2xl p-4">
+        <div className="glass-panel border border-foreground/10 rounded-2xl p-4">
           <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
             <Star className="w-4 h-4 text-primary" />성격 특성
           </h3>
           <p className="text-sm text-muted-foreground leading-relaxed">{data.personality}</p>
         </div>
-        <div className="glass-panel border border-white/10 rounded-2xl p-4">
+        <div className="glass-panel border border-foreground/10 rounded-2xl p-4">
           <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-blue-400" />적합 직업군
+            <Briefcase className="w-4 h-4 text-blue-600" />적합 직업군
           </h3>
           <p className="text-sm text-muted-foreground leading-relaxed">{data.careerSuggestions}</p>
         </div>
@@ -169,7 +169,7 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
 
       {/* 주의 사항 */}
       <div className="glass-panel border border-orange-500/20 rounded-2xl p-4 bg-orange-500/5">
-        <div className="flex items-center gap-2 text-orange-400 mb-2">
+        <div className="flex items-center gap-2 text-orange-600 mb-2">
           <AlertCircle className="w-4 h-4" />
           <span className="text-sm font-semibold">주의 사항</span>
         </div>
@@ -194,7 +194,7 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
             {/* 오행 궁합 헤더 */}
             <div className={`glass-panel rounded-2xl p-5 border-2 ${rel.isGood ? 'border-emerald-400/30 bg-emerald-400/5' : 'border-orange-400/30 bg-orange-400/5'}`}>
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Sparkles className={`w-4 h-4 ${rel.isGood ? 'text-emerald-400' : 'text-orange-400'}`} />
+                <Sparkles className={`w-4 h-4 ${rel.isGood ? 'text-emerald-600' : 'text-orange-600'}`} />
                 내 사주와 이름 오행 궁합
               </h3>
               <div className="flex items-center justify-center gap-4 mb-4">
@@ -206,10 +206,10 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
                   <p className="text-[10px] text-muted-foreground mt-1">내 일간</p>
                 </div>
                 <div className="text-center">
-                  <div className={`text-2xl font-bold ${rel.isGood ? 'text-emerald-400' : 'text-orange-400'}`}>
+                  <div className={`text-2xl font-bold ${rel.isGood ? 'text-emerald-600' : 'text-orange-600'}`}>
                     {rel.isGood ? '✨' : '⚡'}
                   </div>
-                  <div className={`text-xs font-bold mt-0.5 ${rel.isGood ? 'text-emerald-400' : 'text-orange-400'}`}>{rel.label}</div>
+                  <div className={`text-xs font-bold mt-0.5 ${rel.isGood ? 'text-emerald-600' : 'text-orange-600'}`}>{rel.label}</div>
                 </div>
                 <div className="text-center">
                   <div className={`w-14 h-14 rounded-full border-2 flex flex-col items-center justify-center font-serif font-bold ${SAJU_ELEM_COLOR[nameElem]} border-current/40 bg-current/10`}>
@@ -255,7 +255,7 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {acolors.map((c, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-full border border-rose-400/30 bg-rose-400/10 text-xs text-rose-400">✗ {c}</span>
+                        <span key={i} className="px-2 py-0.5 rounded-full border border-rose-400/30 bg-rose-400/10 text-xs text-rose-600">✗ {c}</span>
                       ))}
                     </div>
                   </div>
@@ -267,9 +267,9 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
                     <Compass className="w-3.5 h-3.5 text-primary" /> 길방·흉방
                   </div>
                   <div className="text-sm">
-                    <span className="text-emerald-400 font-medium">길방 {ldir}</span>
+                    <span className="text-emerald-600 font-medium">길방 {ldir}</span>
                     <span className="text-muted-foreground mx-2">·</span>
-                    <span className="text-rose-400 font-medium">흉방 {adir}</span>
+                    <span className="text-rose-600 font-medium">흉방 {adir}</span>
                   </div>
                 </div>
 
@@ -292,7 +292,7 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {lfood.map((f, i) => (
-                      <span key={i} className="px-2 py-0.5 rounded-full border border-amber-400/25 bg-amber-400/5 text-xs text-amber-300/90">{f}</span>
+                      <span key={i} className="px-2 py-0.5 rounded-full border border-amber-400/25 bg-amber-400/5 text-xs text-amber-700/90">{f}</span>
                     ))}
                   </div>
                 </div>
@@ -330,7 +330,7 @@ export default function NameAnalysisPage() {
         </div>
 
         {/* 입력 */}
-        <div className="glass-panel border border-white/10 rounded-2xl p-5 mb-6 space-y-4">
+        <div className="glass-panel border border-foreground/10 rounded-2xl p-5 mb-6 space-y-4">
           <div className="space-y-1.5">
             <Label className="text-sm">한글 이름 입력</Label>
             <Input
@@ -338,7 +338,7 @@ export default function NameAnalysisPage() {
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              className="bg-white/5 border-white/10 text-lg text-center tracking-widest"
+              className="bg-foreground/5 border-foreground/10 text-lg text-center tracking-widest"
               maxLength={5}
             />
             <p className="text-xs text-muted-foreground text-center">성씨 포함 2~4자 한글 이름을 입력하세요</p>
@@ -348,7 +348,7 @@ export default function NameAnalysisPage() {
             {mut.isPending ? <><Loader2 className="w-4 h-4 animate-spin" />분석 중...</> : <><Sparkles className="w-4 h-4" />이름 풀이 보기</>}
           </Button>
           {mut.isError && (
-            <p className="text-sm text-rose-400 text-center">{(mut.error as any)?.message ?? '오류가 발생했습니다.'}</p>
+            <p className="text-sm text-rose-600 text-center">{(mut.error as any)?.message ?? '오류가 발생했습니다.'}</p>
           )}
         </div>
 

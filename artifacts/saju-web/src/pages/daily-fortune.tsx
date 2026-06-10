@@ -19,7 +19,7 @@ import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getMonthKey, getSeoulTodayString } from "@/lib/seoul-date";
 
 const ELEM_KOR: Record<string, string> = { 목: "木", 화: "火", 토: "土", 금: "金", 수: "水" };
-const ELEM_COLOR: Record<string, string> = { 목: "text-green-400", 화: "text-red-400", 토: "text-yellow-400", 금: "text-gray-300", 수: "text-blue-400" };
+const ELEM_COLOR: Record<string, string> = { 목: "text-green-600", 화: "text-red-600", 토: "text-yellow-600", 금: "text-gray-700", 수: "text-blue-600" };
 
 const STEM_HANJA: Record<string, string> = {
   갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸',
@@ -30,11 +30,11 @@ const BRANCH_HANJA: Record<string, string> = {
 const toH = (k: string) => STEM_HANJA[k] ?? BRANCH_HANJA[k] ?? k;
 
 function overallScoreStyle(s: number) {
-  if (s >= 80) return { text: 'text-emerald-400', label: '매우 좋은 날' };
-  if (s >= 65) return { text: 'text-blue-400',    label: '좋은 날'     };
-  if (s >= 50) return { text: 'text-amber-400',   label: '평범한 날'   };
-  if (s >= 35) return { text: 'text-orange-400',  label: '주의가 필요한 날' };
-  return             { text: 'text-rose-400',    label: '조심하는 날'  };
+  if (s >= 80) return { text: 'text-emerald-600', label: '매우 좋은 날' };
+  if (s >= 65) return { text: 'text-blue-600',    label: '좋은 날'     };
+  if (s >= 50) return { text: 'text-amber-600',   label: '평범한 날'   };
+  if (s >= 35) return { text: 'text-orange-600',  label: '주의가 필요한 날' };
+  return             { text: 'text-rose-600',    label: '조심하는 날'  };
 }
 
 const TODAY = getSeoulTodayString();
@@ -111,7 +111,7 @@ function DateNavPicker({
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-72 p-3 bg-[#0d1228] border border-primary/30 shadow-2xl shadow-black/80 backdrop-blur-none"
+          className="w-72 p-3 bg-white border border-primary/30 shadow-2xl shadow-black/15 backdrop-blur-none"
           align="center"
         >
           {/* 월 헤더 */}
@@ -145,7 +145,7 @@ function DateNavPicker({
             {DOW_KOR.map((d, i) => (
               <div key={d} className={cn(
                 "text-xs text-center py-1 font-medium",
-                i === 0 ? "text-rose-400" : i === 6 ? "text-blue-400" : "text-muted-foreground"
+                i === 0 ? "text-rose-600" : i === 6 ? "text-blue-600" : "text-muted-foreground"
               )}>
                 {d}
               </div>
@@ -175,8 +175,8 @@ function DateNavPicker({
                     isDisabled ? "opacity-35 cursor-not-allowed" : "hover:bg-primary/15",
                     isSelected && "bg-primary text-white font-semibold",
                     !isSelected && isTodayCell && "border border-primary/50 text-primary font-semibold",
-                    !isSelected && dow === 0 && "text-rose-400",
-                    !isSelected && dow === 6 && "text-blue-400",
+                    !isSelected && dow === 0 && "text-rose-600",
+                    !isSelected && dow === 6 && "text-blue-600",
                   )}
                 >
                   {d.getDate()}
@@ -242,10 +242,10 @@ export default function DailyFortunePage() {
     health: 'bg-emerald-400',
   };
   const ICON_COLOR: Record<string, string> = {
-    money:  'text-amber-400',
-    love:   'text-rose-400',
-    career: 'text-blue-400',
-    health: 'text-emerald-400',
+    money:  'text-amber-600',
+    love:   'text-rose-600',
+    career: 'text-blue-600',
+    health: 'text-emerald-600',
   };
 
   function scoreLabel(s: number) {
@@ -476,7 +476,7 @@ export default function DailyFortunePage() {
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {acolors.map((c, i) => (
-                              <span key={i} className="px-2.5 py-0.5 rounded-full border border-rose-400/30 bg-rose-400/10 text-xs text-rose-400">✗ {c}</span>
+                              <span key={i} className="px-2.5 py-0.5 rounded-full border border-rose-400/30 bg-rose-400/10 text-xs text-rose-600">✗ {c}</span>
                             ))}
                           </div>
                         </div>
@@ -488,9 +488,9 @@ export default function DailyFortunePage() {
                           <Compass className="w-3.5 h-3.5 text-primary" /> 길방·흉방
                         </div>
                         <div className="text-sm">
-                          <span className="text-emerald-400 font-medium">길방 {ldir}</span>
+                          <span className="text-emerald-600 font-medium">길방 {ldir}</span>
                           <span className="text-muted-foreground mx-2">·</span>
-                          <span className="text-rose-400 font-medium">흉방 {adir}</span>
+                          <span className="text-rose-600 font-medium">흉방 {adir}</span>
                         </div>
                       </div>
 
@@ -513,7 +513,7 @@ export default function DailyFortunePage() {
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {lfood.map((f, i) => (
-                            <span key={i} className="px-2.5 py-0.5 rounded-full border border-amber-400/25 bg-amber-400/5 text-xs text-amber-300/90">{f}</span>
+                            <span key={i} className="px-2.5 py-0.5 rounded-full border border-amber-400/25 bg-amber-400/5 text-xs text-amber-700/90">{f}</span>
                           ))}
                         </div>
                       </div>
@@ -584,9 +584,9 @@ export default function DailyFortunePage() {
                     <div>
                       <div className="text-xs text-muted-foreground mb-1">방향</div>
                       <div className="text-sm">
-                        <span className="text-emerald-400 font-medium">길방 {data.luckyDirection}</span>
+                        <span className="text-emerald-600 font-medium">길방 {data.luckyDirection}</span>
                         <span className="text-muted-foreground mx-2">·</span>
-                        <span className="text-rose-400 font-medium">흉방 {data.avoidDirection}</span>
+                        <span className="text-rose-600 font-medium">흉방 {data.avoidDirection}</span>
                       </div>
                     </div>
                   </div>
@@ -612,7 +612,7 @@ export default function DailyFortunePage() {
 
                 {/* 오늘 하면 좋은 일 */}
                 <div>
-                  <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">오늘 하면 좋은 일</div>
+                  <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">오늘 하면 좋은 일</div>
                   <div className="space-y-1.5">
                     {(data.goodThings ?? []).map((tip, i) => (
                       <div key={i} className="flex items-center gap-2 text-sm text-foreground/80">
@@ -621,19 +621,19 @@ export default function DailyFortunePage() {
                       </div>
                     ))}
                     {rel?.type === '인성' && (
-                      <div className="flex items-center gap-2 text-sm text-emerald-300/90">
+                      <div className="flex items-center gap-2 text-sm text-emerald-700/90">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0" />
                         오늘 기운이 내 일간을 도와주는 날 — 새 계획·학습·중요한 결정에 특히 유리
                       </div>
                     )}
                     {rel?.type === '재성' && (
-                      <div className="flex items-center gap-2 text-sm text-emerald-300/90">
+                      <div className="flex items-center gap-2 text-sm text-emerald-700/90">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0" />
                         내 일간이 오늘 기운을 제어 — 재물·성과를 노리는 적극적인 행동이 유리
                       </div>
                     )}
                     {rel && ['천간합', '지지육합', '지지반합', '지지삼합', '지지방합', '지지암합'].includes(rel.type) && (
-                      <div className="flex items-center gap-2 text-sm text-emerald-300/90">
+                      <div className="flex items-center gap-2 text-sm text-emerald-700/90">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0" />
                         오늘은 {rel.label} 성향 강함 — 협의·만남·조율·파트너십 움직임이 특히 유리
                       </div>
@@ -643,7 +643,7 @@ export default function DailyFortunePage() {
 
                 {/* 오늘 피해야 할 일 */}
                 <div>
-                  <div className="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2">오늘 피해야 할 일</div>
+                  <div className="text-xs font-semibold text-rose-600 uppercase tracking-wider mb-2">오늘 피해야 할 일</div>
                   <div className="space-y-1.5">
                     {(data.avoidThings ?? []).map((tip, i) => (
                       <div key={i} className="flex items-center gap-2 text-sm text-foreground/80">
@@ -652,19 +652,19 @@ export default function DailyFortunePage() {
                       </div>
                     ))}
                     {rel?.type === '관살' && (
-                      <div className="flex items-center gap-2 text-sm text-rose-300/90">
+                      <div className="flex items-center gap-2 text-sm text-rose-700/90">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-300 shrink-0" />
                         오늘 기운이 내 일간을 누르는 날 — 감정적 대립이나 무리한 결정 특히 자제
                       </div>
                     )}
                     {rel?.type === '식상' && (
-                      <div className="flex items-center gap-2 text-sm text-rose-300/90">
+                      <div className="flex items-center gap-2 text-sm text-rose-700/90">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-300 shrink-0" />
                         내 에너지가 바깥으로 흐르는 날 — 과도한 지출이나 체력 소모는 줄이세요
                       </div>
                     )}
                     {rel && ['천간충', '지지충', '지지형', '지지해', '지지원진', '지지귀문'].includes(rel.type) && (
-                      <div className="flex items-center gap-2 text-sm text-rose-300/90">
+                      <div className="flex items-center gap-2 text-sm text-rose-700/90">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-300 shrink-0" />
                         오늘은 {rel.label} 성향 강함 — 말실수·감정 대립·급한 결정은 특히 줄이는 편이 좋음
                       </div>

@@ -142,7 +142,7 @@ export default function SavedPage() {
                               maxLength={50}
                               autoFocus
                             />
-                            <button onClick={() => commitRename(item.id)} className="text-emerald-400 hover:text-emerald-300">
+                            <button onClick={() => commitRename(item.id)} className="text-emerald-600 hover:text-emerald-700">
                               <Check className="w-4 h-4" />
                             </button>
                             <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:text-foreground">
@@ -182,13 +182,13 @@ export default function SavedPage() {
                       <div className="flex gap-2 justify-end">
                         {isDeleting ? (
                           <div className="flex items-center gap-2 text-sm">
-                            <span className="text-rose-400">정말 삭제할까요?</span>
+                            <span className="text-rose-600">정말 삭제할까요?</span>
                             <button
                               onClick={async () => {
                                 await deleteMut.mutateAsync(item.id);
                                 setDeletingId(null);
                               }}
-                              className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 text-xs hover:bg-rose-500/30"
+                              className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-600 text-xs hover:bg-rose-500/30"
                             >
                               삭제
                             </button>
@@ -204,7 +204,7 @@ export default function SavedPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-rose-400 hover:text-rose-300 hover:bg-rose-400/10 gap-1"
+                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-400/10 gap-1"
                               onClick={() => setDeletingId(item.id)}
                             >
                               <Trash2 className="w-3.5 h-3.5" />

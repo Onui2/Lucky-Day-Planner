@@ -88,13 +88,13 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.97 }}
             transition={{ duration: 0.18 }}
-            className="fixed bottom-28 right-4 z-50 w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-amber-400/20 bg-[#1a1408]/95 shadow-2xl shadow-amber-900/30 backdrop-blur-xl overflow-hidden"
+            className="fixed bottom-28 right-4 z-50 w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-amber-400/20 bg-white/95 shadow-2xl shadow-amber-900/15 backdrop-blur-xl overflow-hidden"
           >
             {/* 헤더 */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-amber-500/10">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/10 bg-amber-500/10">
               <div className="flex items-center gap-2">
-                <Crown className="w-4 h-4 text-amber-300" />
-                <span className="text-sm font-medium text-amber-100">정밀 사주 PDF 리포트</span>
+                <Crown className="w-4 h-4 text-amber-700" />
+                <span className="text-sm font-medium text-amber-700">정밀 사주 PDF 리포트</span>
               </div>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
                 <X className="w-4 h-4" />
@@ -112,7 +112,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
               {!isAdmin && (
                 <div className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2">
                   <span className="text-xs text-muted-foreground">정밀 사주 PDF</span>
-                  <span className="text-lg font-serif text-amber-300 font-semibold">4,900원</span>
+                  <span className="text-lg font-serif text-amber-700 font-semibold">4,900원</span>
                 </div>
               )}
 
@@ -134,7 +134,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
 
                   {hasReport && (
                     <button
-                      className="flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-amber-400/30 text-amber-200 text-sm hover:bg-amber-400/10 transition-colors"
+                      className="flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-amber-400/30 text-amber-700 text-sm hover:bg-amber-400/10 transition-colors"
                       onClick={() =>
                         downloadReportFile(
                           latestReportId ?? latestReadyReport!.id,
@@ -150,7 +150,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
               )}
 
               {message && (
-                <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100 leading-5">
+                <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-700 leading-5">
                   {message}
                 </div>
               )}

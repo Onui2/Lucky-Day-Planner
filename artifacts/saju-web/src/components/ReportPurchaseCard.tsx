@@ -133,7 +133,7 @@ export function ReportPurchaseCard({
   return (
     <Card className="glass-panel border-amber-400/30 bg-amber-400/5">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-amber-300">
+        <CardTitle className="flex items-center gap-2 text-amber-700">
           <Crown className="w-5 h-5" />
           정밀 사주 PDF 리포트
         </CardTitle>
@@ -142,7 +142,7 @@ export function ReportPurchaseCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-medium text-foreground">
@@ -155,7 +155,7 @@ export function ReportPurchaseCard({
               </div>
             </div>
             <div className="text-right">
-              <div className="text-xl font-serif text-amber-300">
+              <div className="text-xl font-serif text-amber-700">
                 {isAdmin ? "무료" : "4,900원"}
               </div>
               <div className="text-[11px] text-muted-foreground">
@@ -208,7 +208,7 @@ export function ReportPurchaseCard({
         )}
 
         {message && (
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-700">
             {message}
           </div>
         )}

@@ -167,16 +167,16 @@ function scoreDotColor(score: number): string {
 }
 
 function scoreBgColor(score: number): string {
-  if (score >= 9) return "bg-yellow-400/20 text-yellow-300 border-yellow-400/40";
-  if (score >= 7) return "bg-emerald-400/15 text-emerald-300 border-emerald-400/30";
-  if (score >= 5) return "bg-slate-400/10 text-slate-300 border-slate-400/20";
-  if (score >= 3) return "bg-orange-400/15 text-orange-300 border-orange-400/30";
-  return "bg-red-400/10 text-red-300 border-red-400/20";
+  if (score >= 9) return "bg-yellow-400/20 text-yellow-700 border-yellow-400/40";
+  if (score >= 7) return "bg-emerald-400/15 text-emerald-700 border-emerald-400/30";
+  if (score >= 5) return "bg-slate-400/10 text-slate-700 border-slate-400/20";
+  if (score >= 3) return "bg-orange-400/15 text-orange-700 border-orange-400/30";
+  return "bg-red-400/10 text-red-700 border-red-400/20";
 }
 
 const ELEM_COLOR: Record<string, string> = {
-  목:"text-green-400", 화:"text-red-400",
-  토:"text-yellow-400", 금:"text-gray-300", 수:"text-blue-400",
+  목:"text-green-600", 화:"text-red-600",
+  토:"text-yellow-600", 금:"text-gray-700", 수:"text-blue-600",
 };
 
 const ELEM_DIRECTION: Record<string, string> = {
@@ -610,9 +610,9 @@ export default function ManseryokPage() {
             <span className="text-muted-foreground ml-2">일간 오행: <strong className="text-foreground">{profile?.dayMasterStem} ({myElem})</strong></span>
           </div>
           <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-            <span className="text-yellow-400 font-medium">★ 대길</span>
-            <span className="text-emerald-400 font-medium">● 길</span>
-            <span className="text-orange-400 font-medium">▲ 주의</span>
+            <span className="text-yellow-600 font-medium">★ 대길</span>
+            <span className="text-emerald-600 font-medium">● 길</span>
+            <span className="text-orange-600 font-medium">▲ 주의</span>
           </div>
         </div>
       ) : profileReady ? (
@@ -633,9 +633,9 @@ export default function ManseryokPage() {
           </div>
           {bestDay && (
             <div className="glass-panel rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-3 text-center">
-              <p className="text-xs text-yellow-400/70 mb-1 flex items-center justify-center gap-1"><Star className="w-3 h-3" />최고의 날</p>
-              <p className="text-lg font-bold text-yellow-300">{monthStr}월 {bestDay[0]}일</p>
-              <p className="text-xs text-yellow-400/70">{scoreLabel(Number(bestDay[1]))} ({bestDay[1]}점)</p>
+              <p className="text-xs text-yellow-600/70 mb-1 flex items-center justify-center gap-1"><Star className="w-3 h-3" />최고의 날</p>
+              <p className="text-lg font-bold text-yellow-700">{monthStr}월 {bestDay[0]}일</p>
+              <p className="text-xs text-yellow-600/70">{scoreLabel(Number(bestDay[1]))} ({bestDay[1]}점)</p>
             </div>
           )}
           {worstDay && (
@@ -709,7 +709,7 @@ export default function ManseryokPage() {
               {weekDays.map((day, i) => (
                 <div key={day} className={cn(
                   "text-center font-medium pb-2 border-b border-border/50 text-sm",
-                  i === 0 ? "text-destructive" : i === 6 ? "text-blue-400" : "text-muted-foreground"
+                  i === 0 ? "text-destructive" : i === 6 ? "text-blue-600" : "text-muted-foreground"
                 )}>
                   {day}
                 </div>
@@ -727,7 +727,7 @@ export default function ManseryokPage() {
                 const fullDate = `${yearStr}-${monthStr}-${dayStr}`;
                 const dayData = data?.days.find((d: any) => d.solar === fullDate);
                 const dayOfWeek = (firstDayOfMonth + dayNum - 1) % 7;
-                const dateColor = dayOfWeek === 0 ? "text-destructive" : dayOfWeek === 6 ? "text-blue-400" : "text-foreground";
+                const dateColor = dayOfWeek === 0 ? "text-destructive" : dayOfWeek === 6 ? "text-blue-600" : "text-foreground";
                 const isTodayDate = fullDate === TODAY;
                 const isBlockedFutureDate = !canAccessFutureDates && fullDate > TODAY;
                 const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
@@ -789,7 +789,7 @@ export default function ManseryokPage() {
 
                         {/* 절기 */}
                         {dayData.solarTerm && (
-                          <div className="text-[8px] md:text-[9px] text-emerald-400 font-medium leading-none mt-0.5 text-center">
+                          <div className="text-[8px] md:text-[9px] text-emerald-600 font-medium leading-none mt-0.5 text-center">
                             {dayData.solarTerm}
                           </div>
                         )}
@@ -849,11 +849,11 @@ export default function ManseryokPage() {
               {isPersonalized && <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" />공통 주의 흐름</div>}
               {myElem && (
                 <>
-                  <div className="flex items-center gap-1"><span className="text-emerald-400 font-bold text-xs">★</span> 인성</div>
-                  <div className="flex items-center gap-1"><span className="text-rose-400 font-bold text-xs">▲</span> 관살</div>
-                  <div className="flex items-center gap-1"><span className="text-amber-400 font-bold text-xs">◆</span> 재성</div>
-                  <div className="flex items-center gap-1"><span className="text-blue-400 font-bold text-xs">◎</span> 식상</div>
-                  <div className="flex items-center gap-1"><span className="text-yellow-400 font-bold text-xs">◈</span> 비겁</div>
+                  <div className="flex items-center gap-1"><span className="text-emerald-600 font-bold text-xs">★</span> 인성</div>
+                  <div className="flex items-center gap-1"><span className="text-rose-600 font-bold text-xs">▲</span> 관살</div>
+                  <div className="flex items-center gap-1"><span className="text-amber-600 font-bold text-xs">◆</span> 재성</div>
+                  <div className="flex items-center gap-1"><span className="text-blue-600 font-bold text-xs">◎</span> 식상</div>
+                  <div className="flex items-center gap-1"><span className="text-yellow-600 font-bold text-xs">◈</span> 비겁</div>
                 </>
               )}
             </div>
@@ -898,7 +898,7 @@ export default function ManseryokPage() {
                   <p className="text-xs text-muted-foreground mb-1">
                     {yearStr}년 {monthStr}월 {selected.dayNum}일
                     {selected.dayData.solarTerm && (
-                      <span className="ml-2 text-emerald-400 font-medium">{selected.dayData.solarTerm}</span>
+                      <span className="ml-2 text-emerald-600 font-medium">{selected.dayData.solarTerm}</span>
                     )}
                   </p>
                   <h3 className="font-serif text-2xl font-bold text-foreground leading-tight">
@@ -921,7 +921,7 @@ export default function ManseryokPage() {
               </div>
 
               {/* ── 전체 점수 바 ── */}
-              <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-2 rounded-full bg-foreground/8 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${selected.score * 10}%` }}
@@ -935,7 +935,7 @@ export default function ManseryokPage() {
                 <div className="flex gap-3">
                   {badges.lucky && <span className="text-primary font-medium">✦ {isPersonalized ? "개인 길일" : "길일"}</span>}
                   {badges.inauspicious && <span className="text-destructive font-medium">✦ {isPersonalized ? "개인 흉일" : "흉일"}</span>}
-                  {badges.caution && <span className="text-orange-300 font-medium">✦ 개인 주의일</span>}
+                  {badges.caution && <span className="text-orange-700 font-medium">✦ 개인 주의일</span>}
                   {badges.genericLucky && <span className="text-primary/70 font-medium">✦ 공통 길 흐름</span>}
                   {badges.genericCaution && <span className="text-muted-foreground font-medium">✦ 공통 주의 흐름</span>}
                   <span>음력 {selected.dayData.lunar}</span>
@@ -949,7 +949,7 @@ export default function ManseryokPage() {
               </div>
 
               {/* ── 운세 해설 (왜 이런 점수인가) ── */}
-              <div className="rounded-xl bg-white/5 px-4 py-3 border border-white/10 space-y-2">
+              <div className="rounded-xl bg-foreground/5 px-4 py-3 border border-foreground/10 space-y-2">
                 <p className="text-xs font-semibold text-foreground/70">운세 해설</p>
                 {selected.rel ? (
                   <>
@@ -971,7 +971,7 @@ export default function ManseryokPage() {
                     <p className="text-sm text-foreground/90 leading-relaxed">
                       {selected.rel.why || REL_WHY[selected.rel.type] || ""}
                     </p>
-                    <p className={cn("text-xs font-medium leading-relaxed border-t border-white/10 pt-2", selected.rel.colorClass)}>
+                    <p className={cn("text-xs font-medium leading-relaxed border-t border-foreground/10 pt-2", selected.rel.colorClass)}>
                       {selected.rel.emoji} {selected.rel.fortune}
                     </p>
                   </>
@@ -985,29 +985,29 @@ export default function ManseryokPage() {
                   </p>
                 )}
                 {badges.inauspicious && (
-                  <p className="text-[11px] text-destructive/80 border-t border-white/10 pt-2">
+                  <p className="text-[11px] text-destructive/80 border-t border-foreground/10 pt-2">
                     ※ 개인 흉일 — 중요한 행사·계약·이사·수술 등은 미루고, 충돌 가능성이 큰 결정은 한 박자 늦추세요.
                   </p>
                 )}
                 {badges.caution && (
-                  <p className="text-[11px] text-orange-300/80 border-t border-white/10 pt-2">
+                  <p className="text-[11px] text-orange-700/80 border-t border-foreground/10 pt-2">
                     ※ 개인 주의일 — 크게 나쁜 날은 아니지만, 서두르기보다 확인과 조율을 먼저 두는 편이 안전합니다.
                   </p>
                 )}
                 {badges.lucky && (
-                  <p className="text-[11px] text-primary/80 border-t border-white/10 pt-2">
+                  <p className="text-[11px] text-primary/80 border-t border-foreground/10 pt-2">
                     ※ 개인 길일 — 계약·협의·런칭·중요 일정처럼 결과를 만들어야 하는 일을 잡기 좋은 날입니다.
                   </p>
                 )}
                 {badges.genericCaution && !badges.inauspicious && (
-                  <p className="text-[11px] text-muted-foreground border-t border-white/10 pt-2">
+                  <p className="text-[11px] text-muted-foreground border-t border-foreground/10 pt-2">
                     ※ 공통 주의 흐름 — 전통 만세력상 조심하라는 신호는 있으나, 개인 사주 기준으로는 보조 참고 정도로 보는 편이 맞습니다.
                   </p>
                 )}
               </div>
 
               {/* ── 오늘의 기운 ── */}
-              <div className="rounded-xl bg-white/5 px-4 py-3 border border-white/10">
+              <div className="rounded-xl bg-foreground/5 px-4 py-3 border border-foreground/10">
                 <p className="text-xs font-semibold text-foreground/70 mb-1">오늘의 기운</p>
                 <p className="text-sm text-foreground/90 leading-relaxed">
                   <span className={cn("font-bold", ELEM_COLOR[selected.dayData.dayElement])}>{selected.dayData.dayHeavenlyStem}({STEM_HANJA[selected.dayData.dayHeavenlyStem] ?? selected.dayData.dayHeavenlyStem})</span>의 {stemDesc}이 흐르고,{" "}
@@ -1029,7 +1029,7 @@ export default function ManseryokPage() {
                           <span className="text-xs text-foreground/70">{icon} {name}</span>
                           <span className="text-xs font-bold text-foreground">{val}/10</span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-1.5 rounded-full bg-foreground/8 overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}
@@ -1047,11 +1047,11 @@ export default function ManseryokPage() {
               <div>
                 <p className="text-[10px] text-muted-foreground mb-1.5">오늘 일진 기준</p>
                 <div className="flex gap-3">
-                  <div className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-center">
+                  <div className="flex-1 rounded-xl bg-foreground/5 border border-foreground/10 px-3 py-2.5 text-center">
                     <p className="text-[10px] text-muted-foreground mb-1">길한 방향</p>
                     <p className={cn("text-sm font-bold", ELEM_COLOR[selected.dayData.dayElement])}>{direction}</p>
                   </div>
-                  <div className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-center">
+                  <div className="flex-1 rounded-xl bg-foreground/5 border border-foreground/10 px-3 py-2.5 text-center">
                     <p className="text-[10px] text-muted-foreground mb-1">길한 색상</p>
                     <p className={cn("text-sm font-bold", ELEM_COLOR[selected.dayData.dayElement])}>{luckyColors.join(" · ")}</p>
                   </div>
@@ -1088,9 +1088,9 @@ export default function ManseryokPage() {
                       <div>
                         <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Compass className="w-2.5 h-2.5" /> 길방·흉방</p>
                         <p className="text-xs">
-                          <span className="text-emerald-400 font-medium">{ldir}</span>
+                          <span className="text-emerald-600 font-medium">{ldir}</span>
                           <span className="text-muted-foreground mx-1">·</span>
-                          <span className="text-rose-400 font-medium">{adir}</span>
+                          <span className="text-rose-600 font-medium">{adir}</span>
                         </p>
                       </div>
                       {/* 색상 */}
@@ -1101,7 +1101,7 @@ export default function ManseryokPage() {
                             <span key={i} className={cn("px-1.5 py-0.5 rounded-full border text-[10px] font-medium", SAJU_ELEM_BG[dm], SAJU_ELEM_COLOR_MAP[dm])}>✓ {c}</span>
                           ))}
                           {acolors.map((c, i) => (
-                            <span key={i} className="px-1.5 py-0.5 rounded-full border border-rose-400/30 bg-rose-400/10 text-[10px] text-rose-400">✗ {c}</span>
+                            <span key={i} className="px-1.5 py-0.5 rounded-full border border-rose-400/30 bg-rose-400/10 text-[10px] text-rose-600">✗ {c}</span>
                           ))}
                         </div>
                       </div>
@@ -1122,7 +1122,7 @@ export default function ManseryokPage() {
               {/* ── 추천 / 피할 것 ── */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold text-emerald-400 mb-1.5">✔ 하면 좋은 일</p>
+                  <p className="text-[10px] font-semibold text-emerald-600 mb-1.5">✔ 하면 좋은 일</p>
                   <ul className="space-y-1">
                     {actionAdvice.good.map(item => (
                       <li key={item} className="text-[11px] text-foreground/80 leading-snug">• {item}</li>
@@ -1130,7 +1130,7 @@ export default function ManseryokPage() {
                   </ul>
                 </div>
                 <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold text-red-400 mb-1.5">✗ 피할 것</p>
+                  <p className="text-[10px] font-semibold text-red-600 mb-1.5">✗ 피할 것</p>
                   <ul className="space-y-1">
                     {actionAdvice.avoid.map(item => (
                       <li key={item} className="text-[11px] text-foreground/80 leading-snug">• {item}</li>

@@ -164,7 +164,7 @@ export default function DayPillarAnalysisPage() {
               <select
                 value={stemFilter}
                 onChange={(e) => setStemFilter(e.target.value as (typeof STEM_OPTIONS)[number])}
-                className="w-full rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-sm outline-none focus:border-primary/50"
+                className="w-full rounded-xl border border-foreground/10 bg-foreground/8 px-3 py-2 text-sm outline-none focus:border-primary/50"
               >
                 {STEM_OPTIONS.map((option) => (
                   <option key={option} value={option}>{option}</option>
@@ -177,7 +177,7 @@ export default function DayPillarAnalysisPage() {
               <select
                 value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value as (typeof BRANCH_OPTIONS)[number])}
-                className="w-full rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-sm outline-none focus:border-primary/50"
+                className="w-full rounded-xl border border-foreground/10 bg-foreground/8 px-3 py-2 text-sm outline-none focus:border-primary/50"
               >
                 {BRANCH_OPTIONS.map((option) => (
                   <option key={option} value={option}>{option}</option>
@@ -219,7 +219,7 @@ export default function DayPillarAnalysisPage() {
                         "px-3 py-2 rounded-xl border text-left transition-colors",
                         active
                           ? "border-primary/40 bg-primary/15 text-primary"
-                          : "border-white/10 bg-white/5 text-foreground/80 hover:bg-primary/8 hover:text-primary",
+                          : "border-foreground/10 bg-foreground/5 text-foreground/80 hover:bg-primary/8 hover:text-primary",
                       )}
                     >
                       <div className="text-sm font-medium">{entry.key}</div>
@@ -245,7 +245,7 @@ export default function DayPillarAnalysisPage() {
         >
             <Card className="glass-panel border-amber-400/30">
             <CardHeader className="pb-3 border-b border-amber-400/15">
-              <CardTitle className="flex flex-wrap items-center gap-2 text-amber-300">
+              <CardTitle className="flex flex-wrap items-center gap-2 text-amber-700">
                 <span className="text-2xl font-serif">{selected.hanja}</span>
                 <span className="text-lg font-medium">{selected.title} 분석</span>
                 <span className="ml-auto text-xs font-normal text-muted-foreground bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
@@ -289,7 +289,7 @@ export default function DayPillarAnalysisPage() {
                 >
                   {copied ? (
                     <>
-                      <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
                       링크 복사됨
                     </>
                   ) : (

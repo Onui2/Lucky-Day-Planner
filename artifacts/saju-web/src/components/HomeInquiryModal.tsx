@@ -28,7 +28,7 @@ const TYPE_META: Record<InquiryType, { label: string; icon: React.ReactNode; col
   general: {
     label: "일반 문의",
     icon: <MessageCircle className="w-5 h-5" />,
-    color: "text-sky-400",
+    color: "text-sky-600",
     borderColor: "border-sky-400/40",
     desc: "궁금하신 점이나 기타 문의사항을 남겨주세요.",
   },
@@ -42,7 +42,7 @@ const TYPE_META: Record<InquiryType, { label: string; icon: React.ReactNode; col
   gungap: {
     label: "궁합 문의",
     icon: <Heart className="w-5 h-5" />,
-    color: "text-rose-400",
+    color: "text-rose-600",
     borderColor: "border-rose-400/40",
     desc: "두 분의 생년월일시를 알려주시면 궁합을 분석해 드립니다.",
   },
@@ -79,20 +79,20 @@ function BirthSection({ label, fields, onChange }: {
           placeholder="이름"
           value={fields.name}
           onChange={e => onChange({ name: e.target.value })}
-          className="bg-white/5 border-white/10"
+          className="bg-foreground/5 border-foreground/10"
         />
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => onChange({ gender: "male" })}
-            className={`flex-1 rounded-lg border text-sm py-2 transition-colors ${fields.gender === "male" ? "border-primary bg-primary/20 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20"}`}
+            className={`flex-1 rounded-lg border text-sm py-2 transition-colors ${fields.gender === "male" ? "border-primary bg-primary/20 text-primary" : "border-foreground/10 bg-foreground/5 text-muted-foreground hover:border-foreground/10"}`}
           >
             남
           </button>
           <button
             type="button"
             onClick={() => onChange({ gender: "female" })}
-            className={`flex-1 rounded-lg border text-sm py-2 transition-colors ${fields.gender === "female" ? "border-rose-400 bg-rose-400/20 text-rose-400" : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20"}`}
+            className={`flex-1 rounded-lg border text-sm py-2 transition-colors ${fields.gender === "female" ? "border-rose-400 bg-rose-400/20 text-rose-600" : "border-foreground/10 bg-foreground/5 text-muted-foreground hover:border-foreground/10"}`}
           >
             여
           </button>
@@ -107,7 +107,7 @@ function BirthSection({ label, fields, onChange }: {
           min={1900}
           max={2100}
           inputMode="numeric"
-          className="bg-white/5 border-white/10 text-center"
+          className="bg-foreground/5 border-foreground/10 text-center"
         />
         <Input
           placeholder="월"
@@ -117,7 +117,7 @@ function BirthSection({ label, fields, onChange }: {
           min={1}
           max={12}
           inputMode="numeric"
-          className="bg-white/5 border-white/10 text-center"
+          className="bg-foreground/5 border-foreground/10 text-center"
         />
         <Input
           placeholder="일"
@@ -127,17 +127,17 @@ function BirthSection({ label, fields, onChange }: {
           min={1}
           max={maxDay}
           inputMode="numeric"
-          className="bg-white/5 border-white/10 text-center"
+          className="bg-foreground/5 border-foreground/10 text-center"
         />
       </div>
       <div className="relative">
         <select
           value={fields.hour}
           onChange={e => onChange({ hour: e.target.value })}
-          className="w-full rounded-lg border border-white/10 bg-white/5 text-sm px-3 py-2 appearance-none text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="w-full rounded-lg border border-foreground/10 bg-foreground/5 text-sm px-3 py-2 appearance-none text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
         >
           {HOUR_OPTIONS.map(h => (
-            <option key={h} value={h} className="bg-[#0d1b33] text-foreground">{h}</option>
+            <option key={h} value={h} className="bg-white text-foreground">{h}</option>
           ))}
         </select>
         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -273,7 +273,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
               {/* 헤더 */}
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center ${meta.color}`}>
+                  <div className={`w-10 h-10 rounded-xl bg-foreground/8 flex items-center justify-center ${meta.color}`}>
                     {meta.icon}
                   </div>
                   <div>
@@ -289,7 +289,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
               {done ? (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center mx-auto mb-4">
-                    <Send className="w-7 h-7 text-green-400" />
+                    <Send className="w-7 h-7 text-green-600" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">문의가 접수되었습니다</h3>
                   <p className="text-sm text-muted-foreground mb-6">빠른 시일 내에 답변 드리겠습니다.</p>
@@ -314,7 +314,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
                         fields={person1}
                         onChange={f => setPerson1(prev => applyBirthFieldsPatch(prev, f))}
                       />
-                      <div className="border-t border-white/10" />
+                      <div className="border-t border-foreground/10" />
                       <BirthSection
                         label="상대방 정보"
                         fields={person2}
@@ -332,20 +332,20 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
                       onChange={e => setMessage(e.target.value)}
                       rows={5}
                       maxLength={2000}
-                      className="bg-white/5 border-white/10 resize-none"
+                      className="bg-foreground/5 border-foreground/10 resize-none"
                     />
                     <p className="text-xs text-muted-foreground text-right">{message.length}/2000</p>
                   </div>
 
                   {/* 비로그인 안내 */}
                   {!user && (
-                    <p className="text-xs text-amber-400/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-amber-600/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
                       문의를 남기려면 로그인이 필요합니다. 제출 시 로그인 페이지로 이동합니다.
                     </p>
                   )}
 
                   {validationError && (
-                    <p className="text-xs text-rose-400/90 bg-rose-400/10 border border-rose-400/20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-rose-600/90 bg-rose-400/10 border border-rose-400/20 rounded-lg px-3 py-2">
                       {validationError}
                     </p>
                   )}

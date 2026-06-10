@@ -25,8 +25,8 @@ import {
 } from "lucide-react";
 
 const ELEM_COLOR: Record<string, string> = {
-  목: "text-green-400", 화: "text-red-400",
-  토: "text-yellow-400", 금: "text-gray-300", 수: "text-blue-400",
+  목: "text-green-600", 화: "text-red-600",
+  토: "text-yellow-600", 금: "text-gray-700", 수: "text-blue-600",
 };
 
 type Tab = "info" | "password" | "delete";
@@ -38,7 +38,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
       className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${
         active
           ? "bg-primary/20 text-primary border border-primary/40"
-          : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+          : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
       }`}
     >
       {children}
@@ -48,7 +48,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 
 function SuccessMsg({ msg }: { msg: string }) {
   return (
-    <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-sm">
+    <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 text-sm">
       <CheckCircle2 className="w-4 h-4 shrink-0" />
       {msg}
     </div>
@@ -207,7 +207,7 @@ export default function AccountPage() {
         </div>
         <div className="flex items-center gap-2.5 col-span-2 md:col-span-1">
           {account?.role === "superadmin" ? (
-            <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+            <Crown className="w-4 h-4 text-amber-600 shrink-0" />
           ) : account?.role === "admin" ? (
             <Crown className="w-4 h-4 text-primary shrink-0" />
           ) : (
@@ -215,7 +215,7 @@ export default function AccountPage() {
           )}
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">등급</p>
-            <p className={`text-sm font-medium ${account?.role === "superadmin" ? "text-amber-400" : account?.role === "admin" ? "text-primary" : "text-foreground"}`}>
+            <p className={`text-sm font-medium ${account?.role === "superadmin" ? "text-amber-600" : account?.role === "admin" ? "text-primary" : "text-foreground"}`}>
               {account?.role === "superadmin" ? "최고관리자" : account?.role === "admin" ? "관리자" : "일반 회원"}
             </p>
           </div>
@@ -238,7 +238,7 @@ export default function AccountPage() {
             {(reportsData?.reports ?? []).slice(0, 3).map((report) => (
               <div
                 key={report.id}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -256,10 +256,10 @@ export default function AccountPage() {
                   <div
                     className={`px-2 py-1 rounded-full text-[11px] border ${
                       report.status === "ready"
-                        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-700"
                         : report.status === "failed"
                           ? "border-destructive/30 bg-destructive/10 text-destructive"
-                          : "border-amber-400/30 bg-amber-400/10 text-amber-300"
+                          : "border-amber-400/30 bg-amber-400/10 text-amber-700"
                     }`}
                   >
                     {report.status}
@@ -302,7 +302,7 @@ export default function AccountPage() {
             ))}
 
             {(reportsData?.reports?.length ?? 0) === 0 && (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed border-foreground/10 bg-foreground/5 p-4 text-sm text-muted-foreground">
                 아직 구매한 리포트가 없습니다. 사주 결과 화면에서 정밀 리포트를 구매해보세요.
               </div>
             )}
@@ -324,7 +324,7 @@ export default function AccountPage() {
             {(ordersData?.orders ?? []).slice(0, 4).map((order) => (
               <div
                 key={order.orderId}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -349,7 +349,7 @@ export default function AccountPage() {
             ))}
 
             {(ordersData?.orders?.length ?? 0) === 0 && (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed border-foreground/10 bg-foreground/5 p-4 text-sm text-muted-foreground">
                 아직 생성된 주문이 없습니다.
               </div>
             )}
@@ -358,7 +358,7 @@ export default function AccountPage() {
       </div>
 
       {/* 탭 */}
-      <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-white/5 border border-primary/10">
+      <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-foreground/5 border border-primary/10">
         <TabBtn active={tab === "info"} onClick={() => setTab("info")}>
           <span className="flex items-center gap-2"><UserCircle2 className="w-3.5 h-3.5" />내 정보</span>
         </TabBtn>
@@ -423,24 +423,24 @@ export default function AccountPage() {
               {profile ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                    <div className="bg-foreground/5 rounded-xl p-3 border border-foreground/10">
                       <p className="text-[10px] text-muted-foreground mb-1">이름</p>
                       <p className="font-medium text-foreground">{profile.name || "—"}</p>
                     </div>
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                    <div className="bg-foreground/5 rounded-xl p-3 border border-foreground/10">
                       <p className="text-[10px] text-muted-foreground mb-1">생년월일</p>
                       <p className="font-medium text-foreground">
                         {profile.birthYear}년 {profile.birthMonth}월 {profile.birthDay}일
                       </p>
                     </div>
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                    <div className="bg-foreground/5 rounded-xl p-3 border border-foreground/10">
                       <p className="text-[10px] text-muted-foreground mb-1">성별 · 달력</p>
                       <p className="font-medium text-foreground">
                         {profile.gender === "male" ? "남성" : "여성"} · {profile.calendarType === "solar" ? "양력" : "음력"}
                       </p>
                     </div>
                     {profile.dayMasterElement && (
-                      <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                      <div className="bg-foreground/5 rounded-xl p-3 border border-foreground/10">
                         <p className="text-[10px] text-muted-foreground mb-1">일간 오행</p>
                         <p className={`font-bold font-serif text-base ${ELEM_COLOR[profile.dayMasterElement] ?? ""}`}>
                           {profile.dayMasterStem} ({profile.dayMasterElement})
@@ -487,7 +487,7 @@ export default function AccountPage() {
                     <Link
                       key={bookmark.id}
                       href={bookmark.href}
-                      className="block rounded-2xl border border-white/10 bg-white/5 px-3 py-3 hover:bg-white/8 transition-colors"
+                      className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="font-medium text-sm text-foreground truncate">{bookmark.title}</div>
@@ -503,7 +503,7 @@ export default function AccountPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4 text-sm text-muted-foreground">
                   저장한 길일이 아직 없습니다.
                 </div>
               )}
@@ -535,7 +535,7 @@ export default function AccountPage() {
                     <Link
                       key={activity.id}
                       href={activity.href}
-                      className="block rounded-2xl border border-white/10 bg-white/5 px-3 py-3 hover:bg-white/8 transition-colors"
+                      className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
                     >
                       <div className="font-medium text-sm text-foreground">{activity.title}</div>
                       {activity.subtitle && (
@@ -545,7 +545,7 @@ export default function AccountPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4 text-sm text-muted-foreground">
                   최근 본 분석 기록이 아직 없습니다.
                 </div>
               )}

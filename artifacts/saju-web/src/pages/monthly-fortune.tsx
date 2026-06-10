@@ -12,13 +12,13 @@ import {
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 
-const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
+const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
 const ELEM_BG:   Record<string,string>  = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
 const ELEM_BORDER: Record<string,string>= { 목:'border-green-400/40', 화:'border-rose-400/40', 토:'border-amber-400/40', 금:'border-slate-400/40', 수:'border-blue-400/40' };
 const TENGOD_COLOR: Record<string,string> = {
-  비견:'text-green-300', 겁재:'text-amber-300', 식신:'text-emerald-300', 상관:'text-orange-300',
-  편재:'text-yellow-300', 정재:'text-lime-300', 편관:'text-rose-400', 정관:'text-blue-300',
-  편인:'text-purple-300', 정인:'text-indigo-300',
+  비견:'text-green-700', 겁재:'text-amber-700', 식신:'text-emerald-700', 상관:'text-orange-700',
+  편재:'text-yellow-700', 정재:'text-lime-700', 편관:'text-rose-600', 정관:'text-blue-700',
+  편인:'text-purple-700', 정인:'text-indigo-700',
 };
 const TENGOD_HANJA: Record<string,string> = {
   비견:'比肩', 겁재:'劫財', 식신:'食神', 상관:'傷官', 편재:'偏財',
@@ -57,7 +57,7 @@ async function fetchMonthly(
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
   return (
-    <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+    <div className="w-full bg-foreground/8 rounded-full h-2 overflow-hidden">
       <motion.div
         className={cn("h-2 rounded-full", color)}
         initial={{ width: 0 }}
@@ -73,8 +73,8 @@ function scoreLabel(s: number) {
   if (s >= 55) return '보통'; if (s >= 40) return '주의'; return '어려움';
 }
 function scoreColor(s: number) {
-  if (s >= 80) return 'text-emerald-400'; if (s >= 65) return 'text-blue-400';
-  if (s >= 50) return 'text-amber-400'; if (s >= 35) return 'text-orange-400'; return 'text-rose-400';
+  if (s >= 80) return 'text-emerald-600'; if (s >= 65) return 'text-blue-600';
+  if (s >= 50) return 'text-amber-600'; if (s >= 35) return 'text-orange-600'; return 'text-rose-600';
 }
 function scoreBg(s: number) {
   if (s >= 80) return 'bg-emerald-400'; if (s >= 65) return 'bg-blue-400';
@@ -88,7 +88,7 @@ interface CategoryCardProps {
 function CategoryCard({ label, score, text, icon: Icon, barColor }: CategoryCardProps) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="glass-panel border border-white/10 rounded-2xl p-4">
+    <div className="glass-panel border border-foreground/10 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Icon className={cn("w-4 h-4", scoreColor(score))} />
@@ -168,7 +168,7 @@ export default function MonthlyFortunePage() {
         <>
           {/* 월 선택 */}
           <div className="flex items-center justify-center gap-4">
-            <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-full w-10 h-10 border border-white/10">
+            <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-full w-10 h-10 border border-foreground/10">
               <ChevronLeft className="w-5 h-5" />
             </Button>
             <div className="text-center min-w-[120px]">
@@ -177,7 +177,7 @@ export default function MonthlyFortunePage() {
                 <p className="text-xs text-primary">이번 달</p>
               )}
             </div>
-            <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-full w-10 h-10 border border-white/10">
+            <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-full w-10 h-10 border border-foreground/10">
               <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
@@ -191,7 +191,7 @@ export default function MonthlyFortunePage() {
 
           {/* 에러 */}
           {error && (
-            <div className="glass-panel border border-rose-400/20 rounded-2xl p-6 text-center text-rose-400">
+            <div className="glass-panel border border-rose-400/20 rounded-2xl p-6 text-center text-rose-600">
               월운 계산 중 오류가 발생했습니다.
             </div>
           )}
@@ -205,7 +205,7 @@ export default function MonthlyFortunePage() {
                 </div>
               )}
               {/* 세운/월건 카드 */}
-              <div className="glass-panel border border-white/10 rounded-2xl p-5">
+              <div className="glass-panel border border-foreground/10 rounded-2xl p-5">
                 <div className="grid grid-cols-3 gap-4 text-center">
                   {/* 내 일주 */}
                   <div>
@@ -248,8 +248,8 @@ export default function MonthlyFortunePage() {
                     <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
                       className={cn(
                         "flex items-start gap-2 px-4 py-3 rounded-xl border text-sm",
-                        note.includes('합') ? "bg-emerald-400/10 border-emerald-400/30 text-emerald-300" :
-                        note.includes('충') ? "bg-rose-400/10 border-rose-400/30 text-rose-300" :
+                        note.includes('합') ? "bg-emerald-400/10 border-emerald-400/30 text-emerald-700" :
+                        note.includes('충') ? "bg-rose-400/10 border-rose-400/30 text-rose-700" :
                         "bg-primary/10 border-primary/30 text-primary/90"
                       )}>
                       <Star className="w-4 h-4 mt-0.5 shrink-0" />
@@ -288,7 +288,7 @@ export default function MonthlyFortunePage() {
               </div>
 
               {/* 월운 해석 설명 */}
-              <div className="glass-panel border border-white/10 rounded-2xl p-4 text-sm text-muted-foreground leading-relaxed">
+              <div className="glass-panel border border-foreground/10 rounded-2xl p-4 text-sm text-muted-foreground leading-relaxed">
                 <p className="font-medium text-foreground/70 mb-2">월운 분석 방법</p>
                 <p>세운(歲運)은 올해 해당 연도의 10년 흐름이고, 월건(月建)은 해당 달의 에너지입니다. 두 천간이 내 일간(日干)과 어떤 <span className="text-primary">십신(十神)</span> 관계를 맺는지에 따라 그 달의 운세 방향이 결정됩니다. 지지(地支)의 합·충 여부로 에너지의 강도가 조정됩니다.</p>
               </div>

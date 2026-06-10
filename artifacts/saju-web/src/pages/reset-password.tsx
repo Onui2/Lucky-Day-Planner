@@ -130,7 +130,7 @@ export default function ResetPasswordPage() {
               className="flex flex-col items-center gap-4 py-4"
             >
               <div className="w-16 h-16 rounded-full bg-rose-500/15 border border-rose-500/40 flex items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-rose-400" />
+                <AlertCircle className="w-8 h-8 text-rose-600" />
               </div>
               <p className="text-xl font-semibold text-foreground">
                 재설정 링크를 사용할 수 없습니다
@@ -219,7 +219,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 {passwordMismatch && (
-                  <div className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-sm">
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 text-sm">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     비밀번호 확인이 일치하지 않습니다.
                   </div>
@@ -229,7 +229,7 @@ export default function ResetPasswordPage() {
                   <motion.div
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-sm"
+                    className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 text-sm"
                   >
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     {error}
@@ -259,7 +259,7 @@ export default function ResetPasswordPage() {
               className="flex flex-col items-center gap-4 py-4"
             >
               <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
               </div>
               <p className="text-xl font-semibold text-foreground">비밀번호가 변경되었습니다</p>
               <p className="text-sm text-muted-foreground text-center">

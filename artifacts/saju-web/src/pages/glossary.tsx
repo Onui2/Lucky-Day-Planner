@@ -132,22 +132,22 @@ const TERMS: Term[] = [
 const CATEGORIES = ['전체', '천간', '지지', '오행', '십신', '분석', '관계', '기본'];
 
 const CAT_STYLES: Record<string, string> = {
-  천간:'bg-green-400/10 text-green-300 border-green-400/30',
-  지지:'bg-blue-400/10 text-blue-300 border-blue-400/30',
-  오행:'bg-amber-400/10 text-amber-300 border-amber-400/30',
-  십신:'bg-purple-400/10 text-purple-300 border-purple-400/30',
-  분석:'bg-indigo-400/10 text-indigo-300 border-indigo-400/30',
-  관계:'bg-rose-400/10 text-rose-300 border-rose-400/30',
-  기본:'bg-slate-400/10 text-slate-300 border-slate-400/30',
+  천간:'bg-green-400/10 text-green-700 border-green-400/30',
+  지지:'bg-blue-400/10 text-blue-700 border-blue-400/30',
+  오행:'bg-amber-400/10 text-amber-700 border-amber-400/30',
+  십신:'bg-purple-400/10 text-purple-700 border-purple-400/30',
+  분석:'bg-indigo-400/10 text-indigo-700 border-indigo-400/30',
+  관계:'bg-rose-400/10 text-rose-700 border-rose-400/30',
+  기본:'bg-slate-400/10 text-slate-700 border-slate-400/30',
 };
 
 function TermCard({ term: t }: { term: Term }) {
   const [expanded, setExpanded] = useState(false);
   const cs = CAT_STYLES[t.category] ?? CAT_STYLES['기본'];
   return (
-    <div className="glass-panel border border-white/10 rounded-xl overflow-hidden">
+    <div className="glass-panel border border-foreground/10 rounded-xl overflow-hidden">
       <button
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/3 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-foreground/3 transition-colors text-left"
         onClick={() => setExpanded(e => !e)}
       >
         <div className="flex items-center gap-3">
@@ -167,12 +167,12 @@ function TermCard({ term: t }: { term: Term }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-white/10"
+            className="overflow-hidden border-t border-foreground/10"
           >
             <div className="px-4 py-3 space-y-2">
               <p className="text-sm leading-relaxed text-foreground/80">{t.detail}</p>
               {t.example && (
-                <p className="text-xs text-muted-foreground bg-white/5 px-3 py-2 rounded-lg">{t.example}</p>
+                <p className="text-xs text-muted-foreground bg-foreground/5 px-3 py-2 rounded-lg">{t.example}</p>
               )}
             </div>
           </motion.div>
@@ -212,7 +212,7 @@ export default function GlossaryPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="용어 검색..."
-          className="w-full pl-9 pr-4 py-2.5 bg-white/8 border border-white/15 rounded-xl text-sm focus:outline-none focus:border-primary/50 transition-colors"
+          className="w-full pl-9 pr-4 py-2.5 bg-foreground/8 border border-foreground/10 rounded-xl text-sm focus:outline-none focus:border-primary/50 transition-colors"
         />
       </div>
 
@@ -224,7 +224,7 @@ export default function GlossaryPage() {
               "text-xs px-3 py-1.5 rounded-full border transition-all",
               category === c
                 ? "bg-primary/20 text-primary border-primary/40"
-                : "bg-white/5 text-muted-foreground border-white/10 hover:border-white/20"
+                : "bg-foreground/5 text-muted-foreground border-foreground/10 hover:border-foreground/10"
             )}>
             {c}
             {c !== '전체' && <span className="ml-1 text-muted-foreground">({TERMS.filter(t => t.category === c).length})</span>}
