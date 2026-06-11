@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, Crown, FileText, Sparkles } from "lucide-react";
 import { buildAuthHref } from "@/lib/auth-redirect";
+import { downloadReadyReportAfterDelay } from "@/lib/report-download";
 import { startTossCardPayment, type TossCheckoutUser } from "@/lib/toss-payments";
 
 interface ReportPurchaseCardProps {
@@ -76,7 +77,7 @@ export function ReportPurchaseCard({
         );
 
         if (created.report.status === "ready") {
-          await downloadReportFile(
+          await downloadReadyReportAfterDelay(
             created.report.id,
             created.report.fileName ?? created.report.title,
           );

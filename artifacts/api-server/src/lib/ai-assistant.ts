@@ -72,9 +72,26 @@ const SYSTEM_PROMPT = `당신은 명해원(命海苑)의 사주 전문 AI 상담
 const PREFERRED_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
 const FALLBACK_MODEL = "gemini-1.5-flash";
 
+interface SajuConversationTurn {
+  question: string;
+  answer: string;
+}
+
+function buildConversationContext(history: SajuConversationTurn[]): string {
+  return history
+    .slice(-6)
+    .map((turn, index) => [
+      `### 최근 대화 ${index + 1}`,
+      `사용자: ${oneLine(turn.question).slice(0, 220)}`,
+      `상담사: ${oneLine(turn.answer).slice(0, 420)}`,
+    ].join("\n"))
+    .join("\n\n");
+}
+
 export async function buildSajuQuestionAnswer(
   question: string,
   result: Record<string, any>,
+  history: SajuConversationTurn[] = [],
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
@@ -83,7 +100,15 @@ export async function buildSajuQuestionAnswer(
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const sajuContext = buildSajuContext(result);
-  const prompt = `아래는 이 사용자의 사주 분석 데이터입니다:\n\n${sajuContext}\n\n질문: ${question}`;
+  const conversationContext = buildConversationContext(history);
+  const prompt = [
+    `아래는 이 사용자의 사주 분석 데이터입니다:\n\n${sajuContext}`,
+    conversationContext
+      ? `아래는 같은 세션에서 방금까지 오간 최근 대화입니다:\n\n${conversationContext}`
+      : "",
+    `이번 질문: ${question}`,
+    "필요하면 이전 대화 맥락을 자연스럽게 이어서 답변하세요.",
+  ].filter(Boolean).join("\n\n");
 
   const tryModel = async (modelName: string) => {
     const model = genAI.getGenerativeModel({

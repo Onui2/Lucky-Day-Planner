@@ -259,7 +259,12 @@ export function Layout({ children }: LayoutProps) {
     badge: adminUnread?.count ?? 0,
   };
 
-  const closeMobile = () => setMobileMenuOpen(false);
+  const closeMobile = () => {
+    setMobileMenuOpen(false);
+    setMobileServiceGroupOpen(null);
+    setServicesOpen(false);
+    setUserMenuOpen(false);
+  };
 
   const renderNavLink = (
     item: {

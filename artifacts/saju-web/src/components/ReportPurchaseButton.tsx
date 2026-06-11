@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Crown, FileText, Loader2, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
 import { buildAuthHref } from "@/lib/auth-redirect";
+import { downloadReadyReportAfterDelay } from "@/lib/report-download";
 import { startTossCardPayment, type TossCheckoutUser } from "@/lib/toss-payments";
 
 interface ReportPurchaseButtonProps {
@@ -74,6 +75,13 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
         setLatestReportId(created.report.id);
         setLatestReportName(created.report.fileName ?? created.report.title);
         setMessage("PDF 리포트가 생성되었습니다.");
+
+        if (created.report.status === "ready") {
+          await downloadReadyReportAfterDelay(
+            created.report.id,
+            created.report.fileName ?? created.report.title,
+          );
+        }
         return;
       }
       if (created.checkoutMode === "dev") {

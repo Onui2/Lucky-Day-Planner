@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { aiQuestionsTable, db } from "@workspace/db";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { buildSajuQuestionAnswer } from "../lib/ai-assistant.js";
 import {
   getActiveSubscription,
@@ -43,6 +43,36 @@ async function getUsageSummary(userId: string, role?: string | null) {
   };
 }
 
+function parseConversationHistory(raw: unknown) {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const row = entry as Record<string, unknown>;
+      const question =
+        typeof row.question === "string" ? row.question.replace(/\s+/g, " ").trim() : "";
+      const answer =
+        typeof row.answer === "string" ? row.answer.replace(/\s+/g, " ").trim() : "";
+
+      if (!question || !answer) {
+        return null;
+      }
+
+      return {
+        question: question.slice(0, 400),
+        answer: answer.slice(0, 1200),
+      };
+    })
+    .filter((entry): entry is { question: string; answer: string } => Boolean(entry))
+    .slice(-6);
+}
+
 router.get("/ai/questions", async (req, res) => {
   if (!requireAuth(req, res)) return;
   if (!(await requireDatabase(res))) return;
@@ -55,11 +85,12 @@ router.get("/ai/questions", async (req, res) => {
         question: aiQuestionsTable.question,
         answer: aiQuestionsTable.answer,
         createdAt: aiQuestionsTable.createdAt,
+        birthInfo: aiQuestionsTable.birthInfo,
       })
       .from(aiQuestionsTable)
       .where(eq(aiQuestionsTable.userId, req.user.id))
       .orderBy(desc(aiQuestionsTable.createdAt))
-      .limit(20);
+      .limit(100);
 
     res.json({
       ...usage,
@@ -79,6 +110,7 @@ router.post("/ai/questions", async (req, res) => {
   const question =
     typeof body.question === "string" ? body.question.trim() : "";
   const birthInfo = parseBirthInfo(body.birthInfo);
+  const history = parseConversationHistory(body.history);
 
   if (!question) {
     res.status(400).json({ error: "질문을 입력해주세요." });
@@ -112,6 +144,7 @@ router.post("/ai/questions", async (req, res) => {
     const answer = await buildSajuQuestionAnswer(
       question,
       sajuResult as Record<string, any>,
+      history,
     );
 
     const [saved] = await db

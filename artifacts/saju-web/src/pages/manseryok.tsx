@@ -5,7 +5,7 @@ import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay } fr
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem } from "lucide-react";
-import { getElementStyles, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
 import { Link } from "wouter";
@@ -159,25 +159,58 @@ function scoreLabel(score: number): string {
 }
 
 function scoreDotColor(score: number): string {
-  if (score >= 9) return "bg-yellow-400";
-  if (score >= 7) return "bg-emerald-400";
-  if (score >= 5) return "bg-slate-400";
-  if (score >= 3) return "bg-orange-400";
-  return "bg-red-400";
+  if (score >= 9) return "bg-amber-500";
+  if (score >= 7) return "bg-emerald-500";
+  if (score >= 5) return "bg-slate-500";
+  if (score >= 3) return "bg-orange-500";
+  return "bg-rose-500";
+}
+
+function scoreTextColor(score: number): string {
+  if (score >= 9) return "text-amber-700";
+  if (score >= 7) return "text-emerald-700";
+  if (score >= 5) return "text-slate-700";
+  if (score >= 3) return "text-orange-700";
+  return "text-rose-700";
+}
+
+function scoreBadgeClass(score: number): string {
+  if (score >= 9) return "border-amber-200 bg-amber-50 text-amber-700";
+  if (score >= 7) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (score >= 5) return "border-slate-200 bg-slate-50 text-slate-700";
+  if (score >= 3) return "border-orange-200 bg-orange-50 text-orange-700";
+  return "border-rose-200 bg-rose-50 text-rose-700";
+}
+
+function scoreCardClass(score: number): string {
+  if (score >= 9) return "border-amber-300 bg-amber-50/80";
+  if (score >= 7) return "border-emerald-300 bg-emerald-50/80";
+  if (score >= 5) return "border-slate-300 bg-slate-50/85";
+  if (score >= 3) return "border-orange-300 bg-orange-50/80";
+  return "border-rose-300 bg-rose-50/80";
 }
 
 function scoreBgColor(score: number): string {
-  if (score >= 9) return "bg-yellow-400/20 text-yellow-300 border-yellow-400/40";
-  if (score >= 7) return "bg-emerald-400/15 text-emerald-300 border-emerald-400/30";
-  if (score >= 5) return "bg-slate-400/10 text-slate-300 border-slate-400/20";
-  if (score >= 3) return "bg-orange-400/15 text-orange-300 border-orange-400/30";
-  return "bg-red-400/10 text-red-300 border-red-400/20";
+  if (score >= 9) return "bg-amber-50 text-amber-900 border-amber-300";
+  if (score >= 7) return "bg-emerald-50 text-emerald-900 border-emerald-300";
+  if (score >= 5) return "bg-slate-50 text-slate-900 border-slate-300";
+  if (score >= 3) return "bg-orange-50 text-orange-900 border-orange-300";
+  return "bg-rose-50 text-rose-900 border-rose-300";
 }
 
 const ELEM_COLOR: Record<string, string> = {
-  목:"text-green-400", 화:"text-red-400",
-  토:"text-yellow-400", 금:"text-gray-300", 수:"text-blue-400",
+  목:"text-emerald-700", 화:"text-rose-700",
+  토:"text-amber-700", 금:"text-slate-600", 수:"text-blue-700",
 };
+
+function elementBadgeClass(element: string): string {
+  if (element === "목") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (element === "화") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (element === "토") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (element === "금") return "border-slate-200 bg-slate-50 text-slate-600";
+  if (element === "수") return "border-blue-200 bg-blue-50 text-blue-700";
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
 
 const ELEM_DIRECTION: Record<string, string> = {
   목:"동(東)", 화:"남(南)", 토:"중앙(中)", 금:"서(西)", 수:"북(北)",
@@ -709,7 +742,7 @@ export default function ManseryokPage() {
               {weekDays.map((day, i) => (
                 <div key={day} className={cn(
                   "text-center font-medium pb-2 border-b border-border/50 text-sm",
-                  i === 0 ? "text-destructive" : i === 6 ? "text-blue-400" : "text-muted-foreground"
+                  i === 0 ? "text-rose-600" : i === 6 ? "text-blue-600" : "text-slate-500"
                 )}>
                   {day}
                 </div>
@@ -727,7 +760,7 @@ export default function ManseryokPage() {
                 const fullDate = `${yearStr}-${monthStr}-${dayStr}`;
                 const dayData = data?.days.find((d: any) => d.solar === fullDate);
                 const dayOfWeek = (firstDayOfMonth + dayNum - 1) % 7;
-                const dateColor = dayOfWeek === 0 ? "text-destructive" : dayOfWeek === 6 ? "text-blue-400" : "text-foreground";
+                const dateColor = dayOfWeek === 0 ? "text-rose-600" : dayOfWeek === 6 ? "text-blue-600" : "text-slate-900";
                 const isTodayDate = fullDate === TODAY;
                 const isBlockedFutureDate = !canAccessFutureDates && fullDate > TODAY;
                 const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
@@ -745,16 +778,16 @@ export default function ManseryokPage() {
                     }}
                     disabled={!canSelectDay}
                     className={cn(
-                      "min-h-[80px] md:min-h-[96px] p-1 md:p-1.5 rounded-xl border flex flex-col transition-all text-left",
+                      "min-h-[80px] md:min-h-[96px] p-1 md:p-1.5 rounded-xl border flex flex-col transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
                       canSelectDay
-                        ? "cursor-pointer hover:bg-card/80"
+                        ? "cursor-pointer hover:-translate-y-[1px] hover:shadow-md"
                         : isBlockedFutureDate
-                        ? "cursor-not-allowed opacity-45 border-border/30 bg-card/10"
+                        ? "cursor-not-allowed opacity-55 border-slate-200 bg-slate-50"
                         : "cursor-default opacity-0",
-                      isSelected && "ring-2 ring-primary/50",
-                      isTodayDate ? "border-primary bg-primary/10 shadow-[0_0_12px_rgba(212,175,55,0.2)]"
-                        : canSelectDay && rel ? `${rel.borderClass} bg-card/20`
-                        : canSelectDay ? "border-border/40 bg-card/20 hover:border-primary/40"
+                      isSelected && "ring-2 ring-emerald-500/65",
+                      isTodayDate ? "border-amber-400 bg-amber-50 shadow-[0_0_0_1px_rgba(245,158,11,0.14)]"
+                        : canSelectDay && score != null ? scoreCardClass(score)
+                        : canSelectDay ? "border-slate-200 bg-white hover:border-slate-300"
                         : undefined,
                     )}
                   >
@@ -775,21 +808,21 @@ export default function ManseryokPage() {
                         </div>
 
                         {/* 음력 */}
-                        <span className="text-[8px] md:text-[9px] text-muted-foreground leading-none mb-0.5">
+                        <span className="text-[8px] md:text-[9px] text-slate-500 leading-none mb-0.5">
                           {dayData.lunar}
                         </span>
 
                         {/* 한자 간지 */}
                         <div className={cn(
-                          "text-xs md:text-sm font-serif px-0.5 py-0.5 rounded border text-center tracking-widest leading-none w-full",
-                          getElementStyles(dayData.dayElement)
+                          "text-xs md:text-sm font-serif px-1 py-1 rounded-md border text-center tracking-widest leading-none w-full font-semibold",
+                          elementBadgeClass(dayData.dayElement)
                         )}>
                           {toGanziHanja(dayData.dayHeavenlyStem, dayData.dayEarthlyBranch)}
                         </div>
 
                         {/* 절기 */}
                         {dayData.solarTerm && (
-                          <div className="text-[8px] md:text-[9px] text-emerald-400 font-medium leading-none mt-0.5 text-center">
+                          <div className="text-[8px] md:text-[9px] text-emerald-600 font-semibold leading-none mt-0.5 text-center">
                             {dayData.solarTerm}
                           </div>
                         )}
@@ -797,12 +830,12 @@ export default function ManseryokPage() {
                         {/* 운세 레이블 + 관계 심볼 */}
                         <div className="flex items-center justify-between mt-auto pt-0.5">
                           {score != null && (
-                            <span className={cn("text-[8px] md:text-[9px] font-bold", scoreDotColor(score).replace("bg-", "text-"))}>
+                            <span className={cn("inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] md:text-[9px] font-bold leading-none", scoreBadgeClass(score))}>
                               {scoreLabel(score)}
                             </span>
                           )}
                           {rel && (
-                            <span className={cn("text-[9px] md:text-[10px] font-bold ml-auto", rel.colorClass)} title={rel.fortune}>
+                            <span className={cn("text-[9px] md:text-[10px] font-bold ml-auto opacity-90", rel.colorClass)} title={rel.fortune}>
                               {rel.emoji}
                             </span>
                           )}
@@ -826,7 +859,7 @@ export default function ManseryokPage() {
                             {dayNum}
                           </span>
                         </div>
-                        <div className="mt-auto text-[9px] md:text-[10px] text-muted-foreground font-medium">
+                        <div className="mt-auto text-[9px] md:text-[10px] text-slate-500 font-medium">
                           미래 날짜
                         </div>
                       </>
@@ -838,11 +871,11 @@ export default function ManseryokPage() {
 
             {/* 범례 */}
             <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground border-t border-border/50 pt-5">
-              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-400" />대길</div>
-              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" />길</div>
-              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" />평</div>
-              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-400" />주의</div>
-              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" />흉</div>
+              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" />대길</div>
+              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" />길</div>
+              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-500" />평</div>
+              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" />주의</div>
+              <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" />흉</div>
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" />{isPersonalized ? "개인 길일" : "길일"}</div>
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-destructive" />{isPersonalized ? "개인 흉일" : "흉일"}</div>
               {isPersonalized && <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-400" />개인 주의일</div>}
@@ -898,7 +931,7 @@ export default function ManseryokPage() {
                   <p className="text-xs text-muted-foreground mb-1">
                     {yearStr}년 {monthStr}월 {selected.dayNum}일
                     {selected.dayData.solarTerm && (
-                      <span className="ml-2 text-emerald-400 font-medium">{selected.dayData.solarTerm}</span>
+                      <span className="ml-2 text-emerald-600 font-semibold">{selected.dayData.solarTerm}</span>
                     )}
                   </p>
                   <h3 className="font-serif text-2xl font-bold text-foreground leading-tight">
@@ -914,7 +947,7 @@ export default function ManseryokPage() {
                     {selected.score}<span className="text-base text-muted-foreground">/10</span>
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">운세 점수</p>
-                  <p className={cn("text-sm font-bold mt-0.5", scoreDotColor(selected.score).replace("bg-", "text-"))}>
+                  <p className={cn("text-sm font-bold mt-0.5", scoreTextColor(selected.score))}>
                     {label}
                   </p>
                 </div>
@@ -935,9 +968,9 @@ export default function ManseryokPage() {
                 <div className="flex gap-3">
                   {badges.lucky && <span className="text-primary font-medium">✦ {isPersonalized ? "개인 길일" : "길일"}</span>}
                   {badges.inauspicious && <span className="text-destructive font-medium">✦ {isPersonalized ? "개인 흉일" : "흉일"}</span>}
-                  {badges.caution && <span className="text-orange-300 font-medium">✦ 개인 주의일</span>}
-                  {badges.genericLucky && <span className="text-primary/70 font-medium">✦ 공통 길 흐름</span>}
-                  {badges.genericCaution && <span className="text-muted-foreground font-medium">✦ 공통 주의 흐름</span>}
+                  {badges.caution && <span className="text-orange-700 font-semibold">✦ 개인 주의일</span>}
+                  {badges.genericLucky && <span className="text-primary/80 font-semibold">✦ 공통 길 흐름</span>}
+                  {badges.genericCaution && <span className="text-slate-600 font-semibold">✦ 공통 주의 흐름</span>}
                   <span>음력 {selected.dayData.lunar}</span>
                 </div>
                 {selected.rel && (
@@ -949,8 +982,8 @@ export default function ManseryokPage() {
               </div>
 
               {/* ── 운세 해설 (왜 이런 점수인가) ── */}
-              <div className="rounded-xl bg-white/5 px-4 py-3 border border-white/10 space-y-2">
-                <p className="text-xs font-semibold text-foreground/70">운세 해설</p>
+              <div className="rounded-xl bg-white/65 px-4 py-3 border border-white/70 space-y-2 shadow-sm">
+                <p className="text-xs font-semibold text-slate-700">운세 해설</p>
                 {selected.rel ? (
                   <>
                     <p className="text-sm text-foreground/90 leading-relaxed">
@@ -971,7 +1004,7 @@ export default function ManseryokPage() {
                     <p className="text-sm text-foreground/90 leading-relaxed">
                       {selected.rel.why || REL_WHY[selected.rel.type] || ""}
                     </p>
-                    <p className={cn("text-xs font-medium leading-relaxed border-t border-white/10 pt-2", selected.rel.colorClass)}>
+                    <p className={cn("text-xs font-medium leading-relaxed border-t border-slate-200 pt-2", selected.rel.colorClass)}>
                       {selected.rel.emoji} {selected.rel.fortune}
                     </p>
                   </>
@@ -985,30 +1018,30 @@ export default function ManseryokPage() {
                   </p>
                 )}
                 {badges.inauspicious && (
-                  <p className="text-[11px] text-destructive/80 border-t border-white/10 pt-2">
+                  <p className="text-[11px] text-rose-700 border-t border-slate-200 pt-2">
                     ※ 개인 흉일 — 중요한 행사·계약·이사·수술 등은 미루고, 충돌 가능성이 큰 결정은 한 박자 늦추세요.
                   </p>
                 )}
                 {badges.caution && (
-                  <p className="text-[11px] text-orange-300/80 border-t border-white/10 pt-2">
+                  <p className="text-[11px] text-orange-700 border-t border-slate-200 pt-2">
                     ※ 개인 주의일 — 크게 나쁜 날은 아니지만, 서두르기보다 확인과 조율을 먼저 두는 편이 안전합니다.
                   </p>
                 )}
                 {badges.lucky && (
-                  <p className="text-[11px] text-primary/80 border-t border-white/10 pt-2">
+                  <p className="text-[11px] text-primary border-t border-slate-200 pt-2">
                     ※ 개인 길일 — 계약·협의·런칭·중요 일정처럼 결과를 만들어야 하는 일을 잡기 좋은 날입니다.
                   </p>
                 )}
                 {badges.genericCaution && !badges.inauspicious && (
-                  <p className="text-[11px] text-muted-foreground border-t border-white/10 pt-2">
+                  <p className="text-[11px] text-slate-600 border-t border-slate-200 pt-2">
                     ※ 공통 주의 흐름 — 전통 만세력상 조심하라는 신호는 있으나, 개인 사주 기준으로는 보조 참고 정도로 보는 편이 맞습니다.
                   </p>
                 )}
               </div>
 
               {/* ── 오늘의 기운 ── */}
-              <div className="rounded-xl bg-white/5 px-4 py-3 border border-white/10">
-                <p className="text-xs font-semibold text-foreground/70 mb-1">오늘의 기운</p>
+              <div className="rounded-xl bg-white/65 px-4 py-3 border border-white/70 shadow-sm">
+                <p className="text-xs font-semibold text-slate-700 mb-1">오늘의 기운</p>
                 <p className="text-sm text-foreground/90 leading-relaxed">
                   <span className={cn("font-bold", ELEM_COLOR[selected.dayData.dayElement])}>{selected.dayData.dayHeavenlyStem}({STEM_HANJA[selected.dayData.dayHeavenlyStem] ?? selected.dayData.dayHeavenlyStem})</span>의 {stemDesc}이 흐르고,{" "}
                   <span className={cn("font-bold", ELEM_COLOR[selected.dayData.dayElement])}>{selected.dayData.dayEarthlyBranch}({BRANCH_HANJA[selected.dayData.dayEarthlyBranch] ?? selected.dayData.dayEarthlyBranch})</span>의 기운으로 {branchDesc.replace("날", "하루입니다")}
@@ -1017,7 +1050,7 @@ export default function ManseryokPage() {
 
               {/* ── 분야별 운세 ── */}
               <div>
-                <p className="text-xs font-semibold text-foreground/70 mb-2">분야별 운세</p>
+                <p className="text-xs font-semibold text-slate-700 mb-2">분야별 운세</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
                   {subEntries.map(({ name, icon, key }) => {
                     const val = sub[key];
@@ -1026,7 +1059,7 @@ export default function ManseryokPage() {
                     return (
                       <div key={key}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-foreground/70">{icon} {name}</span>
+                          <span className="text-xs text-slate-700">{icon} {name}</span>
                           <span className="text-xs font-bold text-foreground">{val}/10</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
@@ -1045,14 +1078,14 @@ export default function ManseryokPage() {
 
               {/* ── 오늘 일진 기준 길한 방향·색상 ── */}
               <div>
-                <p className="text-[10px] text-muted-foreground mb-1.5">오늘 일진 기준</p>
+                <p className="text-[10px] text-slate-500 mb-1.5">오늘 일진 기준</p>
                 <div className="flex gap-3">
-                  <div className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-center">
-                    <p className="text-[10px] text-muted-foreground mb-1">길한 방향</p>
+                  <div className="flex-1 rounded-xl bg-white/65 border border-white/70 px-3 py-2.5 text-center shadow-sm">
+                    <p className="text-[10px] text-slate-500 mb-1">길한 방향</p>
                     <p className={cn("text-sm font-bold", ELEM_COLOR[selected.dayData.dayElement])}>{direction}</p>
                   </div>
-                  <div className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-center">
-                    <p className="text-[10px] text-muted-foreground mb-1">길한 색상</p>
+                  <div className="flex-1 rounded-xl bg-white/65 border border-white/70 px-3 py-2.5 text-center shadow-sm">
+                    <p className="text-[10px] text-slate-500 mb-1">길한 색상</p>
                     <p className={cn("text-sm font-bold", ELEM_COLOR[selected.dayData.dayElement])}>{luckyColors.join(" · ")}</p>
                   </div>
                 </div>

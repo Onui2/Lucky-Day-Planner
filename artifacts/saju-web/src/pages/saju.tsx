@@ -258,6 +258,22 @@ export default function SajuPage() {
   const [inquiryMessage, setInquiryMessage] = useState("");
   const [inquiryDone, setInquiryDone] = useState(false);
   const [floatingPanel, setFloatingPanel] = useState<"ai" | "report" | null>(null);
+  const handleAiPanelOpenChange = useCallback((nextOpen: boolean) => {
+    setFloatingPanel((current) => {
+      if (!nextOpen) {
+        return current === "ai" ? null : current;
+      }
+
+      if (current === "report") {
+        return null;
+      }
+
+      return "ai";
+    });
+  }, []);
+  const handleReportPanelOpenChange = useCallback((nextOpen: boolean) => {
+    setFloatingPanel(nextOpen ? "report" : null);
+  }, []);
 
   const { user, isAuthenticated } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
@@ -1166,14 +1182,14 @@ export default function SajuPage() {
             isAuthenticated={isAuthenticated}
             isAdmin={isAdmin}
             externalOpen={floatingPanel === "ai"}
-            onOpenChange={v => setFloatingPanel(v ? "ai" : null)}
+            onOpenChange={handleAiPanelOpenChange}
           />
           <ReportPurchaseButton
             birthInfo={monetizationBirthInfo}
             isAuthenticated={isAuthenticated}
             isAdmin={isAdmin}
             externalOpen={floatingPanel === "report"}
-            onOpenChange={v => setFloatingPanel(v ? "report" : null)}
+            onOpenChange={handleReportPanelOpenChange}
           />
         </div>
 

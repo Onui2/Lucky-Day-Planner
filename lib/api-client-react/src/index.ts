@@ -1076,6 +1076,7 @@ export interface AiQuestionItem {
   question: string;
   answer: string;
   createdAt: string;
+  birthInfo?: MonetizationBirthInfo | null;
 }
 
 export interface AiQuestionsResponse {
@@ -1091,6 +1092,11 @@ export interface AiQuestionsResponse {
 const ORDERS_KEY = ["commerce", "orders"] as const;
 const REPORTS_KEY = ["reports"] as const;
 export const AI_QUESTIONS_QUERY_KEY = ["ai", "questions"] as const;
+
+export interface AiQuestionHistoryTurn {
+  question: string;
+  answer: string;
+}
 
 export function useGetMyOrders(enabled = true) {
   return useQuery<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" }>({
@@ -1196,7 +1202,11 @@ export function useGetMyAiQuestions(enabled = true) {
 export function useAskSajuQuestion() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { question: string; birthInfo: MonetizationBirthInfo }) =>
+    mutationFn: (body: {
+      question: string;
+      birthInfo: MonetizationBirthInfo;
+      history?: AiQuestionHistoryTurn[];
+    }) =>
       customFetch<{
         question: AiQuestionItem;
         limit: number | null;
