@@ -6,6 +6,7 @@ import { count, eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "../lib/email.js";
+import { issueCsrfToken } from "../middlewares/csrf.js";
 import {
   isDatabaseAvailable,
   requireDatabase,
@@ -204,6 +205,10 @@ router.get("/auth/user", (req: Request, res: Response) => {
       user: req.isAuthenticated() ? req.user : null,
     }),
   );
+});
+
+router.get("/auth/csrf", (req: Request, res: Response) => {
+  res.json({ csrfToken: issueCsrfToken(req, res) });
 });
 
 router.get("/auth/setup-status", async (_req: Request, res: Response) => {
@@ -549,7 +554,10 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
     await sendPasswordResetEmail(normalizedEmail, token);
   } catch (err) {
     console.error("[비밀번호 초기화] 이메일 발송 실패:", err);
-    // 이메일 발송 실패해도 토큰은 저장됨
+    await db
+      .update(usersTable)
+      .set({ passwordResetToken: null, passwordResetExpiry: null })
+      .where(eq(usersTable.id, user.id));
   }
 
   res.json({ ok: true });

@@ -1,3 +1,5 @@
+import { appendCsrfHeader, clearCachedCsrfToken } from "./csrf";
+
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
 };
@@ -287,6 +289,7 @@ export async function customFetch<T = unknown>(
   const { responseType = "auto", headers: headersInit, ...init } = options;
 
   const method = resolveMethod(input, init.method);
+  const requestInfo = { method, url: resolveUrl(input) };
 
   if (init.body != null && (method === "GET" || method === "HEAD")) {
     throw new TypeError(`customFetch: ${method} requests cannot have a body.`);
@@ -311,14 +314,27 @@ export async function customFetch<T = unknown>(
     headers.set("authorization", `Bearer ${accessToken}`);
   }
 
-  const requestInfo = { method, url: resolveUrl(input) };
+  const csrfApplied = await appendCsrfHeader(headers, method, requestInfo.url);
 
-  const response = await fetch(input, {
+  let response = await fetch(input, {
     credentials: init.credentials ?? "include",
     ...init,
     method,
     headers,
   });
+
+  if (response.status === 403 && csrfApplied) {
+    clearCachedCsrfToken();
+    headers.delete("x-csrf-token");
+    if (await appendCsrfHeader(headers, method, requestInfo.url)) {
+      response = await fetch(input, {
+        credentials: init.credentials ?? "include",
+        ...init,
+        method,
+        headers,
+      });
+    }
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

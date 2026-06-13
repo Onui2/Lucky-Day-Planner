@@ -1,5 +1,6 @@
 export * from "./generated/api";
 export * from "./generated/api.schemas";
+export { appendCsrfHeader, clearCachedCsrfToken, getCsrfToken } from "./csrf";
 
 // ─── 저장된 사주 API 훅 (수동 추가) ─────────────────────────
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

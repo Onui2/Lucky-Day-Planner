@@ -26,6 +26,10 @@ function isEmailConfigured(): boolean {
   return !!(process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS);
 }
 
+function isProductionRuntime(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+}
+
 function createTransport() {
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST!,
@@ -46,6 +50,10 @@ export async function sendPasswordResetEmail(
   const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
 
   if (!isEmailConfigured()) {
+    if (isProductionRuntime()) {
+      throw new Error("Password reset email is not configured.");
+    }
+
     console.log("[비밀번호 초기화] 이메일 설정 없음. 초기화 링크:");
     console.log(resetUrl);
     return;

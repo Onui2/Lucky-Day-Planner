@@ -23,8 +23,13 @@ const WATCHDOG_BIRTH_INFO = {
 } as const;
 const INITIAL_PASSWORD = "watchdog1234";
 const UPDATED_PASSWORD = "watchdog5678";
+const SESSION_COOKIE = "sid";
+const CSRF_HEADER = "x-csrf-token";
+const CSRF_TOKEN_PATH = "/api/auth/csrf";
+const UNSAFE_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 
 type CookieMap = Map<string, string>;
+const csrfTokenCache = new WeakMap<CookieMap, string>();
 
 function parseEnvFile(filePath: string): Record<string, string> {
   if (!existsSync(filePath)) return {};
@@ -143,6 +148,44 @@ function storeCookies(headers: Headers, cookieMap: CookieMap) {
   }
 }
 
+async function ensureCsrfToken(
+  url: string,
+  cookieMap: CookieMap,
+): Promise<string | null> {
+  const cached = csrfTokenCache.get(cookieMap);
+  if (cached) {
+    return cached;
+  }
+
+  const csrfUrl = new URL(CSRF_TOKEN_PATH, new URL(url).origin).toString();
+  const headers = new Headers({ Accept: "application/json" });
+  const cookieHeader = createCookieHeader(cookieMap);
+  if (cookieHeader) {
+    headers.set("Cookie", cookieHeader);
+  }
+
+  const response = await fetch(csrfUrl, {
+    headers,
+    redirect: "manual",
+  });
+  storeCookies(response.headers, cookieMap);
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = (await response.json().catch(() => null)) as {
+    csrfToken?: unknown;
+  } | null;
+  const token = typeof payload?.csrfToken === "string" ? payload.csrfToken : null;
+
+  if (token) {
+    csrfTokenCache.set(cookieMap, token);
+  }
+
+  return token;
+}
+
 async function request(
   url: string,
   init: RequestInit,
@@ -156,6 +199,19 @@ async function request(
     const cookieHeader = createCookieHeader(cookieMap);
     if (cookieHeader) {
       headers.set("Cookie", cookieHeader);
+    }
+
+    const method = (init.method ?? "GET").toUpperCase();
+    if (
+      UNSAFE_METHODS.has(method) &&
+      cookieMap.has(SESSION_COOKIE) &&
+      !headers.has(CSRF_HEADER)
+    ) {
+      const csrfToken = await ensureCsrfToken(url, cookieMap);
+      if (csrfToken) {
+        headers.set(CSRF_HEADER, csrfToken);
+        headers.set("Cookie", createCookieHeader(cookieMap));
+      }
     }
 
     const response = await fetch(url, {

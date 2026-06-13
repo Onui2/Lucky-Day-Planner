@@ -14,6 +14,7 @@ Set these in Vercel Project Settings -> Environment Variables.
 
 - `DATABASE_URL`: Postgres connection string
 - `APP_URL`: Your canonical site URL, for example `https://your-domain.com`
+- `CORS_ORIGINS`: Optional comma-separated list of extra trusted browser origins. `APP_URL` and Vercel URLs are allowed automatically.
 
 The app also accepts Vercel/Supabase-style Postgres variables such as:
 
@@ -46,7 +47,7 @@ The app also accepts Vercel/Supabase-style Postgres variables such as:
 - `EMAIL_PASS`
 - `EMAIL_FROM`
 
-If SMTP is not configured, password reset links are logged on the server instead of being emailed.
+In local development, password reset links are logged when SMTP is not configured. In production, configure SMTP so reset tokens are emailed instead of written to logs.
 
 ### Optional OIDC settings
 

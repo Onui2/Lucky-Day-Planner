@@ -202,21 +202,35 @@ export function parseBirthInfo(input: unknown): ReportBirthInfo | null {
       ? "lunar"
       : value.calendarType === "solar"
         ? "solar"
-        : null;
+      : null;
 
+  const values = [year, month, day, hour, minute];
   if (
-    !Number.isFinite(year) ||
-    !Number.isFinite(month) ||
-    !Number.isFinite(day) ||
-    !Number.isFinite(hour) ||
-    !Number.isFinite(minute) ||
+    values.some((item) => !Number.isInteger(item)) ||
     !gender ||
     !calendarType
   ) {
     return null;
   }
 
-  if (month < 1 || month > 12 || day < 1 || day > 31 || minute < 0 || minute > 59) {
+  if (
+    year < 1900 ||
+    year > 2100 ||
+    month < 1 ||
+    month > 12 ||
+    minute < 0 ||
+    minute > 59 ||
+    (hour !== -1 && (hour < 0 || hour > 23))
+  ) {
+    return null;
+  }
+
+  const maxDay =
+    calendarType === "solar"
+      ? new Date(Date.UTC(year, month, 0)).getUTCDate()
+      : 30;
+
+  if (day < 1 || day > maxDay) {
     return null;
   }
 
@@ -225,7 +239,7 @@ export function parseBirthInfo(input: unknown): ReportBirthInfo | null {
     month,
     day,
     hour,
-    minute,
+    minute: hour === -1 ? 0 : minute,
     gender,
     calendarType,
   };

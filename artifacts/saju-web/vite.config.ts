@@ -6,6 +6,7 @@ import path from "path";
 const rawPort = process.env.WEB_PORT ?? process.env.PORT;
 
 const port = Number(rawPort ?? "3000");
+const apiPort = Number(process.env.API_PORT ?? process.env.PORT ?? "5001");
 
 if (Number.isNaN(port) || port <= 0) {
   console.warn(
@@ -13,7 +14,14 @@ if (Number.isNaN(port) || port <= 0) {
   );
 }
 
+if (Number.isNaN(apiPort) || apiPort <= 0) {
+  console.warn(
+    `Warning: Invalid API port value: "${process.env.API_PORT ?? process.env.PORT}". Using default 5001.`,
+  );
+}
+
 const basePath = process.env.BASE_PATH ?? "/";
+const apiTarget = `http://127.0.0.1:${Number.isNaN(apiPort) || apiPort <= 0 ? 5001 : apiPort}`;
 
 export default defineConfig({
   base: basePath,
@@ -70,7 +78,7 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       "/api": {
-        target: "http://localhost:5001",
+        target: apiTarget,
         changeOrigin: true,
       },
     },

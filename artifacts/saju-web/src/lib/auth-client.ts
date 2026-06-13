@@ -1,4 +1,5 @@
 import type { AuthUser } from "@workspace/replit-auth-web";
+import { appendCsrfHeader } from "@workspace/api-client-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -55,9 +56,12 @@ async function postJson<TResponse>(
   body: Record<string, unknown>,
   fallbackMessage: string,
 ): Promise<TResponse> {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  await appendCsrfHeader(headers, "POST", `${BASE}${path}`);
+
   const response = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
     credentials: "include",
   });

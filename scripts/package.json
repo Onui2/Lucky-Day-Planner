@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "hello": "tsx ./src/hello.ts",
-    "watchdog": "tsx ./src/watchdog.ts",
+    "hello": "node --import tsx ./src/hello.ts",
+    "watchdog": "node --import tsx ./src/watchdog.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
