@@ -10,7 +10,14 @@ import {
 import { useAuth } from "@workspace/replit-auth-web";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Loader2, MessageCircleQuestion, Plus, Send, X } from "lucide-react";
+import {
+  Loader2,
+  MessageCircleQuestion,
+  Plus,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import {
@@ -33,6 +40,23 @@ interface AiChatPanelProps {
 }
 
 const MAX_PROMPT_HISTORY = 6;
+
+function buildSuggestedQuestions(birthInfo: MonetizationBirthInfo) {
+  const currentYear = new Date().getFullYear();
+  const age =
+    Number.isFinite(birthInfo.year) && birthInfo.year > 0
+      ? Math.max(0, currentYear - birthInfo.year)
+      : null;
+  const ageLabel = age ? `${age}세 전후` : "지금 시기";
+
+  return [
+    `${currentYear}년 직업운과 돈 흐름에서 가장 좋은 타이밍을 알려줘`,
+    "앞으로 3년 대운 흐름에서 기회와 조심할 점을 요약해줘",
+    "내 사주의 강점 3가지와 지금 바로 보완할 점 3가지를 알려줘",
+    `${ageLabel} 연애운에서 반복되기 쉬운 패턴과 좋은 인연을 만나는 방법을 알려줘`,
+    "건강운에서 생활습관으로 관리하면 좋은 부분을 알려줘",
+  ];
+}
 
 function dedupeQuestionIds(ids: number[]) {
   return Array.from(
@@ -79,12 +103,25 @@ export function AiChatPanel({
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const loginHref = buildAuthHref("/login");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const questionInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
   const ask = useAskSajuQuestion();
   const { data, isLoading } = useGetMyAiQuestions(isAuthenticated && open);
 
   const userId = user?.id ?? null;
   const hasUnlimitedAccess = Boolean(isAdmin || data?.unlimited);
+  const suggestedQuestions = useMemo(
+    () => buildSuggestedQuestions(birthInfo),
+    [
+      birthInfo.year,
+      birthInfo.month,
+      birthInfo.day,
+      birthInfo.hour,
+      birthInfo.minute,
+      birthInfo.gender,
+      birthInfo.calendarType,
+    ],
+  );
   const currentBirthInfoKey = useMemo(
     () => getAiChatBirthInfoKey(birthInfo),
     [
@@ -109,7 +146,8 @@ export function AiChatPanel({
         )
         .sort(
           (left, right) =>
-            new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+            new Date(left.createdAt).getTime() -
+            new Date(right.createdAt).getTime(),
         ),
     [currentBirthInfoKey, data],
   );
@@ -120,7 +158,10 @@ export function AiChatPanel({
   );
 
   const activeSession = useMemo(
-    () => sessions.find((session) => session.id === activeSessionId) ?? sessions[0] ?? null,
+    () =>
+      sessions.find((session) => session.id === activeSessionId) ??
+      sessions[0] ??
+      null,
     [activeSessionId, sessions],
   );
 
@@ -211,8 +252,12 @@ export function AiChatPanel({
     );
 
     let nextSessions = [...currentSessions];
-    const mappedIds = new Set(nextSessions.flatMap((session) => session.questionIds));
-    const unmappedQuestions = questionHistory.filter((item) => !mappedIds.has(item.id));
+    const mappedIds = new Set(
+      nextSessions.flatMap((session) => session.questionIds),
+    );
+    const unmappedQuestions = questionHistory.filter(
+      (item) => !mappedIds.has(item.id),
+    );
 
     if (unmappedQuestions.length > 0) {
       const existingImported = nextSessions.find(
@@ -227,7 +272,8 @@ export function AiChatPanel({
         id: importedSessionId,
         birthInfoKey: currentBirthInfoKey,
         title: "이전 상담 기록",
-        createdAt: existingImported?.createdAt ?? unmappedQuestions[0]!.createdAt,
+        createdAt:
+          existingImported?.createdAt ?? unmappedQuestions[0]!.createdAt,
         updatedAt: unmappedQuestions[unmappedQuestions.length - 1]!.createdAt,
         questionIds: mergedIds,
         imported: true,
@@ -290,7 +336,10 @@ export function AiChatPanel({
     };
   }, [activeMessages.length, activeSessionId, open, pendingQuestion]);
 
-  function persistSessions(nextSessions: AiChatSessionRecord[], nextActiveId: string | null) {
+  function persistSessions(
+    nextSessions: AiChatSessionRecord[],
+    nextActiveId: string | null,
+  ) {
     const sortedSessions = sortAiChatSessions(nextSessions);
     setSessions(sortedSessions);
     setActiveSessionId(nextActiveId);
@@ -313,7 +362,10 @@ export function AiChatPanel({
 
     const freshSession = createAiChatSessionRecord(currentBirthInfoKey);
     persistSessions(
-      [freshSession, ...sessions.filter((session) => session.questionIds.length > 0)],
+      [
+        freshSession,
+        ...sessions.filter((session) => session.questionIds.length > 0),
+      ],
       freshSession.id,
     );
     return freshSession;
@@ -322,11 +374,36 @@ export function AiChatPanel({
   function handleCreateSession() {
     const freshSession = createAiChatSessionRecord(currentBirthInfoKey);
     persistSessions(
-      [freshSession, ...sessions.filter((session) => session.questionIds.length > 0)],
+      [
+        freshSession,
+        ...sessions.filter((session) => session.questionIds.length > 0),
+      ],
       freshSession.id,
     );
     setPendingQuestion(null);
     setQuestion("");
+  }
+
+  function resizeQuestionInput(element = questionInputRef.current) {
+    if (!element) {
+      return;
+    }
+
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, 112)}px`;
+  }
+
+  function handleQuestionChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    setQuestion(event.target.value);
+    resizeQuestionInput(event.target);
+  }
+
+  function handlePickSuggestion(nextQuestion: string) {
+    setQuestion(nextQuestion);
+    globalThis.requestAnimationFrame(() => {
+      questionInputRef.current?.focus();
+      resizeQuestionInput();
+    });
   }
 
   async function handleAsk() {
@@ -388,6 +465,34 @@ export function AiChatPanel({
     }
   }
 
+  function renderSuggestedQuestions(compact = false) {
+    return (
+      <div className={compact ? "space-y-2" : "space-y-3"}>
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-violet-100/80">
+          <Sparkles className="w-3.5 h-3.5 text-violet-300" />
+          추천 질문
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {suggestedQuestions.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => handlePickSuggestion(suggestion)}
+              className={cn(
+                "rounded-full border border-violet-300/25 bg-violet-400/10 text-left text-violet-50/90 transition-colors hover:border-violet-200/60 hover:bg-violet-400/20",
+                compact
+                  ? "px-2.5 py-1 text-[11px]"
+                  : "px-3 py-1.5 text-xs leading-5",
+              )}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <button
@@ -416,7 +521,9 @@ export function AiChatPanel({
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-violet-500/10">
               <div className="flex items-center gap-2">
                 <MessageCircleQuestion className="w-4 h-4 text-violet-300" />
-                <span className="text-sm font-medium text-violet-100">AI 사주 상담</span>
+                <span className="text-sm font-medium text-violet-100">
+                  AI 사주 상담
+                </span>
               </div>
               <div className="flex items-center gap-3">
                 {isAuthenticated && (
@@ -437,15 +544,15 @@ export function AiChatPanel({
               <div className="border-b border-white/10 bg-black/15 px-3 py-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[11px] text-violet-200/70">
-                    세션별로 기록되고, 같은 세션 질문은 최근 대화를 이어서 답해요.
+                    세션별로 기록되고, 같은 세션 질문은 최근 대화를 이어서
+                    답해요.
                   </p>
                   <button
                     type="button"
                     onClick={handleCreateSession}
                     className="inline-flex items-center gap-1 rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-100 hover:bg-violet-500/20 transition-colors"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    새 세션
+                    <Plus className="w-3.5 h-3.5" />새 세션
                   </button>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
@@ -486,7 +593,10 @@ export function AiChatPanel({
                 <div className="text-sm text-muted-foreground text-center py-8">
                   <MessageCircleQuestion className="w-8 h-8 mx-auto mb-3 opacity-40" />
                   <p>로그인 후 사용할 수 있습니다.</p>
-                  <Link href={loginHref} className="mt-3 inline-block text-primary hover:underline text-sm">
+                  <Link
+                    href={loginHref}
+                    className="mt-3 inline-block text-primary hover:underline text-sm"
+                  >
                     로그인하러 가기
                   </Link>
                 </div>
@@ -502,18 +612,22 @@ export function AiChatPanel({
               ) : activeSession.questionIds.length === 0 && !pendingQuestion ? (
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-4 py-4">
-                    <div className="text-sm font-medium text-violet-50">새 세션이 시작됐어요.</div>
+                    <div className="text-sm font-medium text-violet-50">
+                      새 세션이 시작됐어요.
+                    </div>
                     <div className="mt-1 text-xs leading-6 text-violet-100/70">
-                      올해 이직운, 연애운, 건강운처럼 궁금한 주제를 이어서 물어보면 이 세션에 차곡차곡 기록됩니다.
+                      올해 이직운, 연애운, 건강운처럼 궁금한 주제를 이어서
+                      물어보면 이 세션에 차곡차곡 기록됩니다.
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs leading-6 text-muted-foreground">
-                    예시: "올해 상반기 이직운은 어떤가요?" 또는 "방금 답변 기준으로 조심해야 할 달도 알려줘"
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+                    {renderSuggestedQuestions()}
                   </div>
                 </div>
               ) : activeMessages.length === 0 && !pendingQuestion ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-muted-foreground">
-                  이 세션의 이전 기록을 불러오는 중입니다. 잠시 후 다시 확인해주세요.
+                  이 세션의 이전 기록을 불러오는 중입니다. 잠시 후 다시
+                  확인해주세요.
                 </div>
               ) : (
                 <>
@@ -558,36 +672,46 @@ export function AiChatPanel({
 
             {ask.error && (
               <div className="px-4 py-2 text-xs text-destructive bg-destructive/10 border-t border-destructive/20">
-                {ask.error instanceof Error ? ask.error.message : "답변 생성에 실패했습니다."}
+                {ask.error instanceof Error
+                  ? ask.error.message
+                  : "답변 생성에 실패했습니다."}
               </div>
             )}
 
             {isAuthenticated && (
-              <div className="border-t border-white/10 bg-black/20 px-3 py-2.5 flex gap-2 items-end">
-                <textarea
-                  value={question}
-                  onChange={(event) => {
-                    setQuestion(event.target.value);
-                    event.target.style.height = "auto";
-                    event.target.style.height = `${Math.min(event.target.scrollHeight, 112)}px`;
-                  }}
-                  onKeyDown={handleKeyDown}
-                  placeholder="질문 입력 (Shift+Enter 줄바꿈)"
-                  rows={1}
-                  className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none leading-6 overflow-y-auto py-1"
-                  style={{ maxHeight: "112px" }}
-                />
-                <button
-                  onClick={() => void handleAsk()}
-                  disabled={ask.isPending || !question.trim()}
-                  className="flex-shrink-0 p-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
-                >
-                  {ask.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
+              <div className="border-t border-white/10 bg-black/20 px-3 py-2.5">
+                {activeSession &&
+                  activeSession.questionIds.length > 0 &&
+                  !pendingQuestion &&
+                  !ask.isPending &&
+                  !question.trim() && (
+                    <div className="mb-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                      {renderSuggestedQuestions(true)}
+                    </div>
                   )}
-                </button>
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    ref={questionInputRef}
+                    value={question}
+                    onChange={handleQuestionChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="질문 입력 (Shift+Enter 줄바꿈)"
+                    rows={1}
+                    className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none leading-6 overflow-y-auto py-1"
+                    style={{ maxHeight: "112px" }}
+                  />
+                  <button
+                    onClick={() => void handleAsk()}
+                    disabled={ask.isPending || !question.trim()}
+                    className="flex-shrink-0 p-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+                  >
+                    {ask.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </motion.div>
