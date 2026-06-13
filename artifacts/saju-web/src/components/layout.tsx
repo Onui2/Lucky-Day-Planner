@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { flushSync } from "react-dom";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -266,6 +267,33 @@ export function Layout({ children }: LayoutProps) {
     setUserMenuOpen(false);
   };
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setMobileServiceGroupOpen(null);
+    setServicesOpen(false);
+    setUserMenuOpen(false);
+  }, [location]);
+
+  const handleMenuNavigation =
+    (href: string, beforeNavigate: () => void) =>
+    (event: React.MouseEvent<HTMLAnchorElement>) => {
+      if (
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.shiftKey ||
+        event.button !== 0
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      flushSync(() => {
+        beforeNavigate();
+      });
+      navigate(href);
+    };
+
   const renderNavLink = (
     item: {
       href: string;
@@ -314,7 +342,7 @@ export function Layout({ children }: LayoutProps) {
       <Link
         key={item.href}
         href={item.href}
-        onClick={onClick ?? closeMobile}
+        onClick={handleMenuNavigation(item.href, onClick ?? closeMobile)}
         className={cn(
           "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors",
           isActive
@@ -409,7 +437,9 @@ export function Layout({ children }: LayoutProps) {
                               <Link
                                 key={s.href}
                                 href={s.href}
-                                onClick={() => setServicesOpen(false)}
+                                onClick={handleMenuNavigation(s.href, () =>
+                                  setServicesOpen(false),
+                                )}
                                 className={cn(
                                   "flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors",
                                   isActive
@@ -508,7 +538,9 @@ export function Layout({ children }: LayoutProps) {
                       >
                         <Link
                           href="/account"
-                          onClick={() => setUserMenuOpen(false)}
+                          onClick={handleMenuNavigation("/account", () =>
+                            setUserMenuOpen(false),
+                          )}
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-primary/8 hover:text-primary transition-colors"
                         >
                           <Settings className="w-4 h-4" />
@@ -679,7 +711,7 @@ export function Layout({ children }: LayoutProps) {
                     <>
                       <Link
                         href="/account"
-                        onClick={closeMobile}
+                        onClick={handleMenuNavigation("/account", closeMobile)}
                         className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-primary/8 hover:text-primary transition-colors"
                       >
                         <Settings className="w-4 h-4" />
