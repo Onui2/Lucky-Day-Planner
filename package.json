@@ -10,7 +10,8 @@
     "preinstall": "node ./scripts/enforce-pnpm.mjs",
     "dev": "node ./scripts/dev.mjs",
     "watchdog": "corepack pnpm --filter @workspace/scripts run watchdog",
-    "build": "corepack pnpm run typecheck && corepack pnpm -r --if-present run build",
+    "build": "node ./scripts/build.mjs",
+    "build:workspace": "corepack pnpm run typecheck && corepack pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "corepack pnpm run typecheck:libs && corepack pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
