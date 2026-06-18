@@ -180,6 +180,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const submit = useSubmitInquiry();
+  const emptyMessageError = "문의 내용을 입력해주세요.";
 
   function buildUserLabel(): string {
     if (type === "general") return "";
@@ -198,11 +199,15 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
   }
 
   async function handleSubmit() {
+    if (!message.trim()) {
+      setValidationError(emptyMessageError);
+      return;
+    }
+
     if (!user) {
       navigate(buildAuthHref("/login"));
       return;
     }
-    if (!message.trim()) return;
 
     setValidationError(null);
 
@@ -330,7 +335,12 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
                     <Textarea
                       placeholder="궁금하신 내용을 자유롭게 작성해주세요..."
                       value={message}
-                      onChange={e => setMessage(e.target.value)}
+                      onChange={e => {
+                        setMessage(e.target.value);
+                        if (validationError === emptyMessageError) {
+                          setValidationError(null);
+                        }
+                      }}
                       rows={5}
                       maxLength={2000}
                       className="bg-white/5 border-white/10 resize-none"
@@ -353,7 +363,7 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
 
                   <Button
                     onClick={handleSubmit}
-                    disabled={!message.trim() || submit.isPending}
+                    disabled={submit.isPending}
                     className="w-full h-11 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
                   >
                     {submit.isPending ? (
