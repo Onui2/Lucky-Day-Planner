@@ -54,7 +54,7 @@ export function getBirthHourLabel(h: number): string {
 const HOURS = BIRTH_HOURS;
 
 const ELEM_KOR: Record<string, string> = { 목: "木 (목)", 화: "火 (화)", 토: "土 (토)", 금: "金 (금)", 수: "水 (수)" };
-const ELEM_COLOR: Record<string, string> = { 목: "text-green-400", 화: "text-red-400", 토: "text-yellow-400", 금: "text-gray-300", 수: "text-blue-400" };
+const ELEM_COLOR: Record<string, string> = { 목: "text-green-600", 화: "text-red-600", 토: "text-yellow-600", 금: "text-gray-700", 수: "text-blue-600" };
 
 interface Props {
   open: boolean;
@@ -262,7 +262,7 @@ export default function ProfileModal({ open, onClose }: Props) {
           )}
 
           {success ? (
-            <div className="flex items-center justify-center gap-2 py-3 text-emerald-400 font-medium text-sm">
+            <div className="flex items-center justify-center gap-2 py-3 text-emerald-600 font-medium text-sm">
               <Sparkles className="w-4 h-4" />
               사주 등록 완료! 잠시 후 닫힙니다…
             </div>

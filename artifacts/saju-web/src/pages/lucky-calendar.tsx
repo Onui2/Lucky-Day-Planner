@@ -22,27 +22,27 @@ import {
 } from "@/lib/member-insights";
 import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 
-const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
+const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
 const STEM_HANJA: Record<string,string> = { 갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸' };
 const BRANCH_HANJA: Record<string,string> = { 자:'子',축:'丑',인:'寅',묘:'卯',진:'辰',사:'巳',오:'午',미:'未',신:'申',유:'酉',술:'戌',해:'亥' };
 
 const GRADE_STYLE: Record<string, { bg: string; text: string; border: string; label: string }> = {
-  대길: { bg:'bg-amber-400/20', text:'text-amber-300', border:'border-amber-400/50', label:'대길(大吉)' },
-  길:   { bg:'bg-emerald-400/15', text:'text-emerald-400', border:'border-emerald-400/40', label:'길(吉)' },
-  보통: { bg:'bg-white/5', text:'text-foreground/60', border:'border-white/10', label:'보통' },
-  흉:   { bg:'bg-rose-400/10', text:'text-rose-400', border:'border-rose-400/20', label:'흉(凶)' },
-  대흉: { bg:'bg-rose-600/15', text:'text-rose-300', border:'border-rose-600/40', label:'대흉(大凶)' },
+  대길: { bg:'bg-amber-400/20', text:'text-amber-700', border:'border-amber-400/50', label:'대길(大吉)' },
+  길:   { bg:'bg-emerald-400/15', text:'text-emerald-600', border:'border-emerald-400/40', label:'길(吉)' },
+  보통: { bg:'bg-foreground/5', text:'text-foreground/60', border:'border-foreground/10', label:'보통' },
+  흉:   { bg:'bg-rose-400/10', text:'text-rose-600', border:'border-rose-400/20', label:'흉(凶)' },
+  대흉: { bg:'bg-rose-600/15', text:'text-rose-700', border:'border-rose-600/40', label:'대흉(大凶)' },
 };
 
 const PURPOSES = [
-  { key:'이사',  label:'이사', icon: Home, color:'text-amber-400' },
-  { key:'개업',  label:'개업', icon: Briefcase, color:'text-emerald-400' },
-  { key:'결혼',  label:'결혼', icon: Heart, color:'text-rose-400' },
-  { key:'계약',  label:'계약', icon: FileText, color:'text-blue-400' },
-  { key:'공부',  label:'공부', icon: BookOpen, color:'text-purple-400' },
-  { key:'여행',  label:'여행', icon: Plane, color:'text-sky-400' },
-  { key:'건강',  label:'병원', icon: Activity, color:'text-green-400' },
-  { key:'투자',  label:'투자', icon: TrendingUp, color:'text-yellow-400' },
+  { key:'이사',  label:'이사', icon: Home, color:'text-amber-600' },
+  { key:'개업',  label:'개업', icon: Briefcase, color:'text-emerald-600' },
+  { key:'결혼',  label:'결혼', icon: Heart, color:'text-rose-600' },
+  { key:'계약',  label:'계약', icon: FileText, color:'text-blue-600' },
+  { key:'공부',  label:'공부', icon: BookOpen, color:'text-purple-600' },
+  { key:'여행',  label:'여행', icon: Plane, color:'text-sky-600' },
+  { key:'건강',  label:'병원', icon: Activity, color:'text-green-600' },
+  { key:'투자',  label:'투자', icon: TrendingUp, color:'text-yellow-600' },
 ];
 
 interface LuckyDay {
@@ -253,7 +253,7 @@ export default function LuckyCalendarPage() {
                 <button key={p.key} onClick={() => { setPurpose(p.key); setSelectedDay(null); setRequestedDay(null); }}
                   className={cn(
                     "flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium transition-all",
-                    isActive ? "border-primary/60 bg-primary/15 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20"
+                    isActive ? "border-primary/60 bg-primary/15 text-primary" : "border-foreground/10 bg-foreground/5 text-muted-foreground hover:border-foreground/10"
                   )}>
                   <Icon className={cn("w-4 h-4", isActive ? "text-primary" : p.color)} />
                   {p.label}
@@ -264,14 +264,14 @@ export default function LuckyCalendarPage() {
 
           {/* 월 선택 */}
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-full border border-white/10">
+            <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-full border border-foreground/10">
               <ChevronLeft className="w-5 h-5" />
             </Button>
             <div className="text-center">
               <p className="text-lg font-bold">{year}년 {month}월</p>
               {data && <p className="text-xs text-primary">{data.purposeLabel} 길일</p>}
             </div>
-            <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-full border border-white/10">
+            <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-full border border-foreground/10">
               <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
@@ -284,7 +284,7 @@ export default function LuckyCalendarPage() {
           )}
 
           {error && (
-            <div className="glass-panel border border-rose-400/20 rounded-2xl p-6 text-center text-rose-400">
+            <div className="glass-panel border border-rose-400/20 rounded-2xl p-6 text-center text-rose-600">
               길일 계산 중 오류가 발생했습니다.
             </div>
           )}
@@ -295,7 +295,7 @@ export default function LuckyCalendarPage() {
               {data.topDays.length > 0 && (
                 <div className="glass-panel border border-amber-400/20 rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Trophy className="w-4 h-4 text-amber-400" />
+                    <Trophy className="w-4 h-4 text-amber-600" />
                     <h3 className="font-medium text-sm">이달의 추천 날</h3>
                     <span className="text-xs text-muted-foreground">({data.purposeLabel}에 가장 좋은 날)</span>
                   </div>
@@ -306,7 +306,7 @@ export default function LuckyCalendarPage() {
                       return (
                         <button key={d} onClick={() => { setSelectedDay(day); setRequestedDay(day.day); }}
                           className="flex flex-col items-center bg-amber-400/15 border border-amber-400/40 rounded-xl px-3 py-2 hover:bg-amber-400/25 transition-colors">
-                          <span className="text-amber-300 font-bold text-sm">{d}일</span>
+                          <span className="text-amber-700 font-bold text-sm">{d}일</span>
                           <span className="text-xs text-muted-foreground">{day.dayOfWeek}요</span>
                           <span className={cn("text-xs font-serif mt-0.5", ELEM_COLOR[day.stemElement])}>{day.ganziHanja}</span>
                         </button>
@@ -317,11 +317,11 @@ export default function LuckyCalendarPage() {
               )}
 
               {/* 달력 그리드 */}
-              <div className="glass-panel border border-white/10 rounded-2xl p-4">
+              <div className="glass-panel border border-foreground/10 rounded-2xl p-4">
                 {/* 요일 헤더 */}
                 <div className="grid grid-cols-7 mb-2">
                   {WEEKDAY_LABELS.map(w => (
-                    <div key={w} className={cn("text-center text-xs font-medium py-1", w === '일' ? 'text-rose-400' : w === '토' ? 'text-blue-400' : 'text-muted-foreground')}>
+                    <div key={w} className={cn("text-center text-xs font-medium py-1", w === '일' ? 'text-rose-600' : w === '토' ? 'text-blue-600' : 'text-muted-foreground')}>
                       {w}
                     </div>
                   ))}
@@ -353,7 +353,7 @@ export default function LuckyCalendarPage() {
                         )}
                       >
                         <span className={cn("text-sm font-bold leading-none", gs.text,
-                          day.dayOfWeek === '일' ? 'text-rose-300' : day.dayOfWeek === '토' ? 'text-blue-300' : gs.text
+                          day.dayOfWeek === '일' ? 'text-rose-700' : day.dayOfWeek === '토' ? 'text-blue-700' : gs.text
                         )}>
                           {day.day}
                         </span>
@@ -361,7 +361,7 @@ export default function LuckyCalendarPage() {
                           {day.ganziHanja}
                         </span>
                         {(day.grade === '대길' || day.grade === '길') && (
-                          <Star className="w-2.5 h-2.5 text-amber-400/80 absolute top-1 right-1" />
+                          <Star className="w-2.5 h-2.5 text-amber-600/80 absolute top-1 right-1" />
                         )}
                         {isToday && (
                           <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
@@ -407,7 +407,7 @@ export default function LuckyCalendarPage() {
                   {selectedDay.tags.length > 0 && (
                     <div className="mt-2 flex gap-1.5 flex-wrap">
                       {selectedDay.tags.map((tag, i) => (
-                        <span key={i} className="text-xs bg-white/8 border border-white/10 px-2 py-0.5 rounded-full text-muted-foreground">
+                        <span key={i} className="text-xs bg-foreground/8 border border-foreground/10 px-2 py-0.5 rounded-full text-muted-foreground">
                           {tag}
                         </span>
                       ))}
@@ -425,7 +425,7 @@ export default function LuckyCalendarPage() {
                           type="button"
                           onClick={() => void handleRemoveBookmark(selectedBookmark.id)}
                           disabled={isRemoving}
-                          className="inline-flex items-center gap-1.5 text-xs text-rose-300 hover:text-rose-200 transition-colors disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 text-xs text-rose-700 hover:text-rose-700 transition-colors disabled:opacity-50"
                         >
                           {isRemoving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                           저장 취소
@@ -452,11 +452,11 @@ export default function LuckyCalendarPage() {
                         {selectedBookmark ? "저장 내용 업데이트" : "길일 저장"}
                       </Button>
                       {saveDone && (
-                        <span className="text-xs text-emerald-400">저장 완료</span>
+                        <span className="text-xs text-emerald-600">저장 완료</span>
                       )}
                     </div>
                     {bookmarkMessage && (
-                      <p className="text-xs text-rose-300">{bookmarkMessage}</p>
+                      <p className="text-xs text-rose-700">{bookmarkMessage}</p>
                     )}
                   </div>
                 </motion.div>
@@ -476,7 +476,7 @@ export default function LuckyCalendarPage() {
                     {bookmarks.slice(0, 4).map((bookmark) => (
                       <div
                         key={bookmark.id}
-                        className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 flex items-start justify-between gap-3"
+                        className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3 flex items-start justify-between gap-3"
                       >
                         <button
                           type="button"
@@ -509,7 +509,7 @@ export default function LuckyCalendarPage() {
                           type="button"
                           onClick={() => void handleRemoveBookmark(bookmark.id)}
                           disabled={isRemoving}
-                          className="text-muted-foreground hover:text-rose-300 transition-colors disabled:opacity-50"
+                          className="text-muted-foreground hover:text-rose-700 transition-colors disabled:opacity-50"
                         >
                           {isRemoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                         </button>

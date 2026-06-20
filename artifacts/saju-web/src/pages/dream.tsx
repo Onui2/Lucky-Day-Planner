@@ -27,11 +27,11 @@ interface DreamMeta {
 }
 
 const FORTUNE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
-  great:   { label: "대길 ★", color: "text-yellow-400", bg: "bg-yellow-400/10", border: "border-yellow-400/30", icon: Star },
-  good:    { label: "길",      color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/30", icon: TrendingUp },
-  neutral: { label: "중립",   color: "text-slate-400",   bg: "bg-slate-400/10",   border: "border-slate-400/30",   icon: Minus },
-  bad:     { label: "흉",     color: "text-orange-400",  bg: "bg-orange-400/10",  border: "border-orange-400/30",  icon: AlertTriangle },
-  warning: { label: "주의",   color: "text-red-400",     bg: "bg-red-400/10",     border: "border-red-400/30",     icon: AlertTriangle },
+  great:   { label: "대길 ★", color: "text-yellow-600", bg: "bg-yellow-400/10", border: "border-yellow-400/30", icon: Star },
+  good:    { label: "길",      color: "text-emerald-600", bg: "bg-emerald-400/10", border: "border-emerald-400/30", icon: TrendingUp },
+  neutral: { label: "중립",   color: "text-slate-600",   bg: "bg-slate-400/10",   border: "border-slate-400/30",   icon: Minus },
+  bad:     { label: "흉",     color: "text-orange-600",  bg: "bg-orange-400/10",  border: "border-orange-400/30",  icon: AlertTriangle },
+  warning: { label: "주의",   color: "text-red-600",     bg: "bg-red-400/10",     border: "border-red-400/30",     icon: AlertTriangle },
 };
 
 function DreamCard({ dream, highlight }: { dream: DreamKeyword; highlight?: boolean }) {
@@ -46,7 +46,7 @@ function DreamCard({ dream, highlight }: { dream: DreamKeyword; highlight?: bool
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full border border-white/10">{dream.category}</span>
+            <span className="text-xs text-muted-foreground bg-foreground/5 px-2 py-0.5 rounded-full border border-foreground/10">{dream.category}</span>
             {highlight && <span className="text-xs text-primary/80 font-medium">정확 일치</span>}
           </div>
           <h3 className="text-xl font-serif font-bold text-foreground">{dream.keyword}</h3>
@@ -251,11 +251,11 @@ export default function DreamPage() {
             <div>
               <p className="font-medium text-foreground mb-1.5">운세 등급</p>
               <ul className="space-y-1 text-xs">
-                <li className="text-yellow-400">★ 대길 — 매우 좋은 꿈</li>
-                <li className="text-emerald-400">↑ 길 — 좋은 꿈</li>
-                <li className="text-slate-400">— 중립 — 평범한 꿈</li>
-                <li className="text-orange-400">△ 흉 — 좋지 않은 꿈</li>
-                <li className="text-red-400">⚠ 주의 — 경고의 꿈</li>
+                <li className="text-yellow-600">★ 대길 — 매우 좋은 꿈</li>
+                <li className="text-emerald-600">↑ 길 — 좋은 꿈</li>
+                <li className="text-slate-600">— 중립 — 평범한 꿈</li>
+                <li className="text-orange-600">△ 흉 — 좋지 않은 꿈</li>
+                <li className="text-red-600">⚠ 주의 — 경고의 꿈</li>
               </ul>
             </div>
           </div>

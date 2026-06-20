@@ -29,14 +29,14 @@ import {
 const CURRENT_YEAR = new Date().getFullYear();
 
 const ELEM_BG: Record<string, string> = {
-  목: "bg-green-500/20 text-green-300",
-  화: "bg-red-500/20 text-red-300",
-  토: "bg-yellow-500/20 text-yellow-300",
-  금: "bg-gray-400/20 text-gray-200",
-  수: "bg-blue-500/20 text-blue-300",
+  목: "bg-green-500/20 text-green-700",
+  화: "bg-red-500/20 text-red-700",
+  토: "bg-yellow-500/20 text-yellow-700",
+  금: "bg-gray-400/20 text-gray-700",
+  수: "bg-blue-500/20 text-blue-700",
 };
 const ELEM_COLOR: Record<string, string> = {
-  목: "text-green-400", 화: "text-red-400", 토: "text-yellow-400", 금: "text-gray-300", 수: "text-blue-400",
+  목: "text-green-600", 화: "text-red-600", 토: "text-yellow-600", 금: "text-gray-700", 수: "text-blue-600",
 };
 const ELEM_BORDER: Record<string, string> = {
   목: "border-green-400/40", 화: "border-red-400/40", 토: "border-yellow-400/40", 금: "border-slate-300/40", 수: "border-blue-400/40",
@@ -44,10 +44,10 @@ const ELEM_BORDER: Record<string, string> = {
 const ELEM_KOR: Record<string, string> = { 목: "木", 화: "火", 토: "土", 금: "金", 수: "水" };
 
 function loveScoreColor(s: number) {
-  if (s >= 85) return "text-emerald-400";
-  if (s >= 72) return "text-yellow-400";
-  if (s >= 58) return "text-sky-400";
-  return "text-rose-400";
+  if (s >= 85) return "text-emerald-600";
+  if (s >= 72) return "text-yellow-600";
+  if (s >= 58) return "text-sky-600";
+  return "text-rose-600";
 }
 function loveScoreLabel(s: number) {
   if (s >= 85) return "매우 좋음";
@@ -126,13 +126,13 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
       {/* 소조언 */}
       {data.soloAdvice && (
         <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-4 flex gap-3 items-start">
-          <Star className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-yellow-200 leading-relaxed">{data.soloAdvice}</p>
+          <Star className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-yellow-700 leading-relaxed">{data.soloAdvice}</p>
         </div>
       )}
 
       {/* 월별 차트 */}
-      <div className="rounded-3xl border border-white/10 bg-card/30 backdrop-blur-xl p-6">
+      <div className="rounded-3xl border border-foreground/10 bg-card/30 backdrop-blur-xl p-6">
         <h3 className="text-sm font-semibold text-foreground mb-4">📅 월별 인연운 흐름</h3>
         <div className="flex items-end justify-between gap-1 px-1">
           {(data.allMonthScores ?? []).map(({ month, score }) => (
@@ -147,7 +147,7 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
         <div className="rounded-3xl border border-primary/20 bg-card/30 backdrop-blur-xl p-6 space-y-3">
           <h3 className="text-sm font-semibold text-foreground mb-2">💛 인연이 찾아오는 베스트 달</h3>
           {data.luckyMonths.map((m, i) => (
-            <div key={m.month} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div key={m.month} className="flex items-center gap-4 rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
                 style={{
@@ -174,13 +174,13 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
           {data.partnerTraits.map((t, i) => (
             <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
               <span className="w-5 h-5 rounded-full bg-rose-400/20 flex items-center justify-center shrink-0">
-                <Heart className="w-3 h-3 text-rose-400" />
+                <Heart className="w-3 h-3 text-rose-600" />
               </span>
               {t}
             </div>
           ))}
           {data.meetWhere && (
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-muted-foreground">
+            <div className="rounded-xl bg-foreground/5 border border-foreground/10 p-3 text-xs text-muted-foreground">
               <span className="text-primary/80 font-medium">만남의 장소·상황: </span>{data.meetWhere}
             </div>
           )}
@@ -243,7 +243,7 @@ function BirthBlock({
             <Input
               placeholder={f.ph} value={state[f.k]}
               onChange={(e) => onChange({ ...state, [f.k]: e.target.value })}
-              className="bg-white/5 border-white/10 text-sm"
+              className="bg-foreground/5 border-foreground/10 text-sm"
             />
           </div>
         ))}
@@ -252,7 +252,7 @@ function BirthBlock({
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">시 (Hour)</Label>
           <Select value={String(state.hour)} onValueChange={(v) => onChange({ ...state, hour: Number(v), minute: Number(v) === -1 ? "" : state.minute })}>
-            <SelectTrigger className="bg-white/5 border-white/10 text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="bg-foreground/5 border-foreground/10 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               {BIRTH_HOURS.map((h) => (
                 <SelectItem key={`h-${h.value}`} value={String(h.value)}>{h.label}</SelectItem>
@@ -270,7 +270,7 @@ function BirthBlock({
             value={state.minute}
             disabled={state.hour === -1}
             onChange={(e) => onChange({ ...state, minute: e.target.value })}
-            className="bg-white/5 border-white/10 text-sm"
+            className="bg-foreground/5 border-foreground/10 text-sm"
           />
         </div>
       </div>
@@ -283,7 +283,7 @@ function BirthBlock({
                 key={opt.v} type="button" onClick={() => setGender(opt.v)}
                 className={cn(
                   "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
-                  gender === opt.v ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-white/10 text-muted-foreground"
+                  gender === opt.v ? "bg-primary/20 border-primary text-primary" : "bg-foreground/5 border-foreground/10 text-muted-foreground"
                 )}
               >{opt.l}</button>
             ))}
@@ -333,9 +333,9 @@ function SoloTab() {
       {/* 입력 */}
       {!result && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="rounded-3xl border border-white/10 bg-card/40 backdrop-blur-xl p-6">
+          <div className="rounded-3xl border border-foreground/10 bg-card/40 backdrop-blur-xl p-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="rounded-2xl border border-white/10 bg-white/3 p-4 space-y-4">
+              <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-4 space-y-4">
                 <BirthBlock
                   label="내 생년월일" icon={<UserCircle2 className="w-4 h-4 text-primary" />}
                   state={myBirth} onChange={setMyBirth} gender={gender} setGender={setGender}
@@ -352,7 +352,7 @@ function SoloTab() {
                   ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />분석 중...</>
                   : <><Sparkles className="w-4 h-4 mr-2" />인연운 분석하기</>}
               </Button>
-              {error && <p className="text-sm text-rose-400 text-center">{(error as any)?.message ?? "오류가 발생했습니다."}</p>}
+              {error && <p className="text-sm text-rose-600 text-center">{(error as any)?.message ?? "오류가 발생했습니다."}</p>}
             </form>
           </div>
         </motion.div>
@@ -482,9 +482,9 @@ function GungapTab() {
   };
 
   const scoreColor =
-    (result?.score ?? 0) >= 85 ? "text-yellow-400" :
-    (result?.score ?? 0) >= 70 ? "text-green-400" :
-    (result?.score ?? 0) >= 55 ? "text-blue-400" : "text-red-400";
+    (result?.score ?? 0) >= 85 ? "text-yellow-600" :
+    (result?.score ?? 0) >= 70 ? "text-green-600" :
+    (result?.score ?? 0) >= 55 ? "text-blue-600" : "text-red-600";
 
   if (!result) {
     return (
@@ -493,7 +493,7 @@ function GungapTab() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {[
               { label: "첫 번째 사람", state: p1, setState: setP1, heartColor: "text-primary", isMe: true },
-              { label: "두 번째 사람", state: p2, setState: setP2, heartColor: "text-rose-400", isMe: false },
+              { label: "두 번째 사람", state: p2, setState: setP2, heartColor: "text-rose-600", isMe: false },
             ].map(({ label, state, setState, heartColor, isMe }) => (
               <Card key={label} className="glass-panel border-primary/30">
                 <CardHeader className="pb-4">
@@ -506,7 +506,7 @@ function GungapTab() {
                           <UserCircle2 className="w-3 h-3" />{p1FromProfile ? "내 사주 ✓" : "내 사주 불러오기"}
                         </button>
                       ) : (
-                        <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground/50 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full cursor-default select-none">
+                        <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground/50 bg-foreground/5 border border-foreground/10 px-2.5 py-1 rounded-full cursor-default select-none">
                           <UserCircle2 className="w-3 h-3" />사주 미등록
                         </span>
                       )
@@ -600,7 +600,7 @@ function GungapTab() {
         <h2 className="text-3xl font-serif text-primary">궁합 결과</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleShare} className="gap-2">
-            {copied ? <><CheckCheck className="w-4 h-4 text-green-400" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
+            {copied ? <><CheckCheck className="w-4 h-4 text-green-600" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
           </Button>
           <Button variant="outline" size="sm" onClick={handleReset}>
             <RefreshCw className="w-4 h-4 mr-2" />다시 보기
@@ -610,8 +610,8 @@ function GungapTab() {
 
       <div className="flex items-center justify-center gap-4 mb-6 text-lg font-serif">
         <span className="text-primary">{p1.name || "첫 번째"}</span>
-        <Heart className="w-5 h-5 text-rose-400 fill-current animate-pulse" />
-        <span className="text-rose-400">{p2.name || "두 번째"}</span>
+        <Heart className="w-5 h-5 text-rose-600 fill-current animate-pulse" />
+        <span className="text-rose-600">{p2.name || "두 번째"}</span>
       </div>
 
       <Card className="glass-panel border-primary/40 mb-6">
@@ -669,25 +669,25 @@ function GungapTab() {
               <p className="text-sm text-foreground/85 leading-relaxed mb-5">{result.summary}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-xl border border-green-500/25 bg-green-500/5 p-4">
-                  <div className="flex items-center gap-2 text-green-400 font-semibold text-sm mb-3">
+                  <div className="flex items-center gap-2 text-green-600 font-semibold text-sm mb-3">
                     <Star className="w-4 h-4 fill-current" />함께하면 빛나는 점
                   </div>
                   <ul className="space-y-2">
                     {result.strengthsTogether?.map((s: string, i: number) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <span className="text-green-400 mt-0.5 flex-shrink-0">✓</span>{s}
+                        <span className="text-green-600 mt-0.5 flex-shrink-0">✓</span>{s}
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div className="rounded-xl border border-orange-500/25 bg-orange-500/5 p-4">
-                  <div className="flex items-center gap-2 text-orange-400 font-semibold text-sm mb-3">
+                  <div className="flex items-center gap-2 text-orange-600 font-semibold text-sm mb-3">
                     <AlertTriangle className="w-4 h-4" />함께 주의할 점
                   </div>
                   <ul className="space-y-2">
                     {result.challengesTogether?.map((c: string, i: number) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <span className="text-orange-400 mt-0.5 flex-shrink-0">!</span>{c}
+                        <span className="text-orange-600 mt-0.5 flex-shrink-0">!</span>{c}
                       </li>
                     ))}
                   </ul>
@@ -706,7 +706,7 @@ function GungapTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { name: p1.name || "첫 번째", elem: result.p1Element, strengths: result.p1Strengths, weaknesses: result.p1Weaknesses, color: "text-primary", border: "border-primary/25", bg: "bg-primary/5" },
-              { name: p2.name || "두 번째", elem: result.p2Element, strengths: result.p2Strengths, weaknesses: result.p2Weaknesses, color: "text-rose-400", border: "border-rose-500/25", bg: "bg-rose-500/5" },
+              { name: p2.name || "두 번째", elem: result.p2Element, strengths: result.p2Strengths, weaknesses: result.p2Weaknesses, color: "text-rose-600", border: "border-rose-500/25", bg: "bg-rose-500/5" },
             ].map(({ name, elem, strengths, weaknesses, color, border, bg }) => (
               <Card key={name} className={`glass-panel ${border} ${bg}`}>
                 <CardContent className="pt-5 pb-5">
@@ -714,19 +714,19 @@ function GungapTab() {
                     <span>{name}</span>
                     {elem && <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${ELEM_BG[elem]}`}>{elem}(일간)</span>}
                   </div>
-                  <div className="mt-3 mb-1 text-xs font-semibold text-green-400 uppercase tracking-wide">강점</div>
+                  <div className="mt-3 mb-1 text-xs font-semibold text-green-600 uppercase tracking-wide">강점</div>
                   <ul className="space-y-1 mb-3">
                     {strengths?.map((s: string, i: number) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <span className="text-green-400 mt-0.5 flex-shrink-0">✦</span>{s}
+                        <span className="text-green-600 mt-0.5 flex-shrink-0">✦</span>{s}
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-2 mb-1 text-xs font-semibold text-amber-400 uppercase tracking-wide">성장 포인트</div>
+                  <div className="mt-2 mb-1 text-xs font-semibold text-amber-600 uppercase tracking-wide">성장 포인트</div>
                   <ul className="space-y-1">
                     {weaknesses?.map((w: string, i: number) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <span className="text-amber-400 mt-0.5 flex-shrink-0">△</span>{w}
+                        <span className="text-amber-600 mt-0.5 flex-shrink-0">△</span>{w}
                       </li>
                     ))}
                   </ul>
@@ -749,7 +749,7 @@ function GungapTab() {
             >
               <span className="text-2xl flex-shrink-0">{d.icon}</span>
               <div>
-                <div className={`font-semibold mb-1 ${d.positive ? "text-green-400" : "text-red-400"}`}>{d.label}</div>
+                <div className={`font-semibold mb-1 ${d.positive ? "text-green-600" : "text-red-600"}`}>{d.label}</div>
                 <p className="text-sm text-foreground/75 leading-relaxed">{d.content}</p>
               </div>
             </motion.div>
@@ -790,7 +790,7 @@ function GungapTab() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0 }} className="mt-6 text-center">
         <button
           onClick={() => setInquiryOpen(true)}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-rose-400/30 bg-rose-400/8 text-rose-300 hover:bg-rose-400/15 hover:border-rose-400/50 transition-all text-sm font-medium"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-rose-400/30 bg-rose-400/8 text-rose-700 hover:bg-rose-400/15 hover:border-rose-400/50 transition-all text-sm font-medium"
         >
           <MessageCircle className="w-4 h-4" />이 궁합에 대해 상담 문의하기
         </button>
@@ -817,8 +817,8 @@ export default function GungapPage() {
       {/* 헤더 */}
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-rose-400/30 bg-rose-400/5 mb-4">
-          <Heart className="w-4 h-4 text-rose-400" />
-          <span className="text-sm text-rose-300 font-medium">연애 &amp; 궁합</span>
+          <Heart className="w-4 h-4 text-rose-600" />
+          <span className="text-sm text-rose-700 font-medium">연애 &amp; 궁합</span>
         </div>
         <h1 className="text-4xl md:text-5xl font-serif font-bold text-gradient-gold mb-3">
           연애운 &amp; 궁합 (戀愛·宮合)
@@ -830,7 +830,7 @@ export default function GungapPage() {
 
       {/* 탭 */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <div className="flex gap-3 p-1.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md">
+        <div className="flex gap-3 p-1.5 rounded-2xl border border-foreground/10 bg-foreground/5 backdrop-blur-md">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -839,7 +839,7 @@ export default function GungapPage() {
                 "flex-1 flex flex-col items-center gap-1 py-3 px-4 rounded-xl text-sm font-medium transition-all",
                 tab === t.id
                   ? "bg-primary text-primary-foreground shadow-lg"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
               )}
             >
               <span className="flex items-center gap-1.5">{t.icon}{t.label}</span>

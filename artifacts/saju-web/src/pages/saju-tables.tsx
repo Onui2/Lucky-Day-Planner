@@ -41,7 +41,7 @@ function SectionTitle({ icon, title, sub }: { icon: string; title: string; sub?:
 
 function ElemBadge({ elem }: { elem: string }) {
   return (
-    <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded border", ELEM_BADGE[elem] ?? "bg-white/5 text-foreground/60 border-white/10")}>
+    <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded border", ELEM_BADGE[elem] ?? "bg-foreground/5 text-foreground/60 border-foreground/10")}>
       {elem}
     </span>
   );
@@ -58,7 +58,7 @@ function BranchPill({ b }: { b: string }) {
 
 function StemPill({ s }: { s: string }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-xs font-medium text-amber-300">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-xs font-medium text-amber-700">
       <span className="text-muted-foreground">{STEMS_HANJA[s] ?? s}</span>
       <span>{s}</span>
     </span>
@@ -77,7 +77,7 @@ function StemTab() {
         <CardContent className="pt-4">
           <div className="grid gap-2">
             {STEM_COMBINATIONS.map((c) => (
-              <div key={c.stems.join("+")} className="flex items-center gap-3 p-3 rounded-xl bg-white/3 border border-white/5">
+              <div key={c.stems.join("+")} className="flex items-center gap-3 p-3 rounded-xl bg-foreground/3 border border-foreground/10">
                 <div className="flex items-center gap-1.5 min-w-[90px]">
                   <StemPill s={c.stems[0]} />
                   <span className="text-muted-foreground text-xs">+</span>
@@ -103,10 +103,10 @@ function StemTab() {
               <div key={c.stems.join("-")} className="flex items-center gap-3 p-3 rounded-xl bg-red-500/3 border border-red-500/8">
                 <div className="flex items-center gap-1.5 min-w-[90px]">
                   <StemPill s={c.stems[0]} />
-                  <span className="text-red-400 text-sm">↔</span>
+                  <span className="text-red-600 text-sm">↔</span>
                   <StemPill s={c.stems[1]} />
                 </div>
-                <span className="text-xs text-red-400/70 font-medium">{c.elements}</span>
+                <span className="text-xs text-red-600/70 font-medium">{c.elements}</span>
                 <span className="text-xs text-muted-foreground flex-1">{c.desc}</span>
               </div>
             ))}
@@ -129,7 +129,7 @@ function BranchTab() {
         <CardContent className="pt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {BRANCH_SIX_COMBINATIONS.map((c) => (
-              <div key={c.branches.join("+")} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/3 border border-white/5">
+              <div key={c.branches.join("+")} className="flex items-center gap-2 p-2.5 rounded-xl bg-foreground/3 border border-foreground/10">
                 <BranchPill b={c.branches[0]} />
                 <span className="text-muted-foreground text-xs">+</span>
                 <BranchPill b={c.branches[1]} />
@@ -209,9 +209,9 @@ function BranchTab() {
               <div key={c.branches.join("-")} className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <BranchPill b={c.branches[0]} />
-                  <span className="text-red-400">↔</span>
+                  <span className="text-red-600">↔</span>
                   <BranchPill b={c.branches[1]} />
-                  <span className="text-xs text-red-400/70 ml-1">{c.elements}</span>
+                  <span className="text-xs text-red-600/70 ml-1">{c.elements}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">{c.desc}</p>
               </div>
@@ -238,9 +238,9 @@ function HyeongTab() {
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className={cn(
                     "text-[11px] font-medium px-2 py-0.5 rounded border",
-                    h.type === "삼형살" ? "bg-red-500/15 border-red-500/30 text-red-300" :
-                    h.type === "상형" ? "bg-orange-500/15 border-orange-500/30 text-orange-300" :
-                    "bg-yellow-500/15 border-yellow-500/30 text-yellow-300"
+                    h.type === "삼형살" ? "bg-red-500/15 border-red-500/30 text-red-700" :
+                    h.type === "상형" ? "bg-orange-500/15 border-orange-500/30 text-orange-700" :
+                    "bg-yellow-500/15 border-yellow-500/30 text-yellow-700"
                   )}>{h.type}</span>
                   {h.branches.map((b) => <BranchPill key={b} b={b} />)}
                   <span className="text-xs font-medium text-foreground/80">{h.name}</span>
@@ -268,14 +268,14 @@ function SinsalTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-white/10">
+                <tr className="border-b border-foreground/10">
                   <th className="text-left py-2 pr-4 text-muted-foreground font-medium">일간</th>
                   <th className="text-left py-2 text-muted-foreground font-medium">천을귀인 지지</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(CHEONEUR_GWIIN).map(([stem, branches]) => (
-                  <tr key={stem} className="border-b border-white/5 hover:bg-white/2">
+                  <tr key={stem} className="border-b border-foreground/10 hover:bg-foreground/3">
                     <td className="py-2 pr-4">
                       <StemPill s={stem} />
                     </td>
@@ -337,7 +337,7 @@ function SinsalTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-white/10">
+                <tr className="border-b border-foreground/10">
                   <th className="text-left py-2 pr-3 text-muted-foreground font-medium">지지</th>
                   <th className="text-left py-2 pr-3 text-muted-foreground font-medium">역마살 🐎</th>
                   <th className="text-left py-2 pr-3 text-muted-foreground font-medium">도화살 🌸</th>
@@ -346,7 +346,7 @@ function SinsalTab() {
               </thead>
               <tbody>
                 {BRANCHES.map((b) => (
-                  <tr key={b} className="border-b border-white/5 hover:bg-white/2">
+                  <tr key={b} className="border-b border-foreground/10 hover:bg-foreground/3">
                     <td className="py-1.5 pr-3"><BranchPill b={b} /></td>
                     <td className="py-1.5 pr-3">
                       {YEOKMA_SAL[b] ? <BranchPill b={YEOKMA_SAL[b]} /> : <span className="text-muted-foreground">—</span>}
@@ -363,15 +363,15 @@ function SinsalTab() {
             </table>
           </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
-            <div className="p-2 rounded-lg bg-white/3 border border-white/5">
+            <div className="p-2 rounded-lg bg-foreground/3 border border-foreground/10">
               <span className="text-foreground/70 font-medium">🐎 역마살</span><br />
               이동·여행·변동 多. 외국 인연, 분주한 삶
             </div>
-            <div className="p-2 rounded-lg bg-white/3 border border-white/5">
+            <div className="p-2 rounded-lg bg-foreground/3 border border-foreground/10">
               <span className="text-foreground/70 font-medium">🌸 도화살</span><br />
               이성 인기, 매력 넘침. 지나치면 색정 문제
             </div>
-            <div className="p-2 rounded-lg bg-white/3 border border-white/5">
+            <div className="p-2 rounded-lg bg-foreground/3 border border-foreground/10">
               <span className="text-foreground/70 font-medium">🎪 화개살</span><br />
               종교·예술 인연. 고독, 철학적 기질
             </div>
@@ -390,7 +390,7 @@ function SinsalTab() {
               <div key={g.branches.join("-")} className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <BranchPill b={g.branches[0]} />
-                  <span className="text-purple-400 text-sm">⇌</span>
+                  <span className="text-purple-600 text-sm">⇌</span>
                   <BranchPill b={g.branches[1]} />
                 </div>
                 <p className="text-xs text-muted-foreground">{g.desc}</p>
@@ -414,7 +414,7 @@ function SamjaeTab() {
         <CardContent className="pt-4">
           <div className="space-y-4">
             {SAMJAE_GROUPS.map((g) => (
-              <div key={g.direction} className="p-4 rounded-xl bg-white/3 border border-white/8">
+              <div key={g.direction} className="p-4 rounded-xl bg-foreground/3 border border-foreground/10">
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <span className="text-xs font-semibold text-primary/80 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
                     {g.direction}
@@ -428,9 +428,9 @@ function SamjaeTab() {
                     <span key={b} className="flex items-center gap-1">
                       <span className={cn(
                         "text-[10px] px-1.5 py-0.5 rounded border font-medium",
-                        i === 0 ? "bg-yellow-500/15 border-yellow-500/25 text-yellow-300" :
-                        i === 1 ? "bg-red-500/15 border-red-500/25 text-red-300" :
-                        "bg-emerald-500/15 border-emerald-500/25 text-emerald-300"
+                        i === 0 ? "bg-yellow-500/15 border-yellow-500/25 text-yellow-700" :
+                        i === 1 ? "bg-red-500/15 border-red-500/25 text-red-700" :
+                        "bg-emerald-500/15 border-emerald-500/25 text-emerald-700"
                       )}>
                         {i === 0 ? "들삼재" : i === 1 ? "눌삼재" : "날삼재"}
                       </span>
@@ -456,8 +456,8 @@ function SamjaeTab() {
               )}>
                 <div className={cn(
                   "font-semibold mb-1",
-                  s.color === "yellow" ? "text-yellow-300" :
-                  s.color === "red" ? "text-red-300" : "text-emerald-300"
+                  s.color === "yellow" ? "text-yellow-700" :
+                  s.color === "red" ? "text-red-700" : "text-emerald-700"
                 )}>{s.label}</div>
                 <p className="text-muted-foreground leading-relaxed">{s.desc}</p>
               </div>
@@ -485,7 +485,7 @@ function JangGanTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-white/10">
+                <tr className="border-b border-foreground/10">
                   <th className="text-left py-2 pr-4 text-muted-foreground font-medium">지지</th>
                   <th className="text-left py-2 pr-4 text-muted-foreground font-medium">정기 (주기)</th>
                   <th className="text-left py-2 pr-4 text-muted-foreground font-medium">중기</th>
@@ -494,10 +494,10 @@ function JangGanTab() {
               </thead>
               <tbody>
                 {JANG_GAN.map((jg) => (
-                  <tr key={jg.branch} className="border-b border-white/5 hover:bg-white/2">
+                  <tr key={jg.branch} className="border-b border-foreground/10 hover:bg-foreground/3">
                     <td className="py-2 pr-4">
                       <div className="flex items-center gap-1.5">
-                        <span className={cn("w-2 h-2 rounded-full", ELEM_DOT[jg.element] ?? "bg-white/20")} />
+                        <span className={cn("w-2 h-2 rounded-full", ELEM_DOT[jg.element] ?? "bg-foreground/10")} />
                         <span className="text-muted-foreground">{jg.hanja}</span>
                         <span className="font-medium">{jg.branch}</span>
                       </div>
@@ -506,17 +506,17 @@ function JangGanTab() {
                       <StemPill s={jg.junggi} />
                     </td>
                     <td className="py-2 pr-4">
-                      {jg.junki ? <StemPill s={jg.junki} /> : <span className="text-white/20">—</span>}
+                      {jg.junki ? <StemPill s={jg.junki} /> : <span className="text-foreground/20">—</span>}
                     </td>
                     <td className="py-2">
-                      {jg.yeoki ? <StemPill s={jg.yeoki} /> : <span className="text-white/20">—</span>}
+                      {jg.yeoki ? <StemPill s={jg.yeoki} /> : <span className="text-foreground/20">—</span>}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-[11px] text-muted-foreground/60 border-t border-white/5 pt-3">
+          <p className="mt-4 text-[11px] text-muted-foreground/60 border-t border-foreground/10 pt-3">
             * 장간은 지지의 외부 속성 외에 숨겨진 내면의 기운을 나타냅니다. 십신 분석, 용신 파악, 세밀한 운세 해석에 활용됩니다.
           </p>
         </CardContent>
@@ -565,7 +565,7 @@ export default function SajuTablesPage() {
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
               activeTab === t.key
                 ? "bg-primary/20 border border-primary/40 text-primary shadow-sm shadow-primary/10"
-                : "bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/8 hover:text-foreground"
+                : "bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/8 hover:text-foreground"
             )}
           >
             <span>{t.icon}</span>

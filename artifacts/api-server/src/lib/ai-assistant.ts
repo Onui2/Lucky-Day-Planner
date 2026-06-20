@@ -42,7 +42,7 @@ function buildSajuContext(result: Record<string, any>): string {
     pillars ? `## 사주팔자\n${pillars}` : "",
     balance ? `## 오행 분포\n${balance}` : "",
     result.dayMasterElement ? `## 일간 오행: ${result.dayMasterElement}` : "",
-    result.sinGangYak?.label ? `## 신강/신약: ${result.sinGangYak.label}` : "",
+    result.sinGangYak?.type ? `## 신강/신약: ${result.sinGangYak.type}` : "",
     result.yongsin?.yongsin ? `## 용신: ${result.yongsin.yongsin}` : "",
     result.samjae?.isSamjae ? `## 삼재: ${result.samjae.advice ?? "해당"}` : "",
     daeun ? `## 대운 흐름\n${daeun}` : "",
@@ -69,9 +69,6 @@ const SYSTEM_PROMPT = `당신은 명해원(命海苑)의 사주 전문 AI 상담
 - 마지막 줄에 항상 추가: "※ 본 답변은 사주 해석 기반의 참고 정보이며, 중요한 결정은 전문가와 상담하세요."
 - 질문이 사주와 무관한 경우 정중히 사주 관련 질문으로 안내합니다`;
 
-const PREFERRED_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
-const FALLBACK_MODEL = "gemini-1.5-flash";
-
 interface SajuConversationTurn {
   question: string;
   answer: string;
@@ -88,6 +85,13 @@ function buildConversationContext(history: SajuConversationTurn[]): string {
     .join("\n\n");
 }
 
+function isTransientAiError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\[(429|500|503)[^\]]*\]|overloaded|high demand|quota/i.test(message);
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function buildSajuQuestionAnswer(
   question: string,
   result: Record<string, any>,
@@ -99,9 +103,19 @@ export async function buildSajuQuestionAnswer(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
+  const primaryModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
+  const fallbackModel =
+    process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-2.5-flash-lite";
   const sajuContext = buildSajuContext(result);
   const conversationContext = buildConversationContext(history);
+  const today = new Date().toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Seoul",
+  });
   const prompt = [
+    `오늘 날짜: ${today}`,
     `아래는 이 사용자의 사주 분석 데이터입니다:\n\n${sajuContext}`,
     conversationContext
       ? `아래는 같은 세션에서 방금까지 오간 최근 대화입니다:\n\n${conversationContext}`
@@ -110,28 +124,33 @@ export async function buildSajuQuestionAnswer(
     "필요하면 이전 대화 맥락을 자연스럽게 이어서 답변하세요.",
   ].filter(Boolean).join("\n\n");
 
-  const tryModel = async (modelName: string) => {
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: SYSTEM_PROMPT,
-    });
-    const response = await model.generateContent(prompt);
-    return response.response.text();
-  };
+  const attempts: Array<{ modelName: string; delayMs: number }> = [
+    { modelName: primaryModel, delayMs: 0 },
+    { modelName: primaryModel, delayMs: 1500 },
+    { modelName: fallbackModel, delayMs: 1000 },
+  ];
 
-  try {
-    return await tryModel(PREFERRED_MODEL);
-  } catch (primaryError) {
-    if (PREFERRED_MODEL === FALLBACK_MODEL) throw primaryError;
-
-    const errorMsg = primaryError instanceof Error ? primaryError.message : String(primaryError);
-    console.warn(`[ai] ${PREFERRED_MODEL} 실패, ${FALLBACK_MODEL}로 재시도: ${errorMsg}`);
-
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    if (attempt.delayMs > 0) await wait(attempt.delayMs);
     try {
-      return await tryModel(FALLBACK_MODEL);
-    } catch (fallbackError) {
-      const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-      throw new Error(`AI 답변 생성에 실패했습니다. (${PREFERRED_MODEL}: ${errorMsg} / ${FALLBACK_MODEL}: ${fallbackMsg})`);
+      const model = genAI.getGenerativeModel({
+        model: attempt.modelName,
+        systemInstruction: SYSTEM_PROMPT,
+      });
+      const response = await model.generateContent(prompt);
+      return response.response.text();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientAiError(error)) throw error;
+      console.warn(
+        `gemini ${attempt.modelName} transient error, retrying:`,
+        error instanceof Error ? error.message.slice(0, 200) : error,
+      );
     }
   }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("AI 답변 생성에 실패했습니다.");
 }

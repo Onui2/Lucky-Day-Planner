@@ -643,9 +643,9 @@ export default function ManseryokPage() {
             <span className="text-muted-foreground ml-2">일간 오행: <strong className="text-foreground">{profile?.dayMasterStem} ({myElem})</strong></span>
           </div>
           <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-            <span className="text-yellow-400 font-medium">★ 대길</span>
-            <span className="text-emerald-400 font-medium">● 길</span>
-            <span className="text-orange-400 font-medium">▲ 주의</span>
+            <span className="text-yellow-600 font-medium">★ 대길</span>
+            <span className="text-emerald-600 font-medium">● 길</span>
+            <span className="text-orange-600 font-medium">▲ 주의</span>
           </div>
         </div>
       ) : profileReady ? (
@@ -666,9 +666,9 @@ export default function ManseryokPage() {
           </div>
           {bestDay && (
             <div className="glass-panel rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-3 text-center">
-              <p className="text-xs text-yellow-400/70 mb-1 flex items-center justify-center gap-1"><Star className="w-3 h-3" />최고의 날</p>
-              <p className="text-lg font-bold text-yellow-300">{monthStr}월 {bestDay[0]}일</p>
-              <p className="text-xs text-yellow-400/70">{scoreLabel(Number(bestDay[1]))} ({bestDay[1]}점)</p>
+              <p className="text-xs text-yellow-600/70 mb-1 flex items-center justify-center gap-1"><Star className="w-3 h-3" />최고의 날</p>
+              <p className="text-lg font-bold text-yellow-700">{monthStr}월 {bestDay[0]}일</p>
+              <p className="text-xs text-yellow-600/70">{scoreLabel(Number(bestDay[1]))} ({bestDay[1]}점)</p>
             </div>
           )}
           {worstDay && (
@@ -882,11 +882,11 @@ export default function ManseryokPage() {
               {isPersonalized && <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" />공통 주의 흐름</div>}
               {myElem && (
                 <>
-                  <div className="flex items-center gap-1"><span className="text-emerald-400 font-bold text-xs">★</span> 인성</div>
-                  <div className="flex items-center gap-1"><span className="text-rose-400 font-bold text-xs">▲</span> 관살</div>
-                  <div className="flex items-center gap-1"><span className="text-amber-400 font-bold text-xs">◆</span> 재성</div>
-                  <div className="flex items-center gap-1"><span className="text-blue-400 font-bold text-xs">◎</span> 식상</div>
-                  <div className="flex items-center gap-1"><span className="text-yellow-400 font-bold text-xs">◈</span> 비겁</div>
+                  <div className="flex items-center gap-1"><span className="text-emerald-600 font-bold text-xs">★</span> 인성</div>
+                  <div className="flex items-center gap-1"><span className="text-rose-600 font-bold text-xs">▲</span> 관살</div>
+                  <div className="flex items-center gap-1"><span className="text-amber-600 font-bold text-xs">◆</span> 재성</div>
+                  <div className="flex items-center gap-1"><span className="text-blue-600 font-bold text-xs">◎</span> 식상</div>
+                  <div className="flex items-center gap-1"><span className="text-yellow-600 font-bold text-xs">◈</span> 비겁</div>
                 </>
               )}
             </div>
@@ -954,7 +954,7 @@ export default function ManseryokPage() {
               </div>
 
               {/* ── 전체 점수 바 ── */}
-              <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-2 rounded-full bg-foreground/8 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${selected.score * 10}%` }}
@@ -1062,7 +1062,7 @@ export default function ManseryokPage() {
                           <span className="text-xs text-slate-700">{icon} {name}</span>
                           <span className="text-xs font-bold text-foreground">{val}/10</span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-1.5 rounded-full bg-foreground/8 overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}
@@ -1121,9 +1121,9 @@ export default function ManseryokPage() {
                       <div>
                         <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Compass className="w-2.5 h-2.5" /> 길방·흉방</p>
                         <p className="text-xs">
-                          <span className="text-emerald-400 font-medium">{ldir}</span>
+                          <span className="text-emerald-600 font-medium">{ldir}</span>
                           <span className="text-muted-foreground mx-1">·</span>
-                          <span className="text-rose-400 font-medium">{adir}</span>
+                          <span className="text-rose-600 font-medium">{adir}</span>
                         </p>
                       </div>
                       {/* 색상 */}
@@ -1134,7 +1134,7 @@ export default function ManseryokPage() {
                             <span key={i} className={cn("px-1.5 py-0.5 rounded-full border text-[10px] font-medium", SAJU_ELEM_BG[dm], SAJU_ELEM_COLOR_MAP[dm])}>✓ {c}</span>
                           ))}
                           {acolors.map((c, i) => (
-                            <span key={i} className="px-1.5 py-0.5 rounded-full border border-rose-400/30 bg-rose-400/10 text-[10px] text-rose-400">✗ {c}</span>
+                            <span key={i} className="px-1.5 py-0.5 rounded-full border border-rose-400/30 bg-rose-400/10 text-[10px] text-rose-600">✗ {c}</span>
                           ))}
                         </div>
                       </div>
@@ -1155,7 +1155,7 @@ export default function ManseryokPage() {
               {/* ── 추천 / 피할 것 ── */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold text-emerald-400 mb-1.5">✔ 하면 좋은 일</p>
+                  <p className="text-[10px] font-semibold text-emerald-600 mb-1.5">✔ 하면 좋은 일</p>
                   <ul className="space-y-1">
                     {actionAdvice.good.map(item => (
                       <li key={item} className="text-[11px] text-foreground/80 leading-snug">• {item}</li>
@@ -1163,7 +1163,7 @@ export default function ManseryokPage() {
                   </ul>
                 </div>
                 <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold text-red-400 mb-1.5">✗ 피할 것</p>
+                  <p className="text-[10px] font-semibold text-red-600 mb-1.5">✗ 피할 것</p>
                   <ul className="space-y-1">
                     {actionAdvice.avoid.map(item => (
                       <li key={item} className="text-[11px] text-foreground/80 leading-snug">• {item}</li>

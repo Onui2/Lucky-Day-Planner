@@ -9,7 +9,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@workspace/replit-auth-web";
 
 const ELEM_COLOR: Record<string, string> = {
-  목:'text-green-400', 화:'text-red-400', 토:'text-yellow-400', 금:'text-gray-300', 수:'text-blue-400',
+  목:'text-green-600', 화:'text-red-600', 토:'text-yellow-600', 금:'text-gray-700', 수:'text-blue-600',
 };
 const ELEM_KOR: Record<string, string> = { 목:'木', 화:'火', 토:'土', 금:'金', 수:'水' };
 
@@ -22,11 +22,11 @@ function getZodiacIndexFromYear(year: number): number {
 const BRANCHES = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
 
 function scoreColor(s: number) {
-  if (s >= 80) return 'text-emerald-400';
-  if (s >= 65) return 'text-blue-400';
-  if (s >= 50) return 'text-amber-400';
-  if (s >= 35) return 'text-orange-400';
-  return 'text-rose-400';
+  if (s >= 80) return 'text-emerald-600';
+  if (s >= 65) return 'text-blue-600';
+  if (s >= 50) return 'text-amber-600';
+  if (s >= 35) return 'text-orange-600';
+  return 'text-rose-600';
 }
 
 function scoreLabel(s: number) {
@@ -38,9 +38,9 @@ function scoreLabel(s: number) {
 }
 
 function relBadge(rel: ZodiacDayFortune['relation']) {
-  if (rel === 'harmony')  return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">합(合)</span>;
-  if (rel === 'conflict') return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-400">충(沖)</span>;
-  return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-muted-foreground">평(平)</span>;
+  if (rel === 'harmony')  return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-600">합(合)</span>;
+  if (rel === 'conflict') return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-600">충(沖)</span>;
+  return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-foreground/8 border border-foreground/10 text-muted-foreground">평(平)</span>;
 }
 
 function ZodiacCard({
@@ -54,7 +54,7 @@ function ZodiacCard({
       transition={{ delay: rank * 0.04 }}
       className={cn(
         "glass-panel border rounded-2xl p-4 transition-all cursor-pointer",
-        isMyZodiac ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20" : "border-white/10 hover:border-white/20",
+        isMyZodiac ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20" : "border-foreground/10 hover:border-foreground/10",
       )}
       onClick={() => setOpen(o => !o)}
     >
@@ -62,7 +62,7 @@ function ZodiacCard({
         {/* 순위 */}
         <div className={cn(
           "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-          rank <= 3 ? "bg-primary/20 text-primary border border-primary/30" : "bg-white/8 text-muted-foreground"
+          rank <= 3 ? "bg-primary/20 text-primary border border-primary/30" : "bg-foreground/8 text-muted-foreground"
         )}>
           {rank}
         </div>
@@ -101,26 +101,26 @@ function ZodiacCard({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-4 pt-4 border-t border-white/10 space-y-3"
+            className="mt-4 pt-4 border-t border-foreground/10 space-y-3"
           >
             <p className="text-sm text-muted-foreground leading-relaxed">{z.fortune}</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-xs font-semibold text-amber-400">재물운</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="text-xs font-semibold text-amber-600">재물운</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{z.moneyFortune}</p>
               </div>
               <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Heart className="w-3.5 h-3.5 text-rose-400" />
-                  <span className="text-xs font-semibold text-rose-400">애정운</span>
+                  <Heart className="w-3.5 h-3.5 text-rose-600" />
+                  <span className="text-xs font-semibold text-rose-600">애정운</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{z.loveFortune}</p>
               </div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+            <div className="bg-foreground/5 border border-foreground/10 rounded-xl p-3">
               <p className="text-xs text-muted-foreground">
                 <span className="text-primary font-medium">오늘의 조언 </span>{z.advice}
               </p>
@@ -207,7 +207,7 @@ export default function ZodiacPage() {
 
         {/* 날짜 선택 */}
         <div className="flex items-center gap-1 mb-6 flex-wrap">
-          <div className="inline-flex items-center p-1 rounded-xl bg-white/5 border border-white/10 gap-0.5">
+          <div className="inline-flex items-center p-1 rounded-xl bg-foreground/5 border border-foreground/10 gap-0.5">
             <CalendarDays className="w-4 h-4 text-muted-foreground ml-2 mr-1 shrink-0" />
 
             <Select value={zYear} onValueChange={(v) => onZodiacDateChange(v, zMonth, zDay)}>
@@ -294,7 +294,7 @@ export default function ZodiacPage() {
             <Loader2 className="w-7 h-7 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <div className="text-center py-16 text-rose-400 text-sm">운세를 불러오지 못했습니다.</div>
+          <div className="text-center py-16 text-rose-600 text-sm">운세를 불러오지 못했습니다.</div>
         ) : (
           <div className="space-y-2">
             {sorted.map((z, rankIdx) => (

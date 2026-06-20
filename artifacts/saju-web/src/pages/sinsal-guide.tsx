@@ -83,13 +83,13 @@ const SINSALS: SinsalInfo[] = [
 ];
 
 const CATEGORY_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  길신:    { bg: 'bg-amber-400/10',   text: 'text-amber-300',  border: 'border-amber-400/30' },
-  반길반흉: { bg: 'bg-purple-400/10', text: 'text-purple-300', border: 'border-purple-400/30' },
-  동살:    { bg: 'bg-sky-400/10',    text: 'text-sky-300',    border: 'border-sky-400/30' },
-  예술살:  { bg: 'bg-indigo-400/10', text: 'text-indigo-300', border: 'border-indigo-400/30' },
-  강맹살:  { bg: 'bg-rose-400/10',   text: 'text-rose-300',   border: 'border-rose-400/30' },
-  흉살:    { bg: 'bg-red-400/10',    text: 'text-red-300',    border: 'border-red-400/30' },
-  주기살:  { bg: 'bg-orange-400/10', text: 'text-orange-300', border: 'border-orange-400/30' },
+  길신:    { bg: 'bg-amber-400/10',   text: 'text-amber-700',  border: 'border-amber-400/30' },
+  반길반흉: { bg: 'bg-purple-400/10', text: 'text-purple-700', border: 'border-purple-400/30' },
+  동살:    { bg: 'bg-sky-400/10',    text: 'text-sky-700',    border: 'border-sky-400/30' },
+  예술살:  { bg: 'bg-indigo-400/10', text: 'text-indigo-700', border: 'border-indigo-400/30' },
+  강맹살:  { bg: 'bg-rose-400/10',   text: 'text-rose-700',   border: 'border-rose-400/30' },
+  흉살:    { bg: 'bg-red-400/10',    text: 'text-red-700',    border: 'border-red-400/30' },
+  주기살:  { bg: 'bg-orange-400/10', text: 'text-orange-700', border: 'border-orange-400/30' },
 };
 
 function SinsalCard({ sinsal }: { sinsal: SinsalInfo }) {
@@ -104,7 +104,7 @@ function SinsalCard({ sinsal }: { sinsal: SinsalInfo }) {
       className={cn("glass-panel border rounded-2xl overflow-hidden transition-all duration-200", cs.border)}
     >
       <button
-        className="w-full p-5 flex items-center justify-between text-left hover:bg-white/3 transition-colors"
+        className="w-full p-5 flex items-center justify-between text-left hover:bg-foreground/3 transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
         <div className="flex items-center gap-3">
@@ -131,18 +131,18 @@ function SinsalCard({ sinsal }: { sinsal: SinsalInfo }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 space-y-4 border-t border-white/10 pt-4">
+            <div className="px-5 pb-5 space-y-4 border-t border-foreground/10 pt-4">
               <div>
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">설명</h4>
                 <p className="text-sm leading-relaxed">{sinsal.description}</p>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="bg-emerald-400/8 border border-emerald-400/20 rounded-xl p-3">
-                  <h4 className="text-xs font-semibold text-emerald-400 mb-1.5">✅ 긍정적 작용</h4>
+                  <h4 className="text-xs font-semibold text-emerald-600 mb-1.5">✅ 긍정적 작용</h4>
                   <p className="text-sm text-foreground/80 leading-relaxed">{sinsal.positive}</p>
                 </div>
                 <div className="bg-rose-400/8 border border-rose-400/20 rounded-xl p-3">
-                  <h4 className="text-xs font-semibold text-rose-400 mb-1.5">⚠️ 주의 사항</h4>
+                  <h4 className="text-xs font-semibold text-rose-600 mb-1.5">⚠️ 주의 사항</h4>
                   <p className="text-sm text-foreground/80 leading-relaxed">{sinsal.caution}</p>
                 </div>
               </div>
@@ -153,10 +153,10 @@ function SinsalCard({ sinsal }: { sinsal: SinsalInfo }) {
               <div className="flex flex-wrap gap-2">
                 <span className="text-xs text-muted-foreground shrink-0 mt-0.5">적합 직업:</span>
                 {sinsal.careers.map((c, i) => (
-                  <span key={i} className="text-xs bg-white/8 border border-white/10 px-2 py-0.5 rounded-full">{c}</span>
+                  <span key={i} className="text-xs bg-foreground/8 border border-foreground/10 px-2 py-0.5 rounded-full">{c}</span>
                 ))}
               </div>
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+              <div className="bg-foreground/5 border border-foreground/10 rounded-xl p-3">
                 <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">📐 계산 방법</h4>
                 <p className="text-xs text-foreground/60 leading-relaxed font-mono">{sinsal.myth}</p>
               </div>
@@ -194,7 +194,7 @@ export default function SinsalGuidePage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="신살 이름으로 검색..."
-          className="w-full pl-9 pr-4 py-2.5 bg-white/8 border border-white/15 rounded-xl text-sm focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-colors"
+          className="w-full pl-9 pr-4 py-2.5 bg-foreground/8 border border-foreground/10 rounded-xl text-sm focus:outline-none focus:border-primary/50 focus:bg-foreground/8 transition-colors"
         />
       </div>
 
@@ -217,7 +217,7 @@ export default function SinsalGuidePage() {
       </div>
 
       {/* 안내 */}
-      <div className="glass-panel border border-white/10 rounded-2xl p-5 text-sm text-muted-foreground leading-relaxed">
+      <div className="glass-panel border border-foreground/10 rounded-2xl p-5 text-sm text-muted-foreground leading-relaxed">
         <p className="font-medium text-foreground/70 mb-2">신살(神殺)이란?</p>
         <p>신살(神殺)은 사주 팔자(四柱八字)의 년·월·일·시지(支)의 조합에서 특정 패턴을 발견하여 추가로 분석하는 보조 지표입니다. 길성(吉星, 神)은 좋은 기운, 흉성(凶星, 殺)은 주의가 필요한 기운이지만, 어떤 신살도 절대적이지 않습니다. 다른 사주 요소들과 종합적으로 판단해야 하며, 흉살이 있다고 해서 반드시 불행한 것은 아닙니다.</p>
       </div>

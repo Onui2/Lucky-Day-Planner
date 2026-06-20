@@ -3,7 +3,72 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
 
-const FONT_FILE_NAME = "NanumGothic-Regular.ttf";
+// 한자 글리프가 포함된 Noto KR 폰트 — NanumGothic 서브셋은 한자가 없어 PDF에서 사라짐
+type FontName = "body" | "bold" | "serif";
+
+const FONT_FILES: Record<FontName, string> = {
+  body: "NotoSansKR-Regular.otf",
+  bold: "NotoSansKR-Bold.otf",
+  serif: "NotoSerifKR-Bold.otf",
+};
+
+async function loadEmbeddedFont(name: FontName): Promise<string | null> {
+  try {
+    let mod: { default?: unknown };
+    if (name === "body") {
+      // @ts-ignore — esbuild base64 loader inlines font at build time
+      mod = await import("../../assets/fonts/NotoSansKR-Regular.otf");
+    } else if (name === "bold") {
+      // @ts-ignore — esbuild base64 loader inlines font at build time
+      mod = await import("../../assets/fonts/NotoSansKR-Bold.otf");
+    } else {
+      // @ts-ignore — esbuild base64 loader inlines font at build time
+      mod = await import("../../assets/fonts/NotoSerifKR-Bold.otf");
+    }
+    const data = mod.default;
+    return typeof data === "string" && data.length > 100 ? data : null;
+  } catch {
+    // dev(tsx)는 폰트 모듈을 로드할 수 없음 — 파일시스템 폴백 사용
+    return null;
+  }
+}
+
+function getFontCandidates(fileName: string) {
+  const cwd = process.cwd();
+  return Array.from(
+    new Set([
+      path.join(cwd, "artifacts", "api-server", "assets", "fonts", fileName),
+      path.join(cwd, "artifacts", "api-server", "dist", "fonts", fileName),
+      path.join(cwd, "artifacts", "saju-web", "api", "fonts", fileName),
+      path.join(cwd, "assets", "fonts", fileName),
+      path.join(cwd, "dist", "fonts", fileName),
+      path.join(cwd, "api", "fonts", fileName),
+      path.join(cwd, "fonts", fileName),
+    ]),
+  );
+}
+
+async function getFontBuffer(name: FontName): Promise<Buffer> {
+  // esbuild base64 loader로 번들에 임베드된 경우 (Vercel 최우선)
+  const embedded = await loadEmbeddedFont(name);
+  if (embedded) {
+    return Buffer.from(embedded, "base64");
+  }
+  const fileName = FONT_FILES[name];
+  // 로컬 개발: import.meta.url 기준
+  try {
+    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+    const p = path.join(moduleDir, "fonts", fileName);
+    if (fs.existsSync(p)) return fs.readFileSync(p);
+  } catch {}
+  // 마지막 fallback: process.cwd() 기반 다중 경로
+  for (const p of getFontCandidates(fileName)) {
+    if (fs.existsSync(p)) return fs.readFileSync(p);
+  }
+  throw new Error(
+    `폰트를 찾을 수 없습니다 (${fileName}). 확인한 경로: ${getFontCandidates(fileName).join(", ")}`,
+  );
+}
 
 function escapeHtml(value: string) {
   return value
@@ -20,6 +85,45 @@ function sanitizeFilename(input: string) {
 function formatPillar(pillar: Record<string, unknown> | null | undefined) {
   if (!pillar) return "미확인";
   return `${pillar.heavenlyStem ?? "?"}${pillar.earthlyBranch ?? "?"}`;
+}
+
+const STEM_HANJA: Record<string, string> = {
+  갑: "甲", 을: "乙", 병: "丙", 정: "丁", 무: "戊",
+  기: "己", 경: "庚", 신: "辛", 임: "壬", 계: "癸",
+};
+
+const BRANCH_HANJA: Record<string, string> = {
+  자: "子", 축: "丑", 인: "寅", 묘: "卯", 진: "辰", 사: "巳",
+  오: "午", 미: "未", 신: "申", 유: "酉", 술: "戌", 해: "亥",
+};
+
+const ELEMENT_HANJA: Record<string, string> = {
+  목: "木", 화: "火", 토: "土", 금: "金", 수: "水",
+};
+
+const ELEMENT_COLORS: Record<string, string> = {
+  목: "#4d7c54",
+  화: "#b8493f",
+  토: "#bb8c33",
+  금: "#787f89",
+  수: "#3f658c",
+};
+
+// elementBalance는 영문 키(wood/fire/earth/metal/water)로 저장됨
+const ELEMENT_KEY_EN: Record<string, string> = {
+  목: "wood", 화: "fire", 토: "earth", 금: "metal", 수: "water",
+};
+
+const SINGANGYAK_HANJA: Record<string, string> = {
+  신강: "身强", 신약: "身弱", 중화: "中和",
+};
+
+function stemHanja(value: unknown): string {
+  return typeof value === "string" ? STEM_HANJA[value] ?? "?" : "?";
+}
+
+function branchHanja(value: unknown): string {
+  return typeof value === "string" ? BRANCH_HANJA[value] ?? "?" : "?";
 }
 
 function sectionHtml(title: string, body: string, accent: string) {
@@ -51,40 +155,6 @@ function pillarCardHtml(label: string, value: string) {
       <div style="margin-top:8px;font-size:22px;font-weight:700;color:#241b20;">${escapeHtml(value)}</div>
     </div>
   `;
-}
-
-function getFontCandidates(moduleDir?: string) {
-  const cwd = process.cwd();
-  return Array.from(
-    new Set([
-      moduleDir
-        ? path.resolve(moduleDir, "../../assets", "fonts", FONT_FILE_NAME)
-        : null,
-      moduleDir ? path.resolve(moduleDir, "fonts", FONT_FILE_NAME) : null,
-      path.join(cwd, "artifacts", "api-server", "assets", "fonts", FONT_FILE_NAME),
-      path.join(cwd, "artifacts", "api-server", "dist", "fonts", FONT_FILE_NAME),
-      path.join(cwd, "artifacts", "saju-web", "api", "fonts", FONT_FILE_NAME),
-      path.join(cwd, "assets", "fonts", FONT_FILE_NAME),
-      path.join(cwd, "dist", "fonts", FONT_FILE_NAME),
-      path.join(cwd, "api", "fonts", FONT_FILE_NAME),
-      path.join(cwd, "fonts", FONT_FILE_NAME),
-    ].filter((value): value is string => Boolean(value))),
-  );
-}
-
-function getFontBuffer(): Buffer {
-  let moduleDir: string | undefined;
-  try {
-    moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  } catch {}
-
-  for (const p of getFontCandidates(moduleDir)) {
-    if (fs.existsSync(p)) return fs.readFileSync(p);
-  }
-
-  throw new Error(
-    `한글 폰트를 찾을 수 없습니다. 확인한 경로: ${getFontCandidates(moduleDir).join(", ")}`,
-  );
 }
 
 export function buildSajuReportHtml(title: string, result: Record<string, any>) {
@@ -136,7 +206,7 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
       <meta charset="utf-8" />
       <title>${escapeHtml(title)}</title>
     </head>
-    <body style="font-family:'Nanum Gothic',sans-serif;background:#f4efe6;color:#1f1722;padding:36px;">
+    <body style="font-family:'Noto Sans KR','Nanum Gothic',sans-serif;background:#f4efe6;color:#1f1722;padding:36px;">
       <div style="max-width:880px;margin:0 auto;">
         <header style="position:relative;overflow:hidden;border-radius:28px;padding:30px 32px 34px;background:linear-gradient(135deg,#1f1722 0%,#3a2d2d 52%,#6a4d1d 100%);box-shadow:0 24px 60px rgba(31,23,34,0.18);">
           <div style="font-size:12px;letter-spacing:0.18em;color:#f4d898;text-transform:uppercase;">명해원 정밀 리포트</div>
@@ -189,10 +259,23 @@ export function buildSajuReportPreview(result: Record<string, any>) {
   return parts.join(" ").slice(0, 220);
 }
 
+// ─── PDF 색상 팔레트 ───
+const INK = "#221a26";          // 표지 배경 — 짙은 먹빛
+const INK_SOFT = "#2e2433";
+const PAPER = "#faf6ee";        // 본문 배경 — 한지
+const CARD = "#fffdf6";
+const CARD_BORDER = "#e8dcc2";
+const GOLD = "#c8a356";
+const GOLD_DARK = "#8a6b1f";
+const GOLD_LIGHT = "#ecd9a8";
+const TEXT = "#2a2230";
+const TEXT_BODY = "#4a4036";
+const TEXT_SUB = "#7a6f5f";
+
 export async function generateSajuReportPdf(title: string, result: Record<string, any>) {
   const doc = new PDFDocument({
     size: "A4",
-    margin: 50,
+    margin: 48,
     info: {
       Title: title,
       Author: "명해원",
@@ -200,9 +283,15 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     },
   });
 
-  const fontBuffer = getFontBuffer();
-  doc.registerFont("nanum", fontBuffer);
-  doc.font("nanum");
+  const [bodyFont, boldFont, serifFont] = await Promise.all([
+    getFontBuffer("body"),
+    getFontBuffer("bold"),
+    getFontBuffer("serif"),
+  ]);
+  doc.registerFont("body", bodyFont);
+  doc.registerFont("bold", boldFont);
+  doc.registerFont("serif", serifFont);
+  doc.font("body");
 
   const chunks: Buffer[] = [];
   doc.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
@@ -210,34 +299,59 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   const birthInfo = result.birthInfo ?? {};
   const genderLabel = birthInfo.gender === "female" ? "여성" : "남성";
   const calendarLabel = birthInfo.calendarType === "lunar" ? "음력" : "양력";
+  const hourLabel =
+    typeof birthInfo.hour === "number" && birthInfo.hour >= 0
+      ? ` ${birthInfo.hour}시${birthInfo.minute ? ` ${birthInfo.minute}분` : ""}`
+      : "";
+
+  const pageWidth = doc.page.width;
+  const pageHeight = doc.page.height;
+  const margin = 48;
+  const contentWidth = pageWidth - margin * 2;
+  const contentTop = 96;
+  const contentBottom = pageHeight - 64;
+
+  const pillars = [
+    { label: "년주", hanjaLabel: "年柱", pillar: result.yearPillar },
+    { label: "월주", hanjaLabel: "月柱", pillar: result.monthPillar },
+    { label: "일주", hanjaLabel: "日柱", pillar: result.dayPillar },
+    { label: "시주", hanjaLabel: "時柱", pillar: result.hourPillar },
+  ];
+
   const sections = [
     {
       title: "핵심 요약",
+      hanja: "總評",
       body: result.fortune ?? "현재 흐름은 급하게 단정하기보다 리듬을 보며 움직일 때 안정적입니다.",
       accent: "#caa75d",
     },
     {
       title: "성격 분석",
+      hanja: "性格",
       body: result.personality ?? "성격 분석 데이터가 준비되지 않았습니다.",
       accent: "#7a8f7b",
     },
     {
       title: "직업운",
+      hanja: "職業運",
       body: result.career ?? "직업운 데이터가 준비되지 않았습니다.",
       accent: "#cb8f6d",
     },
     {
       title: "연애운",
+      hanja: "戀愛運",
       body: result.love ?? "연애운 데이터가 준비되지 않았습니다.",
       accent: "#b67b8c",
     },
     {
       title: "건강운",
+      hanja: "健康運",
       body: result.health ?? "건강운 데이터가 준비되지 않았습니다.",
       accent: "#6f92a6",
     },
     {
       title: "조심해야 할 시기와 행동",
+      hanja: "助言",
       body:
         result.yongsin?.advice ??
         result.samjae?.advice ??
@@ -245,194 +359,334 @@ export async function generateSajuReportPdf(title: string, result: Record<string
       accent: "#5b5368",
     },
   ];
-  const metricCards = [
-    { label: "일주", value: formatPillar(result.dayPillar), fill: "#fff8e8" },
-    { label: "용신", value: result.yongsin?.yongsin ?? "미확인", fill: "#f3f8f1" },
-    {
-      label: "오행 밸런스",
-      value: `${result.dominantElement ?? "미확인"} / ${result.lackingElement ?? "미확인"}`,
-      fill: "#f7f2fb",
-    },
-  ];
-  const pillarCards = [
-    { label: "년주", value: formatPillar(result.yearPillar) },
-    { label: "월주", value: formatPillar(result.monthPillar) },
-    { label: "일주", value: formatPillar(result.dayPillar) },
-    { label: "시주", value: formatPillar(result.hourPillar) },
-  ];
 
-  const pageWidth = doc.page.width;
-  const pageHeight = doc.page.height;
-  const margin = 50;
-  const contentWidth = pageWidth - margin * 2;
-  const footerTop = pageHeight - margin - 12;
-
-  const drawPageChrome = () => {
+  // ─── 페이지 크롬 (본문 페이지 공통) ───
+  let pageNo = 1;
+  const drawContentChrome = () => {
+    // 하단 마진 밖(푸터)에 텍스트를 그릴 때 pdfkit이 자동 페이지 추가하는 것을 방지
+    const prevBottomMargin = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
     doc.save();
-    doc.rect(0, 0, pageWidth, pageHeight).fill("#f4efe6");
-    doc.rect(0, 0, pageWidth, 96).fill("#1f1722");
-    doc.rect(margin, 82, contentWidth, 3).fill("#caa75d");
-    doc.font("nanum").fillColor("#f0ddaf").fontSize(10).text("명해원 정밀 사주 리포트", margin, 24);
-    doc.fillColor("#7d7364").fontSize(8.5).text(
-      "하늘의 뜻을 읽어 내일을 준비하다",
-      margin,
-      footerTop,
-      { width: contentWidth, align: "left", lineBreak: false },
+    doc.rect(0, 0, pageWidth, pageHeight).fill(PAPER);
+    doc.font("serif").fillColor(INK).fontSize(10).text("命海苑", margin, 34, { lineBreak: false });
+    doc.font("body").fillColor(TEXT_SUB).fontSize(8.5).text("정밀 사주 리포트", margin + 46, 36.5, { lineBreak: false });
+    doc.font("body").fillColor(TEXT_SUB).fontSize(8.5).text(
+      `${birthInfo.year ?? "?"}.${String(birthInfo.month ?? "?").padStart(2, "0")}.${String(birthInfo.day ?? "?").padStart(2, "0")} ${genderLabel}`,
+      margin, 36.5,
+      { width: contentWidth, align: "right", lineBreak: false },
+    );
+    doc.moveTo(margin, 54).lineTo(pageWidth - margin, 54).lineWidth(0.8).strokeColor(GOLD, 0.65).stroke();
+    // 푸터
+    doc.font("body").fillColor(TEXT_SUB).fontSize(8).text(
+      "하늘의 뜻을 읽어 내일을 준비하다 · 명해원",
+      margin, pageHeight - 42,
+      { lineBreak: false },
+    );
+    doc.font("body").fillColor(GOLD_DARK).fontSize(8.5).text(
+      `${pageNo}`,
+      margin, pageHeight - 42,
+      { width: contentWidth, align: "right", lineBreak: false },
     );
     doc.restore();
-    doc.font("nanum").fillColor("#1f1722");
+    doc.page.margins.bottom = prevBottomMargin;
+    doc.font("body").fillColor(TEXT);
   };
 
   doc.on("pageAdded", () => {
-    drawPageChrome();
-    doc.y = 118;
+    pageNo += 1;
+    drawContentChrome();
+    doc.y = contentTop;
   });
 
   const ensureSpace = (height: number) => {
-    if (doc.y + height <= pageHeight - margin - 20) {
-      return;
-    }
+    if (doc.y + height <= contentBottom) return;
     doc.addPage();
   };
 
-  const drawMetricRow = () => {
-    const gap = 12;
-    const cardWidth = (contentWidth - gap * 2) / 3;
-    const cardHeight = 78;
-    const top = doc.y;
-
-    for (const [index, card] of metricCards.entries()) {
-      const x = margin + index * (cardWidth + gap);
-      doc.save();
-      doc.roundedRect(x, top, cardWidth, cardHeight, 16).fillAndStroke(card.fill, "#e6d8c2");
-      doc.fillColor("#7d7364").fontSize(10).text(card.label, x + 14, top + 14, {
-        width: cardWidth - 28,
-      });
-      doc.fillColor("#20171c").fontSize(16).text(card.value, x + 14, top + 34, {
-        width: cardWidth - 28,
-      });
-      doc.restore();
-    }
-
-    doc.y = top + cardHeight + 16;
+  // ─── 섹션 헤딩 ───
+  const drawSectionHeading = (text: string, hanja: string) => {
+    ensureSpace(40);
+    const y = doc.y;
+    doc.save();
+    doc.circle(margin + 3.5, y + 8, 3.5).fill(GOLD);
+    doc.font("serif").fillColor(INK).fontSize(14).text(text, margin + 16, y, { lineBreak: false });
+    const titleWidth = doc.widthOfString(text);
+    doc.font("serif").fillColor(GOLD_DARK, 0.85).fontSize(10).text(hanja, margin + 16 + titleWidth + 8, y + 3.5, { lineBreak: false });
+    doc.restore();
+    doc.y = y + 26;
   };
 
-  const drawPillarRow = () => {
-    const gap = 10;
-    const cardWidth = (contentWidth - gap * 3) / 4;
-    const cardHeight = 74;
-    const top = doc.y;
+  // ════════════════ 1페이지: 표지 ════════════════
+  doc.rect(0, 0, pageWidth, pageHeight).fill(INK);
 
-    for (const [index, card] of pillarCards.entries()) {
-      const x = margin + index * (cardWidth + gap);
-      doc.save();
-      doc.roundedRect(x, top, cardWidth, cardHeight, 16).fillAndStroke("#fffaf0", "#eadab7");
-      doc.fillColor("#8b6b1a").fontSize(10).text(card.label, x, top + 14, {
+  // 장식 — 은은한 동심원과 모서리 괘선
+  doc.save();
+  doc.circle(pageWidth / 2, 175, 132).lineWidth(0.6).strokeColor(GOLD, 0.28).stroke();
+  doc.circle(pageWidth / 2, 175, 124).lineWidth(0.4).strokeColor(GOLD, 0.18).stroke();
+  doc.circle(pageWidth - 36, pageHeight - 110, 150).lineWidth(0.5).strokeColor(GOLD, 0.12).stroke();
+  doc.circle(36, pageHeight - 300, 90).lineWidth(0.5).strokeColor(GOLD, 0.10).stroke();
+  const frame = 22;
+  doc.lineWidth(0.8).strokeColor(GOLD, 0.5);
+  doc.moveTo(frame, frame + 26).lineTo(frame, frame).lineTo(frame + 26, frame).stroke();
+  doc.moveTo(pageWidth - frame - 26, frame).lineTo(pageWidth - frame, frame).lineTo(pageWidth - frame, frame + 26).stroke();
+  doc.moveTo(frame, pageHeight - frame - 26).lineTo(frame, pageHeight - frame).lineTo(frame + 26, pageHeight - frame).stroke();
+  doc.moveTo(pageWidth - frame - 26, pageHeight - frame).lineTo(pageWidth - frame, pageHeight - frame).lineTo(pageWidth - frame, pageHeight - frame - 26).stroke();
+  doc.restore();
+
+  // 상단 브랜드
+  doc.font("serif").fillColor(GOLD).fontSize(21).text("命 海 苑", 0, 96, {
+    width: pageWidth,
+    align: "center",
+    characterSpacing: 6,
+  });
+  doc.font("body").fillColor(GOLD_LIGHT, 0.9).fontSize(9.5).text("명해원 · 하늘의 뜻을 읽어 내일을 준비하다", 0, 128, {
+    width: pageWidth,
+    align: "center",
+    characterSpacing: 1,
+  });
+
+  // 중앙 타이틀
+  doc.font("serif").fillColor("#fff8ec").fontSize(31).text("정밀 사주 리포트", 0, 166, {
+    width: pageWidth,
+    align: "center",
+    characterSpacing: 2,
+  });
+  doc.font("body").fillColor(GOLD_LIGHT).fontSize(11.5).text(
+    `${birthInfo.year ?? "?"}년 ${birthInfo.month ?? "?"}월 ${birthInfo.day ?? "?"}일${hourLabel} · ${genderLabel} · ${calendarLabel}`,
+    0, 214,
+    { width: pageWidth, align: "center" },
+  );
+
+  // 구분 괘선
+  const ruleY = 252;
+  doc.moveTo(pageWidth / 2 - 110, ruleY).lineTo(pageWidth / 2 - 14, ruleY).lineWidth(0.7).strokeColor(GOLD, 0.7).stroke();
+  doc.moveTo(pageWidth / 2 + 14, ruleY).lineTo(pageWidth / 2 + 110, ruleY).lineWidth(0.7).strokeColor(GOLD, 0.7).stroke();
+  doc.font("serif").fillColor(GOLD).fontSize(10).text("四柱八字", pageWidth / 2 - 30, ruleY - 6, {
+    width: 60,
+    align: "center",
+  });
+
+  // 사주 4기둥 카드
+  const cardGap = 13;
+  const cardWidth = (contentWidth - cardGap * 3) / 4;
+  const cardHeight = 168;
+  const cardTop = 292;
+
+  for (const [index, item] of pillars.entries()) {
+    const x = margin + index * (cardWidth + cardGap);
+    const isDay = item.label === "일주";
+    doc.save();
+    doc.roundedRect(x, cardTop, cardWidth, cardHeight, 12).fill(isDay ? "#fbf4e2" : "#f5eedd");
+    if (isDay) {
+      doc.roundedRect(x + 2.5, cardTop + 2.5, cardWidth - 5, cardHeight - 5, 10).lineWidth(1).strokeColor(GOLD_DARK, 0.8).stroke();
+    }
+    doc.font("body").fillColor(GOLD_DARK).fontSize(8.5).text(
+      `${item.label} ${item.hanjaLabel}${isDay ? " · 나" : ""}`,
+      x, cardTop + 14,
+      { width: cardWidth, align: "center", characterSpacing: 0.5 },
+    );
+    const stem = item.pillar?.heavenlyStem;
+    const branch = item.pillar?.earthlyBranch;
+    const stemColor = ELEMENT_COLORS[item.pillar?.heavenlyStemElement as string] ?? TEXT;
+    const branchColor = ELEMENT_COLORS[item.pillar?.earthlyBranchElement as string] ?? TEXT;
+    if (stem || branch) {
+      doc.font("serif").fillColor(stemColor).fontSize(33).text(stemHanja(stem), x, cardTop + 34, {
         width: cardWidth,
         align: "center",
       });
-      doc.fillColor("#241b20").fontSize(18).text(card.value, x, top + 34, {
+      doc.font("serif").fillColor(branchColor).fontSize(33).text(branchHanja(branch), x, cardTop + 78, {
         width: cardWidth,
         align: "center",
       });
+      doc.font("body").fillColor(TEXT_SUB).fontSize(10).text(`${stem ?? "?"}${branch ?? "?"}`, x, cardTop + 130, {
+        width: cardWidth,
+        align: "center",
+      });
+    } else {
+      doc.font("serif").fillColor(TEXT_SUB).fontSize(20).text("미상", x, cardTop + 70, {
+        width: cardWidth,
+        align: "center",
+      });
+    }
+    doc.restore();
+  }
+
+  // 핵심 지표 줄 — 일간 · 용신 · 신강/신약
+  const summaryTop = cardTop + cardHeight + 26;
+  const summaryItems = [
+    { label: "일간 오행", value: result.dayMasterElement ? `${result.dayMasterElement} ${ELEMENT_HANJA[result.dayMasterElement as string] ?? ""}` : "미확인" },
+    { label: "용신", value: result.yongsin?.yongsin ? `${result.yongsin.yongsin} ${ELEMENT_HANJA[result.yongsin.yongsin as string] ?? ""}` : "미확인" },
+    {
+      label: "신강 · 신약",
+      value: result.sinGangYak?.type
+        ? `${result.sinGangYak.type} ${SINGANGYAK_HANJA[result.sinGangYak.type as string] ?? ""}`
+        : "미확인",
+    },
+  ];
+  const summaryWidth = (contentWidth - 24) / 3;
+  for (const [index, item] of summaryItems.entries()) {
+    const x = margin + index * (summaryWidth + 12);
+    doc.font("body").fillColor(GOLD, 0.85).fontSize(8.5).text(item.label, x, summaryTop, {
+      width: summaryWidth,
+      align: "center",
+      characterSpacing: 1,
+    });
+    doc.font("serif").fillColor("#fff8ec").fontSize(15).text(String(item.value), x, summaryTop + 15, {
+      width: summaryWidth,
+      align: "center",
+    });
+  }
+
+  // 표지 하단 — 발행 정보
+  const issuedAt = new Date().toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Seoul",
+  });
+  doc.font("body").fillColor(GOLD_LIGHT, 0.75).fontSize(9).text(`발행일 ${issuedAt}`, 0, pageHeight - 96, {
+    width: pageWidth,
+    align: "center",
+  });
+  doc.font("body").fillColor(TEXT_SUB, 0.8).fontSize(8).text(
+    "본 리포트는 사주 명리학 기반의 참고용 콘텐츠입니다",
+    0, pageHeight - 80,
+    { width: pageWidth, align: "center" },
+  );
+
+  // ════════════════ 2페이지부터: 본문 ════════════════
+  doc.addPage();
+
+  // 오행 분포 차트
+  drawSectionHeading("오행 분포", "五行 分布");
+  const balance = (result.elementBalance ?? {}) as Record<string, number>;
+  const elementOrder = ["목", "화", "토", "금", "수"];
+  const maxValue = Math.max(1, ...elementOrder.map((k) => Number(balance[ELEMENT_KEY_EN[k]]) || 0));
+  const chartTop = doc.y;
+  const rowHeight = 24;
+  const labelWidth = 64;
+  const valueWidth = 30;
+  const trackWidth = contentWidth - labelWidth - valueWidth - 16;
+
+  for (const [index, key] of elementOrder.entries()) {
+    const y = chartTop + index * rowHeight;
+    const value = Number(balance[ELEMENT_KEY_EN[key]]) || 0;
+    const color = ELEMENT_COLORS[key];
+    doc.save();
+    doc.font("serif").fillColor(color).fontSize(12).text(ELEMENT_HANJA[key], margin, y + 2, { lineBreak: false });
+    doc.font("body").fillColor(TEXT_BODY).fontSize(10).text(key, margin + 20, y + 4, { lineBreak: false });
+    doc.roundedRect(margin + labelWidth, y + 3, trackWidth, 11, 5.5).fill("#efe5cd");
+    const fillWidth = Math.max(6, (value / maxValue) * trackWidth);
+    if (value > 0) {
+      doc.roundedRect(margin + labelWidth, y + 3, fillWidth, 11, 5.5).fill(color);
+    }
+    doc.font("bold").fillColor(TEXT_BODY).fontSize(9.5).text(String(value), margin + labelWidth + trackWidth + 8, y + 4, { lineBreak: false });
+    doc.restore();
+  }
+  doc.y = chartTop + elementOrder.length * rowHeight + 6;
+
+  // 많은/부족한 오행 캡션
+  doc.font("body").fillColor(TEXT_SUB).fontSize(9.5).text(
+    `강한 기운 — ${result.dominantElement ?? "미확인"}    ·    부족한 기운 — ${result.lackingElement ?? "미확인"}`,
+    margin, doc.y,
+    { width: contentWidth },
+  );
+  doc.y += 24;
+
+  // 대운 타임라인
+  const daeunPeriods: Array<{ stem?: string; branch?: string; startAge?: number; endAge?: number }> =
+    Array.isArray(result.daeun?.periods) ? result.daeun.periods.slice(0, 8) : [];
+  if (daeunPeriods.length > 0) {
+    drawSectionHeading("대운의 흐름", "大運");
+    const laneTop = doc.y;
+    const boxGap = 6;
+    const boxWidth = (contentWidth - boxGap * (daeunPeriods.length - 1)) / daeunPeriods.length;
+    const boxHeight = 64;
+    const nowYear = new Date().getFullYear();
+    const currentAge = typeof birthInfo.year === "number" ? nowYear - birthInfo.year + 1 : -1;
+
+    for (const [index, period] of daeunPeriods.entries()) {
+      const x = margin + index * (boxWidth + boxGap);
+      const isCurrent =
+        typeof period.startAge === "number" &&
+        typeof period.endAge === "number" &&
+        currentAge >= period.startAge &&
+        currentAge <= period.endAge;
+      doc.save();
+      doc.roundedRect(x, laneTop, boxWidth, boxHeight, 8).fillAndStroke(
+        isCurrent ? "#f3e7c8" : CARD,
+        isCurrent ? GOLD_DARK : CARD_BORDER,
+      );
+      doc.font("body").fillColor(isCurrent ? GOLD_DARK : TEXT_SUB).fontSize(7.5).text(
+        `${period.startAge ?? "?"}~${period.endAge ?? "?"}세`,
+        x, laneTop + 9,
+        { width: boxWidth, align: "center" },
+      );
+      doc.font("serif").fillColor(TEXT).fontSize(15).text(
+        `${stemHanja(period.stem)}${branchHanja(period.branch)}`,
+        x, laneTop + 23,
+        { width: boxWidth, align: "center" },
+      );
+      doc.font("body").fillColor(TEXT_SUB).fontSize(8).text(
+        `${period.stem ?? "?"}${period.branch ?? "?"}${isCurrent ? " · 현재" : ""}`,
+        x, laneTop + 45,
+        { width: boxWidth, align: "center" },
+      );
       doc.restore();
     }
+    doc.y = laneTop + boxHeight + 26;
+  }
 
-    doc.y = top + cardHeight + 20;
-  };
-
-  const drawFeatureCard = (titleText: string, bodyText: string, accent: string) => {
-    doc.font("nanum");
-    doc.fontSize(11);
-    const textWidth = contentWidth - 40;
+  // ─── 인사이트 섹션 카드 ───
+  const drawInsightCard = (titleText: string, hanja: string, bodyText: string, accent: string) => {
+    doc.font("body").fontSize(10.5);
+    const textWidth = contentWidth - 44;
     const bodyHeight = doc.heightOfString(bodyText, {
       width: textWidth,
       lineGap: 5,
-      align: "left",
     });
-    const cardHeight = bodyHeight + 68;
+    const cardHeightInner = bodyHeight + 60;
 
-    ensureSpace(cardHeight + 12);
+    ensureSpace(cardHeightInner + 14);
 
     const x = margin;
     const y = doc.y;
 
     doc.save();
-    doc.roundedRect(x, y, contentWidth, cardHeight, 20).fillAndStroke("#fffdf8", "#e7dcc8");
-    doc.roundedRect(x, y, contentWidth, 8, 20).fill(accent);
+    doc.roundedRect(x, y, contentWidth, cardHeightInner, 12).fillAndStroke(CARD, CARD_BORDER);
+    doc.roundedRect(x, y + 12, 3.5, cardHeightInner - 24, 1.75).fill(accent);
     doc.restore();
 
-    doc.fillColor("#7d7364").fontSize(9.5).text("INSIGHT", x + 20, y + 18, {
-      width: textWidth,
-    });
-    doc.fillColor("#241b20").fontSize(16).text(titleText, x + 20, y + 32, {
-      width: textWidth,
-    });
-    doc.fillColor("#43372c").fontSize(11.2).text(bodyText, x + 20, y + 58, {
+    doc.font("serif").fillColor(TEXT).fontSize(13.5).text(titleText, x + 22, y + 16, { lineBreak: false });
+    const tWidth = doc.widthOfString(titleText);
+    doc.font("serif").fillColor(accent).fontSize(9.5).text(hanja, x + 22 + tWidth + 8, y + 19.5, { lineBreak: false });
+    doc.font("body").fillColor(TEXT_BODY).fontSize(10.5).text(bodyText, x + 22, y + 40, {
       width: textWidth,
       lineGap: 5,
-      align: "left",
     });
 
-    doc.y = y + cardHeight + 14;
+    doc.y = y + cardHeightInner + 14;
   };
 
-  drawPageChrome();
-  doc.y = 118;
-  const heroTop = doc.y;
-
-  doc.save();
-  doc.roundedRect(margin, heroTop, contentWidth, 168, 26).fillAndStroke("#fffaf0", "#eadab7");
-  doc.rect(margin, heroTop, contentWidth, 56).fill("#2b2126");
-  doc.fillColor("#f0ddaf").fontSize(10.5).text("Premium Personal Reading", margin + 22, heroTop + 18, {
-    width: contentWidth - 44,
-  });
-  doc.fillColor("#20171c").fontSize(24).text(title, margin + 22, heroTop + 74, {
-    width: contentWidth - 44,
-  });
-  doc.fillColor("#5f5142").fontSize(11).text(
-    `${birthInfo.year ?? "?"}년 ${birthInfo.month ?? "?"}월 ${birthInfo.day ?? "?"}일 · ${genderLabel} · ${calendarLabel}`,
-    margin + 22,
-    heroTop + 110,
-    { width: contentWidth - 44 },
-  );
-  doc.fillColor("#5f5142").fontSize(10.6).text(
-    `사주팔자: 년주 ${formatPillar(result.yearPillar)} · 월주 ${formatPillar(result.monthPillar)} · 일주 ${formatPillar(result.dayPillar)} · 시주 ${formatPillar(result.hourPillar)}`,
-    margin + 22,
-    heroTop + 130,
-    { width: contentWidth - 44, lineGap: 2 },
-  );
-  doc.restore();
-  doc.y = heroTop + 188;
-
-  ensureSpace(94);
-  drawMetricRow();
-
-  ensureSpace(90);
-  drawPillarRow();
-
-  drawFeatureCard(
-    "이번 리포트의 핵심 흐름",
-    result.fortune ?? "현재 흐름은 균형과 속도 조절이 핵심입니다.",
-    "#caa75d",
-  );
-
-  for (const section of sections.slice(1)) {
-    drawFeatureCard(section.title, section.body, section.accent);
+  drawSectionHeading("운세 풀이", "解說");
+  for (const section of sections) {
+    drawInsightCard(section.title, section.hanja, section.body, section.accent);
   }
 
+  // 안내 문구
   const disclaimer =
     "참고용 안내: 명해원의 사주 분석 결과는 참고용 콘텐츠이며, 의료·법률·투자·진로·결혼 등 중요한 의사결정을 대신하지 않습니다.";
-  doc.fontSize(10);
+  doc.font("body").fontSize(9);
   const disclaimerHeight = doc.heightOfString(disclaimer, {
     width: contentWidth - 36,
     lineGap: 4,
   });
-  ensureSpace(disclaimerHeight + 36);
+  ensureSpace(disclaimerHeight + 34);
+  const dy = doc.y;
   doc.save();
-  doc.roundedRect(margin, doc.y, contentWidth, disclaimerHeight + 26, 18).fillAndStroke("#efe7d7", "#e2d3b7");
+  doc.roundedRect(margin, dy, contentWidth, disclaimerHeight + 24, 10).fill("#efe7d4");
   doc.restore();
-  doc.fillColor("#6b5b45").fontSize(9.5).text(disclaimer, margin + 18, doc.y + 14, {
+  doc.font("body").fillColor("#6b5b45").fontSize(9).text(disclaimer, margin + 18, dy + 12, {
     width: contentWidth - 36,
     lineGap: 4,
   });

@@ -110,7 +110,7 @@ export function AiQuestionCard({
   return (
     <Card className="glass-panel border-violet-400/30 bg-violet-400/5">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-violet-200">
+        <CardTitle className="flex items-center gap-2 text-violet-700">
           <MessageCircleQuestion className="w-5 h-5" />
           AI 질문하기
         </CardTitle>
@@ -128,11 +128,11 @@ export function AiQuestionCard({
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="flex items-center justify-between rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-3">
               <div className="text-sm text-foreground">
                 {isAdmin ? "이번 달 질문 가능 횟수" : "이번 달 남은 질문"}
               </div>
-              <div className="text-sm font-semibold text-violet-200">
+              <div className="text-sm font-semibold text-violet-700">
                 {isLoading ? "불러오는 중..." : remainingLabel}
               </div>
             </div>
@@ -167,7 +167,7 @@ export function AiQuestionCard({
               </div>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+            <div className="rounded-2xl border border-foreground/10 bg-black/10 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-sm font-medium text-foreground">
                   질문 기록
@@ -182,7 +182,7 @@ export function AiQuestionCard({
                   기록을 새로 불러오는 중...
                 </div>
               ) : questionHistory.length === 0 ? (
-                <div className="min-h-[180px] rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-6 text-sm text-muted-foreground">
+                <div className="min-h-[180px] rounded-2xl border border-dashed border-foreground/10 bg-foreground/5 px-4 py-6 text-sm text-muted-foreground">
                   아직 질문 기록이 없습니다. 위에서 첫 질문을 보내보세요.
                 </div>
               ) : (
@@ -194,14 +194,14 @@ export function AiQuestionCard({
                           <div className="whitespace-pre-line leading-6">
                             {item.question}
                           </div>
-                          <div className="mt-2 text-[11px] text-violet-100/70">
+                          <div className="mt-2 text-[11px] text-violet-700/70">
                             {item.createdLabel}
                           </div>
                         </div>
                       </div>
                       <div className="flex justify-start">
-                        <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-white/10 bg-white/5 px-4 py-3 text-sm text-muted-foreground">
-                          <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-violet-200/80">
+                        <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-muted-foreground">
+                          <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-violet-700/80">
                             AI 답변
                           </div>
                           <div className="whitespace-pre-line leading-7">

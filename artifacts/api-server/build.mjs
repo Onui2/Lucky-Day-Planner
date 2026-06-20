@@ -1,7 +1,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as esbuild } from "esbuild";
-import { rm, readFile, copyFile, mkdir } from "fs/promises";
+import { rm, readFile, copyFile, mkdir, readdir } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,7 +69,7 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
-    loader: { ".ttf": "base64" },
+    loader: { ".ttf": "base64", ".otf": "base64" },
   };
 
   await esbuild({
@@ -97,18 +97,23 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
-    loader: { ".ttf": "base64" },
+    loader: { ".ttf": "base64", ".otf": "base64" },
   });
 
   // 한글 폰트를 서버 번들/베르셀 번들 옆에 복사
-  const fontSrc = path.resolve(__dirname, "assets", "fonts", "NanumGothic-Regular.ttf");
+  const fontSrcDir = path.resolve(__dirname, "assets", "fonts");
   const distFontDir = path.resolve(distDir, "fonts");
   const fontDestDir = path.resolve(__dirname, "..", "saju-web", "api", "fonts");
   await mkdir(distFontDir, { recursive: true });
   await mkdir(fontDestDir, { recursive: true });
-  await copyFile(fontSrc, path.join(distFontDir, "NanumGothic-Regular.ttf"));
-  await copyFile(fontSrc, path.join(fontDestDir, "NanumGothic-Regular.ttf"));
-  console.log("font copied to dist/fonts/ and vercel api/fonts/");
+  const fontFiles = (await readdir(fontSrcDir)).filter(
+    (name) => name.endsWith(".ttf") || name.endsWith(".otf"),
+  );
+  for (const name of fontFiles) {
+    await copyFile(path.join(fontSrcDir, name), path.join(distFontDir, name));
+    await copyFile(path.join(fontSrcDir, name), path.join(fontDestDir, name));
+  }
+  console.log(`fonts copied to dist/fonts/ and vercel api/fonts/: ${fontFiles.join(", ")}`);
 }
 
 buildAll().catch((err) => {

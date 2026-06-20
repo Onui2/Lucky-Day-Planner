@@ -162,8 +162,8 @@ export default function RegisterPage() {
           </div>
 
           {localSignupUnavailable && (
-            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-700" />
               <p className="leading-relaxed">
                 회원가입을 사용하려면 서버 데이터베이스 연결이 필요합니다.
                 `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해
@@ -173,8 +173,8 @@ export default function RegisterPage() {
           )}
 
           {canSelfBootstrapAdmin && (
-            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-100">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-700">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
               <p className="leading-relaxed">
                 현재 관리자 이메일 설정이 없어 첫 가입 계정은 최고관리자로
                 등록됩니다.
@@ -280,7 +280,7 @@ export default function RegisterPage() {
             </div>
 
             {passwordMismatch && (
-              <div className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-sm">
+              <div className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 비밀번호 확인이 일치하지 않습니다.
               </div>
@@ -290,7 +290,7 @@ export default function RegisterPage() {
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-sm"
+                className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 text-sm"
               >
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {error}

@@ -10,15 +10,15 @@ import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
 
-const ELEM_COLOR: Record<string,string> = { 목:'text-green-400', 화:'text-rose-400', 토:'text-amber-400', 금:'text-slate-300', 수:'text-blue-400' };
+const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
 const ELEM_BG: Record<string,string>    = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
 const ELEM_BORDER: Record<string,string>= { 목:'border-green-400/40', 화:'border-rose-400/40', 토:'border-amber-400/40', 금:'border-slate-400/40', 수:'border-blue-400/40' };
 const STEM_HANJA: Record<string,string> = { 갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸' };
 const BRANCH_HANJA: Record<string,string> = { 자:'子',축:'丑',인:'寅',묘:'卯',진:'辰',사:'巳',오:'午',미:'未',신:'申',유:'酉',술:'戌',해:'亥' };
 const TENGOD_COLOR: Record<string,string> = {
-  비견:'text-green-300', 겁재:'text-amber-300', 식신:'text-emerald-300', 상관:'text-orange-300',
-  편재:'text-yellow-300', 정재:'text-lime-300', 편관:'text-rose-400', 정관:'text-blue-300',
-  편인:'text-purple-300', 정인:'text-indigo-300',
+  비견:'text-green-700', 겁재:'text-amber-700', 식신:'text-emerald-700', 상관:'text-orange-700',
+  편재:'text-yellow-700', 정재:'text-lime-700', 편관:'text-rose-600', 정관:'text-blue-700',
+  편인:'text-purple-700', 정인:'text-indigo-700',
 };
 
 interface DaeunPeriod {
@@ -66,8 +66,8 @@ function PeriodCard({ period, isActive, expanded, onToggle }: {
   expanded: boolean; onToggle: () => void;
 }) {
   const stemColor = ELEM_COLOR[period.stemElement] ?? 'text-white';
-  const bg = ELEM_BG[period.stemElement] ?? 'bg-white/5';
-  const border = isActive ? 'border-primary/60 ring-1 ring-primary/30' : (ELEM_BORDER[period.stemElement] ?? 'border-white/10');
+  const bg = ELEM_BG[period.stemElement] ?? 'bg-foreground/5';
+  const border = isActive ? 'border-primary/60 ring-1 ring-primary/30' : (ELEM_BORDER[period.stemElement] ?? 'border-foreground/10');
 
   return (
     <motion.div
@@ -114,7 +114,7 @@ function PeriodCard({ period, isActive, expanded, onToggle }: {
             transition={{ duration: 0.25 }}
             className="overflow-hidden"
           >
-            <div className="mt-4 pt-4 border-t border-white/10">
+            <div className="mt-4 pt-4 border-t border-foreground/10">
               <p className="text-sm text-foreground/80 leading-relaxed">{period.fortune}</p>
               <div className="mt-3 flex gap-2 text-xs text-muted-foreground">
                 <span>천간 오행: <span className={cn("font-medium", ELEM_COLOR[period.stemElement])}>{period.stemElement}</span></span>
@@ -179,7 +179,7 @@ export default function DaeunPage() {
 
       {/* 에러 */}
       {error && (
-        <div className="glass-panel border border-rose-400/20 rounded-2xl p-6 text-center text-rose-400">
+        <div className="glass-panel border border-rose-400/20 rounded-2xl p-6 text-center text-rose-600">
           대운 계산 중 오류가 발생했습니다.
         </div>
       )}
@@ -193,7 +193,7 @@ export default function DaeunPage() {
             </div>
           )}
           {/* 기본 정보 카드 */}
-          <div className="glass-panel border border-white/10 rounded-2xl p-5">
+          <div className="glass-panel border border-foreground/10 rounded-2xl p-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">일주 (日柱)</p>
@@ -221,7 +221,7 @@ export default function DaeunPage() {
                 {currentIdx >= 0 && (
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground">현재 대운</p>
-                    <p className="font-bold text-amber-400">{data.periods[currentIdx]?.idx}번째</p>
+                    <p className="font-bold text-amber-600">{data.periods[currentIdx]?.idx}번째</p>
                   </div>
                 )}
               </div>
@@ -275,14 +275,14 @@ export default function DaeunPage() {
           </div>
 
           {/* 대운 해석 안내 */}
-          <div className="glass-panel border border-white/10 rounded-2xl p-5">
+          <div className="glass-panel border border-foreground/10 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <Calendar className="w-4 h-4 text-primary" />
               <h3 className="font-medium text-sm">대운(大運) 이해하기</h3>
             </div>
             <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
               <p>대운은 10년마다 변화하는 큰 운의 흐름입니다. 사주의 월주(月柱)에서 출발해 남성 양년생·여성 음년생은 순행(미래 절기 방향), 남성 음년생·여성 양년생은 역행(과거 절기 방향)으로 나아갑니다.</p>
-              <p>대운이 <span className="text-primary">용신(用神)</span> 오행을 만나면 좋은 시기, <span className="text-rose-400">기신(忌神)</span> 오행을 만나면 어려운 시기가 됩니다. 각 대운 안에서도 매년 세운(歲運)에 따라 운의 강약이 조절됩니다.</p>
+              <p>대운이 <span className="text-primary">용신(用神)</span> 오행을 만나면 좋은 시기, <span className="text-rose-600">기신(忌神)</span> 오행을 만나면 어려운 시기가 됩니다. 각 대운 안에서도 매년 세운(歲運)에 따라 운의 강약이 조절됩니다.</p>
             </div>
           </div>
         </motion.div>

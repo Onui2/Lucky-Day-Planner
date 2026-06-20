@@ -158,8 +158,8 @@ export default function LoginPage() {
           </div>
 
           {localLoginUnavailable && (
-            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+            <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-700" />
               <p className="leading-relaxed">
                 로컬 로그인을 사용하려면 서버 데이터베이스 연결이 필요합니다.
                 `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해
@@ -222,7 +222,7 @@ export default function LoginPage() {
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-sm"
+                className="flex items-center gap-2.5 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 text-sm"
               >
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {error}

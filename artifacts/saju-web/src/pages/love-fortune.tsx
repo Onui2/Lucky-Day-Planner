@@ -20,7 +20,7 @@ import {
 } from "@/lib/birth-date";
 
 const ELEM_COLOR: Record<string, string> = {
-  목:'text-green-400', 화:'text-red-400', 토:'text-yellow-400', 금:'text-gray-300', 수:'text-blue-400',
+  목:'text-green-600', 화:'text-red-600', 토:'text-yellow-600', 금:'text-gray-700', 수:'text-blue-600',
 };
 const ELEM_BORDER: Record<string, string> = {
   목:'border-green-400/40', 화:'border-red-400/40', 토:'border-yellow-400/40', 금:'border-slate-300/40', 수:'border-blue-400/40',
@@ -30,10 +30,10 @@ const ELEM_KOR: Record<string, string> = { 목:'木', 화:'火', 토:'土', 금:
 const CURRENT_YEAR = new Date().getFullYear();
 
 function scoreColor(s: number) {
-  if (s >= 85) return 'text-emerald-400';
-  if (s >= 72) return 'text-yellow-400';
-  if (s >= 58) return 'text-sky-400';
-  return 'text-rose-400';
+  if (s >= 85) return 'text-emerald-600';
+  if (s >= 72) return 'text-yellow-600';
+  if (s >= 58) return 'text-sky-600';
+  return 'text-rose-600';
 }
 function scoreLabel(s: number) {
   if (s >= 85) return '매우 좋음';
@@ -116,12 +116,12 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
 
       {data.soloAdvice && (
         <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-4 flex gap-3 items-start">
-          <Star className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-yellow-200 leading-relaxed">{data.soloAdvice}</p>
+          <Star className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-yellow-700 leading-relaxed">{data.soloAdvice}</p>
         </div>
       )}
 
-      <div className="rounded-3xl border border-white/10 bg-card/30 backdrop-blur-xl p-6">
+      <div className="rounded-3xl border border-foreground/10 bg-card/30 backdrop-blur-xl p-6">
         <h3 className="text-sm font-semibold text-foreground mb-4">📅 월별 인연운 흐름</h3>
         <div className="flex items-end justify-between gap-1 px-2">
           {(data.allMonthScores ?? []).map(({ month, score }) => (
@@ -135,7 +135,7 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
         <div className="rounded-3xl border border-primary/20 bg-card/30 backdrop-blur-xl p-6 space-y-3">
           <h3 className="text-sm font-semibold text-foreground mb-2">💛 인연이 찾아오는 베스트 달</h3>
           {data.luckyMonths.map((m, i) => (
-            <div key={m.month} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div key={m.month} className="flex items-center gap-4 rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
                 style={{
                   background: i === 0 ? 'hsl(46,72%,56%)' : i === 1 ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.1)',
@@ -160,14 +160,14 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
             {data.partnerTraits.map((t, i) => (
               <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
                 <span className="w-5 h-5 rounded-full bg-rose-400/20 flex items-center justify-center shrink-0">
-                  <Heart className="w-3 h-3 text-rose-400" />
+                  <Heart className="w-3 h-3 text-rose-600" />
                 </span>
                 {t}
               </div>
             ))}
           </div>
           {data.meetWhere && (
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-muted-foreground">
+            <div className="rounded-xl bg-foreground/5 border border-foreground/10 p-3 text-xs text-muted-foreground">
               <span className="text-primary/80 font-medium">만남의 장소·상황: </span>{data.meetWhere}
             </div>
           )}
@@ -237,13 +237,13 @@ function DatingResult({ data }: { data: LoveFortuneResult }) {
 
       {data.datingStrengths && (
         <div className="rounded-3xl border border-emerald-400/20 bg-card/30 backdrop-blur-xl p-6 space-y-3">
-          <h3 className="text-sm font-semibold text-emerald-400 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-emerald-600 flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-emerald-400/20 flex items-center justify-center text-xs">✓</span>
             이 관계의 강점
           </h3>
           {data.datingStrengths.map((s, i) => (
             <div key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
-              <span className="text-emerald-400 mt-0.5 shrink-0">+</span>{s}
+              <span className="text-emerald-600 mt-0.5 shrink-0">+</span>{s}
             </div>
           ))}
         </div>
@@ -251,13 +251,13 @@ function DatingResult({ data }: { data: LoveFortuneResult }) {
 
       {data.datingChallenges && (
         <div className="rounded-3xl border border-rose-400/20 bg-card/30 backdrop-blur-xl p-6 space-y-3">
-          <h3 className="text-sm font-semibold text-rose-400 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-rose-600 flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-rose-400/20 flex items-center justify-center text-xs">!</span>
             함께 주의할 점
           </h3>
           {data.datingChallenges.map((c, i) => (
             <div key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
-              <span className="text-rose-400 mt-0.5 shrink-0">△</span>{c}
+              <span className="text-rose-600 mt-0.5 shrink-0">△</span>{c}
             </div>
           ))}
         </div>
@@ -265,8 +265,8 @@ function DatingResult({ data }: { data: LoveFortuneResult }) {
 
       {data.datingAdvice && (
         <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-4 flex gap-3 items-start">
-          <Star className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-yellow-200 leading-relaxed">{data.datingAdvice}</p>
+          <Star className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-yellow-700 leading-relaxed">{data.datingAdvice}</p>
         </div>
       )}
 
@@ -346,7 +346,7 @@ function BirthBlock({
             min={1900}
             max={2100}
             inputMode="numeric"
-            className="bg-white/5 border-white/10 text-sm"
+            className="bg-foreground/5 border-foreground/10 text-sm"
           />
         </div>
         <div>
@@ -358,7 +358,7 @@ function BirthBlock({
             min={1}
             max={12}
             inputMode="numeric"
-            className="bg-white/5 border-white/10 text-sm"
+            className="bg-foreground/5 border-foreground/10 text-sm"
           />
         </div>
         <div>
@@ -370,7 +370,7 @@ function BirthBlock({
             min={1}
             max={maxDay}
             inputMode="numeric"
-            className="bg-white/5 border-white/10 text-sm"
+            className="bg-foreground/5 border-foreground/10 text-sm"
           />
         </div>
       </div>
@@ -381,7 +381,7 @@ function BirthBlock({
             value={String(state.hour)}
             onValueChange={v => onChange({ ...state, hour: Number(v), minute: Number(v) === -1 ? '' : state.minute })}
           >
-            <SelectTrigger className="bg-white/5 border-white/10 text-sm">
+            <SelectTrigger className="bg-foreground/5 border-foreground/10 text-sm">
               <SelectValue placeholder="시간 선택" />
             </SelectTrigger>
             <SelectContent>
@@ -401,7 +401,7 @@ function BirthBlock({
             value={state.minute}
             disabled={state.hour === -1}
             onChange={e => onChange({ ...state, minute: e.target.value })}
-            className="bg-white/5 border-white/10 text-sm"
+            className="bg-foreground/5 border-foreground/10 text-sm"
           />
         </div>
       </div>
@@ -418,7 +418,7 @@ function BirthBlock({
                   "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
                   gender === opt.v
                     ? "bg-primary/20 border-primary text-primary"
-                    : "bg-white/5 border-white/10 text-muted-foreground"
+                    : "bg-foreground/5 border-foreground/10 text-muted-foreground"
                 )}
               >
                 {opt.l}
@@ -501,8 +501,8 @@ export default function LoveFortunePage() {
         className="text-center"
       >
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-rose-400/30 bg-rose-400/5 mb-4">
-          <Heart className="w-4 h-4 text-rose-400" />
-          <span className="text-sm text-rose-300 font-medium">연애운 · 인연 분석</span>
+          <Heart className="w-4 h-4 text-rose-600" />
+          <span className="text-sm text-rose-700 font-medium">연애운 · 인연 분석</span>
         </div>
         <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">
           {CURRENT_YEAR}년 연애운
@@ -517,7 +517,7 @@ export default function LoveFortunePage() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="rounded-3xl border border-white/10 bg-card/40 backdrop-blur-xl p-6 space-y-6"
+        className="rounded-3xl border border-foreground/10 bg-card/40 backdrop-blur-xl p-6 space-y-6"
       >
         {/* 상태 토글 */}
         <div>
@@ -529,8 +529,8 @@ export default function LoveFortunePage() {
               className={cn(
                 "flex-1 py-3 rounded-2xl text-sm font-medium border flex items-center justify-center gap-2 transition-all",
                 status === 'solo'
-                  ? "bg-rose-400/20 border-rose-400 text-rose-300"
-                  : "bg-white/5 border-white/10 text-muted-foreground"
+                  ? "bg-rose-400/20 border-rose-400 text-rose-700"
+                  : "bg-foreground/5 border-foreground/10 text-muted-foreground"
               )}
             >
               <Heart className="w-4 h-4" /> 솔로 (인연 탐색)
@@ -542,7 +542,7 @@ export default function LoveFortunePage() {
                 "flex-1 py-3 rounded-2xl text-sm font-medium border flex items-center justify-center gap-2 transition-all",
                 status === 'dating'
                   ? "bg-primary/20 border-primary text-primary"
-                  : "bg-white/5 border-white/10 text-muted-foreground"
+                  : "bg-foreground/5 border-foreground/10 text-muted-foreground"
               )}
             >
               <Users className="w-4 h-4" /> 연애중 (관계 분석)
@@ -552,7 +552,7 @@ export default function LoveFortunePage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* 내 정보 */}
-          <div className="rounded-2xl border border-white/10 bg-white/3 p-4 space-y-4">
+          <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-4 space-y-4">
             <BirthBlock
               label="내 생년월일"
               icon={<UserCircle2 className="w-4 h-4 text-primary" />}
@@ -586,7 +586,7 @@ export default function LoveFortunePage() {
                 <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
                   <BirthBlock
                     label="상대방 생년월일 (입력 시 정확도 높아짐)"
-                    icon={<Heart className="w-4 h-4 text-rose-400" />}
+                    icon={<Heart className="w-4 h-4 text-rose-600" />}
                     state={partnerBirth}
                     onChange={setPartnerBirth}
                   />
@@ -611,10 +611,10 @@ export default function LoveFortunePage() {
         </form>
 
         {validationError && (
-          <p className="text-sm text-rose-400 text-center">{validationError}</p>
+          <p className="text-sm text-rose-600 text-center">{validationError}</p>
         )}
         {error && !validationError && (
-          <p className="text-sm text-rose-400 text-center">{(error as any)?.message ?? "오류가 발생했습니다."}</p>
+          <p className="text-sm text-rose-600 text-center">{(error as any)?.message ?? "오류가 발생했습니다."}</p>
         )}
       </motion.div>
 

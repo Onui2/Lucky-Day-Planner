@@ -29,7 +29,15 @@ const databaseHost = resolvedDatabaseUrl
 
 const sslMode = (process.env.PGSSLMODE ?? process.env.PGSSL ?? "").toLowerCase();
 const sslExplicitlyDisabled = ["0", "false", "disable", "off"].includes(sslMode);
-const sslExplicitlyEnabled = ["1", "true", "require", "on"].includes(sslMode);
+const sslVerificationDisabled = [
+  "allow-unauthorized",
+  "disable-verification",
+  "insecure",
+  "no-verify",
+].includes(sslMode);
+const sslExplicitlyEnabled =
+  ["1", "true", "require", "on", "verify-ca", "verify-full"].includes(sslMode) ||
+  sslVerificationDisabled;
 const isLocalDatabaseHost =
   databaseHost === "" ||
   databaseHost === "localhost" ||
@@ -44,7 +52,7 @@ const shouldUseSsl =
     !isLocalDatabaseHost
   );
 const sslConfig = shouldUseSsl
-  ? { ssl: { rejectUnauthorized: false } }
+  ? { ssl: { rejectUnauthorized: !sslVerificationDisabled } }
   : {};
 
 export function hasDatabaseConfig(): boolean {

@@ -468,8 +468,8 @@ export function AiChatPanel({
   function renderSuggestedQuestions(compact = false) {
     return (
       <div className={compact ? "space-y-2" : "space-y-3"}>
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-violet-100/80">
-          <Sparkles className="w-3.5 h-3.5 text-violet-300" />
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-violet-700/80">
+          <Sparkles className="w-3.5 h-3.5 text-violet-600" />
           추천 질문
         </div>
         <div className="flex flex-wrap gap-2">
@@ -479,7 +479,7 @@ export function AiChatPanel({
               type="button"
               onClick={() => handlePickSuggestion(suggestion)}
               className={cn(
-                "rounded-full border border-violet-300/25 bg-violet-400/10 text-left text-violet-50/90 transition-colors hover:border-violet-200/60 hover:bg-violet-400/20",
+                "rounded-full border border-violet-200 bg-violet-50 text-left text-violet-800 transition-colors hover:border-violet-300 hover:bg-violet-100",
                 compact
                   ? "px-2.5 py-1 text-[11px]"
                   : "px-3 py-1.5 text-xs leading-5",
@@ -515,19 +515,19 @@ export function AiChatPanel({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.97 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-28 right-4 z-50 w-[min(420px,calc(100vw-2rem))] flex flex-col rounded-2xl border border-violet-400/20 bg-[#16102a]/95 shadow-2xl shadow-violet-900/40 backdrop-blur-xl overflow-hidden"
+            className="fixed bottom-28 right-4 z-50 w-[min(420px,calc(100vw-2rem))] flex flex-col rounded-2xl border border-violet-400/30 bg-white/95 shadow-2xl shadow-violet-900/15 backdrop-blur-xl overflow-hidden"
             style={{ maxHeight: "72vh" }}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-violet-500/10">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/10 bg-violet-500/10">
               <div className="flex items-center gap-2">
-                <MessageCircleQuestion className="w-4 h-4 text-violet-300" />
-                <span className="text-sm font-medium text-violet-100">
+                <MessageCircleQuestion className="w-4 h-4 text-violet-700" />
+                <span className="text-sm font-medium text-violet-700">
                   AI 사주 상담
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 {isAuthenticated && (
-                  <span className="text-[11px] text-violet-300/80">
+                  <span className="text-[11px] text-violet-700/80">
                     {isLoading ? "..." : remainingLabel}
                   </span>
                 )}
@@ -541,16 +541,16 @@ export function AiChatPanel({
             </div>
 
             {isAuthenticated && (
-              <div className="border-b border-white/10 bg-black/15 px-3 py-3 space-y-2">
+              <div className="border-b border-foreground/10 bg-violet-50/60 px-3 py-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] text-violet-200/70">
+                  <p className="text-[11px] text-violet-700/70">
                     세션별로 기록되고, 같은 세션 질문은 최근 대화를 이어서
                     답해요.
                   </p>
                   <button
                     type="button"
                     onClick={handleCreateSession}
-                    className="inline-flex items-center gap-1 rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-100 hover:bg-violet-500/20 transition-colors"
+                    className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-violet-100 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />새 세션
                   </button>
@@ -567,14 +567,14 @@ export function AiChatPanel({
                         className={cn(
                           "min-w-[150px] max-w-[200px] rounded-2xl border px-3 py-2 text-left transition-colors",
                           isActive
-                            ? "border-violet-300/60 bg-violet-500/20"
-                            : "border-white/10 bg-white/5 hover:bg-white/10",
+                            ? "border-violet-300 bg-white"
+                            : "border-violet-100 bg-white/70 hover:bg-white",
                         )}
                       >
-                        <div className="truncate text-xs font-semibold text-violet-50">
+                        <div className="truncate text-xs font-semibold text-violet-800">
                           {messageCount === 0 ? "새 세션" : session.title}
                         </div>
-                        <div className="mt-1 text-[10px] text-violet-200/60">
+                        <div className="mt-1 text-[10px] text-violet-700/60">
                           {messageCount === 0
                             ? "질문 전"
                             : `${messageCount}개 질문`}
@@ -606,26 +606,26 @@ export function AiChatPanel({
                   기록을 불러오는 중...
                 </div>
               ) : !activeSession ? (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-6 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-dashed border-foreground/10 bg-foreground/5 px-4 py-6 text-sm text-muted-foreground">
                   세션을 준비하는 중입니다.
                 </div>
               ) : activeSession.questionIds.length === 0 && !pendingQuestion ? (
                 <div className="space-y-3">
-                  <div className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-4 py-4">
-                    <div className="text-sm font-medium text-violet-50">
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                    <div className="text-sm font-medium text-violet-800">
                       새 세션이 시작됐어요.
                     </div>
-                    <div className="mt-1 text-xs leading-6 text-violet-100/70">
+                    <div className="mt-1 text-xs leading-6 text-violet-700/70">
                       올해 이직운, 연애운, 건강운처럼 궁금한 주제를 이어서
                       물어보면 이 세션에 차곡차곡 기록됩니다.
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+                  <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4">
                     {renderSuggestedQuestions()}
                   </div>
                 </div>
               ) : activeMessages.length === 0 && !pendingQuestion ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-6 text-sm text-muted-foreground">
                   이 세션의 이전 기록을 불러오는 중입니다. 잠시 후 다시
                   확인해주세요.
                 </div>
@@ -634,30 +634,29 @@ export function AiChatPanel({
                   {activeMessages.map((item) => (
                     <div key={item.id} className="space-y-2">
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-violet-600/40 px-3.5 py-2.5 text-sm text-violet-50 leading-6">
+                        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-violet-600/15 px-3.5 py-2.5 text-sm text-violet-900 leading-6">
                           {item.question}
-                          <div className="mt-2 text-[11px] text-violet-100/65">
+                          <div className="mt-2 text-[11px] text-violet-700/55">
                             {formatSessionTimestamp(item.createdAt)}
                           </div>
                         </div>
                       </div>
                       <div className="flex justify-start">
-                        <div className="max-w-[90%] rounded-2xl rounded-bl-sm border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-muted-foreground leading-7 whitespace-pre-line">
+                        <div className="max-w-[90%] rounded-2xl rounded-bl-sm border border-foreground/10 bg-foreground/5 px-3.5 py-2.5 text-sm text-muted-foreground leading-7 whitespace-pre-line">
                           {item.answer}
                         </div>
                       </div>
                     </div>
                   ))}
-
                   {pendingQuestion && (
                     <div className="space-y-2">
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-violet-600/40 px-3.5 py-2.5 text-sm text-violet-50 leading-6">
+                        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-violet-600/15 px-3.5 py-2.5 text-sm text-violet-900 leading-6">
                           {pendingQuestion}
                         </div>
                       </div>
                       <div className="flex justify-start">
-                        <div className="rounded-2xl rounded-bl-sm border border-white/10 bg-white/5 px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                        <div className="rounded-2xl rounded-bl-sm border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           AI가 이전 대화를 참고해서 답변 중...
                         </div>
@@ -679,13 +678,13 @@ export function AiChatPanel({
             )}
 
             {isAuthenticated && (
-              <div className="border-t border-white/10 bg-black/20 px-3 py-2.5">
+              <div className="border-t border-foreground/10 bg-foreground/5 px-3 py-2.5">
                 {activeSession &&
                   activeSession.questionIds.length > 0 &&
                   !pendingQuestion &&
                   !ask.isPending &&
                   !question.trim() && (
-                    <div className="mb-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div className="mb-2 rounded-2xl border border-foreground/10 bg-white px-3 py-2">
                       {renderSuggestedQuestions(true)}
                     </div>
                   )}

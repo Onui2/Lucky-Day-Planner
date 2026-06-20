@@ -83,7 +83,7 @@ router.post("/commerce/orders", async (req, res) => {
     return;
   }
 
-  const hasAdminFreeAccess = isPrivilegedRole(req.user.role);
+  const hasAdminFreeAccess = product.type === "saju_pdf" || isPrivilegedRole(req.user.role);
 
   try {
     const sajuResult = buildSajuResult({

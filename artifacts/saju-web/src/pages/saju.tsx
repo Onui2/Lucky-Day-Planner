@@ -43,26 +43,26 @@ const toBranchHanja = (k: string) => BRANCH_HANJA[k] ?? k;
 
 // ─── 오행 글자색 ──────────────────────────────────────────
 const ELEM_TEXT: Record<string, string> = {
-  '목': 'text-emerald-400', '화': 'text-rose-400',
-  '토': 'text-amber-400',   '금': 'text-slate-200', '수': 'text-blue-400',
+  '목': 'text-emerald-600', '화': 'text-rose-600',
+  '토': 'text-amber-600',   '금': 'text-slate-700', '수': 'text-blue-600',
 };
 
 // ─── 기둥 점수 (1-10) 색상 ────────────────────────────────
 function pillarScoreColor(score: number): { text: string; bg: string; border: string } {
-  if (score >= 9) return { text: 'text-emerald-400', bg: 'bg-emerald-400/15', border: 'border-emerald-400/40' };
-  if (score >= 7) return { text: 'text-blue-400',    bg: 'bg-blue-400/15',    border: 'border-blue-400/40'    };
-  if (score >= 5) return { text: 'text-amber-400',   bg: 'bg-amber-400/15',   border: 'border-amber-400/40'   };
-  if (score >= 3) return { text: 'text-orange-400',  bg: 'bg-orange-400/15',  border: 'border-orange-400/40'  };
-  return              { text: 'text-rose-400',    bg: 'bg-rose-400/15',    border: 'border-rose-400/40'    };
+  if (score >= 9) return { text: 'text-emerald-600', bg: 'bg-emerald-400/15', border: 'border-emerald-400/40' };
+  if (score >= 7) return { text: 'text-blue-600',    bg: 'bg-blue-400/15',    border: 'border-blue-400/40'    };
+  if (score >= 5) return { text: 'text-amber-600',   bg: 'bg-amber-400/15',   border: 'border-amber-400/40'   };
+  if (score >= 3) return { text: 'text-orange-600',  bg: 'bg-orange-400/15',  border: 'border-orange-400/40'  };
+  return              { text: 'text-rose-600',    bg: 'bg-rose-400/15',    border: 'border-rose-400/40'    };
 }
 
 // ─── 일주 점수 (1-100) 색상 ──────────────────────────────
 function dayScoreColor(score: number): { text: string; ring: string; label: string } {
-  if (score >= 80) return { text: 'text-emerald-400', ring: 'border-emerald-400/60', label: '매우 좋음' };
-  if (score >= 65) return { text: 'text-blue-400',    ring: 'border-blue-400/60',    label: '좋음'     };
-  if (score >= 45) return { text: 'text-amber-400',   ring: 'border-amber-400/60',   label: '보통'     };
-  if (score >= 30) return { text: 'text-orange-400',  ring: 'border-orange-400/60',  label: '주의'     };
-  return               { text: 'text-rose-400',    ring: 'border-rose-400/60',    label: '불리'     };
+  if (score >= 80) return { text: 'text-emerald-600', ring: 'border-emerald-400/60', label: '매우 좋음' };
+  if (score >= 65) return { text: 'text-blue-600',    ring: 'border-blue-400/60',    label: '좋음'     };
+  if (score >= 45) return { text: 'text-amber-600',   ring: 'border-amber-400/60',   label: '보통'     };
+  if (score >= 30) return { text: 'text-orange-600',  ring: 'border-orange-400/60',  label: '주의'     };
+  return               { text: 'text-rose-600',    ring: 'border-rose-400/60',    label: '불리'     };
 }
 
 // ─── 지장간 (支藏干) ─────────────────────────────────────
@@ -177,18 +177,18 @@ function serializeVisibleSections(sections: Record<SectionKey, boolean>) {
 
 // 오행 색상 헬퍼
 const ELEM_COLOR: Record<string, string> = {
-  '목': 'text-green-400 border-green-500/50 bg-green-500/10',
-  '화': 'text-red-400 border-red-500/50 bg-red-500/10',
-  '토': 'text-yellow-400 border-yellow-500/50 bg-yellow-500/10',
-  '금': 'text-gray-200 border-gray-400/50 bg-gray-400/10',
-  '수': 'text-blue-400 border-blue-500/50 bg-blue-500/10',
+  '목': 'text-green-600 border-green-500/50 bg-green-500/10',
+  '화': 'text-red-600 border-red-500/50 bg-red-500/10',
+  '토': 'text-yellow-600 border-yellow-500/50 bg-yellow-500/10',
+  '금': 'text-gray-700 border-gray-400/50 bg-gray-400/10',
+  '수': 'text-blue-600 border-blue-500/50 bg-blue-500/10',
 };
 const ELEM_BG: Record<string, string> = {
-  '목': 'bg-green-500/20 text-green-300',
-  '화': 'bg-red-500/20 text-red-300',
-  '토': 'bg-yellow-500/20 text-yellow-300',
-  '금': 'bg-gray-400/20 text-gray-200',
-  '수': 'bg-blue-500/20 text-blue-300',
+  '목': 'bg-green-500/20 text-green-700',
+  '화': 'bg-red-500/20 text-red-700',
+  '토': 'bg-yellow-500/20 text-yellow-700',
+  '금': 'bg-gray-400/20 text-gray-700',
+  '수': 'bg-blue-500/20 text-blue-700',
 };
 
 // ─── 메인 컴포넌트 ───────────────────────────────────
@@ -931,10 +931,10 @@ export default function SajuPage() {
               className="max-w-2xl mx-auto mb-4"
             >
               <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-sm">
-                <span className="text-amber-300/90">
+                <span className="text-amber-700/90">
                   ⏱ 이전 분석 결과가 있습니다 ({(() => { const m = Math.round((Date.now() - cachedTs) / 60000); return m < 60 ? `${m}분 전` : m < 1440 ? `${Math.floor(m/60)}시간 전` : `${Math.floor(m/1440)}일 전`; })()})
                 </span>
-                <Button size="sm" variant="outline" className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10 shrink-0" onClick={loadCached}>
+                <Button size="sm" variant="outline" className="border-amber-500/40 text-amber-700 hover:bg-amber-500/10 shrink-0" onClick={loadCached}>
                   결과 불러오기
                 </Button>
               </div>
@@ -1108,7 +1108,7 @@ export default function SajuPage() {
             </Button>
             {showAccountActions && (
               justSaved ? (
-                <span className="flex items-center gap-1.5 text-sm text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
+                <span className="flex items-center gap-1.5 text-sm text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
                   <Check className="w-4 h-4" /> 저장됨
                 </span>
               ) : showSaveForm ? (
@@ -1153,7 +1153,7 @@ export default function SajuPage() {
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={handleShare} className="gap-2">
-              {copied ? <><CheckCheck className="w-4 h-4 text-green-400" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
+              {copied ? <><CheckCheck className="w-4 h-4 text-green-600" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
             </Button>
             <Button variant="outline" size="sm" onClick={handleSaveImage} disabled={savingImage} className="gap-2">
               {savingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
@@ -1163,7 +1163,7 @@ export default function SajuPage() {
               <Button
                 variant="outline" size="sm"
                 onClick={() => setShowInquiryModal(true)}
-                className="gap-2 border-violet-500/40 text-violet-300 hover:bg-violet-500/10"
+                className="gap-2 border-violet-500/40 text-violet-700 hover:bg-violet-500/10"
               >
                 <MessageCircleQuestion className="w-4 h-4" />
                 문의하기
@@ -1354,7 +1354,7 @@ export default function SajuPage() {
                 <Card className="glass-panel border-amber-400/30">
                   <CardHeader className="pb-3 border-b border-amber-400/15">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <CardTitle className="flex flex-wrap items-center gap-2 text-amber-300">
+                      <CardTitle className="flex flex-wrap items-center gap-2 text-amber-700">
                         <span className="text-xl font-serif">{analysis.hanja}</span>
                         <span className="text-base font-medium">{analysis.title} 분석</span>
                         <span className="text-xs font-normal text-muted-foreground bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">일주 고전 해석</span>
@@ -1373,7 +1373,7 @@ export default function SajuPage() {
                     <div className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
                       {analysis.text}
                     </div>
-                    <p className="mt-4 text-[11px] text-muted-foreground/50 border-t border-white/5 pt-3">
+                    <p className="mt-4 text-[11px] text-muted-foreground/50 border-t border-foreground/10 pt-3">
                       * 일주 분석은 개인의 성향·경향을 참고하는 자료이며, 전체 사주팔자와 종합하여 해석해야 합니다.
                     </p>
                   </CardContent>
@@ -1391,14 +1391,14 @@ export default function SajuPage() {
                   <div className="flex flex-col md:flex-row gap-6">
                     <div className="flex flex-col items-center justify-center md:w-48">
                       <div className={`text-5xl font-serif font-bold mb-2 ${
-                        r.sinGangYak.type === '신강' ? 'text-red-400' : r.sinGangYak.type === '신약' ? 'text-blue-400' : 'text-yellow-400'
+                        r.sinGangYak.type === '신강' ? 'text-red-600' : r.sinGangYak.type === '신약' ? 'text-blue-600' : 'text-yellow-600'
                       }`}>{r.sinGangYak.type}</div>
                       <div className="text-sm text-muted-foreground">신강도: {r.sinGangYak.score > 0 ? '+' : ''}{r.sinGangYak.score}</div>
                       {/* 게이지 */}
                       <div className="w-full mt-3 h-3 rounded-full bg-muted relative overflow-hidden">
                         <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 to-red-500"
                           style={{ width: `${Math.max(5, Math.min(95, 50 + r.sinGangYak.score * 4))}%` }} />
-                        <div className="absolute inset-y-0 left-1/2 w-0.5 bg-white/40" />
+                        <div className="absolute inset-y-0 left-1/2 w-0.5 bg-foreground/10" />
                       </div>
                       <div className="flex justify-between w-full text-xs text-muted-foreground mt-1"><span>신약</span><span>신강</span></div>
                     </div>
@@ -1483,18 +1483,18 @@ export default function SajuPage() {
                       </div>
                       <div className="text-2xl font-serif font-bold text-primary mb-1">{r.geokguk.name}</div>
                       <div className={`px-3 py-1 rounded-full text-xs font-medium border mb-2 ${
-                        r.geokguk.power === '강' ? 'bg-green-500/20 text-green-300 border-green-500/40'
-                          : r.geokguk.power === '약' ? 'bg-red-500/20 text-red-300 border-red-500/40'
-                          : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+                        r.geokguk.power === '강' ? 'bg-green-500/20 text-green-700 border-green-500/40'
+                          : r.geokguk.power === '약' ? 'bg-red-500/20 text-red-700 border-red-500/40'
+                          : 'bg-yellow-500/20 text-yellow-700 border-yellow-500/40'
                       }`}>
                         격국 강도: {r.geokguk.power}
                       </div>
                       <div className={`px-4 py-1.5 rounded-full text-sm font-semibold border-2 ${
-                        r.geokguk.tenGod === '정관' || r.geokguk.tenGod === '편관' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
-                          : r.geokguk.tenGod === '정재' || r.geokguk.tenGod === '편재' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
-                          : r.geokguk.tenGod === '정인' || r.geokguk.tenGod === '편인' ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
-                          : r.geokguk.tenGod === '식신' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                          : r.geokguk.tenGod === '상관' ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+                        r.geokguk.tenGod === '정관' || r.geokguk.tenGod === '편관' ? 'bg-indigo-500/20 text-indigo-700 border-indigo-500/40'
+                          : r.geokguk.tenGod === '정재' || r.geokguk.tenGod === '편재' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-500/40'
+                          : r.geokguk.tenGod === '정인' || r.geokguk.tenGod === '편인' ? 'bg-blue-500/20 text-blue-700 border-blue-500/40'
+                          : r.geokguk.tenGod === '식신' ? 'bg-emerald-500/20 text-emerald-700 border-emerald-500/40'
+                          : r.geokguk.tenGod === '상관' ? 'bg-orange-500/20 text-orange-700 border-orange-500/40'
                           : 'bg-primary/20 text-primary border-primary/40'
                       }`}>
                         월령 십신: {r.geokguk.tenGod}
@@ -1536,22 +1536,22 @@ export default function SajuPage() {
                         </div>
                       );
                       const TG_COLOR: Record<string, string> = {
-                        '비견':'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                        '겁재':'bg-green-600/20 text-green-300 border-green-600/40',
-                        '식신':'bg-orange-400/20 text-orange-300 border-orange-400/40',
-                        '상관':'bg-red-400/20 text-red-300 border-red-400/40',
-                        '편재':'bg-yellow-500/20 text-yellow-300 border-yellow-500/40',
-                        '정재':'bg-amber-400/20 text-amber-300 border-amber-400/40',
-                        '편관':'bg-purple-500/20 text-purple-300 border-purple-500/40',
-                        '정관':'bg-indigo-400/20 text-indigo-300 border-indigo-400/40',
-                        '편인':'bg-sky-500/20 text-sky-300 border-sky-500/40',
-                        '정인':'bg-blue-400/20 text-blue-300 border-blue-400/40',
+                        '비견':'bg-emerald-500/20 text-emerald-700 border-emerald-500/40',
+                        '겁재':'bg-green-600/20 text-green-700 border-green-600/40',
+                        '식신':'bg-orange-400/20 text-orange-700 border-orange-400/40',
+                        '상관':'bg-red-400/20 text-red-700 border-red-400/40',
+                        '편재':'bg-yellow-500/20 text-yellow-700 border-yellow-500/40',
+                        '정재':'bg-amber-400/20 text-amber-700 border-amber-400/40',
+                        '편관':'bg-purple-500/20 text-purple-700 border-purple-500/40',
+                        '정관':'bg-indigo-400/20 text-indigo-700 border-indigo-400/40',
+                        '편인':'bg-sky-500/20 text-sky-700 border-sky-500/40',
+                        '정인':'bg-blue-400/20 text-blue-700 border-blue-400/40',
                       };
                       const US_COLOR = (stage: string) =>
-                        stage === '제왕' ? 'text-yellow-400'
-                          : ['장생','관대','건록'].includes(stage) ? 'text-emerald-400'
-                          : ['목욕','쇠','병','사','묘'].includes(stage) ? 'text-red-400/80'
-                          : 'text-blue-400/80';
+                        stage === '제왕' ? 'text-yellow-600'
+                          : ['장생','관대','건록'].includes(stage) ? 'text-emerald-600'
+                          : ['목욕','쇠','병','사','묘'].includes(stage) ? 'text-red-600/80'
+                          : 'text-blue-600/80';
                       const stemGodColor = TG_COLOR[tg.stemGod] ?? 'bg-primary/20 text-primary border-primary/40';
                       return (
                         <div key={idx} className="rounded-xl border border-primary/20 bg-background/40 p-3 flex flex-col gap-2">
@@ -1597,16 +1597,16 @@ export default function SajuPage() {
                     <div className="text-xs font-medium text-primary mb-3">십신(十神) 범례</div>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                       {[
-                        { name:'비견', desc:'동료·독립', color:'bg-emerald-500/20 text-emerald-300' },
-                        { name:'겁재', desc:'경쟁·탈재', color:'bg-green-600/20 text-green-300' },
-                        { name:'식신', desc:'창의·복록', color:'bg-orange-400/20 text-orange-300' },
-                        { name:'상관', desc:'재능·반항', color:'bg-red-400/20 text-red-300' },
-                        { name:'편재', desc:'사업·투기', color:'bg-yellow-500/20 text-yellow-300' },
-                        { name:'정재', desc:'안정 재물', color:'bg-amber-400/20 text-amber-300' },
-                        { name:'편관', desc:'권위·도전', color:'bg-purple-500/20 text-purple-300' },
-                        { name:'정관', desc:'명예·규범', color:'bg-indigo-400/20 text-indigo-300' },
-                        { name:'편인', desc:'직관·종교', color:'bg-sky-500/20 text-sky-300' },
-                        { name:'정인', desc:'학문·어머니', color:'bg-blue-400/20 text-blue-300' },
+                        { name:'비견', desc:'동료·독립', color:'bg-emerald-500/20 text-emerald-700' },
+                        { name:'겁재', desc:'경쟁·탈재', color:'bg-green-600/20 text-green-700' },
+                        { name:'식신', desc:'창의·복록', color:'bg-orange-400/20 text-orange-700' },
+                        { name:'상관', desc:'재능·반항', color:'bg-red-400/20 text-red-700' },
+                        { name:'편재', desc:'사업·투기', color:'bg-yellow-500/20 text-yellow-700' },
+                        { name:'정재', desc:'안정 재물', color:'bg-amber-400/20 text-amber-700' },
+                        { name:'편관', desc:'권위·도전', color:'bg-purple-500/20 text-purple-700' },
+                        { name:'정관', desc:'명예·규범', color:'bg-indigo-400/20 text-indigo-700' },
+                        { name:'편인', desc:'직관·종교', color:'bg-sky-500/20 text-sky-700' },
+                        { name:'정인', desc:'학문·어머니', color:'bg-blue-400/20 text-blue-700' },
                       ].map(({ name, desc, color }) => (
                         <div key={name} className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg ${color} bg-opacity-50`}>
                           <span className="font-semibold text-xs">{name}</span>
@@ -1698,15 +1698,15 @@ export default function SajuPage() {
                           : item.type.includes('형') ? 'border-orange-500/40 bg-orange-500/8'
                           : 'border-yellow-500/40 bg-yellow-500/8';
                         const typeLabel: Record<string, { icon: string; color: string }> = {
-                          '천간합':  { icon: '🤝', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
-                          '천간충':  { icon: '⚡', color: 'bg-red-500/20 text-red-300 border-red-500/40' },
-                          '지지삼합':{ icon: '🌀', color: 'bg-teal-500/20 text-teal-300 border-teal-500/40' },
-                          '지지육합':{ icon: '💞', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' },
-                          '지지방합':{ icon: '🧭', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
-                          '지지충':  { icon: '💥', color: 'bg-rose-500/20 text-rose-300 border-rose-500/40' },
-                          '지지형':  { icon: '⚠️', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40' },
-                          '삼형살':  { icon: '🔱', color: 'bg-red-700/20 text-red-300 border-red-700/40' },
-                          '지지해':  { icon: '🩸', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' },
+                          '천간합':  { icon: '🤝', color: 'bg-emerald-500/20 text-emerald-700 border-emerald-500/40' },
+                          '천간충':  { icon: '⚡', color: 'bg-red-500/20 text-red-700 border-red-500/40' },
+                          '지지삼합':{ icon: '🌀', color: 'bg-teal-500/20 text-teal-700 border-teal-500/40' },
+                          '지지육합':{ icon: '💞', color: 'bg-cyan-500/20 text-cyan-700 border-cyan-500/40' },
+                          '지지방합':{ icon: '🧭', color: 'bg-blue-500/20 text-blue-700 border-blue-500/40' },
+                          '지지충':  { icon: '💥', color: 'bg-rose-500/20 text-rose-700 border-rose-500/40' },
+                          '지지형':  { icon: '⚠️', color: 'bg-orange-500/20 text-orange-700 border-orange-500/40' },
+                          '삼형살':  { icon: '🔱', color: 'bg-red-700/20 text-red-700 border-red-700/40' },
+                          '지지해':  { icon: '🩸', color: 'bg-yellow-500/20 text-yellow-700 border-yellow-500/40' },
                         };
                         const tl = typeLabel[item.type] ?? { icon: '•', color: 'bg-primary/20 text-primary border-primary/40' };
                         return (
@@ -1830,20 +1830,20 @@ export default function SajuPage() {
                           : 'border-emerald-500/50 bg-emerald-500/10'
                       }`}>
                         {r.samjae.inSamjae
-                          ? <ShieldOff className={`w-10 h-10 ${r.samjae.type === '눌삼재' ? 'text-red-400' : 'text-orange-400'}`} />
-                          : <Shield className="w-10 h-10 text-emerald-400" />}
+                          ? <ShieldOff className={`w-10 h-10 ${r.samjae.type === '눌삼재' ? 'text-red-600' : 'text-orange-600'}`} />
+                          : <Shield className="w-10 h-10 text-emerald-600" />}
                       </div>
                       <div className="text-center">
                         {r.samjae.inSamjae ? (
                           <>
-                            <div className={`text-2xl font-serif font-bold ${r.samjae.type === '눌삼재' ? 'text-red-400' : 'text-orange-400'}`}>{r.samjae.type}</div>
+                            <div className={`text-2xl font-serif font-bold ${r.samjae.type === '눌삼재' ? 'text-red-600' : 'text-orange-600'}`}>{r.samjae.type}</div>
                             <div className="text-xs text-muted-foreground mt-1">
                               삼재 기간: {r.samjae.samjaeYears?.join(' · ')}년
                             </div>
                           </>
                         ) : (
                           <>
-                            <div className="text-2xl font-serif font-bold text-emerald-400">삼재 없음</div>
+                            <div className="text-2xl font-serif font-bold text-emerald-600">삼재 없음</div>
                             {r.samjae.nextSamjae && (
                               <div className="text-xs text-muted-foreground mt-1">다음 삼재: {r.samjae.nextSamjae}년부터</div>
                             )}
@@ -1857,7 +1857,7 @@ export default function SajuPage() {
                       {r.samjae.inSamjae && r.samjae.advice && (
                         <div className={`p-4 rounded-xl border ${r.samjae.type === '눌삼재' ? 'bg-red-500/5 border-red-500/20' : 'bg-orange-500/5 border-orange-500/20'}`}>
                           <div className="flex items-center gap-2 mb-2">
-                            <AlertTriangle className={`w-4 h-4 ${r.samjae.type === '눌삼재' ? 'text-red-400' : 'text-orange-400'}`} />
+                            <AlertTriangle className={`w-4 h-4 ${r.samjae.type === '눌삼재' ? 'text-red-600' : 'text-orange-600'}`} />
                             <span className="text-sm font-semibold text-foreground/90">삼재 대처법</span>
                           </div>
                           <p className="text-sm text-foreground/80 leading-relaxed">{r.samjae.advice}</p>
@@ -1957,7 +1957,7 @@ export default function SajuPage() {
                   <Card key={i} className={`glass-panel border ${w.severity === 'high' ? 'border-red-500/40' : w.severity === 'medium' ? 'border-yellow-500/30' : 'border-primary/20'}`}>
                     <CardContent className="pt-4">
                       <div className="flex items-start gap-3">
-                        <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm ${w.severity === 'high' ? 'bg-red-500/20 text-red-400' : w.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                        <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm ${w.severity === 'high' ? 'bg-red-500/20 text-red-600' : w.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-600' : 'bg-blue-500/20 text-blue-600'}`}>
                           {w.severity === 'high' ? '🔴' : w.severity === 'medium' ? '🟡' : '🔵'}
                         </div>
                         <div>
@@ -2031,7 +2031,7 @@ export default function SajuPage() {
               {inquiryDone ? (
                 <div className="flex flex-col items-center gap-4 py-6">
                   <div className="w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center">
-                    <Check className="w-7 h-7 text-emerald-400" />
+                    <Check className="w-7 h-7 text-emerald-600" />
                   </div>
                   <p className="text-lg font-semibold text-foreground">문의가 접수되었습니다</p>
                   <p className="text-sm text-muted-foreground text-center">관리자가 확인 후 답변드립니다.<br />답변은 '내 문의' 메뉴에서 확인하실 수 있습니다.</p>
@@ -2040,7 +2040,7 @@ export default function SajuPage() {
                 <>
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2.5">
-                      <MessageCircleQuestion className="w-5 h-5 text-violet-400" />
+                      <MessageCircleQuestion className="w-5 h-5 text-violet-600" />
                       <h3 className="text-lg font-semibold text-foreground">사주 관련 문의</h3>
                     </div>
                     <button onClick={() => setShowInquiryModal(false)} className="text-muted-foreground hover:text-foreground transition-colors">

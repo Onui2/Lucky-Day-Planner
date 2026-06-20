@@ -13,51 +13,67 @@ import {
 } from "./middlewares/rateLimit.js";
 import router from "./routes/index.js";
 
-const app = express();
+function normalizeOrigin(value: string): string | null {
+  const trimmed = value.trim();
 
-function normalizeOrigin(rawOrigin: string | undefined | null): string | null {
-  const value = rawOrigin?.trim();
-  if (!value) return null;
+  if (!trimmed) {
+    return null;
+  }
+
+  const candidate = /^[a-z][a-z\d+\-.]*:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
 
   try {
-    return new URL(value.startsWith("http") ? value : `https://${value}`).origin;
+    return new URL(candidate).origin;
   } catch {
     return null;
   }
 }
 
-function getConfiguredCorsOrigins(): Set<string> {
-  const values = [
-    process.env.APP_URL,
-    process.env.REPLIT_DEV_DOMAIN,
-    process.env.VERCEL_URL,
-    process.env.VERCEL_BRANCH_URL,
-    process.env.VERCEL_PROJECT_PRODUCTION_URL,
-    ...(process.env.CORS_ORIGINS ?? "").split(","),
-  ];
+function collectCorsOrigins(): Set<string> {
+  const origins = new Set<string>();
 
-  return new Set(
-    values
-      .map((value) => normalizeOrigin(value))
-      .filter((value): value is string => Boolean(value)),
-  );
-}
+  function add(value: string | undefined): void {
+    if (!value) {
+      return;
+    }
 
-function isLocalDevelopmentOrigin(origin: string): boolean {
-  if (process.env.NODE_ENV === "production") return false;
+    for (const part of value.split(",")) {
+      const origin = normalizeOrigin(part);
 
-  try {
-    const hostname = new URL(origin).hostname;
-    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  } catch {
-    return false;
+      if (origin) {
+        origins.add(origin);
+      }
+    }
   }
+
+  add(process.env.CORS_ORIGINS);
+  add(process.env.APP_URL);
+  add(process.env.WEB_ORIGIN);
+  add(process.env.WEB_URL);
+  add(process.env.PUBLIC_APP_URL);
+  add(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+  add(process.env.VERCEL_BRANCH_URL);
+  add(process.env.VERCEL_URL);
+
+  if (process.env.NODE_ENV !== "production") {
+    const webPort = process.env.WEB_PORT ?? "3000";
+    add(`http://localhost:${webPort}`);
+    add(`http://127.0.0.1:${webPort}`);
+    add("http://localhost:5173");
+    add("http://127.0.0.1:5173");
+  }
+
+  return origins;
 }
 
-const corsOrigins = getConfiguredCorsOrigins();
+const allowedCorsOrigins = collectCorsOrigins();
 
-app.set("trust proxy", 1);
+const app = express();
+
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -67,8 +83,8 @@ app.use((_req, res, next) => {
 app.use(
   cors({
     credentials: true,
-    origin(origin, callback) {
-      if (!origin || corsOrigins.has(origin) || isLocalDevelopmentOrigin(origin)) {
+    origin(origin: string | undefined, callback: (err: Error | null, origin?: boolean) => void) {
+      if (!origin || allowedCorsOrigins.has(origin)) {
         callback(null, true);
         return;
       }

@@ -26,11 +26,11 @@ function formatDate(iso: string) {
 
 function StatusBadge({ status }: { status: string }) {
   return status === "answered" ? (
-    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
       <CheckCircle2 className="w-3 h-3" /> 답변완료
     </span>
   ) : (
-    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
       <Clock className="w-3 h-3" /> 답변대기
     </span>
   );
@@ -43,12 +43,12 @@ function InquiryTypeBadge({ type }: { type?: string | null }) {
     </span>
   );
   if (type === "gungap") return (
-    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">
+    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 border border-rose-500/30">
       <Heart className="w-3 h-3" /> 궁합
     </span>
   );
   return (
-    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
+    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-600 border border-sky-500/30">
       <FileQuestion className="w-3 h-3" /> 일반
     </span>
   );
@@ -103,7 +103,7 @@ function InquiryItem({ inquiry, onRead }: { inquiry: Inquiry; onRead: (id: numbe
             <StatusBadge status={inquiry.status} />
             <InquiryTypeBadge type={inquiry.inquiryType} />
             {hasUnreadReply && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 font-semibold">
                 새 답변
               </span>
             )}
@@ -158,8 +158,8 @@ function InquiryItem({ inquiry, onRead }: { inquiry: Inquiry; onRead: (id: numbe
           {inquiry.adminReply ? (
             <div className="p-4 rounded-xl border border-emerald-500/25 bg-emerald-500/8">
               <div className="flex items-center gap-2 mb-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <p className="text-xs font-semibold text-emerald-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <p className="text-xs font-semibold text-emerald-600">
                   관리자 답변{inquiry.repliedAt ? ` · ${formatDate(inquiry.repliedAt)}` : ""}
                 </p>
               </div>
@@ -227,7 +227,7 @@ export default function InquiriesPage() {
           <Button
             variant="outline" size="sm"
             onClick={() => navigate("/")}
-            className="gap-2 text-sm border-violet-500/40 text-violet-300 hover:bg-violet-500/10"
+            className="gap-2 text-sm border-violet-500/40 text-violet-700 hover:bg-violet-500/10"
           >
             <MessageSquare className="w-4 h-4" />
             새 문의
