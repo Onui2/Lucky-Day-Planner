@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   normalizeDatabaseUrlForNodePostgres,
+  resolveDatabaseSslConfig,
   resolveDatabaseUrl,
 } from "../src/database-url.ts";
 
@@ -31,6 +32,43 @@ test("leaves strict certificate verification mode untouched", () => {
     "postgresql://user:pass@example.supabase.com:5432/postgres?sslmode=verify-full";
 
   assert.equal(normalizeDatabaseUrlForNodePostgres(databaseUrl), databaseUrl);
+});
+
+test("maps sslmode=require to non-verifying SSL for node-postgres pools", () => {
+  assert.deepEqual(
+    resolveDatabaseSslConfig(
+      "postgresql://user:pass@example.supabase.com:5432/postgres?sslmode=require",
+      {},
+    ),
+    { ssl: { rejectUnauthorized: false } },
+  );
+});
+
+test("keeps strict SSL verification modes strict", () => {
+  assert.deepEqual(
+    resolveDatabaseSslConfig(
+      "postgresql://user:pass@example.supabase.com:5432/postgres?sslmode=verify-full",
+      {},
+    ),
+    { ssl: { rejectUnauthorized: true } },
+  );
+});
+
+test("uses non-verifying SSL by default for Supabase hosts", () => {
+  assert.deepEqual(
+    resolveDatabaseSslConfig(
+      "postgresql://user:pass@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres",
+      {},
+    ),
+    { ssl: { rejectUnauthorized: false } },
+  );
+});
+
+test("does not enable SSL for local database hosts by default", () => {
+  assert.deepEqual(
+    resolveDatabaseSslConfig("postgresql://user:pass@localhost:5432/postgres", {}),
+    {},
+  );
 });
 
 test("resolves Vercel Postgres component variables", () => {

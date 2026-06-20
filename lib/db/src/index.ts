@@ -5,6 +5,7 @@ import * as schema from "./schema";
 import {
   getDatabaseConfigGuidance,
   normalizeDatabaseUrlForNodePostgres,
+  resolveDatabaseSslConfig,
   resolveDatabaseUrl,
 } from "./database-url";
 
@@ -20,44 +21,7 @@ const databaseConfigError = new Error(
 const databaseUnavailableError = new Error(
   "The configured Postgres database is unavailable. Verify the server is running and the connection settings are correct.",
 );
-
-const databaseHost = resolvedDatabaseUrl
-  ? (() => {
-      try {
-        return new URL(resolvedDatabaseUrl).hostname.toLowerCase();
-      } catch {
-        return "";
-      }
-    })()
-  : "";
-
-const sslMode = (process.env.PGSSLMODE ?? process.env.PGSSL ?? "").toLowerCase();
-const sslExplicitlyDisabled = ["0", "false", "disable", "off"].includes(sslMode);
-const sslVerificationDisabled = [
-  "allow-unauthorized",
-  "disable-verification",
-  "insecure",
-  "no-verify",
-].includes(sslMode);
-const sslExplicitlyEnabled =
-  ["1", "true", "require", "on", "verify-ca", "verify-full"].includes(sslMode) ||
-  sslVerificationDisabled;
-const isLocalDatabaseHost =
-  databaseHost === "" ||
-  databaseHost === "localhost" ||
-  databaseHost === "127.0.0.1" ||
-  databaseHost === "::1";
-const shouldUseSsl =
-  !sslExplicitlyDisabled &&
-  (
-    sslExplicitlyEnabled ||
-    databaseHost.endsWith(".supabase.co") ||
-    databaseHost.endsWith(".supabase.com") ||
-    !isLocalDatabaseHost
-  );
-const sslConfig = shouldUseSsl
-  ? { ssl: { rejectUnauthorized: !sslVerificationDisabled } }
-  : {};
+const sslConfig = resolveDatabaseSslConfig(resolvedDatabaseUrl);
 
 export function hasDatabaseConfig(): boolean {
   return Boolean(resolvedDatabaseUrl);
