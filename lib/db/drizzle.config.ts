@@ -1,10 +1,14 @@
 import { defineConfig } from "drizzle-kit";
 import {
   getDatabaseConfigGuidance,
+  normalizeDatabaseUrlForNodePostgres,
   resolveDatabaseUrl,
 } from "./src/database-url";
 
-const databaseUrl = resolveDatabaseUrl(process.env);
+const rawDatabaseUrl = resolveDatabaseUrl(process.env);
+const databaseUrl = rawDatabaseUrl
+  ? normalizeDatabaseUrlForNodePostgres(rawDatabaseUrl)
+  : null;
 
 if (!databaseUrl) {
   throw new Error(

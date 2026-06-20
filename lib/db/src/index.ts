@@ -4,12 +4,16 @@ import pg from "pg";
 import * as schema from "./schema";
 import {
   getDatabaseConfigGuidance,
+  normalizeDatabaseUrlForNodePostgres,
   resolveDatabaseUrl,
 } from "./database-url";
 
 const { Pool } = pg;
 
-const resolvedDatabaseUrl = resolveDatabaseUrl();
+const rawDatabaseUrl = resolveDatabaseUrl();
+const resolvedDatabaseUrl = rawDatabaseUrl
+  ? normalizeDatabaseUrlForNodePostgres(rawDatabaseUrl)
+  : null;
 const databaseConfigError = new Error(
   `A Postgres connection string was not found. Set one of: ${getDatabaseConfigGuidance()}.`,
 );

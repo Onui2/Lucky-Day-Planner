@@ -5,6 +5,8 @@ const DATABASE_URL_ENV_KEYS = [
   "POSTGRES_URL_NON_POOLING",
 ] as const;
 
+const LIBPQ_COMPAT_SSLMODES = new Set(["prefer", "require"]);
+
 export function resolveDatabaseUrl(
   env: NodeJS.ProcessEnv = process.env,
 ): string | null {
@@ -30,6 +32,27 @@ export function resolveDatabaseUrl(
     : encodeURIComponent(user);
 
   return `postgresql://${auth}@${host}:${port}/${database}`;
+}
+
+export function normalizeDatabaseUrlForNodePostgres(databaseUrl: string): string {
+  let url: URL;
+
+  try {
+    url = new URL(databaseUrl);
+  } catch {
+    return databaseUrl;
+  }
+
+  const sslMode = url.searchParams.get("sslmode")?.trim().toLowerCase();
+  if (!sslMode || !LIBPQ_COMPAT_SSLMODES.has(sslMode)) {
+    return databaseUrl;
+  }
+
+  if (!url.searchParams.has("uselibpqcompat")) {
+    url.searchParams.set("uselibpqcompat", "true");
+  }
+
+  return url.toString();
 }
 
 export function getDatabaseConfigGuidance(): string {
