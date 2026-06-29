@@ -58,8 +58,8 @@ function pillarScoreColor(score: number): { text: string; bg: string; border: st
 
 // ─── 일주 점수 (1-100) 색상 ──────────────────────────────
 function dayScoreColor(score: number): { text: string; ring: string; label: string } {
-  if (score >= 80) return { text: 'text-emerald-600', ring: 'border-emerald-400/60', label: '매우 좋음' };
-  if (score >= 65) return { text: 'text-blue-600',    ring: 'border-blue-400/60',    label: '좋음'     };
+  if (score >= 80) return { text: 'text-emerald-600', ring: 'border-emerald-400/60', label: '강함' };
+  if (score >= 65) return { text: 'text-blue-600',    ring: 'border-blue-400/60',    label: '양호' };
   if (score >= 45) return { text: 'text-amber-600',   ring: 'border-amber-400/60',   label: '보통'     };
   if (score >= 30) return { text: 'text-orange-600',  ring: 'border-orange-400/60',  label: '주의'     };
   return               { text: 'text-rose-600',    ring: 'border-rose-400/60',    label: '불리'     };
@@ -546,7 +546,7 @@ export default function SajuPage() {
         lines.push(`  ${shareSummary(result.yongsin.advice)}`);
       }
       if (result.yongsin.luckyColors?.length) {
-        lines.push(`  행운 색상: ${result.yongsin.luckyColors.join(", ")}`);
+        lines.push(`  보완 색상: ${result.yongsin.luckyColors.join(", ")}`);
       }
     }
 
@@ -716,7 +716,7 @@ export default function SajuPage() {
       lines.push(`【 용신/기신 】`);
       lines.push(`  용신(用神): ${r.yongsin.yongsin}  |  희신(喜神): ${r.yongsin.heegsin}  |  기신(忌神): ${r.yongsin.geesin}`);
       if (r.yongsin.advice)      lines.push(`  ${shareSummary(r.yongsin.advice)}`);
-      if (r.yongsin.luckyColors?.length) lines.push(`  행운 색상: ${r.yongsin.luckyColors.join(', ')}`);
+    if (r.yongsin.luckyColors?.length) lines.push(`  보완 색상: ${r.yongsin.luckyColors.join(', ')}`);
     }
 
     if (r.personality || r.fortune) {
@@ -1329,14 +1329,14 @@ export default function SajuPage() {
                   </div>
                 </Card>
               </div>
-              {/* 행운 정보 */}
+              {/* 보완 정보 */}
               <Card className="glass-panel border-accent/30 bg-accent/5 mt-4">
                 <CardContent className="pt-5 flex flex-col md:flex-row items-center justify-around gap-4">
-                  <div className="text-center"><div className="text-xs text-muted-foreground mb-1">행운의 숫자</div><div className="text-xl font-serif text-accent font-bold">{r.luckyNumbers?.join(", ")}</div></div>
+                  <div className="text-center"><div className="text-xs text-muted-foreground mb-1">참고 숫자</div><div className="text-xl font-serif text-accent font-bold">{r.luckyNumbers?.join(", ")}</div></div>
                   <div className="w-px h-8 bg-accent/20 hidden md:block" />
-                  <div className="text-center"><div className="text-xs text-muted-foreground mb-1">행운의 색상</div><div className="flex gap-2">{r.luckyColors?.map((c:string,i:number)=><span key={i} className="px-3 py-1 rounded-full bg-accent/20 text-accent text-xs border border-accent/30">{c}</span>)}</div></div>
+                  <div className="text-center"><div className="text-xs text-muted-foreground mb-1">보완 색상</div><div className="flex gap-2">{r.luckyColors?.map((c:string,i:number)=><span key={i} className="px-3 py-1 rounded-full bg-accent/20 text-accent text-xs border border-accent/30">{c}</span>)}</div></div>
                   <div className="w-px h-8 bg-accent/20 hidden md:block" />
-                  <div className="text-center"><div className="text-xs text-muted-foreground mb-1">행운의 방향</div><div className="text-lg font-serif text-accent">{r.luckyDirections?.join(", ")}</div></div>
+                  <div className="text-center"><div className="text-xs text-muted-foreground mb-1">참고 방향</div><div className="text-lg font-serif text-accent">{r.luckyDirections?.join(", ")}</div></div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -1432,7 +1432,7 @@ export default function SajuPage() {
               <SectionHeader icon="🔮" title="용신 분석 (用神)" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
-                  { label:"용신 (用神)", subtitle:"반드시 보충해야 할 기운", elem: r.yongsin.yongsin, positive: true },
+                  { label:"용신 (用神)", subtitle:"보완하면 좋은 기운", elem: r.yongsin.yongsin, positive: true },
                   { label:"희신 (喜神)", subtitle:"도움이 되는 기운", elem: r.yongsin.heegsin, positive: true },
                   { label:"기신 (忌神)", subtitle:"주의해야 할 기운", elem: r.yongsin.geesin, positive: false },
                 ].map(({ label, subtitle, elem, positive }) => (
@@ -1451,11 +1451,11 @@ export default function SajuPage() {
                   <p className="text-foreground/60 text-sm">{r.yongsin.avoidAdvice}</p>
                   <div className="flex flex-wrap gap-4 mt-3">
                     <div>
-                      <div className="text-xs text-muted-foreground mb-1">행운의 색상 (용신 기반)</div>
+                      <div className="text-xs text-muted-foreground mb-1">보완 색상 (용신 기반)</div>
                       <div className="flex gap-2">{r.yongsin.luckyColors?.map((c:string,i:number)=><span key={i} className="px-2 py-0.5 rounded text-xs bg-primary/20 text-primary">{c}</span>)}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground mb-1">행운의 방위 (용신 기반)</div>
+                      <div className="text-xs text-muted-foreground mb-1">참고 방위 (용신 기반)</div>
                       <div className="flex gap-2">{r.yongsin.luckyDirections?.map((d:string,i:number)=><span key={i} className="px-2 py-0.5 rounded text-xs bg-primary/20 text-primary">{d}</span>)}</div>
                     </div>
                   </div>
@@ -1899,8 +1899,8 @@ export default function SajuPage() {
                 {/* 보석·크리스털 */}
                 <Card className="glass-panel border-primary/20">
                   <CardHeader className="pb-3 border-b border-primary/10">
-                    <CardTitle className="text-base flex items-center gap-2">💎 행운의 보석</CardTitle>
-                    <CardDescription className="text-xs">지니면 용신 기운이 강화되는 보석</CardDescription>
+                    <CardTitle className="text-base flex items-center gap-2">보완 보석</CardTitle>
+                    <CardDescription className="text-xs">용신 기운을 보완하는 참고 아이템</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4 space-y-3">
                     {r.yongsinItems.crystals?.map((c: any, i: number) => (

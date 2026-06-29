@@ -36,8 +36,8 @@ function scoreColor(s: number) {
   return 'text-rose-600';
 }
 function scoreLabel(s: number) {
-  if (s >= 85) return '매우 좋음';
-  if (s >= 72) return '좋음';
+  if (s >= 85) return '강함';
+  if (s >= 72) return '양호';
   if (s >= 58) return '보통';
   return '주의';
 }
@@ -128,12 +128,12 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
             <MonthScoreBar key={month} month={month} score={score} isTop={topMonthNums.has(month)} />
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-3 text-center">금색 막대 — 인연이 찾아오는 황금 달</p>
+        <p className="text-xs text-muted-foreground mt-3 text-center">금색 막대 — 인연 흐름이 상대적으로 강한 달</p>
       </div>
 
       {data.luckyMonths && data.luckyMonths.length > 0 && (
         <div className="rounded-3xl border border-primary/20 bg-card/30 backdrop-blur-xl p-6 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground mb-2">💛 인연이 찾아오는 베스트 달</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">인연 흐름이 강한 달</h3>
           {data.luckyMonths.map((m, i) => (
             <div key={m.month} className="flex items-center gap-4 rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
@@ -239,7 +239,7 @@ function DatingResult({ data }: { data: LoveFortuneResult }) {
         <div className="rounded-3xl border border-emerald-400/20 bg-card/30 backdrop-blur-xl p-6 space-y-3">
           <h3 className="text-sm font-semibold text-emerald-600 flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-emerald-400/20 flex items-center justify-center text-xs">✓</span>
-            이 관계의 강점
+            이 관계에서 활용할 점
           </h3>
           {data.datingStrengths.map((s, i) => (
             <div key={i} className="flex items-start gap-3 text-sm text-muted-foreground">

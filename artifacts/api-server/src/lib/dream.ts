@@ -93,6 +93,75 @@ export interface DreamSearchResult {
   totalFound: number;
 }
 
+function dreamSeed(entry: DreamKeyword): number {
+  return Array.from(`${entry.keyword}:${entry.category}:${entry.fortune}`)
+    .reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+}
+
+function pickDreamGuidance(entry: DreamKeyword): string {
+  const guidance: Record<DreamKeyword["fortune"], string[]> = {
+    great: [
+      "다만 꿈은 확정된 예언보다 현재 에너지가 어디로 향하는지 보는 참고 신호에 가깝습니다.",
+      "좋은 상징이 강해도 현실에서는 준비된 일과 연결할 때 의미가 커집니다.",
+      "기세는 좋게 볼 수 있지만 무리한 결정까지 정당화하는 신호로 보지는 마세요.",
+    ],
+    good: [
+      "긍정적인 쪽으로 해석할 수 있으나 실제 흐름은 작은 선택과 관리에 달려 있습니다.",
+      "기분 좋은 암시로 보되, 약속이나 돈 문제는 현실 기준으로 확인하는 편이 맞습니다.",
+      "좋은 신호가 있더라도 서두르기보다 생활 속 작은 실천으로 이어가는 것이 좋습니다.",
+    ],
+    neutral: [
+      "길흉을 단정하기보다 최근의 감정, 피로, 관계 변화를 함께 보는 편이 정확합니다.",
+      "상징이 양쪽으로 열려 있으니 꿈의 분위기와 깨어난 뒤의 감정을 같이 살피세요.",
+      "현재 마음이 어디에 부담을 느끼는지 점검하는 자료로 보는 것이 좋습니다.",
+    ],
+    bad: [
+      "불안 신호가 섞여 있으니 새 일을 벌이기보다 점검과 정리에 무게를 두세요.",
+      "나쁜 일이 확정된 뜻은 아니며, 방심하기 쉬운 부분을 미리 살피라는 신호로 볼 수 있습니다.",
+      "중요한 결정은 감정이 가라앉은 뒤 다시 확인하는 편이 안전합니다.",
+    ],
+    warning: [
+      "주의 신호로 보고 말, 돈, 이동, 건강처럼 실수 비용이 큰 영역을 먼저 확인하세요.",
+      "두려워할 필요는 없지만 미뤄둔 문제를 외면하지 말라는 쪽에 가깝습니다.",
+      "오늘은 과감한 확장보다 리스크를 줄이는 선택이 더 잘 맞습니다.",
+    ],
+  };
+  const pool = guidance[entry.fortune];
+  return pool[dreamSeed(entry) % pool.length];
+}
+
+function softenDreamText(text: string): string {
+  return text
+    .replace(/최고의 대길몽/g, "강한 길조")
+    .replace(/대길몽/g, "강한 길조")
+    .replace(/길몽/g, "길조")
+    .replace(/대박 행운/g, "예상 밖 전환")
+    .replace(/큰 행운/g, "의미 있는 기회")
+    .replace(/많은 행운/g, "여러 가능성")
+    .replace(/행운/g, "좋은 흐름")
+    .replace(/최고의/g, "강한")
+    .replace(/특히 길합니다/g, "상대적으로 좋게 봅니다")
+    .replace(/복권을 구매해볼 만합니다/g, "충동적인 기대보다 재정 관리를 먼저 보는 편이 좋습니다")
+    .replace(/큰 재물이 쏟아질 것을 예고합니다/g, "재물 흐름이 커질 수 있음을 암시합니다")
+    .replace(/큰 재물이 들어올/g, "재물 기회가 들어올")
+    .replace(/크게 성공할/g, "성과가 커질")
+    .replace(/성공을 예고/g, "성과 가능성을 암시")
+    .replace(/성공/g, "성과")
+    .replace(/예고합니다/g, "암시합니다")
+    .replace(/징조입니다/g, "신호로 봅니다")
+    .replace(/기회을/g, "기회를")
+    .replace(/흐름을 암시하는 강한 길조/g, "흐름을 암시하는 강한 길조");
+}
+
+function normalizeDreamEntry(entry: DreamKeyword): DreamKeyword {
+  return {
+    ...entry,
+    meaning: softenDreamText(entry.meaning),
+    detail: `${softenDreamText(entry.detail)} ${pickDreamGuidance(entry)}`,
+    lucky: entry.lucky?.replace(/황금색/g, "금색").replace(/행운/g, "참고"),
+  };
+}
+
 export function searchDream(query: string): DreamSearchResult {
   const q = query.trim().toLowerCase();
   if (!q) return { matched: [], partialMatched: [], totalFound: 0 };
@@ -110,10 +179,10 @@ export function searchDream(query: string): DreamSearchResult {
     const partialHit = tokens.some(t => detail.includes(t));
 
     if (exactHit && !seen.has(entry.keyword)) {
-      matched.push(entry);
+      matched.push(normalizeDreamEntry(entry));
       seen.add(entry.keyword);
     } else if (partialHit && !seen.has(entry.keyword)) {
-      partialMatched.push(entry);
+      partialMatched.push(normalizeDreamEntry(entry));
       seen.add(entry.keyword);
     }
   }
@@ -123,14 +192,14 @@ export function searchDream(query: string): DreamSearchResult {
 
 export function getFortuneLabel(fortune: DreamKeyword["fortune"]): { label: string; color: string } {
   const map: Record<DreamKeyword["fortune"], { label: string; color: string }> = {
-    great:   { label: "대길", color: "#D4AF37" },
-    good:    { label: "길",   color: "#4ade80" },
+    great:   { label: "강한 길조", color: "#D4AF37" },
+    good:    { label: "길조",   color: "#4ade80" },
     neutral: { label: "중립", color: "#94a3b8" },
-    bad:     { label: "흉",   color: "#f97316" },
+    bad:     { label: "불안 신호",   color: "#f97316" },
     warning: { label: "주의", color: "#ef4444" },
   };
   return map[fortune];
 }
 
 export const CATEGORIES = [...new Set(DREAM_DB.map(d => d.category))];
-export const POPULAR_KEYWORDS = ["돼지", "뱀", "용", "물고기", "돈", "황금", "태양", "아기", "보석", "말"];
+export const POPULAR_KEYWORDS = ["뱀", "물고기", "비", "바다", "아기", "시험", "이사", "돈", "집", "조상"];

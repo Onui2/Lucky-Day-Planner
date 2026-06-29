@@ -215,6 +215,231 @@ const ADVICE_60: string[] = [
   /* 59 계해 */ '끝이 새 시작의 문입니다. 오늘의 마무리를 잘 지을수록 내일의 시작이 빛납니다.',
 ];
 
+type ScoreBand = 'high' | 'good' | 'steady' | 'caution' | 'low';
+type FortuneCategory = 'money' | 'love' | 'career' | 'health';
+
+function getScoreBand(score: number): ScoreBand {
+  if (score >= 82) return 'high';
+  if (score >= 70) return 'good';
+  if (score >= 56) return 'steady';
+  if (score >= 42) return 'caution';
+  return 'low';
+}
+
+function pickBySeed<T>(pool: T[], seed: number): T {
+  return pool[Math.abs(seed) % pool.length];
+}
+
+const STEM_FLOW: Record<string, string> = {
+  '갑': '시작하려는 마음은 강하지만 방향을 먼저 세워야 합니다.',
+  '을': '상황을 부드럽게 엮는 힘이 있으나 결정은 천천히 무르익습니다.',
+  '병': '드러내고 표현하는 기운이 커져 말과 행동의 파장이 큽니다.',
+  '정': '섬세하게 살피는 힘이 좋아 깊은 집중에는 유리합니다.',
+  '무': '흔들리는 판을 붙드는 힘이 있으나 변화에는 다소 둔해질 수 있습니다.',
+  '기': '실무와 정리에 강하지만 사소한 걱정이 판단을 늦출 수 있습니다.',
+  '경': '정리하고 자르는 힘이 커져 미룬 결정을 다루기 쉽습니다.',
+  '신': '기준이 날카로워지는 날이라 완성도와 예민함이 함께 올라갑니다.',
+  '임': '생각의 폭이 넓어지지만 초점이 흐려지지 않게 관리해야 합니다.',
+  '계': '직감과 관찰력이 살아나며 보이지 않던 맥락을 읽기 쉽습니다.',
+};
+
+const BRANCH_FLOW: Record<string, string> = {
+  '자': '정보와 감정이 빠르게 오가니 밤 시간의 판단은 한 번 더 늦추세요.',
+  '축': '속도가 더딘 대신 현실 점검과 축적에는 적합합니다.',
+  '인': '추진력이 붙지만 준비 없이 앞서가면 마찰이 생깁니다.',
+  '묘': '관계와 말의 결이 예민해져 작은 표현 차이가 크게 느껴질 수 있습니다.',
+  '진': '계획은 커지기 쉬우나 세부 조건을 놓치면 부담도 같이 커집니다.',
+  '사': '열기가 올라오는 날이라 몰입은 좋지만 과열을 경계해야 합니다.',
+  '오': '바깥 활동은 활발해지나 무리한 약속과 지출은 조절이 필요합니다.',
+  '미': '정리되지 않은 감정이나 일이 남아 있다면 차분히 수습하기 좋습니다.',
+  '신': '변수가 빠르게 드러나므로 즉흥 대응보다 확인 절차가 중요합니다.',
+  '유': '마무리와 검수에는 강하지만 비판적인 말은 부드럽게 조절해야 합니다.',
+  '술': '책임감이 커지는 만큼 버티기보다 우선순위를 줄이는 편이 낫습니다.',
+  '해': '생각이 깊어지는 날이라 조용한 준비와 회복에 맞습니다.',
+};
+
+const OVERALL_TONE: Record<ScoreBand, string[]> = {
+  high: [
+    '흐름이 비교적 선명하게 열리는 날입니다.',
+    '기세를 활용할 만한 날이지만 과장은 금물입니다.',
+    '타이밍이 맞으면 체감 성과가 빠르게 드러날 수 있습니다.',
+  ],
+  good: [
+    '무난하게 힘을 실을 수 있는 날입니다.',
+    '기회는 있으나 준비된 일부터 건드리는 편이 안정적입니다.',
+    '작은 실행을 통해 분위기를 끌어올리기 좋은 흐름입니다.',
+  ],
+  steady: [
+    '크게 좋거나 나쁘다기보다 균형을 맞추는 날입니다.',
+    '새로 벌리기보다 기존 흐름을 정돈하는 쪽이 맞습니다.',
+    '겉으로는 잔잔하지만 선택에 따라 결과 차이가 납니다.',
+  ],
+  caution: [
+    '변수와 피로가 섞이기 쉬운 날입니다.',
+    '서두르면 손실이 커질 수 있어 속도 조절이 필요합니다.',
+    '확장보다 점검, 설득보다 확인이 우선인 흐름입니다.',
+  ],
+  low: [
+    '오늘은 보수적으로 움직이는 편이 낫습니다.',
+    '무리한 결정이나 즉흥적인 약속은 뒤로 미루는 것이 좋습니다.',
+    '기운이 눌리는 날이라 손실을 줄이는 선택이 먼저입니다.',
+  ],
+};
+
+const OVERALL_CLOSING: Record<ScoreBand, string[]> = {
+  high: [
+    '중요한 일은 오전에 틀을 잡고, 오후에는 세부를 다듬으면 좋습니다.',
+    '단, 주변 반응을 확인하며 한 단계씩 넓혀 가야 오래 갑니다.',
+    '좋은 흐름일수록 약속과 숫자를 명확히 남기세요.',
+  ],
+  good: [
+    '작게 시작해 반응을 본 뒤 다음 수를 두면 안정적입니다.',
+    '성과를 재촉하기보다 흐름을 확인하며 움직이세요.',
+    '무리한 확장만 피하면 실속을 챙길 수 있습니다.',
+  ],
+  steady: [
+    '오늘의 핵심은 큰 승부보다 흐트러진 부분을 바로잡는 데 있습니다.',
+    '계획표, 약속, 비용처럼 기본 항목을 점검하면 충분합니다.',
+    '기다림과 확인이 오히려 시간을 아껴 줍니다.',
+  ],
+  caution: [
+    '중요한 계약, 감정적인 대화, 큰 지출은 재확인 후 진행하세요.',
+    '새 결정보다 보류, 수정, 백업을 우선순위에 두는 편이 좋습니다.',
+    '작은 신호를 무시하지 않으면 불필요한 손실을 줄일 수 있습니다.',
+  ],
+  low: [
+    '오늘은 이기는 날이라기보다 지키는 날에 가깝습니다.',
+    '가능하면 새 일을 벌이지 말고 이미 정한 약속도 조건을 다시 보세요.',
+    '컨디션과 말실수 관리가 운을 지키는 가장 현실적인 방법입니다.',
+  ],
+};
+
+const CATEGORY_TONE: Record<FortuneCategory, Record<ScoreBand, string[]>> = {
+  money: {
+    high: [
+      '재물 흐름은 열려 있습니다. 다만 큰돈보다 회수 가능한 범위에서 움직이는 편이 좋습니다.',
+      '수익 기회가 보이는 날입니다. 조건과 수수료를 확인하면 실속을 챙길 수 있습니다.',
+      '협상이나 정산에는 유리하지만, 기록 없이 진행하는 거래는 피하세요.',
+    ],
+    good: [
+      '금전 흐름은 나쁘지 않습니다. 예정된 수입과 지출을 맞추는 데 집중하세요.',
+      '작은 절약이나 미수금 정리가 체감 여유를 만들어 줍니다.',
+      '새 투자보다 기존 자산을 점검하기 좋은 날입니다.',
+    ],
+    steady: [
+      '재물운은 평이합니다. 큰 이익을 기대하기보다 새는 돈을 막는 데 의미가 있습니다.',
+      '소비 욕구와 실제 필요를 분리해서 보면 불필요한 지출을 줄일 수 있습니다.',
+      '현금 흐름을 확인하고 결제일을 정리하는 정도가 알맞습니다.',
+    ],
+    caution: [
+      '돈 문제는 신중해야 합니다. 보증, 충동구매, 검증 안 된 제안은 피하세요.',
+      '예상 밖 지출이 생길 수 있으니 결제 전 한 번 더 멈추는 습관이 필요합니다.',
+      '수익보다 손실 관리가 중요한 날입니다. 숫자를 직접 확인하세요.',
+    ],
+    low: [
+      '재물운이 약한 편입니다. 큰 거래와 위험 투자는 미루는 것이 낫습니다.',
+      '돈이 묶이거나 새어 나가기 쉬우니 지갑과 계좌를 보수적으로 관리하세요.',
+      '오늘은 벌기보다 지키는 날입니다. 불필요한 약속 비용부터 줄이세요.',
+    ],
+  },
+  love: {
+    high: [
+      '관계운은 부드럽게 열립니다. 먼저 연락하되 상대의 속도를 존중하세요.',
+      '표현이 잘 통하는 날입니다. 거창한 말보다 구체적인 관심이 효과적입니다.',
+      '새 인연과 기존 관계 모두 대화의 문이 열리기 쉽습니다.',
+    ],
+    good: [
+      '관계 흐름은 무난합니다. 작은 배려가 오해를 줄여 줍니다.',
+      '가벼운 만남이나 안부 인사에 적합한 날입니다.',
+      '감정을 숨기기보다 차분하게 정리해 말하면 관계가 편해집니다.',
+    ],
+    steady: [
+      '애정운은 잔잔합니다. 특별한 진전보다 일상의 안정감이 중요합니다.',
+      '상대 반응을 급히 해석하지 말고 평소 패턴을 보는 편이 낫습니다.',
+      '대화는 짧고 명확하게, 기대는 조금 낮추는 것이 편합니다.',
+    ],
+    caution: [
+      '오해가 생기기 쉬운 날입니다. 감정적인 메시지는 시간을 두고 보내세요.',
+      '상대에게 확인하지 않은 추측이 관계를 흔들 수 있습니다.',
+      '밀어붙이는 고백이나 결론 요구는 부담으로 받아들여질 수 있습니다.',
+    ],
+    low: [
+      '관계운이 무거운 편입니다. 중요한 대화는 컨디션이 나아진 뒤가 좋습니다.',
+      '오늘은 다가가기보다 거리를 존중하고 마음을 정리하는 쪽이 안정적입니다.',
+      '서운함을 바로 터뜨리면 말이 커질 수 있으니 한 번 적어보고 정리하세요.',
+    ],
+  },
+  career: {
+    high: [
+      '업무 흐름은 살아 있습니다. 발표, 제안, 결정은 준비한 범위 안에서 진행하세요.',
+      '일의 속도가 붙을 수 있습니다. 책임 범위를 명확히 하면 성과가 남습니다.',
+      '협업과 조율에서 존재감이 드러나기 쉬운 날입니다.',
+    ],
+    good: [
+      '업무운은 안정적입니다. 미룬 과제를 처리하면 흐름이 가벼워집니다.',
+      '새 판을 벌리기보다 진행 중인 일을 한 단계 전진시키기 좋습니다.',
+      '상대가 원하는 기준을 먼저 확인하면 불필요한 수정이 줄어듭니다.',
+    ],
+    steady: [
+      '일운은 보통입니다. 성과보다 누락 방지와 일정 관리가 중요합니다.',
+      '반복 업무, 문서 정리, 체크리스트 점검에 맞는 날입니다.',
+      '큰 승부수보다 정확한 마감이 평판을 지켜 줍니다.',
+    ],
+    caution: [
+      '업무 변수에 주의해야 합니다. 구두 합의보다 문서와 일정표를 남기세요.',
+      '급한 요청이 들어와도 우선순위를 다시 확인해야 합니다.',
+      '실수 가능성이 있으니 발송, 결재, 숫자는 이중으로 검토하세요.',
+    ],
+    low: [
+      '업무운이 답답한 편입니다. 중요한 결정권자와의 논쟁은 피하는 것이 좋습니다.',
+      '오늘은 확장보다 방어가 맞습니다. 문제 될 만한 항목을 먼저 정리하세요.',
+      '새 약속을 늘리면 부담이 커질 수 있으니 가능한 범위를 좁히세요.',
+    ],
+  },
+  health: {
+    high: [
+      '컨디션은 괜찮은 편입니다. 활동량을 늘리되 회복 시간을 같이 잡으세요.',
+      '몸의 반응이 가볍게 느껴질 수 있습니다. 무리한 과신만 피하면 좋습니다.',
+      '가벼운 운동과 규칙적인 식사가 기운을 더 안정시킵니다.',
+    ],
+    good: [
+      '건강운은 무난합니다. 수면과 수분만 챙겨도 리듬이 유지됩니다.',
+      '평소 루틴을 지키기에 좋은 날입니다. 과식과 늦은 카페인은 줄이세요.',
+      '몸을 움직이면 기분 전환에 도움이 되지만 강도는 중간 정도가 맞습니다.',
+    ],
+    steady: [
+      '컨디션은 중간입니다. 피로가 쌓이기 전에 일정을 덜어내세요.',
+      '큰 문제보다 생활 리듬의 흔들림을 조심해야 합니다.',
+      '식사 시간, 수면 시간, 화면 사용 시간을 일정하게 맞추는 것이 우선입니다.',
+    ],
+    caution: [
+      '몸의 신호를 가볍게 넘기지 마세요. 통증이나 피로가 있으면 쉬는 편이 낫습니다.',
+      '무리한 운동, 과음, 밤샘은 회복을 늦출 수 있습니다.',
+      '오늘은 체력을 쓰기보다 아껴야 하는 날입니다.',
+    ],
+    low: [
+      '건강운이 약합니다. 일정과 운동 강도를 과감히 낮추세요.',
+      '면역과 집중력이 떨어질 수 있으니 휴식, 따뜻한 식사, 수면을 우선하세요.',
+      '버티는 방식은 손해가 큽니다. 조기 휴식이 가장 좋은 대응입니다.',
+    ],
+  },
+};
+
+function buildOverallFortune(stem: string, branch: string, score: number, seed: number): string {
+  const band = getScoreBand(score);
+  return [
+    pickBySeed(OVERALL_TONE[band], seed),
+    STEM_FLOW[stem] ?? '하루의 방향을 차분히 살피는 흐름입니다.',
+    BRANCH_FLOW[branch] ?? '작은 변수에도 대응할 여지를 남겨 두세요.',
+    pickBySeed(OVERALL_CLOSING[band], seed + 1),
+  ].join(' ');
+}
+
+function buildCategoryFortune(category: FortuneCategory, score: number, seed: number): string {
+  const band = getScoreBand(score);
+  return pickBySeed(CATEGORY_TONE[category][band], seed);
+}
+
 // ─────────────────────────────────────────────
 // 하면 좋은 일 — 10천간별
 // ─────────────────────────────────────────────
@@ -327,23 +552,33 @@ const ELEMENT_LUCKY_COLORS: Record<string, string[]> = {
 
 // 점수 계산 — 일진(일주)의 천간+지지 조합으로 결정론적 산출
 function getFortuneScore(dayElement: string, stemIdx: number, branchIdx: number, category: string): number {
-  const baseScores: Record<string, number[]> = {
-    '목': [75, 80, 70, 85, 72, 78, 82, 68, 76, 73, 79, 71],
-    '화': [80, 85, 72, 78, 82, 68, 76, 73, 75, 80, 70, 77],
-    '토': [70, 75, 80, 82, 68, 76, 73, 75, 80, 85, 74, 69],
-    '금': [82, 68, 76, 73, 75, 80, 85, 72, 78, 82, 67, 81],
-    '수': [76, 73, 75, 80, 85, 72, 78, 82, 68, 76, 83, 74]
+  const elementBase: Record<string, number> = {
+    '목': 62,
+    '화': 64,
+    '토': 60,
+    '금': 61,
+    '수': 63,
   };
-  const scores = baseScores[dayElement] || baseScores['토'];
-  const baseScore = scores[(stemIdx + branchIdx) % scores.length];
-  const adjustments: Record<string, number> = {
-    overall: 0,
-    money: (branchIdx % 3 - 1) * 5,
-    love: (stemIdx % 3 - 1) * 5,
-    career: ((stemIdx + 1) % 3 - 1) * 5,
-    health: ((branchIdx + 2) % 3 - 1) * 5
+  const stemFlow = [-9, -4, 7, -6, 1, -5, 6, -3, 8, -7][stemIdx] ?? 0;
+  const branchFlow = [-8, -5, 9, -4, 5, -7, 10, -6, 7, -8, 3, -5][branchIdx] ?? 0;
+  const categoryAdjustments: Record<string, number[]> = {
+    overall: [0, -4, 3, -6, 5],
+    money: [-8, -2, 4, 6, -5],
+    love: [-6, 3, -4, 7, -2],
+    career: [4, -7, 6, -3, 1],
+    health: [-5, 2, -6, 4, 0],
   };
-  return Math.max(20, Math.min(100, baseScore + (adjustments[category] || 0)));
+  const categoryPool = categoryAdjustments[category] ?? categoryAdjustments.overall;
+  const categoryAdjustment = categoryPool[(stemIdx + branchIdx) % categoryPool.length] ?? 0;
+  const cycleAdjustment = ((stemIdx * 13 + branchIdx * 7 + category.length * 5) % 9) - 4;
+  const rawScore =
+    (elementBase[dayElement] ?? elementBase['토']) +
+    stemFlow +
+    branchFlow +
+    categoryAdjustment +
+    cycleAdjustment;
+
+  return Math.max(28, Math.min(92, Math.round(rawScore)));
 }
 
 export function getDailyFortune(year: number, month: number, day: number): DailyFortuneData {
@@ -390,15 +625,15 @@ export function getDailyFortune(year: number, month: number, day: number): Daily
     dayElement: element,
     dayZodiac: dayPillar.zodiac,
     overallScore,
-    overallFortune: OVERALL_60[ganziIdx],
+    overallFortune: buildOverallFortune(stem, branch, overallScore, ganziIdx),
     moneyScore,
-    moneyFortune:  MONEY_BY_BRANCH[branch]  ?? MONEY_BY_BRANCH['자'],
+    moneyFortune:  buildCategoryFortune('money', moneyScore, ganziIdx + bIdx),
     loveScore,
-    loveFortune:   LOVE_BY_STEM[stem]       ?? LOVE_BY_STEM['갑'],
+    loveFortune:   buildCategoryFortune('love', loveScore, ganziIdx + sIdx),
     careerScore,
-    careerFortune: CAREER_BY_STEM[stem]     ?? CAREER_BY_STEM['갑'],
+    careerFortune: buildCategoryFortune('career', careerScore, ganziIdx + sIdx + bIdx),
     healthScore,
-    healthFortune: HEALTH_BY_BRANCH[branch] ?? HEALTH_BY_BRANCH['자'],
+    healthFortune: buildCategoryFortune('health', healthScore, ganziIdx + bIdx * 2),
     luckyHours,
     luckyColors,
     luckyNumbers: [...new Set(luckyNums)],
