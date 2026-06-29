@@ -146,22 +146,8 @@ function Router() {
                   </RequireAuth>
                 )}
               />
-              <Route
-                path="/sinsal-guide"
-                component={() => (
-                  <RequireAdmin>
-                    <SinsalGuidePage />
-                  </RequireAdmin>
-                )}
-              />
-              <Route
-                path="/glossary"
-                component={() => (
-                  <RequireAdmin>
-                    <GlossaryPage />
-                  </RequireAdmin>
-                )}
-              />
+              <Route path="/sinsal-guide" component={SinsalGuidePage} />
+              <Route path="/glossary" component={GlossaryPage} />
               <Route
                 path="/saju-tables"
                 component={() => (

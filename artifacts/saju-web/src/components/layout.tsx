@@ -199,20 +199,23 @@ export function Layout({ children }: LayoutProps) {
       ]
     : [];
 
+  const publicExtraServices = [
+    {
+      href: "/sinsal-guide",
+      label: "신살 안내",
+      icon: Star,
+      desc: "도화·역마·천을귀인 등 23종 해설",
+    },
+    {
+      href: "/glossary",
+      label: "사주 용어 사전",
+      icon: BookOpen,
+      desc: "천간·지지·십신 등 용어 61가지",
+    },
+  ];
+
   const adminExtraServices = isAdmin
     ? [
-        {
-          href: "/sinsal-guide",
-          label: "신살 안내",
-          icon: Star,
-          desc: "도화·역마·천을귀인 등 해설",
-        },
-        {
-          href: "/glossary",
-          label: "사주 용어 사전",
-          icon: BookOpen,
-          desc: "천간·지지·십신 용어 정리",
-        },
         {
           href: "/saju-tables",
           label: "이론 조견표",
@@ -232,6 +235,7 @@ export function Layout({ children }: LayoutProps) {
     ...(memberExtraServices.length > 0
       ? [{ key: "member", label: "회원 전용", items: memberExtraServices }]
       : []),
+    { key: "reference", label: "사주 자료실", items: publicExtraServices },
     ...(adminExtraServices.length > 0
       ? [{ key: "admin", label: "관리자 전용", items: adminExtraServices }]
       : []),
