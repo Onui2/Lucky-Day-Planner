@@ -304,7 +304,7 @@ export default function Home() {
 
       {/* 메인 기능 카드 */}
       <motion.div 
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl"
+        className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl"
         variants={container}
         initial="hidden"
         animate="show"

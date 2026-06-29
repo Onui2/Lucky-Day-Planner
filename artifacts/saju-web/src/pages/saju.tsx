@@ -1018,7 +1018,7 @@ export default function SajuPage() {
                               next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth, next.calendarType);
                               return next;
                             })}
-                            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${val === o.v ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}>
+                            className={`flex-1 min-h-11 text-sm font-medium rounded-lg transition-all ${val === o.v ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}>
                             {o.l}
                           </button>
                         ))}

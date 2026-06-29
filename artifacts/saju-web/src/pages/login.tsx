@@ -3,6 +3,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
+  Check,
   Eye,
   EyeOff,
   Loader2,
@@ -199,14 +200,15 @@ export default function LoginPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="비밀번호를 입력해 주세요"
-                  className="pl-10 pr-10 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
+                  className="pl-10 pr-12 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
                   autoComplete="current-password"
                   disabled={submitting}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -229,22 +231,28 @@ export default function LoginPage() {
               </motion.div>
             )}
 
-            <div className="flex items-center justify-between -mt-1">
-              <label className="flex items-center gap-2 cursor-pointer select-none group">
+            <div className="flex flex-col gap-1 -mt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <label className="relative flex min-h-11 items-center gap-2 cursor-pointer select-none group">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border border-primary/30 bg-background/40 accent-primary cursor-pointer"
+                  className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   disabled={submitting}
                 />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                <span
+                  aria-hidden="true"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-primary/30 bg-background/40 transition-colors group-hover:border-primary/50 peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2"
+                >
+                  {rememberMe && <Check className="h-3.5 w-3.5 text-primary" />}
+                </span>
+                <span className="whitespace-nowrap text-sm text-muted-foreground group-hover:text-foreground transition-colors">
                   로그인 정보 저장
                 </span>
               </label>
               <Link
                 href={buildAuthHref("/forgot-password", returnTo)}
-                className="text-xs text-muted-foreground/70 hover:text-primary transition-colors"
+                className="inline-flex min-h-11 items-center whitespace-nowrap text-sm text-muted-foreground/70 hover:text-primary transition-colors"
               >
                 비밀번호를 잊으셨나요?
               </Link>
@@ -272,7 +280,7 @@ export default function LoginPage() {
             아직 계정이 없으신가요?{" "}
             <Link
               href={buildAuthHref("/register", returnTo)}
-              className="text-primary hover:underline font-medium"
+              className="inline-flex min-h-11 items-center text-primary hover:underline font-medium"
             >
               회원가입
             </Link>

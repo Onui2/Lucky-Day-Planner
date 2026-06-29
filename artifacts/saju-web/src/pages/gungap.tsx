@@ -232,7 +232,7 @@ function BirthBlock({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-sm font-semibold text-foreground">{icon}<span>{label}</span></div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { k: "year" as const, ph: "예) 1995", label: "연도" },
           { k: "month" as const, ph: "1~12", label: "월" },
@@ -282,7 +282,7 @@ function BirthBlock({
               <button
                 key={opt.v} type="button" onClick={() => setGender(opt.v)}
                 className={cn(
-                  "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
+                  "flex-1 min-h-11 rounded-xl text-sm font-medium border transition-all",
                   gender === opt.v ? "bg-primary/20 border-primary text-primary" : "bg-foreground/5 border-foreground/10 text-muted-foreground"
                 )}
               >{opt.l}</button>
@@ -524,13 +524,13 @@ function GungapTab() {
                       {[{ v: "male", l: "남성" }, { v: "female", l: "여성" }].map((o) => (
                         <button key={o.v} type="button"
                           onClick={() => setState((prev) => ({ ...prev, gender: o.v as "male" | "female" }))}
-                          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${state.gender === o.v ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
+                          className={`flex-1 min-h-11 text-sm font-medium rounded-lg transition-all ${state.gender === o.v ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
                           {o.l}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
                       { name: "birthYear", label: "년도", ph: "예) 1990" },
                       { name: "birthMonth", label: "월", ph: "1~12" },
@@ -554,7 +554,7 @@ function GungapTab() {
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground">시 (Hour)</label>
                       <Select value={String(state.birthHour)} onValueChange={(v) => setState((prev) => ({ ...prev, birthHour: Number(v), birthMinute: Number(v) === -1 ? "" : prev.birthMinute }))}>
-                        <SelectTrigger className="h-10 rounded-xl border-primary/20 bg-input text-foreground"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="min-h-11 rounded-xl border-primary/20 bg-input text-foreground"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {BIRTH_HOURS.map((h) => (<SelectItem key={h.value} value={String(h.value)}>{h.label}</SelectItem>))}
                         </SelectContent>
@@ -820,7 +820,7 @@ export default function GungapPage() {
           <Heart className="w-4 h-4 text-rose-600" />
           <span className="text-sm text-rose-700 font-medium">연애 &amp; 궁합</span>
         </div>
-        <h1 className="text-4xl md:text-5xl font-serif font-bold text-gradient-gold mb-3">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl leading-tight text-balance font-serif font-bold text-gradient-gold mb-3">
           연애운 &amp; 궁합 (戀愛·宮合)
         </h1>
         <p className="text-muted-foreground">

@@ -310,7 +310,7 @@ export function Layout({ children }: LayoutProps) {
         key={item.href}
         href={item.href}
         className={cn(
-          "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary relative py-2",
+          "flex min-h-11 items-center gap-2 px-1 text-sm font-medium transition-colors hover:text-primary relative",
           isActive ? "text-primary" : "text-muted-foreground",
         )}
         onClick={onClick}
@@ -380,14 +380,14 @@ export function Layout({ children }: LayoutProps) {
           {/* 로고 */}
           <Link
             href="/"
-            className="flex items-center gap-3 group"
+            className="flex min-h-11 min-w-0 items-center gap-3 group"
             onClick={closeMobile}
           >
             <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/30 group-hover:scale-110 transition-transform duration-300">
               <Moon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </div>
-            <span className="font-serif text-xl md:text-2xl font-bold text-gradient-gold tracking-wider">
-              명해원 (命海苑)
+            <span className="min-w-0 whitespace-nowrap font-serif text-xl md:text-2xl font-bold text-gradient-gold tracking-wider">
+              명해원 <span className="hidden sm:inline">(命海苑)</span>
             </span>
           </Link>
 
@@ -402,7 +402,7 @@ export function Layout({ children }: LayoutProps) {
                   onClick={() => setServicesOpen((o) => !o)}
                   onBlur={() => setTimeout(() => setServicesOpen(false), 150)}
                   className={cn(
-                    "flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary py-2",
+                    "flex min-h-11 items-center gap-1.5 px-1 text-sm font-medium transition-colors hover:text-primary",
                     extraServices.some((s) => location === s.href)
                       ? "text-primary"
                       : "text-muted-foreground",
@@ -495,7 +495,7 @@ export function Layout({ children }: LayoutProps) {
                     onClick={() => setUserMenuOpen((o) => !o)}
                     onBlur={() => setTimeout(() => setUserMenuOpen(false), 150)}
                     className={cn(
-                      "flex items-center gap-2 text-sm font-medium transition-all py-1.5 px-3 rounded-full border",
+                      "flex min-h-11 items-center gap-2 text-sm font-medium transition-all px-4 rounded-full border",
                       profile
                         ? "border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
                         : "border-primary/20 text-muted-foreground hover:text-primary hover:border-primary/40",
@@ -574,7 +574,7 @@ export function Layout({ children }: LayoutProps) {
               ) : (
                 <button
                   onClick={() => navigate(buildAuthHref("/login"))}
-                  className="flex items-center gap-2 text-sm font-medium transition-all py-2 px-4 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60"
+                  className="flex min-h-11 items-center gap-2 text-sm font-medium transition-all px-4 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60"
                 >
                   <LogIn className="w-4 h-4" />
                   로그인
@@ -587,9 +587,9 @@ export function Layout({ children }: LayoutProps) {
             {!isLoading && !isAuthenticated && (
               <button
                 onClick={() => navigate(buildAuthHref("/login"))}
-                className="flex items-center gap-1.5 text-xs font-medium py-1.5 px-3 rounded-full border border-primary/40 bg-primary/10 text-primary"
+                  className="flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-4 text-sm font-medium rounded-full border border-primary/40 bg-primary/10 text-primary"
               >
-                <LogIn className="w-3.5 h-3.5" />
+                <LogIn className="w-4 h-4" />
                 로그인
               </button>
             )}
@@ -604,7 +604,7 @@ export function Layout({ children }: LayoutProps) {
             )}
             <button
               onClick={() => setMobileMenuOpen((v) => !v)}
-              className="w-9 h-9 flex items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/15 transition-colors"
+              className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/15 transition-colors"
               aria-label="메뉴"
             >
               {mobileMenuOpen ? (
@@ -635,9 +635,9 @@ export function Layout({ children }: LayoutProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
-              className="absolute inset-x-0 top-16 bottom-0 border-t border-primary/10 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain"
+              className="absolute inset-x-0 top-16 max-h-[calc(100dvh-4rem)] border-t border-primary/10 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain"
             >
-              <div className="container mx-auto min-h-full px-4 py-3 pb-24 flex flex-col gap-1">
+              <div className="container mx-auto px-4 py-3 pb-4 flex flex-col gap-1">
                 {navItems.map((item) => renderMobileNavLink(item, closeMobile))}
 
                 {extraServiceGroups.length > 0 && (

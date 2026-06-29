@@ -156,7 +156,7 @@ export default function PaymentSuccessPage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2 text-foreground">
             <CreditCard className="h-4 w-4 text-primary" />
-            주문번호 `{orderId || "-"}`
+            주문번호 {orderId || "-"}
           </div>
           <div className="mt-2">
             결제 금액 {Number.isFinite(amount) ? `${amount.toLocaleString()}원` : "-"}
