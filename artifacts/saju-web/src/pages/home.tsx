@@ -13,6 +13,17 @@ import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 
 type InquiryType = "general" | "saju" | "gungap";
 
+const PREVIEW_FEATURES = [
+  { href: "/daeun", title: "대운 계산기", desc: "10년 단위 인생의 큰 흐름을 타임라인으로", icon: TrendingUp, iconClass: "bg-teal-400/15 border-teal-400/30 text-teal-600" },
+  { href: "/monthly-fortune", title: "월운 분석", desc: "이달의 재물·직업·애정·건강 흐름", icon: CalendarDays, iconClass: "bg-purple-400/15 border-purple-400/30 text-purple-600" },
+  { href: "/year-fortune", title: "연간 운세", desc: "올 한 해를 분기·월별로 상세 분석", icon: CalendarDays, iconClass: "bg-blue-500/15 border-blue-500/30 text-blue-600" },
+  { href: "/lucky-calendar", title: "길일 달력", desc: "이사·개업·결혼에 맞는 최적의 날", icon: Calendar, iconClass: "bg-emerald-400/15 border-emerald-400/30 text-emerald-600" },
+  { href: "/zodiac", title: "띠별 운세", desc: "12지신의 오늘 운세를 순위별로", icon: Orbit, iconClass: "bg-amber-500/15 border-amber-500/30 text-amber-600" },
+  { href: "/dream", title: "꿈 해몽", desc: "꿈 속 키워드로 오늘의 길흉 풀이", icon: MoonStar, iconClass: "bg-indigo-500/15 border-indigo-500/30 text-indigo-600" },
+  { href: "/name-analysis", title: "이름 풀이", desc: "수리사주와 오행으로 이름 운세 분석", icon: Type, iconClass: "bg-violet-500/15 border-violet-500/30 text-violet-600" },
+  { href: "/love-fortune", title: "연애운", desc: "인연 만날 흐름과 오행 궁합 점수", icon: Heart, iconClass: "bg-rose-500/15 border-rose-500/30 text-rose-400" },
+] as const;
+
 export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
@@ -375,6 +386,38 @@ export default function Home() {
 
       </motion.div>
 
+      {/* 전체 기능 미리보기 (비로그인 방문자용 — 발견성) */}
+      {!isAuthenticated && (
+        <motion.div
+          className="w-full max-w-5xl mt-16"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.6, ease: "easeOut" }}
+        >
+          <div className="text-center mb-8">
+            <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">all features</p>
+            <h2 className="font-serif text-3xl font-bold text-foreground mb-2">명해원의 모든 분석</h2>
+            <p className="text-muted-foreground text-sm">로그인하면 아래 분석을 모두 이용할 수 있습니다</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+            {PREVIEW_FEATURES.map((f) => (
+              <Link key={f.href} href={f.href} className="block group h-full">
+                <div className="h-full flex items-start gap-3 rounded-2xl border border-foreground/10 bg-card/30 backdrop-blur-xl p-4 transition-all duration-300 hover:bg-card/50 hover:border-primary/30 hover:-translate-y-0.5">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${f.iconClass}`}>
+                    <f.icon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-sm text-foreground truncate">{f.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">{f.desc}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {isAuthenticated && (
         <motion.div
           className="w-full max-w-5xl mt-16"
@@ -552,7 +595,7 @@ export default function Home() {
                     <Star className="w-7 h-7 text-amber-600" />
                   </div>
                   <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">신살(神殺) 안내</h3>
-                  <p className="text-muted-foreground mb-8">천을귀인·도화살·역마살·화개살·양인살·겁살·삼재 등 7종 신살의 의미, 긍정적 활용법, 주의사항을 상세히 해설합니다.</p>
+                  <p className="text-muted-foreground mb-8">천을귀인·도화살·역마살·12신살·백호살·괴강살 등 23종 신살의 의미, 긍정적 활용법, 주의사항을 상세히 해설합니다.</p>
                   <div className="flex items-center text-amber-600 font-medium group-hover:gap-3 transition-all gap-2">
                     알아보기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -568,7 +611,7 @@ export default function Home() {
                     <BookOpen className="w-7 h-7 text-sky-600" />
                   </div>
                   <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">사주 용어 사전</h3>
-                  <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국 등 사주 핵심 용어 47가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
+                  <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국·합충형 등 사주 핵심 용어 61가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
                   <div className="flex items-center text-sky-600 font-medium group-hover:gap-3 transition-all gap-2">
                     찾아보기 <ArrowRight className="w-4 h-4" />
                   </div>
