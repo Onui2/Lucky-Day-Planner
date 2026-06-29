@@ -50,8 +50,8 @@ function loveScoreColor(s: number) {
   return "text-rose-600";
 }
 function loveScoreLabel(s: number) {
-  if (s >= 85) return "매우 좋음";
-  if (s >= 72) return "좋음";
+  if (s >= 85) return "강함";
+  if (s >= 72) return "양호";
   if (s >= 58) return "보통";
   return "주의";
 }
@@ -139,13 +139,13 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
             <MonthBar key={month} month={month} score={score} isTop={topSet.has(month)} />
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-3 text-center">금색 막대 — 인연이 찾아오는 황금 달</p>
+        <p className="text-xs text-muted-foreground mt-3 text-center">금색 막대 — 인연 흐름이 상대적으로 강한 달</p>
       </div>
 
-      {/* 베스트 달 */}
+      {/* 흐름이 강한 달 */}
       {data.luckyMonths && data.luckyMonths.length > 0 && (
         <div className="rounded-3xl border border-primary/20 bg-card/30 backdrop-blur-xl p-6 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground mb-2">💛 인연이 찾아오는 베스트 달</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">인연 흐름이 강한 달</h3>
           {data.luckyMonths.map((m, i) => (
             <div key={m.month} className="flex items-center gap-4 rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
               <div
@@ -631,7 +631,7 @@ function GungapTab() {
             />
           </div>
           <div className="flex justify-between w-full max-w-sm text-xs text-muted-foreground mb-6">
-            <span>어려운 궁합</span><span>천생연분</span>
+            <span>조율 필요</span><span>보완 강함</span>
           </div>
           <p className="text-base text-foreground/85 text-center max-w-lg leading-relaxed">{result.advice}</p>
         </CardContent>

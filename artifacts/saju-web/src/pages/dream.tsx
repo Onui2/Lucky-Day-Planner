@@ -27,10 +27,10 @@ interface DreamMeta {
 }
 
 const FORTUNE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
-  great:   { label: "대길 ★", color: "text-yellow-600", bg: "bg-yellow-400/10", border: "border-yellow-400/30", icon: Star },
-  good:    { label: "길",      color: "text-emerald-600", bg: "bg-emerald-400/10", border: "border-emerald-400/30", icon: TrendingUp },
+  great:   { label: "강한 길조", color: "text-yellow-600", bg: "bg-yellow-400/10", border: "border-yellow-400/30", icon: Star },
+  good:    { label: "길조",      color: "text-emerald-600", bg: "bg-emerald-400/10", border: "border-emerald-400/30", icon: TrendingUp },
   neutral: { label: "중립",   color: "text-slate-600",   bg: "bg-slate-400/10",   border: "border-slate-400/30",   icon: Minus },
-  bad:     { label: "흉",     color: "text-orange-600",  bg: "bg-orange-400/10",  border: "border-orange-400/30",  icon: AlertTriangle },
+  bad:     { label: "불안 신호", color: "text-orange-600",  bg: "bg-orange-400/10",  border: "border-orange-400/30",  icon: AlertTriangle },
   warning: { label: "주의",   color: "text-red-600",     bg: "bg-red-400/10",     border: "border-red-400/30",     icon: AlertTriangle },
 };
 
@@ -61,7 +61,7 @@ function DreamCard({ dream, highlight }: { dream: DreamKeyword; highlight?: bool
       {dream.lucky && (
         <div className="mt-3 flex items-center gap-2 text-xs text-primary/70">
           <Sparkles className="w-3 h-3" />
-          행운 정보: {dream.lucky}
+          참고 정보: {dream.lucky}
         </div>
       )}
     </motion.div>
@@ -155,7 +155,7 @@ export default function DreamPage() {
         >
           <p className="text-xs text-muted-foreground mb-3 font-medium tracking-wide uppercase">인기 꿈 키워드</p>
           <div className="flex flex-wrap gap-2">
-            {(meta?.popularKeywords ?? ["돼지","뱀","용","물고기","돈","황금","태양","아기","보석","말"]).map(kw => (
+            {(meta?.popularKeywords ?? ["뱀","물고기","비","바다","아기","시험","이사","돈","집","조상"]).map(kw => (
               <button
                 key={kw}
                 onClick={() => handleKeyword(kw)}
@@ -245,17 +245,17 @@ export default function DreamPage() {
                 <li>• 자연 — 비, 눈, 번개, 태양…</li>
                 <li>• 사람 — 아기, 결혼, 조상…</li>
                 <li>• 행동 — 날기, 쫓기기, 시험…</li>
-                <li>• 물건 — 돈, 보석, 황금…</li>
+                <li>• 물건 — 돈, 보석, 책…</li>
               </ul>
             </div>
             <div>
               <p className="font-medium text-foreground mb-1.5">운세 등급</p>
               <ul className="space-y-1 text-xs">
-                <li className="text-yellow-600">★ 대길 — 매우 좋은 꿈</li>
-                <li className="text-emerald-600">↑ 길 — 좋은 꿈</li>
-                <li className="text-slate-600">— 중립 — 평범한 꿈</li>
-                <li className="text-orange-600">△ 흉 — 좋지 않은 꿈</li>
-                <li className="text-red-600">⚠ 주의 — 경고의 꿈</li>
+                <li className="text-yellow-600">★ 강한 길조 — 긍정 신호가 큰 꿈</li>
+                <li className="text-emerald-600">↑ 길조 — 좋게 해석할 여지가 있는 꿈</li>
+                <li className="text-slate-600">— 중립 — 양쪽 의미가 있는 꿈</li>
+                <li className="text-orange-600">△ 불안 신호 — 점검이 필요한 꿈</li>
+                <li className="text-red-600">⚠ 주의 — 리스크를 줄일 꿈</li>
               </ul>
             </div>
           </div>

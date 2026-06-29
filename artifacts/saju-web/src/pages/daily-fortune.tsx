@@ -30,11 +30,11 @@ const BRANCH_HANJA: Record<string, string> = {
 const toH = (k: string) => STEM_HANJA[k] ?? BRANCH_HANJA[k] ?? k;
 
 function overallScoreStyle(s: number) {
-  if (s >= 80) return { text: 'text-emerald-600', label: '매우 좋은 날' };
-  if (s >= 65) return { text: 'text-blue-600',    label: '좋은 날'     };
-  if (s >= 50) return { text: 'text-amber-600',   label: '평범한 날'   };
-  if (s >= 35) return { text: 'text-orange-600',  label: '주의가 필요한 날' };
-  return             { text: 'text-rose-600',    label: '조심하는 날'  };
+  if (s >= 82) return { text: 'text-emerald-600', label: '상승 흐름' };
+  if (s >= 70) return { text: 'text-blue-600',    label: '활용할 날' };
+  if (s >= 56) return { text: 'text-amber-600',   label: '무난한 날' };
+  if (s >= 42) return { text: 'text-orange-600',  label: '주의할 날' };
+  return             { text: 'text-rose-600',    label: '보수적인 날' };
 }
 
 const TODAY = getSeoulTodayString();
@@ -249,11 +249,11 @@ export default function DailyFortunePage() {
   };
 
   function scoreLabel(s: number) {
-    if (s >= 85) return '매우 좋음';
-    if (s >= 70) return '좋음';
+    if (s >= 85) return '강함';
+    if (s >= 70) return '양호';
     if (s >= 55) return '보통';
     if (s >= 40) return '주의';
-    return '나쁨';
+    return '약함';
   }
 
   const ScoreCard = ({
@@ -442,7 +442,7 @@ export default function DailyFortunePage() {
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-lg text-primary">
                       <Gem className="w-5 h-5" />
-                      {profile.name ? `${profile.name}님` : "내"} 사주 기반 행운 정보
+                      {profile.name ? `${profile.name}님` : "내"} 사주 기반 보완 정보
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
                       일간 <span className={`font-bold ${SAJU_ELEM_COLOR[dm]}`}>{profile.dayMasterStem}({SAJU_ELEM_KOR[dm]})</span> — {lucky.elementDesc}
@@ -450,10 +450,10 @@ export default function DailyFortunePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* 행운의 숫자 */}
+                      {/* 참고 숫자 */}
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                          <Hash className="w-3.5 h-3.5 text-primary" /> 행운의 숫자
+                          <Hash className="w-3.5 h-3.5 text-primary" /> 참고 숫자
                         </div>
                         <div className="flex gap-2 flex-wrap">
                           {lnums.map((n, i) => (
@@ -463,10 +463,10 @@ export default function DailyFortunePage() {
                         <p className="text-[11px] text-muted-foreground">오행 수리: {dm}({SAJU_ELEM_KOR[dm]}) 기운의 수</p>
                       </div>
 
-                      {/* 행운의 색상 */}
+                      {/* 보완 색상 */}
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                          <Palette className="w-3.5 h-3.5 text-primary" /> 행운·주의 색상
+                          <Palette className="w-3.5 h-3.5 text-primary" /> 보완·주의 색상
                         </div>
                         <div className="space-y-1">
                           <div className="flex flex-wrap gap-1.5">
@@ -494,10 +494,10 @@ export default function DailyFortunePage() {
                         </div>
                       </div>
 
-                      {/* 행운의 아이템 */}
+                      {/* 보완 아이템 */}
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                          <Gem className="w-3.5 h-3.5 text-primary" /> 행운의 물건
+                          <Gem className="w-3.5 h-3.5 text-primary" /> 보완 물건
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {litems.map((item, i) => (
@@ -506,10 +506,10 @@ export default function DailyFortunePage() {
                         </div>
                       </div>
 
-                      {/* 행운의 음식 */}
+                      {/* 보완 음식 */}
                       <div className="space-y-1.5 sm:col-span-2">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                          <Utensils className="w-3.5 h-3.5 text-primary" /> 행운의 음식
+                          <Utensils className="w-3.5 h-3.5 text-primary" /> 보완 음식
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {lfood.map((f, i) => (
@@ -535,13 +535,13 @@ export default function DailyFortunePage() {
             </div>
           </div>
 
-          {/* 행운 포인트 + 조언 */}
+          {/* 참고 포인트 + 조언 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 행운 포인트 */}
+            {/* 참고 포인트 */}
             <Card className="glass-panel border-primary/25 bg-primary/5">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg text-primary">
-                  <Star className="w-5 h-5" /> 오늘의 행운 포인트
+                  <Star className="w-5 h-5" /> 오늘의 참고 포인트
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -549,7 +549,7 @@ export default function DailyFortunePage() {
                   <div className="flex items-start gap-3">
                     <Clock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <div className="text-xs text-muted-foreground mb-1">행운의 시간</div>
+                      <div className="text-xs text-muted-foreground mb-1">참고 시간</div>
                       <div className="text-sm font-medium space-y-0.5">
                         {data.luckyHours.map((h, i) => (
                           <div key={i} className="text-foreground/90">{h}</div>
@@ -560,7 +560,7 @@ export default function DailyFortunePage() {
                   <div className="flex items-start gap-3">
                     <Palette className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <div className="text-xs text-muted-foreground mb-1">행운의 색상</div>
+                      <div className="text-xs text-muted-foreground mb-1">보완 색상</div>
                       <div className="flex flex-wrap gap-2">
                         {data.luckyColors.map((c, i) => (
                           <span key={i} className="px-3 py-1 rounded-full bg-primary/15 border border-primary/30 text-xs font-medium text-primary">{c}</span>
@@ -571,7 +571,7 @@ export default function DailyFortunePage() {
                   <div className="flex items-start gap-3">
                     <Hash className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <div className="text-xs text-muted-foreground mb-1">행운의 숫자</div>
+                      <div className="text-xs text-muted-foreground mb-1">참고 숫자</div>
                       <div className="flex gap-2">
                         {data.luckyNumbers.map((n, i) => (
                           <span key={i} className="w-8 h-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-sm font-bold text-primary">{n}</span>

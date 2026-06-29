@@ -58,8 +58,8 @@ function ScoreBar({ score, color }: { score: number; color: string }) {
 }
 
 function scoreLabel(s: number) {
-  if (s >= 85) return '매우 좋음';
-  if (s >= 70) return '좋음';
+  if (s >= 85) return '강함';
+  if (s >= 70) return '양호';
   if (s >= 55) return '보통';
   if (s >= 40) return '주의';
   return '어려움';

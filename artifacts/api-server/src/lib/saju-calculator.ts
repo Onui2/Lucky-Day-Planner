@@ -357,6 +357,27 @@ function getDayPillarElementRelation(
   return 'branch_controls_stem';
 }
 
+function softenInterpretationText(text: string): string {
+  return text
+    .replace(/천생연분\(天生緣分\)/g, '상호 보완 강함')
+    .replace(/천생연분에 가까운/g, '상호 보완성이 강한')
+    .replace(/최고조에 달/g, '강해지')
+    .replace(/최고의/g, '강한')
+    .replace(/최상의/g, '안정적인')
+    .replace(/최적의/g, '비교적 맞는')
+    .replace(/반드시/g, '상황에 따라')
+    .replace(/놀라운/g, '의미 있는')
+    .replace(/폭발적인/g, '강한')
+    .replace(/눈부신/g, '뚜렷한')
+    .replace(/최강/g, '좋은')
+    .replace(/매우 좋은/g, '양호한')
+    .replace(/좋은 결과/g, '무난한 결과')
+    .replace(/좋은 성과/g, '성과 가능성')
+    .replace(/좋은 시기/g, '활용할 만한 시기')
+    .replace(/최고/g, '강점')
+    .replace(/대길/g, '강한 길조');
+}
+
 const PERSONALITY_BY_STEM: Record<string, string> = {
   갑: '큰 방향을 먼저 세우고 사람들을 이끄는 개척형 기질이 강합니다.',
   을: '부드럽게 스며들며 판을 바꾸는 조율형 감각이 뛰어납니다.',
@@ -842,7 +863,9 @@ function getDaeunFortune(ganzi: ReturnType<typeof getGanzi>): string {
     '임술': '수가 토에 담기는 깊은 내면 성찰의 시기입니다. 화려한 성과보다 내실을 쌓는 데 집중하며, 조용히 준비한 것이 훗날 커다란 결실의 씨앗이 됩니다.',
     '계해': '수가 두 겹으로 깊고 광활하게 흐르는 시기입니다. 철학적 사유와 영적 성장이 이루어지며, 인생의 방향을 재정립하는 중요한 시기가 될 수 있습니다.',
   };
-  return fortunes[key] ?? '변화와 성장이 교차하는 시기입니다. 자신의 내면에 귀를 기울이며 한 걸음씩 나아가세요.';
+  return softenInterpretationText(
+    fortunes[key] ?? '변화와 성장이 교차하는 시기입니다. 자신의 내면에 귀를 기울이며 한 걸음씩 나아가세요.',
+  );
 }
 
 // ──────────── 세운 (歲運) ────────────
@@ -956,7 +979,7 @@ function getSeunFortune(branch: string, stemElem: string): string {
     '수해': '수기(水氣)가 가득한 해년입니다. 직관과 감수성이 최고조에 달하는 해입니다. 창작·상담·연구에서 뛰어난 결과가 나오지만 실행력을 잃지 않도록 주의하세요.',
   };
   const key = stemElem + branch;
-  if (compound[key]) return compound[key];
+  if (compound[key]) return softenInterpretationText(compound[key]);
   // fallback: branch only
   const byBranch: Record<string, string> = {
     '자': '지혜와 계획의 해. 새로운 시작을 준비하기 좋습니다.',
@@ -972,7 +995,7 @@ function getSeunFortune(branch: string, stemElem: string): string {
     '술': '변화와 도약의 해. 과거를 정리하고 새 방향을 잡으세요.',
     '해': '휴식과 준비의 해. 내면을 충전하고 계획을 세우세요.',
   };
-  return byBranch[branch] || '변화와 성장의 해입니다.';
+  return softenInterpretationText(byBranch[branch] || '변화와 성장의 해입니다.');
 }
 
 // ──────────── 용신 (用神) ────────────
@@ -1453,15 +1476,15 @@ export function calculateGungap(
 
   score = Math.max(10, Math.min(99, score));
   const grade =
-    score >= 88 ? '천생연분(天生緣分)' :
-    score >= 75 ? '좋은 궁합' :
+    score >= 88 ? '상호 보완 강함' :
+    score >= 75 ? '궁합 양호' :
     score >= 60 ? '보통 궁합' :
     score >= 45 ? '노력이 필요한 궁합' : '어려운 궁합';
 
   const advice =
-    score >= 88 ? '서로에게 천생연분에 가까운 관계입니다. 각자의 장점이 극대화됩니다.' :
-    score >= 75 ? '좋은 궁합입니다. 서로 존중하면 매우 행복한 관계가 됩니다.' :
-    score >= 60 ? '보통 궁합입니다. 차이를 인정하고 소통하면 충분히 행복할 수 있습니다.' :
+    score >= 88 ? '상호 보완성이 강한 관계입니다. 다만 장점이 큰 만큼 기대치도 커질 수 있어 균형이 필요합니다.' :
+    score >= 75 ? '궁합 흐름은 양호합니다. 서로 존중하면 안정적인 관계를 만들 수 있습니다.' :
+    score >= 60 ? '보통 궁합입니다. 차이를 인정하고 소통하면 충분히 안정될 수 있습니다.' :
     score >= 45 ? '다소 어려운 궁합이지만, 노력으로 극복 가능합니다. 상대방의 입장을 이해하려는 노력이 중요합니다.' :
     '상극의 기운이 강합니다. 서로의 차이를 인정하고 배우는 자세가 필요합니다.';
 
@@ -1475,13 +1498,13 @@ export function calculateGungap(
 
   return {
     score,
-    grade,
-    advice,
-    details,
-    summary: dyn.summary,
-    strengthsTogether: dyn.strengthsTogether,
+    grade: softenInterpretationText(grade),
+    advice: softenInterpretationText(advice),
+    details: details.map(detail => ({ ...detail, content: softenInterpretationText(detail.content) })),
+    summary: softenInterpretationText(dyn.summary),
+    strengthsTogether: dyn.strengthsTogether.map(softenInterpretationText),
     challengesTogether: dyn.challengesTogether,
-    tips: dyn.tips,
+    tips: dyn.tips.map(softenInterpretationText),
     p1Strengths:  ELEM_TRAITS[e1]?.strengths  ?? [],
     p1Weaknesses: ELEM_TRAITS[e1]?.weaknesses ?? [],
     p2Strengths:  ELEM_TRAITS[e2]?.strengths  ?? [],
@@ -1985,7 +2008,7 @@ export function getShinsal(
     {
       name: '천을귀인', hanja: '天乙貴人', icon: '⭐',
       found: cheoneulFound.length > 0, foundIn: cheoneulFound,
-      description: '하늘이 내린 최고의 귀인성(貴人星). 어려운 상황에서도 반드시 구원의 손길이 나타나고, 평생 귀인을 만나 도움을 받습니다.',
+      description: '도움과 보호의 의미가 강한 귀인성(貴人星)입니다. 어려운 상황에서 주변의 조언이나 지원을 얻기 쉬운 편으로 봅니다.',
       advice: cheoneulFound.length > 0 ? '귀인과의 인연을 소중히 여기고, 자신도 다른 이에게 귀인이 되어주세요.' : '대인관계를 넓히면 귀인 인연이 열립니다.',
     },
     {

@@ -1072,12 +1072,12 @@ export default function ManseryokPage() {
                   <div className="rounded-xl bg-primary/5 border border-primary/20 px-4 py-3 space-y-3">
                     <p className="text-[10px] font-semibold text-primary flex items-center gap-1">
                       <Gem className="w-3 h-3" />
-                      {profile.name ? `${profile.name}님` : "내"} 일간 <span className={SAJU_ELEM_COLOR_MAP[dm]}>{profile.dayMasterStem}({SAJU_ELEM_KOR[dm]})</span> 기반 행운
+                      {profile.name ? `${profile.name}님` : "내"} 일간 <span className={SAJU_ELEM_COLOR_MAP[dm]}>{profile.dayMasterStem}({SAJU_ELEM_KOR[dm]})</span> 기반 보완 정보
                     </p>
                     <div className="grid grid-cols-2 gap-3">
-                      {/* 행운의 숫자 */}
+                      {/* 참고 숫자 */}
                       <div>
-                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> 행운의 숫자</p>
+                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> 참고 숫자</p>
                         <div className="flex gap-1.5">
                           {lnums.map((n, i) => (
                             <span key={i} className="w-7 h-7 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-xs font-bold text-primary">{n}</span>
@@ -1095,7 +1095,7 @@ export default function ManseryokPage() {
                       </div>
                       {/* 색상 */}
                       <div className="col-span-2">
-                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Palette className="w-2.5 h-2.5" /> 행운·주의 색상</p>
+                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Palette className="w-2.5 h-2.5" /> 보완·주의 색상</p>
                         <div className="flex flex-wrap gap-1">
                           {lcolors.map((c, i) => (
                             <span key={i} className={cn("px-1.5 py-0.5 rounded-full border text-[10px] font-medium", SAJU_ELEM_BG[dm], SAJU_ELEM_COLOR_MAP[dm])}>✓ {c}</span>
@@ -1105,9 +1105,9 @@ export default function ManseryokPage() {
                           ))}
                         </div>
                       </div>
-                      {/* 행운의 물건 */}
+                      {/* 보완 물건 */}
                       <div className="col-span-2">
-                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Gem className="w-2.5 h-2.5" /> 행운의 물건</p>
+                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Gem className="w-2.5 h-2.5" /> 보완 물건</p>
                         <div className="flex flex-wrap gap-1">
                           {litems.map((item, i) => (
                             <span key={i} className="px-1.5 py-0.5 rounded-full border border-primary/25 bg-card/60 text-[10px] text-foreground/80">{item}</span>
