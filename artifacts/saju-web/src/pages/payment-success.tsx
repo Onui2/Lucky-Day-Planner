@@ -14,12 +14,32 @@ import {
   useGetMyOrders,
   type ConfirmCommercePaymentResponse,
 } from "@workspace/api-client-react";
+import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
 
 type ConfirmationState = "confirming" | "ready" | "processing" | "failed" | "error";
 
+function getErrorStatus(error: unknown) {
+  if (!error || typeof error !== "object" || !("status" in error)) {
+    return null;
+  }
+
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" ? status : null;
+}
+
 function toErrorMessage(error: unknown) {
+  const status = getErrorStatus(error);
+
+  if (status === 401 || status === 403) {
+    return "로그인이 만료되었거나 필요합니다. 다시 로그인한 뒤 마이페이지에서 결제 상태를 확인해주세요.";
+  }
+
   if (error instanceof Error && error.message.trim()) {
+    if (/HTTP\s+(401|403)\b/i.test(error.message)) {
+      return "로그인이 만료되었거나 필요합니다. 다시 로그인한 뒤 마이페이지에서 결제 상태를 확인해주세요.";
+    }
+
     return error.message;
   }
 
@@ -28,6 +48,7 @@ function toErrorMessage(error: unknown) {
 
 export default function PaymentSuccessPage() {
   const search = useSearch();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const confirmPayment = useConfirmCommercePayment();
   const [state, setState] = useState<ConfirmationState>("confirming");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,9 +60,8 @@ export default function PaymentSuccessPage() {
   const paymentKey = params.get("paymentKey")?.trim() ?? "";
   const amount = Number(params.get("amount") ?? "");
 
-  const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetMyOrders(
-    Boolean(orderId),
-  );
+  const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } =
+    useGetMyOrders(isAuthenticated && Boolean(orderId));
 
   const order = useMemo(
     () => ordersData?.orders.find((item) => item.orderId === orderId) ?? null,
@@ -55,7 +75,15 @@ export default function PaymentSuccessPage() {
       return;
     }
 
-    if (isLoadingOrders) {
+    if (authLoading || isLoadingOrders) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setState("error");
+      setErrorMessage(
+        "로그인이 만료되었거나 필요합니다. 다시 로그인한 뒤 마이페이지에서 결제 상태를 확인해주세요.",
+      );
       return;
     }
 
@@ -110,7 +138,9 @@ export default function PaymentSuccessPage() {
       });
   }, [
     amount,
+    authLoading,
     confirmPayment,
+    isAuthenticated,
     isLoadingOrders,
     order,
     orderId,
