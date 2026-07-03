@@ -237,6 +237,22 @@ function getSubScores(base: number, elem: string) {
   };
 }
 
+// 10점 종합 점수 + 분야별(재물·애정·건강·직업) 편차를 합쳐 1~100 종합 점수로 환산한다.
+// 색/라벨(대길·길·평…)과 정합하면서도 같은 밴드 안에서 날마다 값이 세밀하게 갈린다.
+function calcDayScore100(base: number, elem: string): number {
+  const s = getSubScores(base, elem);
+  const mean = (s.재물 + s.애정 + s.건강 + s.직업) / 4;
+  return Math.min(100, Math.max(1, Math.round(mean * 10)));
+}
+
+function score100TextColor(score100: number): string {
+  if (score100 >= 85) return "text-amber-600";
+  if (score100 >= 65) return "text-emerald-600";
+  if (score100 >= 45) return "text-slate-600";
+  if (score100 >= 25) return "text-orange-600";
+  return "text-rose-600";
+}
+
 const STEM_DESC: Record<string, string> = {
   갑:"새로운 시작과 리더십의 기운",
   을:"유연함과 적응력의 기운",
@@ -631,27 +647,32 @@ export default function ManseryokPage() {
 
   const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
 
-  const dayScores = useMemo(() => {
-    if (!data) return {};
+  const { dayScores, dayScores100 } = useMemo(() => {
     const map: Record<number, number> = {};
+    const map100: Record<number, number> = {};
+    if (!data) return { dayScores: map, dayScores100: map100 };
     days.forEach(dayNum => {
       const dayStr = dayNum.toString().padStart(2, "0");
       const fullDate = `${yearStr}-${monthStr}-${dayStr}`;
       const dayData = data.days.find((d: any) => d.solar === fullDate);
-      if (dayData) map[dayNum] = calcDayScore(dayData, myElem, myStem, myBranch, relationContext);
+      if (dayData) {
+        const base = calcDayScore(dayData, myElem, myStem, myBranch, relationContext);
+        map[dayNum] = base;
+        map100[dayNum] = calcDayScore100(base, dayData.dayElement);
+      }
     });
-    return map;
+    return { dayScores: map, dayScores100: map100 };
   }, [data, monthStr, myBranch, myElem, myStem, relationContext, yearStr]);
 
-  const scoreValues = Object.values(dayScores);
-  const avgScore = scoreValues.length > 0
-    ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length * 10) / 10
+  const score100Values = Object.values(dayScores100);
+  const avgScore = score100Values.length > 0
+    ? Math.round(score100Values.reduce((a, b) => a + b, 0) / score100Values.length)
     : null;
-  const bestDay = scoreValues.length > 0
-    ? Object.entries(dayScores).reduce((a, b) => Number(a[1]) >= Number(b[1]) ? a : b)
+  const bestDay = score100Values.length > 0
+    ? Object.entries(dayScores100).reduce((a, b) => Number(a[1]) >= Number(b[1]) ? a : b)
     : null;
-  const worstDay = scoreValues.length > 0
-    ? Object.entries(dayScores).reduce((a, b) => Number(a[1]) <= Number(b[1]) ? a : b)
+  const worstDay = score100Values.length > 0
+    ? Object.entries(dayScores100).reduce((a, b) => Number(a[1]) <= Number(b[1]) ? a : b)
     : null;
 
   function handleDayClick(dayNum: number, dayData: any) {
@@ -706,20 +727,20 @@ export default function ManseryokPage() {
           <div className="glass-panel rounded-xl border border-primary/15 p-3 text-center">
             <p className="text-xs text-muted-foreground mb-1">이달 평균 운세</p>
             <p className="text-2xl font-bold text-primary">{avgScore}</p>
-            <p className="text-xs text-muted-foreground">/ 10점</p>
+            <p className="text-xs text-muted-foreground">/ 100점</p>
           </div>
           {bestDay && (
             <div className="glass-panel rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-3 text-center">
               <p className="text-xs text-yellow-600/70 mb-1 flex items-center justify-center gap-1"><Star className="w-3 h-3" />최고의 날</p>
               <p className="text-lg font-bold text-yellow-700">{monthStr}월 {bestDay[0]}일</p>
-              <p className="text-xs text-yellow-600/70">{scoreLabel(Number(bestDay[1]))} ({bestDay[1]}점)</p>
+              <p className="text-xs text-yellow-600/70">{scoreLabel(Number(bestDay[1]) / 10)} ({bestDay[1]}점)</p>
             </div>
           )}
           {worstDay && (
             <div className="glass-panel rounded-xl border border-slate-400/20 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1"><TrendingDown className="w-3 h-3" />주의의 날</p>
               <p className="text-lg font-bold text-muted-foreground">{monthStr}월 {worstDay[0]}일</p>
-              <p className="text-xs text-muted-foreground">{scoreLabel(Number(worstDay[1]))} ({worstDay[1]}점)</p>
+              <p className="text-xs text-muted-foreground">{scoreLabel(Number(worstDay[1]) / 10)} ({worstDay[1]}점)</p>
             </div>
           )}
         </div>
@@ -822,6 +843,7 @@ export default function ManseryokPage() {
                 const isBlockedFutureDate = !canAccessFutureDates && fullDate > TODAY;
                 const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
                 const score = dayData ? dayScores[dayNum] : null;
+                const score100 = (dayData && score != null) ? calcDayScore100(score, dayData.dayElement) : null;
                 const badges = getDayBadges(dayData, score, rel, isPersonalized);
                 const isSelected = selected?.dayNum === dayNum;
                 const canSelectDay = Boolean(dayData) && !isBlockedFutureDate;
@@ -859,8 +881,10 @@ export default function ManseryokPage() {
                           )}>
                             {dayNum}
                           </span>
-                          {score != null && (
-                            <div className={cn("w-1.5 h-1.5 rounded-full mt-0.5", scoreDotColor(score))} />
+                          {score100 != null && (
+                            <span className={cn("text-[10px] md:text-xs font-extrabold leading-none tabular-nums", score100TextColor(score100))}>
+                              {score100}
+                            </span>
                           )}
                         </div>
 
@@ -1001,9 +1025,9 @@ export default function ManseryokPage() {
                 </div>
                 <div className="text-right shrink-0 ml-3">
                   <p className="text-3xl font-bold text-foreground leading-none">
-                    {selected.score}<span className="text-base text-muted-foreground">/10</span>
+                    {calcDayScore100(selected.score, selected.dayData.dayElement)}<span className="text-base text-muted-foreground">/100</span>
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">운세 점수</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">종합 점수</p>
                   <p className={cn("text-sm font-bold mt-0.5", scoreTextColor(selected.score))}>
                     {label}
                   </p>
