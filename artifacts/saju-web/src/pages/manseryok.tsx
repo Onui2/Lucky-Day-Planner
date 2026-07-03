@@ -1,10 +1,12 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { toPng } from "html-to-image";
 import { useGetManseryokMonth } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
+import { AdminPersonLookup, type AdminLookupTarget } from "@/components/AdminPersonLookup";
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem, ImageDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
@@ -485,8 +487,41 @@ export default function ManseryokPage() {
   const [currentDate, setCurrentDate] = useState(TODAY_DATE);
   const [selected, setSelected] = useState<SelectedDay | null>(null);
   const { user } = useAuth();
-  const { profile, profileReady, hasCachedProfile } = useResolvedProfile();
-  const canAccessFutureDates = user?.role === "admin" || user?.role === "superadmin";
+  const { profile: resolvedProfile, profileReady, hasCachedProfile } = useResolvedProfile();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const canAccessFutureDates = isAdmin;
+
+  // 관리자 전용: 다른 사람 사주를 조회하면 그 프로필로 만세력을 렌더한다.
+  const [adminTarget, setAdminTarget] = useState<AdminLookupTarget | null>(null);
+  const activeAdminTarget = isAdmin ? adminTarget : null;
+  const profile = activeAdminTarget ? activeAdminTarget.profile : resolvedProfile;
+
+  // 달력 이미지 저장(관리자 전용). 매 렌더마다 재생성돼 현재 연/월을 그대로 읽는다.
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [savingImage, setSavingImage] = useState(false);
+  const saveCalendarImage = async () => {
+    if (!calendarRef.current || savingImage) return;
+    setSavingImage(true);
+    try {
+      const dataUrl = await toPng(calendarRef.current, {
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        // 앱 전역 스타일시트(크로스오리진 웹폰트) 임베드 시 SecurityError가 나고
+        // 캡처가 느려진다. 스크린샷은 브라우저 폰트로 충분하므로 폰트 임베드를 건너뛴다.
+        skipFonts: true,
+      });
+      const link = document.createElement("a");
+      const who = activeAdminTarget?.profile?.name || (activeAdminTarget ? "person" : "my");
+      link.download = `manseryok-${who}-${yearStr}-${monthStr}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("만세력 이미지 저장 실패:", err);
+    } finally {
+      setSavingImage(false);
+    }
+  };
 
   const yearStr = format(currentDate, "yyyy");
   const monthStr = format(currentDate, "MM");
@@ -634,6 +669,15 @@ export default function ManseryokPage() {
         <p className="text-muted-foreground">날마다 깃든 우주의 기운과 운세를 달력으로 한눈에 파악하세요.</p>
       </div>
 
+      {/* 관리자 전용: 다른 사람 사주 조회 */}
+      {isAdmin && (
+        <AdminPersonLookup
+          active={activeAdminTarget}
+          onLoad={(target) => { setAdminTarget(target); setSelected(null); }}
+          onClear={() => { setAdminTarget(null); setSelected(null); }}
+        />
+      )}
+
       {/* 내 사주 개인화 배너 */}
       {myElem ? (
         <div className="mb-5 p-4 rounded-2xl border border-primary/30 bg-primary/5 flex items-center gap-3">
@@ -681,7 +725,17 @@ export default function ManseryokPage() {
         </div>
       )}
 
-      <Card className="glass-panel border-primary/20 p-4 md:p-6">
+      {/* 관리자 전용: 달력 이미지 저장 */}
+      {isAdmin && data && (
+        <div className="flex justify-end mb-3">
+          <Button variant="outline" size="sm" onClick={saveCalendarImage} disabled={savingImage} className="gap-1.5">
+            {savingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
+            달력 이미지 저장
+          </Button>
+        </div>
+      )}
+
+      <Card ref={calendarRef} className="glass-panel border-primary/20 p-4 md:p-6">
         {/* 월 이동 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <Button variant="outline" size="icon" onClick={prevMonth} className="rounded-full">
@@ -689,6 +743,9 @@ export default function ManseryokPage() {
           </Button>
 
           <div className="text-center">
+            {activeAdminTarget && (
+              <p className="text-xs text-amber-700 font-medium mb-1">{activeAdminTarget.label}</p>
+            )}
             <h2 className="text-2xl md:text-3xl font-serif font-bold text-foreground">
               {yearStr}년 {monthStr}월
             </h2>
