@@ -621,14 +621,14 @@ export default function ManseryokPage() {
     relationContext,
   ]);
 
+  // 미래 '월'을 보고 있던 일반 회원이 접근을 잃으면 선택을 초기화한다.
+  // (현재 달의 미래 날짜 선택은 허용하므로 날짜 단위로는 막지 않는다.)
   useEffect(() => {
     if (!selected || canAccessFutureDates) return;
-
-    const selectedDate = `${yearStr}-${monthStr}-${String(selected.dayNum).padStart(2, "0")}`;
-    if (selectedDate > TODAY) {
+    if (currentMonthKey > TODAY_MONTH) {
       setSelected(null);
     }
-  }, [canAccessFutureDates, monthStr, selected, yearStr]);
+  }, [canAccessFutureDates, currentMonthKey]);
 
   const nextMonth = () => {
     const next = addMonths(currentDate, 1);
@@ -797,7 +797,7 @@ export default function ManseryokPage() {
         </div>
 
         {!canAccessFutureDates && (
-          <p className="mb-4 text-center text-xs text-muted-foreground">일반 회원은 오늘 이후 날짜와 다음 달 만세력을 볼 수 없습니다.</p>
+          <p className="mb-4 text-center text-xs text-muted-foreground">일반 회원은 다음 달 이후 만세력을 볼 수 없습니다.</p>
         )}
 
         {isLoading ? (
@@ -840,7 +840,8 @@ export default function ManseryokPage() {
                 const dayOfWeek = (firstDayOfMonth + dayNum - 1) % 7;
                 const dateColor = dayOfWeek === 0 ? "text-rose-600" : dayOfWeek === 6 ? "text-blue-600" : "text-slate-900";
                 const isTodayDate = fullDate === TODAY;
-                const isBlockedFutureDate = !canAccessFutureDates && fullDate > TODAY;
+                // 일반 회원도 현재 달은 미래 날짜까지 전부 조회 가능. 미래 '월'만 관리자 전용.
+                const isBlockedFutureDate = !canAccessFutureDates && currentMonthKey > TODAY_MONTH;
                 const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
                 const score = dayData ? dayScores[dayNum] : null;
                 const score100 = (dayData && score != null) ? calcDayScore100(score, dayData.dayElement) : null;
@@ -909,14 +910,14 @@ export default function ManseryokPage() {
                         )}
 
                         {/* 운세 레이블 + 관계 심볼 */}
-                        <div className="flex items-center justify-between mt-auto pt-0.5">
+                        <div className="flex items-center justify-between gap-0.5 mt-auto pt-0.5">
                           {score != null && (
-                            <span className={cn("inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] md:text-[9px] font-bold leading-none", scoreBadgeClass(score))}>
+                            <span className={cn("inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] md:text-[9px] font-bold leading-none whitespace-nowrap shrink-0", scoreBadgeClass(score))}>
                               {scoreLabel(score)}
                             </span>
                           )}
                           {rel && (
-                            <span className={cn("text-[9px] md:text-[10px] font-bold ml-auto opacity-90", rel.colorClass)} title={rel.fortune}>
+                            <span className={cn("text-[9px] md:text-[10px] font-bold ml-auto shrink-0 opacity-90", rel.colorClass)} title={rel.fortune}>
                               {rel.emoji}
                             </span>
                           )}
