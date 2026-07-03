@@ -48,153 +48,132 @@ export function getYearPillar(year: number) {
 //                 미(7)=소서, 신(8)=입추, 유(9)=백로, 술(10)=한로, 해(11)=입동,
 //                 자(0)=대설, 축(1)=소한
 
-// 입춘 정확 시각 (KST, 24시간제 정수 시)
-// 같은 날 태어난 경우 이 시각 이전 → 전년도(이전 간지년), 이후 → 당해년도
-const IPCHUN_HOUR: Record<number, number> = {
-  1990: 13, 1991: 19, 1992: 1,  1993: 7,  1994: 13, 1995: 18,
-  1996: 0,  1997: 5,  1998: 22, 1999: 17, 2000: 22, 2001: 5,
-  2002: 10, 2003: 16, 2004: 22, 2005: 3,  2006: 9,  2007: 15,
-  2008: 21, 2009: 3,  2010: 9,  2011: 14, 2012: 20, 2013: 2,
-  2014: 8,  2015: 14, 2016: 20, 2017: 2,  2018: 7,  2019: 13,
-  2020: 19, 2021: 1,  2022: 7,  2023: 13, 2024: 18, 2025: 0,
-  2026: 6,  2027: 12, 2028: 17, 2029: 23, 2030: 5,  2031: 11,
-  2032: 17, 2033: 23, 2034: 4,  2035: 10,
-};
+// Month-starting solar term times (KST, minute precision).
+// Same-day boundaries compare actual birth time; unknown time uses noon.
+type MonthTermTime = [number, number, number, number];
 
-// Precise solar term days for month-starting terms (year → [입춘Feb, 경칩Mar, 청명Apr, 입하May, 망종Jun, 소서Jul, 입추Aug, 백로Sep, 한로Oct, 입동Nov, 대설Dec, 소한Jan_next])
-const MONTH_TERM_DAYS: Record<number, number[]> = {
-  1990: [4,6,5,5,6,7,8,8,8,8,7,6], 1991: [4,6,5,6,6,7,8,8,8,8,7,6],
-  1992: [4,5,4,5,5,7,7,7,8,7,7,5], 1993: [4,6,5,5,6,7,7,8,8,8,7,6],
-  1994: [4,6,5,5,6,7,8,8,8,8,7,6], 1995: [4,6,5,6,6,7,8,8,8,8,7,6],
-  1996: [4,5,4,5,5,6,7,7,8,7,7,5], 1997: [4,6,5,5,6,7,7,8,8,8,7,6],
-  1998: [4,6,5,5,6,7,8,8,8,8,7,6], 1999: [4,6,5,6,6,7,8,8,8,8,7,6],
-  2000: [4,5,4,5,5,6,7,7,8,7,7,5], 2001: [4,5,5,5,5,7,7,7,8,7,7,5],
-  2002: [4,6,5,5,6,7,7,8,8,8,7,6], 2003: [4,6,5,6,6,7,8,8,8,8,7,6],
-  2004: [4,5,4,5,5,6,7,7,7,7,7,5], 2005: [4,5,5,5,5,7,7,7,8,7,7,6],
-  2006: [4,6,5,5,6,7,7,8,8,8,7,6], 2007: [4,6,5,5,6,7,8,8,8,8,7,6],
-  2008: [4,5,4,5,5,6,7,7,7,7,7,5], 2009: [4,5,4,5,5,7,7,7,8,7,7,5],
-  2010: [4,6,5,5,6,7,7,8,8,8,7,6], 2011: [4,6,5,6,6,7,8,8,8,8,7,6],
-  2012: [4,5,4,5,5,6,7,7,7,7,7,5], 2013: [4,5,5,5,5,7,7,7,8,7,7,5],
-  2014: [4,6,5,5,6,7,7,8,8,8,7,6], 2015: [4,6,5,5,6,7,7,8,8,8,7,6],
-  2016: [4,5,4,5,5,6,7,7,7,7,7,5], 2017: [3,5,4,5,5,7,7,7,8,7,7,5],
-  2018: [4,6,5,5,6,7,7,8,8,8,7,6], 2019: [4,6,5,5,6,7,8,8,8,8,7,6],
-  2020: [4,5,4,5,5,6,7,7,8,7,7,6], 2021: [3,5,4,5,5,7,7,7,8,7,7,5],
-  2022: [4,6,5,5,6,7,7,8,8,8,7,6], 2023: [4,6,5,6,6,7,8,8,8,8,7,6],
-  2024: [4,5,4,5,5,6,7,7,8,7,7,6], 2025: [3,5,4,5,5,7,7,7,8,7,7,5],
-  2026: [4,6,5,5,6,7,7,8,8,8,7,6], 2027: [3,5,5,5,6,7,7,7,8,7,7,6],
-  2028: [4,5,4,5,5,6,7,7,7,7,7,5], 2029: [3,5,4,5,5,7,7,7,8,7,7,5],
-  2030: [4,6,5,5,6,7,7,8,8,8,7,6], 2031: [4,6,5,6,6,7,8,8,8,8,7,6],
-  2032: [4,5,4,5,5,6,7,7,7,7,7,5], 2033: [3,5,4,5,5,7,7,7,8,7,7,5],
-  2034: [4,6,5,5,6,7,7,8,8,8,7,6], 2035: [4,6,5,5,6,7,8,8,8,8,7,6],
+// KST [month, day, hour, minute] for month-starting solar terms.
+// Order: ipchun, gyeongchip, cheongmyeong, ipha, mangjong, soseo, ipchu, baengno, hanno, ipdong, daeseol, sohan.
+// Ipchun 1990-2026 uses published anchor values; other terms use the Meeus generator (within +/-13 minutes).
+const MONTH_TERM_TIMES: Record<number, MonthTermTime[]> = {
+  1990: [[2, 4, 11, 14], [3, 6, 5, 14], [4, 5, 10, 8], [5, 6, 3, 31], [6, 6, 7, 44], [7, 7, 18, 2], [8, 8, 3, 48], [9, 8, 6, 39], [10, 8, 22, 13], [11, 8, 1, 19], [12, 7, 18, 6], [1, 6, 5, 18]],
+  1991: [[2, 4, 17, 8], [3, 6, 11, 2], [4, 5, 15, 55], [5, 6, 9, 18], [6, 6, 13, 31], [7, 7, 23, 48], [8, 8, 9, 35], [9, 8, 12, 27], [10, 9, 4, 0], [11, 8, 7, 7], [12, 7, 23, 55], [1, 6, 11, 7]],
+  1992: [[2, 4, 22, 48], [3, 5, 16, 51], [4, 4, 21, 43], [5, 5, 15, 6], [6, 5, 19, 19], [7, 7, 5, 36], [8, 7, 15, 23], [9, 7, 18, 15], [10, 8, 9, 49], [11, 7, 12, 56], [12, 7, 5, 44], [1, 5, 16, 57]],
+  1993: [[2, 4, 4, 37], [3, 5, 22, 40], [4, 5, 3, 32], [5, 5, 20, 55], [6, 6, 1, 7], [7, 7, 11, 24], [8, 7, 21, 12], [9, 8, 0, 4], [10, 8, 15, 38], [11, 7, 18, 46], [12, 7, 11, 34], [1, 5, 22, 47]],
+  1994: [[2, 4, 10, 31], [3, 6, 4, 30], [4, 5, 9, 22], [5, 6, 2, 44], [6, 6, 6, 56], [7, 7, 17, 13], [8, 8, 3, 1], [9, 8, 5, 53], [10, 8, 21, 28], [11, 8, 0, 36], [12, 7, 17, 25], [1, 6, 4, 38]],
+  1995: [[2, 4, 16, 13], [3, 6, 10, 21], [4, 5, 15, 13], [5, 6, 8, 34], [6, 6, 12, 46], [7, 7, 23, 3], [8, 8, 8, 51], [9, 8, 11, 43], [10, 9, 3, 19], [11, 8, 6, 27], [12, 7, 23, 16], [1, 6, 10, 30]],
+  1996: [[2, 4, 22, 8], [3, 5, 16, 12], [4, 4, 21, 3], [5, 5, 14, 25], [6, 5, 18, 36], [7, 7, 4, 53], [8, 7, 14, 41], [9, 7, 17, 34], [10, 8, 9, 10], [11, 7, 12, 18], [12, 7, 5, 8], [1, 5, 16, 21]],
+  1997: [[2, 4, 4, 2], [3, 5, 22, 4], [4, 5, 2, 55], [5, 5, 20, 15], [6, 6, 0, 27], [7, 7, 10, 43], [8, 7, 20, 31], [9, 7, 23, 25], [10, 8, 15, 1], [11, 7, 18, 10], [12, 7, 11, 0], [1, 5, 22, 13]],
+  1998: [[2, 4, 9, 57], [3, 6, 3, 55], [4, 5, 8, 46], [5, 6, 2, 6], [6, 6, 6, 17], [7, 7, 16, 34], [8, 8, 2, 22], [9, 8, 5, 15], [10, 8, 20, 52], [11, 8, 0, 1], [12, 7, 16, 51], [1, 6, 4, 5]],
+  1999: [[2, 4, 15, 57], [3, 6, 9, 47], [4, 5, 14, 36], [5, 6, 7, 56], [6, 6, 12, 7], [7, 7, 22, 24], [8, 8, 8, 11], [9, 8, 11, 5], [10, 9, 2, 42], [11, 8, 5, 52], [12, 7, 22, 42], [1, 6, 9, 56]],
+  2000: [[2, 4, 21, 40], [3, 5, 15, 37], [4, 4, 20, 27], [5, 5, 13, 46], [6, 5, 17, 57], [7, 7, 4, 13], [8, 7, 14, 1], [9, 7, 16, 55], [10, 8, 8, 32], [11, 7, 11, 42], [12, 7, 4, 33], [1, 5, 15, 47]],
+  2001: [[2, 4, 3, 28], [3, 5, 21, 27], [4, 5, 2, 16], [5, 5, 19, 35], [6, 5, 23, 45], [7, 7, 10, 1], [8, 7, 19, 49], [9, 7, 22, 44], [10, 8, 14, 21], [11, 7, 17, 32], [12, 7, 10, 23], [1, 5, 21, 36]],
+  2002: [[2, 4, 9, 24], [3, 6, 3, 17], [4, 5, 8, 5], [5, 6, 1, 24], [6, 6, 5, 33], [7, 7, 15, 49], [8, 8, 1, 37], [9, 8, 4, 32], [10, 8, 20, 10], [11, 7, 23, 20], [12, 7, 16, 12], [1, 6, 3, 25]],
+  2003: [[2, 4, 15, 5], [3, 6, 9, 5], [4, 5, 13, 53], [5, 6, 7, 11], [6, 6, 11, 20], [7, 7, 21, 36], [8, 8, 7, 24], [9, 8, 10, 19], [10, 9, 1, 57], [11, 8, 5, 8], [12, 7, 22, 0], [1, 6, 9, 14]],
+  2004: [[2, 4, 20, 56], [3, 5, 14, 53], [4, 4, 19, 41], [5, 5, 12, 58], [6, 5, 17, 7], [7, 7, 3, 22], [8, 7, 13, 10], [9, 7, 16, 5], [10, 8, 7, 44], [11, 7, 10, 56], [12, 7, 3, 48], [1, 5, 15, 1]],
+  2005: [[2, 4, 2, 43], [3, 5, 20, 40], [4, 5, 1, 27], [5, 5, 18, 44], [6, 5, 22, 53], [7, 7, 9, 8], [8, 7, 18, 56], [9, 7, 21, 52], [10, 8, 13, 31], [11, 7, 16, 43], [12, 7, 9, 35], [1, 5, 20, 49]],
+  2006: [[2, 4, 8, 27], [3, 6, 2, 27], [4, 5, 7, 14], [5, 6, 0, 31], [6, 6, 4, 38], [7, 7, 14, 54], [8, 8, 0, 42], [9, 8, 3, 37], [10, 8, 19, 17], [11, 7, 22, 30], [12, 7, 15, 22], [1, 6, 2, 36]],
+  2007: [[2, 4, 14, 18], [3, 6, 8, 14], [4, 5, 13, 0], [5, 6, 6, 17], [6, 6, 10, 24], [7, 7, 20, 39], [8, 8, 6, 27], [9, 8, 9, 23], [10, 9, 1, 4], [11, 8, 4, 17], [12, 7, 21, 9], [1, 6, 8, 24]],
+  2008: [[2, 4, 20, 0], [3, 5, 14, 1], [4, 4, 18, 47], [5, 5, 12, 3], [6, 5, 16, 10], [7, 7, 2, 25], [8, 7, 12, 13], [9, 7, 15, 10], [10, 8, 6, 51], [11, 7, 10, 4], [12, 7, 2, 57], [1, 5, 14, 11]],
+  2009: [[2, 4, 1, 50], [3, 5, 19, 49], [4, 5, 0, 34], [5, 5, 17, 49], [6, 5, 21, 56], [7, 7, 8, 11], [8, 7, 18, 0], [9, 7, 20, 57], [10, 8, 12, 38], [11, 7, 15, 52], [12, 7, 8, 45], [1, 5, 20, 0]],
+  2010: [[2, 4, 7, 48], [3, 6, 1, 37], [4, 5, 6, 22], [5, 5, 23, 37], [6, 6, 3, 44], [7, 7, 13, 58], [8, 7, 23, 47], [9, 8, 2, 44], [10, 8, 18, 26], [11, 7, 21, 40], [12, 7, 14, 34], [1, 6, 1, 49]],
+  2011: [[2, 4, 13, 33], [3, 6, 7, 26], [4, 5, 12, 11], [5, 6, 5, 25], [6, 6, 9, 31], [7, 7, 19, 46], [8, 8, 5, 35], [9, 8, 8, 32], [10, 9, 0, 15], [11, 8, 3, 30], [12, 7, 20, 24], [1, 6, 7, 39]],
+  2012: [[2, 4, 19, 22], [3, 5, 13, 15], [4, 4, 18, 0], [5, 5, 11, 14], [6, 5, 15, 20], [7, 7, 1, 35], [8, 7, 11, 24], [9, 7, 14, 22], [10, 8, 6, 4], [11, 7, 9, 20], [12, 7, 2, 14], [1, 5, 13, 30]],
+  2013: [[2, 4, 1, 13], [3, 5, 19, 6], [4, 4, 23, 50], [5, 5, 17, 4], [6, 5, 21, 10], [7, 7, 7, 24], [8, 7, 17, 13], [9, 7, 20, 11], [10, 8, 11, 55], [11, 7, 15, 10], [12, 7, 8, 5], [1, 5, 19, 21]],
+  2014: [[2, 4, 7, 3], [3, 6, 0, 57], [4, 5, 5, 40], [5, 5, 22, 54], [6, 6, 3, 0], [7, 7, 13, 14], [8, 7, 23, 3], [9, 8, 2, 2], [10, 8, 17, 45], [11, 7, 21, 2], [12, 7, 13, 57], [1, 6, 1, 12]],
+  2015: [[2, 4, 12, 58], [3, 6, 6, 48], [4, 5, 11, 32], [5, 6, 4, 44], [6, 6, 8, 50], [7, 7, 19, 4], [8, 8, 4, 54], [9, 8, 7, 52], [10, 8, 23, 36], [11, 8, 2, 53], [12, 7, 19, 48], [1, 6, 7, 4]],
+  2016: [[2, 4, 18, 46], [3, 5, 12, 40], [4, 4, 17, 23], [5, 5, 10, 35], [6, 5, 14, 40], [7, 7, 0, 54], [8, 7, 10, 44], [9, 7, 13, 43], [10, 8, 5, 27], [11, 7, 8, 44], [12, 7, 1, 40], [1, 5, 12, 56]],
+  2017: [[2, 4, 0, 34], [3, 5, 18, 31], [4, 4, 23, 14], [5, 5, 16, 26], [6, 5, 20, 31], [7, 7, 6, 44], [8, 7, 16, 34], [9, 7, 19, 33], [10, 8, 11, 18], [11, 7, 14, 36], [12, 7, 7, 32], [1, 5, 18, 47]],
+  2018: [[2, 4, 6, 28], [3, 6, 0, 22], [4, 5, 5, 4], [5, 5, 22, 16], [6, 6, 2, 20], [7, 7, 12, 34], [8, 7, 22, 24], [9, 8, 1, 23], [10, 8, 17, 8], [11, 7, 20, 26], [12, 7, 13, 22], [1, 6, 0, 38]],
+  2019: [[2, 4, 12, 14], [3, 6, 6, 13], [4, 5, 10, 54], [5, 6, 4, 6], [6, 6, 8, 10], [7, 7, 18, 23], [8, 8, 4, 13], [9, 8, 7, 13], [10, 8, 22, 58], [11, 8, 2, 16], [12, 7, 19, 13], [1, 6, 6, 29]],
+  2020: [[2, 4, 18, 3], [3, 5, 12, 2], [4, 4, 16, 44], [5, 5, 9, 54], [6, 5, 13, 58], [7, 7, 0, 11], [8, 7, 10, 1], [9, 7, 13, 1], [10, 8, 4, 47], [11, 7, 8, 5], [12, 7, 1, 2], [1, 5, 12, 18]],
+  2021: [[2, 3, 23, 59], [3, 5, 17, 51], [4, 4, 22, 32], [5, 5, 15, 43], [6, 5, 19, 46], [7, 7, 5, 59], [8, 7, 15, 49], [9, 7, 18, 49], [10, 8, 10, 35], [11, 7, 13, 54], [12, 7, 6, 51], [1, 5, 18, 7]],
+  2022: [[2, 4, 5, 51], [3, 5, 23, 40], [4, 5, 4, 20], [5, 5, 21, 30], [6, 6, 1, 33], [7, 7, 11, 45], [8, 7, 21, 35], [9, 8, 0, 36], [10, 8, 16, 22], [11, 7, 19, 41], [12, 7, 12, 39], [1, 5, 23, 55]],
+  2023: [[2, 4, 11, 43], [3, 6, 5, 27], [4, 5, 10, 7], [5, 6, 3, 16], [6, 6, 7, 19], [7, 7, 17, 32], [8, 8, 3, 21], [9, 8, 6, 22], [10, 8, 22, 9], [11, 8, 1, 29], [12, 7, 18, 26], [1, 6, 5, 43]],
+  2024: [[2, 4, 17, 27], [3, 5, 11, 15], [4, 4, 15, 54], [5, 5, 9, 3], [6, 5, 13, 5], [7, 6, 23, 17], [8, 7, 9, 7], [9, 7, 12, 8], [10, 8, 3, 56], [11, 7, 7, 16], [12, 7, 0, 13], [1, 5, 11, 30]],
+  2025: [[2, 3, 23, 10], [3, 5, 17, 1], [4, 4, 21, 40], [5, 5, 14, 49], [6, 5, 18, 50], [7, 7, 5, 3], [8, 7, 14, 53], [9, 7, 17, 54], [10, 8, 9, 42], [11, 7, 13, 2], [12, 7, 6, 1], [1, 5, 17, 17]],
+  2026: [[2, 4, 5, 2], [3, 5, 22, 48], [4, 5, 3, 27], [5, 5, 20, 35], [6, 6, 0, 36], [7, 7, 10, 48], [8, 7, 20, 38], [9, 7, 23, 40], [10, 8, 15, 28], [11, 7, 18, 49], [12, 7, 11, 48], [1, 5, 23, 5]],
+  2027: [[2, 4, 10, 42], [3, 6, 4, 36], [4, 5, 9, 14], [5, 6, 2, 21], [6, 6, 6, 22], [7, 7, 16, 34], [8, 8, 2, 25], [9, 8, 5, 27], [10, 8, 21, 15], [11, 8, 0, 37], [12, 7, 17, 36], [1, 6, 4, 53]],
+  2028: [[2, 4, 16, 30], [3, 5, 10, 23], [4, 4, 15, 1], [5, 5, 8, 8], [6, 5, 12, 9], [7, 6, 22, 21], [8, 7, 8, 11], [9, 7, 11, 14], [10, 8, 3, 3], [11, 7, 6, 25], [12, 6, 23, 24], [1, 5, 10, 42]],
+  2029: [[2, 3, 22, 18], [3, 5, 16, 12], [4, 4, 20, 49], [5, 5, 13, 56], [6, 5, 17, 56], [7, 7, 4, 8], [8, 7, 13, 59], [9, 7, 17, 2], [10, 8, 8, 51], [11, 7, 12, 14], [12, 7, 5, 14], [1, 5, 16, 31]],
+  2030: [[2, 4, 4, 8], [3, 5, 22, 1], [4, 5, 2, 38], [5, 5, 19, 44], [6, 5, 23, 44], [7, 7, 9, 56], [8, 7, 19, 47], [9, 7, 22, 50], [10, 8, 14, 41], [11, 7, 18, 3], [12, 7, 11, 4], [1, 5, 22, 21]],
+  2031: [[2, 4, 9, 58], [3, 6, 3, 51], [4, 5, 8, 27], [5, 6, 1, 33], [6, 6, 5, 33], [7, 7, 15, 45], [8, 8, 1, 36], [9, 8, 4, 40], [10, 8, 20, 30], [11, 7, 23, 54], [12, 7, 16, 54], [1, 6, 4, 12]],
+  2032: [[2, 4, 15, 49], [3, 5, 9, 41], [4, 4, 14, 18], [5, 5, 7, 23], [6, 5, 11, 23], [7, 6, 21, 35], [8, 7, 7, 26], [9, 7, 10, 30], [10, 8, 2, 21], [11, 7, 5, 45], [12, 6, 22, 45], [1, 5, 10, 3]],
+  2033: [[2, 3, 21, 40], [3, 5, 15, 33], [4, 4, 20, 9], [5, 5, 13, 14], [6, 5, 17, 13], [7, 7, 3, 25], [8, 7, 13, 16], [9, 7, 16, 20], [10, 8, 8, 12], [11, 7, 11, 36], [12, 7, 4, 37], [1, 5, 15, 55]],
+  2034: [[2, 4, 3, 32], [3, 5, 21, 24], [4, 5, 2, 0], [5, 5, 19, 4], [6, 5, 23, 3], [7, 7, 9, 15], [8, 7, 19, 6], [9, 7, 22, 11], [10, 8, 14, 3], [11, 7, 17, 27], [12, 7, 10, 29], [1, 5, 21, 47]],
+  2035: [[2, 4, 9, 24], [3, 6, 3, 16], [4, 5, 7, 51], [5, 6, 0, 55], [6, 6, 4, 54], [7, 7, 15, 5], [8, 8, 0, 57], [9, 8, 4, 1], [10, 8, 19, 54], [11, 7, 23, 19], [12, 7, 16, 20], [1, 6, 3, 39]],
 };
 
 // Returns [month (1-12 solar), day] of the month-starting term for given saju month branch
 // branchIdx: 2=인(입춘/Feb), 3=묘(경칩/Mar), 4=진(청명/Apr), 5=사(입하/May),
 //            6=오(망종/Jun), 7=미(소서/Jul), 8=신(입추/Aug), 9=유(백로/Sep),
 //            10=술(한로/Oct), 11=해(입동/Nov), 0=자(대설/Dec), 1=축(소한/Jan)
+function getTermIndex(branchIdx: number): number {
+  return branchIdx === 0 ? 10 : branchIdx === 1 ? 11 : branchIdx - 2;
+}
+
+function getMonthTermDateTime(year: number, branchIdx: number): { month: number; day: number; hour: number; minute: number } {
+  const termIdx = getTermIndex(branchIdx);
+  const approxTerms: MonthTermTime[] = [
+    [2, 4, 12, 0], [3, 6, 12, 0], [4, 5, 12, 0], [5, 6, 12, 0],
+    [6, 6, 12, 0], [7, 7, 12, 0], [8, 7, 12, 0], [9, 8, 12, 0],
+    [10, 8, 12, 0], [11, 7, 12, 0], [12, 7, 12, 0], [1, 6, 12, 0],
+  ];
+  const [month, day, hour, minute] = MONTH_TERM_TIMES[year]?.[termIdx] ?? approxTerms[termIdx];
+  return { month, day, hour, minute };
+}
+
 function getMonthTermDay(year: number, branchIdx: number): { month: number; day: number } {
-  const data = MONTH_TERM_DAYS[year];
-  // Array index in MONTH_TERM_DAYS: 0=입춘(Feb,branch2), 1=경칩(Mar,branch3), ...
-  // branch 2=index 0, branch 3=index 1, ..., branch 11=index 9, branch 0=index 10, branch 1=index 11
-  const termIdx = branchIdx === 0 ? 10 : branchIdx === 1 ? 11 : branchIdx - 2;
-  
-  const TERM_MONTHS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1]; // solar month for each term
-  const termMonth = TERM_MONTHS[termIdx];
-  
-  // Use precise data if available, otherwise use approximate
-  const APPROX_DAYS = [4, 6, 5, 6, 6, 7, 7, 8, 8, 7, 7, 6]; // approximate day per term
-  const termDay = data ? data[termIdx] : APPROX_DAYS[termIdx];
-  
-  return { month: termMonth, day: termDay };
+  const { month, day } = getMonthTermDateTime(year, branchIdx);
+  return { month, day };
 }
 
 // Find the saju year for a given date.
-// The saju year resets ONLY at 입춘 (branch 2, ~Feb 4).
+// The saju year resets ONLY at ipchun (branch 2, ~Feb 4).
 // birthHour: -1 = unknown, 0-23 = KST hour
-export function getSajuYear(year: number, month: number, day: number, birthHour: number = -1): number {
-  const targetDate = new Date(year, month - 1, day);
-  let sajuYear = year - 1; // default: before first ipchun we encounter
+export function getSajuYear(year: number, month: number, day: number, birthHour: number = -1, birthMinute: number = 0): number {
+  const targetDate = new Date(year, month - 1, day, birthHour === -1 ? 12 : birthHour, birthMinute);
+  let sajuYear = year - 1;
 
-  // Check 입춘 in nearby years
   for (const ty of [year - 1, year]) {
-    const { month: tm, day: td } = getMonthTermDay(ty, 2); // branch 2 = 입춘, Feb
-    const ipchunDate = new Date(ty, tm - 1, td);
-
-    if (ipchunDate < targetDate) {
-      // 생일이 입춘일 이후 → 당해 사주년
+    const { month: tm, day: td, hour: th, minute: tmin } = getMonthTermDateTime(ty, 2);
+    const ipchunDate = new Date(ty, tm - 1, td, th, tmin);
+    if (ipchunDate <= targetDate) {
       sajuYear = ty;
-    } else if (ipchunDate.getTime() === targetDate.getTime()) {
-      // 생일이 입춘과 같은 날 → 시각 비교 필요
-      const ipchunHour = IPCHUN_HOUR[ty] ?? 4;
-      if (birthHour !== -1) {
-        // 출생 시각 알 때: 입춘 시각 이후면 새 간지년
-        if (birthHour >= ipchunHour) sajuYear = ty;
-      } else {
-        // 출생 시각 모를 때: 입춘이 정오 이전이면 새 간지년(대부분 이후),
-        // 정오 이후이면 구 간지년(대부분 이전)
-        if (ipchunHour < 12) sajuYear = ty;
-        // ipchunHour >= 12: 보수적으로 이전 간지년 유지
-      }
     }
-    // ipchunDate > targetDate: 아직 입춘 전 → 업데이트 안 함
   }
+
   return sajuYear;
 }
 
 // Determine which saju month branch a date belongs to, plus the saju year for stem calculation
-function getSajuMonthBranch(year: number, month: number, day: number, birthHour: number = -1): { branchIdx: number; sajuYear: number } {
-  const targetDate = new Date(year, month - 1, day);
+function getSajuMonthBranch(year: number, month: number, day: number, birthHour: number = -1, birthMinute: number = 0): { branchIdx: number; sajuYear: number } {
+  const targetDate = new Date(year, month - 1, day, birthHour === -1 ? 12 : birthHour, birthMinute);
 
-  // Build chronological list of all month-starting terms around the target date
-  // 소한(b=1, month=1)은 해당 데이터 연도의 다음 해 1월이므로 actualYear = termYear+1
-  const terms: Array<{ branch: number; actualYear: number; month: number; day: number }> = [];
+  const terms: Array<{ branch: number; date: Date }> = [];
   for (const termYear of [year - 1, year, year + 1]) {
     for (let b = 0; b < 12; b++) {
-      const { month: tm, day: td } = getMonthTermDay(termYear, b);
+      const { month: tm, day: td, hour: th, minute: tmin } = getMonthTermDateTime(termYear, b);
       const actualYear = tm === 1 ? termYear + 1 : termYear;
-      terms.push({ branch: b, actualYear, month: tm, day: td });
+      terms.push({ branch: b, date: new Date(actualYear, tm - 1, td, th, tmin) });
     }
   }
-  terms.sort((a, b) => {
-    if (a.actualYear !== b.actualYear) return a.actualYear - b.actualYear;
-    if (a.month !== b.month) return a.month - b.month;
-    return a.day - b.day;
-  });
+  terms.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // Find the most recently passed month-starting term
-  let currentBranch = 1; // fallback: 축월
+  let currentBranch = 1;
   for (const term of terms) {
-    const termDate = new Date(term.actualYear, term.month - 1, term.day);
-    if (termDate < targetDate) {
+    if (term.date <= targetDate) {
       currentBranch = term.branch;
-    } else if (termDate.getTime() === targetDate.getTime()) {
-      // 생일이 절기 당일 → 절기 발생 시각과 비교 필요
-      if (term.branch === 2) {
-        // 입춘: 정확한 KST 시각 테이블 사용
-        const ipchunHour = IPCHUN_HOUR[term.actualYear] ?? 4;
-        if (birthHour !== -1) {
-          if (birthHour >= ipchunHour) currentBranch = term.branch;
-        } else {
-          // 시각 모를 때: 입춘이 정오 이전이면 대부분 이후(새 월), 정오 이후면 이전(구 월)
-          if (ipchunHour < 12) currentBranch = term.branch;
-        }
-      } else {
-        // 다른 절기: 절기 당일부터 새 월 시작 (한국 사주 표준)
-        // 출생 시각을 모를 때도 절기 당일은 새 월로 취급
-        // (시각을 알 경우 실제 절기 발생 시각과 비교하면 더 정확하나, 데이터 미비)
-        currentBranch = term.branch;
-      }
     }
   }
 
-  // The saju year is determined solely by 입춘, not by month boundaries
-  const sajuYear = getSajuYear(year, month, day, birthHour);
+  const sajuYear = getSajuYear(year, month, day, birthHour, birthMinute);
 
   return { branchIdx: currentBranch, sajuYear };
 }
 
-export function getMonthPillar(year: number, month: number, day: number, birthHour: number = -1) {
-  const { branchIdx, sajuYear } = getSajuMonthBranch(year, month, day, birthHour);
+export function getMonthPillar(year: number, month: number, day: number, birthHour: number = -1, birthMinute: number = 0) {
+  const { branchIdx, sajuYear } = getSajuMonthBranch(year, month, day, birthHour, birthMinute);
 
   // The month stem is determined by the saju year's heavenly stem.
   // 인월(寅月) always starts at stem = (yearStem * 2 + 2) % 10 (오호둔 규칙).
@@ -817,7 +796,9 @@ export function getDaeun(
   birthYear: number, birthMonth: number, birthDay: number,
   gender: 'male' | 'female',
   yearPillar: ReturnType<typeof getYearPillar>,
-  monthPillar: ReturnType<typeof getMonthPillar>
+  monthPillar: ReturnType<typeof getMonthPillar>,
+  birthHour: number = -1,
+  birthMinute: number = 0
 ) {
   // 대운 순행/역행은 년간(年干) 기준 (전통 사주 표준)
   // 양년간(갑·병·무·경·임) + 男 or 음년간 + 女 → 순행
@@ -825,16 +806,16 @@ export function getDaeun(
   const isYangYear = yearPillar.stemIndex % 2 === 0;
   const isForward = (gender === 'male') === isYangYear;
 
-  const birthDate = new Date(birthYear, birthMonth - 1, birthDay);
+  const birthDate = new Date(birthYear, birthMonth - 1, birthDay, birthHour === -1 ? 12 : birthHour, birthMinute);
 
   // 주변 3년치 절기 수집 (12개 월령 절기만)
   // 소한(b=1, month=1)은 해당 데이터 연도의 다음 해 1월이므로 ty+1 사용
   const terms: Date[] = [];
   for (const ty of [birthYear - 1, birthYear, birthYear + 1]) {
     for (let b = 0; b < 12; b++) {
-      const { month: tm, day: td } = getMonthTermDay(ty, b);
+      const { month: tm, day: td, hour: th, minute: tmin } = getMonthTermDateTime(ty, b);
       const termYear = tm === 1 ? ty + 1 : ty;
-      terms.push(new Date(termYear, tm - 1, td));
+      terms.push(new Date(termYear, tm - 1, td, th, tmin));
     }
   }
   terms.sort((a, b) => a.getTime() - b.getTime());

@@ -82,9 +82,9 @@ export function buildSajuResult(input: SajuBirthInput) {
   const hour = input.birthHour === -1 || input.birthHour == null ? -1 : Number(input.birthHour);
   const minute = hour === -1 ? 0 : Number(input.birthMinute ?? 0);
 
-  const sajuYearNum = getSajuYear(year, month, day, hour);
+  const sajuYearNum = getSajuYear(year, month, day, hour, minute);
   const yearPillar = getYearPillar(sajuYearNum);
-  const monthPillar = getMonthPillar(year, month, day, hour);
+  const monthPillar = getMonthPillar(year, month, day, hour, minute);
   const dayPillar = getDayPillar(year, month, day);
   const hourPillar = hour >= 0 ? getHourPillar(dayPillar.stemIndex, hour) : null;
 
@@ -160,7 +160,7 @@ export function buildSajuResult(input: SajuBirthInput) {
     luckyColors: getLuckyColors(dayElement, dayPillar.stem),
     luckyDirections: getLuckyDirections(dayElement, dayPillar.stem),
     zodiac: yearPillar.zodiac,
-    daeun: getDaeun(year, month, day, input.gender, yearPillar, monthPillar),
+    daeun: getDaeun(year, month, day, input.gender, yearPillar, monthPillar, hour, minute),
     seun: getSeun(year, 30),
     yongsin,
     sinGangYak: getSinGangYak(yearPillar, monthPillar, dayPillar, hourPillar),
