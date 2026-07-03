@@ -157,6 +157,25 @@ function pillarCardHtml(label: string, value: string) {
   `;
 }
 
+function formatShadowReading(result: Record<string, any>) {
+  const shadow = result.shadowReading;
+  if (!shadow || typeof shadow !== "object") {
+    return "";
+  }
+
+  const summary = typeof shadow.summary === "string" ? shadow.summary.trim() : "";
+  const pitfalls: string[] = Array.isArray(shadow.pitfalls)
+    ? shadow.pitfalls
+        .filter((item: unknown): item is string => typeof item === "string" && item.trim().length > 0)
+        .slice(0, 4)
+    : [];
+  const advice = typeof shadow.advice === "string" ? shadow.advice.trim() : "";
+
+  return [summary, ...pitfalls.map((item) => `주의: ${item}`), advice]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function buildSajuReportHtml(title: string, result: Record<string, any>) {
   const birthInfo = result.birthInfo ?? {};
   const summary = [
@@ -170,6 +189,13 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
       title: "핵심 요약",
       body: result.fortune ?? "현재 흐름은 균형과 속도 조절이 핵심입니다.",
       accent: "#caa75d",
+    },
+    {
+      title: "그림자와 주의점",
+      body:
+        formatShadowReading(result) ||
+        "좋은 기운도 과하면 부담이 됩니다. 강점이 과해질 때 생기는 반복 실수를 함께 살피는 편이 좋습니다.",
+      accent: "#9a4f4f",
     },
     {
       title: "성격 분석",
@@ -250,6 +276,7 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
 export function buildSajuReportPreview(result: Record<string, any>) {
   const parts = [
     result.fortune,
+    result.shadowReading?.summary,
     result.personality,
     result.career,
   ]
@@ -324,6 +351,14 @@ export async function generateSajuReportPdf(title: string, result: Record<string
       hanja: "總評",
       body: result.fortune ?? "현재 흐름은 급하게 단정하기보다 리듬을 보며 움직일 때 안정적입니다.",
       accent: "#caa75d",
+    },
+    {
+      title: "그림자와 주의점",
+      hanja: "陰影",
+      body:
+        formatShadowReading(result) ||
+        "좋은 기운도 과하면 부담이 됩니다. 강점이 과해질 때 생기는 반복 실수를 함께 살피는 편이 좋습니다.",
+      accent: "#9a4f4f",
     },
     {
       title: "성격 분석",

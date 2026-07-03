@@ -48,6 +48,17 @@ function buildSajuContext(result: Record<string, any>): string {
     daeun ? `## 대운 흐름\n${daeun}` : "",
     result.personality ? `## 성격/기질\n${oneLine(result.personality).slice(0, 200)}` : "",
     result.fortune ? `## 종합 운세\n${oneLine(result.fortune).slice(0, 200)}` : "",
+    result.shadowReading?.summary
+      ? `## 그림자/주의점\n${oneLine(result.shadowReading.summary).slice(0, 180)}${
+          Array.isArray(result.shadowReading.pitfalls)
+            ? `\n- ${result.shadowReading.pitfalls
+                .slice(0, 3)
+                .map((item: unknown) => oneLine(item).slice(0, 120))
+                .filter(Boolean)
+                .join("\n- ")}`
+            : ""
+        }`
+      : "",
     result.career ? `## 직업운\n${oneLine(result.career).slice(0, 150)}` : "",
     result.love ? `## 애정운\n${oneLine(result.love).slice(0, 150)}` : "",
     result.health ? `## 건강운\n${oneLine(result.health).slice(0, 150)}` : "",
@@ -64,7 +75,8 @@ const SYSTEM_PROMPT = `당신은 명해원(命海苑)의 사주 전문 AI 상담
 - 일간 오행, 용신, 대운 흐름을 질문과 연결해서 설명합니다
 - 전문 용어는 간단히 풀어서 설명합니다
 - 350~600자 내외로 핵심만 전달하되, 실용적인 조언을 포함합니다
-- 긍정적인 면과 주의할 점을 균형있게 제시합니다
+- 긍정적인 면만 말하지 말고, 불리한 패턴·반복 실수·피해야 할 행동을 구체적으로 함께 제시합니다
+- 단, 불안감을 조장하거나 단정적인 재난 예언처럼 말하지 말고 사용자가 조절할 수 있는 행동으로 풀어냅니다
 - 시기(언제), 방향(어떻게)을 포함한 구체적 조언을 제공합니다
 - 마지막 줄에 항상 추가: "※ 본 답변은 사주 해석 기반의 참고 정보이며, 중요한 결정은 전문가와 상담하세요."
 - 질문이 사주와 무관한 경우 정중히 사주 관련 질문으로 안내합니다`;

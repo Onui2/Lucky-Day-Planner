@@ -154,6 +154,22 @@ function createVisibleSections(enabledKeys?: SectionKey[]) {
   return next;
 }
 
+function formatShadowReadingText(shadow: any) {
+  if (!shadow || typeof shadow !== "object") return "";
+
+  const summary = typeof shadow.summary === "string" ? shadow.summary.trim() : "";
+  const pitfalls: string[] = Array.isArray(shadow.pitfalls)
+    ? shadow.pitfalls
+        .filter((item: unknown): item is string => typeof item === "string" && item.trim().length > 0)
+        .slice(0, 3)
+    : [];
+  const advice = typeof shadow.advice === "string" ? shadow.advice.trim() : "";
+
+  return [summary, ...pitfalls.map((item) => `주의: ${item}`), advice]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function parseVisibleSectionsParam(value: string | null) {
   if (!value) {
     return null;
@@ -555,6 +571,7 @@ export default function SajuPage() {
       lines.push("", "[일간 성향]");
       if (result.personality) lines.push(`  성향: ${shareSummary(result.personality, 44)}`);
       if (result.fortune) lines.push(`  총운: ${shareSummary(result.fortune, 44)}`);
+      if (result.shadowReading) lines.push(`  주의: ${shareSummary(formatShadowReadingText(result.shadowReading), 54)}`);
       if (result.love) lines.push(`  애정: ${shareSummary(result.love, 40)}`);
       if (result.health) lines.push(`  건강: ${shareSummary(result.health, 40)}`);
     }
@@ -724,6 +741,7 @@ export default function SajuPage() {
       lines.push(`【 일간 심층 분석 】`);
       if (r.personality) lines.push(`  성향: ${shareSummary(r.personality, 44)}`);
       if (r.fortune)     lines.push(`  총운: ${shareSummary(r.fortune, 44)}`);
+      if (r.shadowReading) lines.push(`  주의: ${shareSummary(formatShadowReadingText(r.shadowReading), 54)}`);
       if (r.love)        lines.push(`  애정: ${shareSummary(r.love, 40)}`);
       if (r.health)      lines.push(`  건강: ${shareSummary(r.health, 40)}`);
     }
@@ -1980,10 +1998,11 @@ export default function SajuPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { title:"타고난 성향", desc: r.personality, icon: "🧠" },
+                  { title:"그림자와 주의점", desc: formatShadowReadingText(r.shadowReading), icon: "⚠️" },
                   { title:"애정·연애운",  desc: r.love,        icon: "💕" },
                   { title:"건강 관리",   desc: r.health,      icon: "🌿" },
                   { title:"평생 총운",   desc: r.fortune,     icon: "✨" },
-                ].map((s, idx) => (
+                ].filter((s) => Boolean(s.desc)).map((s, idx) => (
                   <Card key={idx} className="glass-panel border-primary/20">
                     <CardHeader className="pb-3 border-b border-primary/10">
                       <CardTitle className="text-lg flex items-center gap-2"><span>{s.icon}</span>{s.title}</CardTitle>

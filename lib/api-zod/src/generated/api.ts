@@ -114,6 +114,18 @@ export const CalculateSajuResponse = zod.object({
   dayMasterElement: zod.string().describe("The day master element"),
   personality: zod.string().describe("Personality description based on saju"),
   fortune: zod.string().describe("Overall fortune description"),
+  shadowReading: zod.object({
+    title: zod
+      .string()
+      .describe("Balanced section title for difficult patterns and cautions"),
+    summary: zod
+      .string()
+      .describe("Concise summary of negative patterns when strengths are overused"),
+    pitfalls: zod
+      .array(zod.string())
+      .describe("Specific caution points and repeated failure patterns"),
+    advice: zod.string().describe("Practical balancing advice"),
+  }),
   career: zod.string().describe("Career fortune"),
   love: zod.string().describe("Love and relationship fortune"),
   health: zod.string().describe("Health fortune"),

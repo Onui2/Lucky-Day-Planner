@@ -22,6 +22,7 @@ import {
   getSajuYear,
   getSamjae,
   getSeun,
+  getShadowReading,
   getShinsal,
   getSinGangYak,
   getYearPillar,
@@ -128,6 +129,14 @@ export function buildSajuResult(input: SajuBirthInput) {
       dayPillar.branch,
       dayElement,
       dayPillar.branchElement,
+    ),
+    shadowReading: getShadowReading(
+      dayPillar.stem,
+      dayPillar.branch,
+      dayElement,
+      dayPillar.branchElement,
+      dominant,
+      lacking,
     ),
     career: getCareerText(
       dayPillar.stem,

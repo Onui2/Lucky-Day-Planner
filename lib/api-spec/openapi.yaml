@@ -388,6 +388,29 @@ components:
         - gender
         - calendarType
 
+    SajuShadowReading:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Balanced section title for difficult patterns and cautions
+        summary:
+          type: string
+          description: Concise summary of negative patterns when strengths are overused
+        pitfalls:
+          type: array
+          items:
+            type: string
+          description: Specific caution points and repeated failure patterns
+        advice:
+          type: string
+          description: Practical balancing advice
+      required:
+        - title
+        - summary
+        - pitfalls
+        - advice
+
     SajuResult:
       type: object
       properties:
@@ -418,6 +441,8 @@ components:
         fortune:
           type: string
           description: Overall fortune description
+        shadowReading:
+          $ref: "#/components/schemas/SajuShadowReading"
         career:
           type: string
           description: Career fortune
@@ -454,6 +479,7 @@ components:
         - dayMasterElement
         - personality
         - fortune
+        - shadowReading
         - career
         - love
         - health

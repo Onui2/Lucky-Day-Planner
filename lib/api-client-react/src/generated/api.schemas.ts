@@ -81,6 +81,17 @@ export interface SajuBirthInfo {
   calendarType: string;
 }
 
+export interface SajuShadowReading {
+  /** Balanced section title for difficult patterns and cautions */
+  title: string;
+  /** Concise summary of negative patterns when strengths are overused */
+  summary: string;
+  /** Specific caution points and repeated failure patterns */
+  pitfalls: string[];
+  /** Practical balancing advice */
+  advice: string;
+}
+
 export interface SajuResult {
   birthInfo?: SajuBirthInfo;
   yearPillar: SajuPillar;
@@ -98,6 +109,7 @@ export interface SajuResult {
   personality: string;
   /** Overall fortune description */
   fortune: string;
+  shadowReading: SajuShadowReading;
   /** Career fortune */
   career: string;
   /** Love and relationship fortune */

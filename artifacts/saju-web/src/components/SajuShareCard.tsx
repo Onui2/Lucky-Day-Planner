@@ -38,6 +38,17 @@ function elemColor(elem: string) {
   return ELEM_HEX[elem?.toLowerCase()] ?? "#d4af37";
 }
 
+function compactShadowReading(shadow: unknown) {
+  if (!shadow || typeof shadow !== "object") return "";
+  const value = shadow as Record<string, unknown>;
+  const summary = typeof value.summary === "string" ? value.summary.replace(/\s+/g, " ").trim() : "";
+  const firstPitfall = Array.isArray(value.pitfalls)
+    ? value.pitfalls.find((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : "";
+  const text = [summary, firstPitfall ? `주의: ${firstPitfall.trim()}` : ""].filter(Boolean).join(" ");
+  return text.length > 90 ? `${text.slice(0, 87)}...` : text;
+}
+
 interface Props {
   result: Record<string, any>;
 }
@@ -72,6 +83,7 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
   const fortuneShort = fortune.length > 90
     ? fortune.slice(0, 87) + "…"
     : fortune;
+  const shadowShort = compactShadowReading(result.shadowReading);
 
   const elBalance = (result.elementBalance ?? {}) as Record<string, number>;
   const elems = ["목", "화", "토", "금", "수"];
@@ -369,6 +381,22 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
           >
             {fortuneShort}
           </div>
+          {shadowShort && (
+            <div
+              style={{
+                marginTop: 10,
+                background: "rgba(248,113,113,0.08)",
+                border: "1px solid rgba(248,113,113,0.22)",
+                borderRadius: 12,
+                padding: "12px 14px",
+                fontSize: 12.5,
+                lineHeight: 1.75,
+                color: "#fecaca",
+              }}
+            >
+              {shadowShort}
+            </div>
+          )}
         </div>
       )}
 

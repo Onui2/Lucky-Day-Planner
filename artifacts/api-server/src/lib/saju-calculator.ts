@@ -611,6 +611,58 @@ const HEALTH_RECOVERY = [
   '증상이 커진 뒤 치료하기보다 생활 루틴을 먼저 바로잡는 편이 효과적입니다.',
 ];
 
+const SHADOW_BY_STEM: Record<string, string> = {
+  갑: '자기 방향이 맞다고 느끼면 고집과 독주가 강해져 주변 조언을 늦게 받아들일 수 있습니다.',
+  을: '상황을 맞추는 능력이 장점이지만, 지나치면 눈치를 보느라 자기 결정을 미루기 쉽습니다.',
+  병: '표현력과 추진력이 과해질 때 과시, 성급한 판단, 말실수로 평판이 흔들릴 수 있습니다.',
+  정: '섬세함이 예민함으로 기울면 사소한 신호에도 마음이 닳고 혼자 소진되기 쉽습니다.',
+  무: '버티는 힘이 강한 만큼 변화가 필요한 순간에도 제자리에 머무르려는 완고함이 생길 수 있습니다.',
+  기: '챙기는 마음이 과하면 걱정과 간섭이 늘고, 정작 자기 경계선은 흐려질 수 있습니다.',
+  경: '판단이 빠른 만큼 표현이 차갑거나 단정적으로 들려 관계에서 불필요한 마찰을 만들 수 있습니다.',
+  신: '완성도를 중시하는 태도가 심해지면 타인과 자신을 계속 평가해 편안함을 잃기 쉽습니다.',
+  임: '크게 보는 눈이 장점이지만, 관심사가 분산되면 책임과 마무리가 약해 보일 수 있습니다.',
+  계: '직관과 신중함이 지나치면 의심, 침잠, 결정 지연으로 기회를 놓치기 쉽습니다.',
+};
+
+const SHADOW_BY_BRANCH: Record<string, string> = {
+  자: '감정을 말하지 않고 저장해 두다가 한 번에 터뜨리는 패턴을 조심해야 합니다.',
+  축: '참는 힘은 좋지만 속도가 너무 늦어져 관계와 기회를 답답하게 만들 수 있습니다.',
+  인: '시작은 빠른데 마무리가 흐려지면 신뢰를 잃을 수 있어 끝맺음 관리가 필요합니다.',
+  묘: '분위기와 시선을 많이 읽다 보면 핵심보다 관계 온도에 끌려갈 수 있습니다.',
+  진: '여러 문제를 혼자 떠안고 버티다가 정작 도움 요청 시점을 놓치기 쉽습니다.',
+  사: '열이 오르면 말과 판단이 빨라져, 나중에 수습해야 할 상황을 만들 수 있습니다.',
+  오: '자존심과 노출 욕구가 커질 때 경쟁심, 허세, 감정적 대립이 커질 수 있습니다.',
+  미: '돌봄과 배려가 지나치면 희생감과 서운함이 쌓여 뒤늦게 관계가 흔들릴 수 있습니다.',
+  신: '계산과 검증이 길어지면 좋은 기회도 의심하다가 놓칠 수 있습니다.',
+  유: '체면과 완벽함에 묶이면 작은 흠도 크게 느껴져 사람을 피곤하게 만들 수 있습니다.',
+  술: '원칙과 의리가 강한 만큼 한번 마음이 닫히면 복구가 어려운 편입니다.',
+  해: '상상과 감정에 오래 머물면 현실 처리와 생활 리듬이 뒤로 밀릴 수 있습니다.',
+};
+
+const ELEMENT_EXCESS_SHADOW: Record<string, string> = {
+  목: '목 기운이 강하면 성장 욕구가 고집으로 바뀌어 타협이 늦어질 수 있습니다.',
+  화: '화 기운이 강하면 감정과 표현이 앞서 관계 피로, 구설, 과열을 만들 수 있습니다.',
+  토: '토 기운이 강하면 안정 욕구가 집착과 정체로 변해 변화 대응이 늦어질 수 있습니다.',
+  금: '금 기운이 강하면 판단과 기준이 날카로워져 차갑다는 인상을 주기 쉽습니다.',
+  수: '수 기운이 강하면 생각과 감정이 깊어지는 대신 실행이 늦고 마음이 가라앉기 쉽습니다.',
+};
+
+const ELEMENT_LACK_SHADOW: Record<string, string> = {
+  목: '목 기운이 부족하면 장기 방향, 성장 계획, 꾸준한 확장성이 약해질 수 있습니다.',
+  화: '화 기운이 부족하면 표현력, 자신감, 드러나는 존재감이 약해져 좋은 기회를 숨길 수 있습니다.',
+  토: '토 기운이 부족하면 생활 기반, 신뢰감, 마무리 안정성이 흔들리기 쉽습니다.',
+  금: '금 기운이 부족하면 결단, 정리, 기준 세우기가 약해져 애매한 상태가 길어질 수 있습니다.',
+  수: '수 기운이 부족하면 유연성, 휴식, 깊은 사고가 부족해 무리하게 밀어붙이기 쉽습니다.',
+};
+
+const RELATION_SHADOW: Record<DayPillarElementRelation, string> = {
+  same: '자기 색이 선명한 대신 반대 의견을 받아들이는 폭이 좁아질 수 있습니다.',
+  stem_generates_branch: '밖으로 주는 에너지가 많아 정작 본인 회복과 보상이 뒤로 밀릴 수 있습니다.',
+  stem_controls_branch: '통제하려는 힘이 강해질수록 주변이 압박을 느끼고 협력이 줄어들 수 있습니다.',
+  branch_generates_stem: '도움받는 구조에 익숙해지면 스스로 결정해야 할 때 흔들릴 수 있습니다.',
+  branch_controls_stem: '내면과 현실의 긴장이 강해 스트레스가 쌓이면 회피나 폭발로 나타날 수 있습니다.',
+};
+
 // Get personality description based on day pillar
 export function getPersonality(
   dayStem: string,
@@ -664,6 +716,30 @@ export function getHealthText(
   const relation = getDayPillarElementRelation(dayElement, branchElement);
   const cycleIndex = getDayPillarCycleIndex(dayStem, dayBranch);
   return `${dayStem}${dayBranch} 일주는 ${HEALTH_BY_STEM[dayStem] ?? '기초 체력과 수면 관리가 중요합니다.'} ${HEALTH_BY_BRANCH[dayBranch] ?? '생활 리듬이 흐트러지지 않게 관리해야 합니다.'} ${RELATION_HEALTH[relation]} ${HEALTH_RECOVERY[cycleIndex % HEALTH_RECOVERY.length]}`;
+}
+
+export function getShadowReading(
+  dayStem: string,
+  dayBranch: string,
+  dayElement: string,
+  branchElement: string,
+  dominantElement: string,
+  lackingElement: string,
+) {
+  const relation = getDayPillarElementRelation(dayElement, branchElement);
+  const pitfalls = [
+    SHADOW_BY_STEM[dayStem] ?? '장점이 과해지면 자기 방식만 고집하는 패턴을 조심해야 합니다.',
+    SHADOW_BY_BRANCH[dayBranch] ?? '감정과 생활 리듬이 흐트러질 때 판단이 약해질 수 있습니다.',
+    ELEMENT_EXCESS_SHADOW[dominantElement] ?? '강한 기운이 한쪽으로 쏠리면 사고와 행동도 편향될 수 있습니다.',
+    ELEMENT_LACK_SHADOW[lackingElement] ?? '부족한 기운은 평소에는 작게 보이다가 중요한 순간 약점으로 드러날 수 있습니다.',
+  ];
+
+  return {
+    title: '그림자와 주의점',
+    summary: `${dayStem}${dayBranch} 일주는 장점이 분명한 만큼, 무너질 때도 패턴이 뚜렷합니다. ${RELATION_SHADOW[relation]}`,
+    pitfalls,
+    advice: `강한 ${dominantElement} 기운은 속도를 낮추고, 부족한 ${lackingElement} 기운은 생활 속에서 의식적으로 보완해야 균형이 잡힙니다.`,
+  };
 }
 
 export function getLuckyNumbers(stemIdx: number, branchIdx: number): number[] {
