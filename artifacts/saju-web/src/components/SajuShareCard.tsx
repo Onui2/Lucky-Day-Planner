@@ -75,7 +75,13 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
 
   const elBalance = (result.elementBalance ?? {}) as Record<string, number>;
   const elems = ["목", "화", "토", "금", "수"];
-  const maxEl = Math.max(...elems.map((e) => elBalance[e] ?? 0), 1);
+  // elementBalance는 영문 키(wood/fire/earth/metal/water)로 내려온다.
+  // 한글 키로 조회하면 전부 undefined→0이 되므로 매핑해서 읽는다.
+  const KOR_TO_ENG: Record<string, string> = {
+    목: "wood", 화: "fire", 토: "earth", 금: "metal", 수: "water",
+  };
+  const elVal = (e: string) => elBalance[KOR_TO_ENG[e]] ?? elBalance[e] ?? 0;
+  const maxEl = Math.max(...elems.map(elVal), 1);
 
   const pillars = [
     { label: "년주", p: yearP },
@@ -310,7 +316,7 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {elems.map((e) => {
-            const val = elBalance[e] ?? 0;
+            const val = elVal(e);
             const pct = Math.round((val / (maxEl + 1)) * 100);
             return (
               <div key={e} style={{ display: "flex", alignItems: "center", gap: 10 }}>
