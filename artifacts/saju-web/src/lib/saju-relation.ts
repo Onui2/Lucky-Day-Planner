@@ -169,7 +169,7 @@ export interface RelationContext {
   monthBranch?: string | null;
 }
 
-type SpecialRelation = ElementRelation & { priority: number };
+type SpecialRelation = ElementRelation & { priority: number; pairKey: string };
 
 function samePair(left: string, right: string, pair: readonly [string, string]) {
   return (left === pair[0] && right === pair[1]) || (left === pair[1] && right === pair[0]);
@@ -362,7 +362,15 @@ function createSpecialRelation(params: {
   monthBranch?: string | null;
   resultElement?: string;
   conditionBonus?: number;
+  pairWith?: string | null;
 }): SpecialRelation {
+  // 같은 두 글자 조합(예: 축-오)이 해·원진·귀문처럼 여러 관계로 동시에 잡힐 때
+  // 점수 집계에서 한 번만 반영하기 위한 식별자. 삼합·방합은 국 이름으로 구분한다.
+  const pairBase = params.type.startsWith("천간") ? params.dayStem : params.dayBranch;
+  const pairKey =
+    params.pairWith && pairBase
+      ? [params.pairWith, pairBase].sort().join("·")
+      : params.name;
   const matchText = `원국 ${formatLabels(params.matchLabels)}와`;
   const focusText = getCoreHitNote(params.matchLabels, params.positive);
   const transform = params.positive
@@ -389,6 +397,7 @@ function createSpecialRelation(params: {
     score: scoreFromWeight(params.baseScore + transform.scoreAdj, params.weight),
     positive: params.positive,
     priority: params.priority,
+    pairKey,
   };
 }
 
@@ -514,6 +523,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 100,
           positive: true,
           baseScore: 8,
@@ -539,6 +549,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 95,
           positive: false,
           baseScore: 3,
@@ -629,6 +640,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 82,
           positive: true,
           baseScore: 8,
@@ -654,6 +666,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 76,
           positive: true,
           baseScore: 7,
@@ -679,6 +692,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 86,
           positive: false,
           baseScore: 3,
@@ -703,6 +717,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 74,
           positive: false,
           baseScore: 4,
@@ -727,6 +742,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 64,
           positive: false,
           baseScore: 4,
@@ -751,6 +767,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 72,
           positive: true,
           baseScore: 6,
@@ -775,6 +792,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 80,
           positive: false,
           baseScore: 3,
@@ -799,6 +817,7 @@ export function getElementRelation(
           name: item.name,
           matchLabels: [ref.label],
           weight: ref.weight,
+          pairWith: ref.value,
           priority: 68,
           positive: false,
           baseScore: 4,
@@ -827,13 +846,29 @@ export function getElementRelation(
     return right.score - left.score;
   });
 
-  const [primary, ...rest] = specials;
+  // 년지·월지가 같은 글자(예: 축 2개)면 동일 관계가 중복 생성되므로 라벨 기준으로 걸러낸다.
+  const seenLabels = new Set<string>();
+  const uniqueSpecials = specials.filter((special) => {
+    if (seenLabels.has(special.label)) return false;
+    seenLabels.add(special.label);
+    return true;
+  });
+
+  const [primary, ...rest] = uniqueSpecials;
   const extras = rest.slice(0, 4);
   let score = Math.round((primary.score * 2 + base.score) / 3);
 
+  // 같은 페어에서 파생된 보조 관계(축오 해·원진·귀문 등)는 대표 관계가 이미 반영했으므로
+  // 감점하지 않고, 서로 다른 페어의 가감도 총 ±2로 제한해 신살급 요소가 십성 본체를
+  // 압도하지 못하게 한다.
+  const seenPairs = new Set<string>([primary.pairKey]);
+  let extraAdjust = 0;
   for (const extra of extras) {
-    score += extra.positive ? 1 : -1;
+    if (seenPairs.has(extra.pairKey)) continue;
+    seenPairs.add(extra.pairKey);
+    extraAdjust += extra.positive ? 1 : -1;
   }
+  score += Math.max(-2, Math.min(2, extraAdjust));
 
   const extrasText =
     extras.length > 0
