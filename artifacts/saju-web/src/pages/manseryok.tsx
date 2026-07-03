@@ -830,7 +830,7 @@ export default function ManseryokPage() {
             {/* 날짜 그리드 */}
             <div className="grid grid-cols-7 gap-1 md:gap-2">
               {blanks.map(blank => (
-                <div key={`blank-${blank}`} className="min-h-[80px] md:min-h-[96px]" />
+                <div key={`blank-${blank}`} className="min-h-[94px] md:min-h-[112px]" />
               ))}
 
               {days.map(dayNum => {
@@ -858,7 +858,7 @@ export default function ManseryokPage() {
                     }}
                     disabled={!canSelectDay}
                     className={cn(
-                      "min-h-[80px] md:min-h-[96px] p-1 md:p-1.5 rounded-xl border flex flex-col transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
+                      "min-h-[94px] md:min-h-[112px] p-1 md:p-1.5 rounded-xl border flex flex-col transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
                       canSelectDay
                         ? "cursor-pointer hover:-translate-y-[1px] hover:shadow-md"
                         : isBlockedFutureDate
@@ -873,7 +873,7 @@ export default function ManseryokPage() {
                   >
                     {dayData ? (
                       <>
-                        {/* 날짜 + 점수 점 */}
+                        {/* 날짜 */}
                         <div className="flex justify-between items-start mb-0.5">
                           <span className={cn(
                             "text-xs md:text-sm font-semibold leading-none",
@@ -882,11 +882,6 @@ export default function ManseryokPage() {
                           )}>
                             {dayNum}
                           </span>
-                          {score100 != null && (
-                            <span className={cn("text-[10px] md:text-xs font-extrabold leading-none tabular-nums", score100TextColor(score100))}>
-                              {score100}
-                            </span>
-                          )}
                         </div>
 
                         {/* 음력 */}
@@ -901,6 +896,17 @@ export default function ManseryokPage() {
                         )}>
                           {toGanziHanja(dayData.dayHeavenlyStem, dayData.dayEarthlyBranch)}
                         </div>
+
+                        {score100 != null && (
+                          <div className="mt-1 flex w-full items-baseline justify-center gap-0.5 rounded-md bg-white/65 px-0.5 py-0.5 shadow-sm tabular-nums sm:px-1">
+                            <span className={cn("text-sm sm:text-base md:text-xl font-black leading-none", score100TextColor(score100))}>
+                              {score100}
+                            </span>
+                            <span className="hidden text-[9px] font-semibold leading-none text-slate-500 sm:inline md:text-[10px]">
+                              점
+                            </span>
+                          </div>
+                        )}
 
                         {/* 절기 */}
                         {dayData.solarTerm && (
