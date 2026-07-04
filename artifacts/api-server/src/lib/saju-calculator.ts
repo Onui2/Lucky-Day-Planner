@@ -1731,10 +1731,12 @@ export function getYongsinItems(yongsinElement: string): {
 // ──────────── 사주 점수 (柱 점수 1-10, 일주 점수 1-100) ────────────
 
 function scoreElemVsYongsin(elem: string, yongsin: string, heegsin: string, geesin: string): number {
+  // 원국은 자기 용신 기준으로 채점되므로 기신(이미 가진 과다 오행)이 과하게 낮으면
+  // 자기 일주 점수까지 바닥친다. 바닥을 올리되(기신 4, 중립 6) 최고점(용신 10)은 유지.
   if (elem === yongsin)  return 10;
-  if (elem === heegsin)  return 7;
-  if (elem === geesin)   return 2;
-  return 5;
+  if (elem === heegsin)  return 8;
+  if (elem === geesin)   return 4;
+  return 6;
 }
 
 export function getPillarScore(
