@@ -69,9 +69,11 @@ function calcDayScore(
   const relation = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
 
   if (!relation) {
-    let base = 5;
-    if (dayData?.luckyDay)        base = 7;
-    if (dayData?.inauspiciousDay) base = 3;
+    // 비개인화(프로필 없음) 기본 점수. 사주 기둥 점수 재조정과 같은 결로
+    // 바닥을 올리고(흉4·중립6) 길일은 8로 유지 → 100점 환산 시 중심 ~65.
+    let base = 6;
+    if (dayData?.luckyDay)        base = 8;
+    if (dayData?.inauspiciousDay) base = 4;
     return base;
   }
 
