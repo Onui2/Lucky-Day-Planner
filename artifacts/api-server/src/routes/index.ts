@@ -21,6 +21,7 @@ import announcementsRouter from "./announcements.js";
 import commerceRouter from "./commerce.js";
 import reportsRouter from "./reports.js";
 import aiRouter from "./ai.js";
+import daeunRouter from "./daeun.js";
 
 const router = Router();
 
@@ -46,5 +47,6 @@ router.use(announcementsRouter);
 router.use(commerceRouter);
 router.use(reportsRouter);
 router.use(aiRouter);
+router.use(daeunRouter);
 
 export default router;
