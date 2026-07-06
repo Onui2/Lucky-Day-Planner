@@ -258,34 +258,57 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const baseProfile = remoteProfile ?? localProfile;
 
         if (!baseProfile) {
-          if (!cancelled) setProfileState(null);
+          if (!cancelled) {
+            setProfileState(null);
+            setProfileReady(true);
+          }
           return;
         }
 
-        const resolvedProfile = await resolveProfile(baseProfile);
-        writeLocalProfile(user.id, resolvedProfile);
-
-        if (!remoteProfile || needsPillarMigration(remoteProfile)) {
-          void saveRemoteProfile(resolvedProfile).catch(() => {});
-        }
-
+        writeLocalProfile(user.id, baseProfile);
         if (!cancelled) {
-          setProfileState(resolvedProfile);
+          setProfileState(baseProfile);
+          setProfileReady(true);
         }
+
+        if (!needsPillarMigration(baseProfile)) {
+          if (!remoteProfile) {
+            void saveRemoteProfile(baseProfile).catch(() => {});
+          }
+          return;
+        }
+
+        void resolveProfile(baseProfile).then((resolvedProfile) => {
+          writeLocalProfile(user.id, resolvedProfile);
+
+          if (!remoteProfile || needsPillarMigration(remoteProfile)) {
+            void saveRemoteProfile(resolvedProfile).catch(() => {});
+          }
+
+          if (!cancelled) {
+            setProfileState(resolvedProfile);
+          }
+        });
       } catch {
         if (!localProfile) {
-          if (!cancelled) setProfileState(null);
+          if (!cancelled) {
+            setProfileState(null);
+            setProfileReady(true);
+          }
           return;
         }
 
-        const resolvedProfile = await resolveProfile(localProfile);
-        writeLocalProfile(user.id, resolvedProfile);
-        if (!cancelled) {
-          setProfileState(resolvedProfile);
-        }
-      } finally {
         if (!cancelled) {
           setProfileReady(true);
+        }
+
+        if (needsPillarMigration(localProfile)) {
+          void resolveProfile(localProfile).then((resolvedProfile) => {
+            writeLocalProfile(user.id, resolvedProfile);
+            if (!cancelled) {
+              setProfileState(resolvedProfile);
+            }
+          });
         }
       }
     })();

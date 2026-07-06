@@ -38,8 +38,7 @@ export default function Home() {
     {
       query: {
         queryKey: ["/api/fortune/daily", { date: todayDate }, "home-dashboard"],
-        staleTime: 60_000,
-        refetchInterval: 300_000,
+        staleTime: 5 * 60_000,
         enabled: true,
       },
     },

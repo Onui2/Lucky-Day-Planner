@@ -1,12 +1,5 @@
 import { createElement, useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
 import type { AuthUser } from "@workspace/api-client-react";
-import {
-  clearStoredSupabaseTokens,
-  getStoredAccessToken,
-  getSupabaseClient,
-  isSupabaseEnabled,
-  storeSupabaseSession,
-} from "./supabase";
 
 export type { AuthUser };
 
@@ -27,6 +20,39 @@ const BASE =
         "",
       ) ?? ""
     : "";
+
+const env =
+  typeof import.meta !== "undefined"
+    ? (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {}
+    : {};
+
+const SUPABASE_URL = env.VITE_SUPABASE_URL?.trim() ?? "";
+const SUPABASE_PUBLISHABLE_KEY =
+  env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ??
+  env.VITE_SUPABASE_ANON_KEY?.trim() ??
+  "";
+const SUPABASE_ACCESS_TOKEN_STORAGE_KEY = "lucky_day_supabase_access_token";
+const SUPABASE_REFRESH_TOKEN_STORAGE_KEY = "lucky_day_supabase_refresh_token";
+
+function isSupabaseAuthEnabled(): boolean {
+  return SUPABASE_URL.length > 0 && SUPABASE_PUBLISHABLE_KEY.length > 0;
+}
+
+function canUseStorage(): boolean {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function getStoredAccessToken(): string | null {
+  if (!canUseStorage()) return null;
+  return window.localStorage.getItem(SUPABASE_ACCESS_TOKEN_STORAGE_KEY);
+}
+
+function clearStoredSupabaseTokens(): void {
+  if (!canUseStorage()) return;
+
+  window.localStorage.removeItem(SUPABASE_ACCESS_TOKEN_STORAGE_KEY);
+  window.localStorage.removeItem(SUPABASE_REFRESH_TOKEN_STORAGE_KEY);
+}
 
 function buildAuthHeaders(): HeadersInit | undefined {
   const accessToken = getStoredAccessToken();
@@ -150,11 +176,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const syncSupabaseSession = useCallback(async () => {
-    if (!isSupabaseEnabled()) {
+    if (!isSupabaseAuthEnabled()) {
       return;
     }
 
     try {
+      const { getSupabaseClient, storeSupabaseSession } = await import("./supabase");
       const client = getSupabaseClient();
       const { data } = await client!.auth.getSession();
       if (data.session) {
@@ -182,38 +209,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void loadUser();
 
-    if (!isSupabaseEnabled()) {
+    if (!isSupabaseAuthEnabled()) {
       return () => {
         isMounted = false;
       };
     }
 
-    const client = getSupabaseClient();
-    const {
-      data: { subscription },
-    } = client!.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        storeSupabaseSession(session);
-      } else if (event === "SIGNED_OUT") {
-        clearStoredSupabaseTokens();
-      }
+    let subscription: { unsubscribe: () => void } | null = null;
 
+    void (async () => {
       try {
-        const currentUser = await fetchCurrentUserWithRetry();
-        if (isMounted) {
-          setUser(currentUser);
-          setIsLoading(false);
-        }
+        const { getSupabaseClient, storeSupabaseSession } = await import("./supabase");
+        if (!isMounted) return;
+
+        const client = getSupabaseClient();
+        const result = client!.auth.onAuthStateChange(async (event, session) => {
+          if (session) {
+            storeSupabaseSession(session);
+          } else if (event === "SIGNED_OUT") {
+            clearStoredSupabaseTokens();
+          }
+
+          try {
+            const currentUser = await fetchCurrentUserWithRetry();
+            if (isMounted) {
+              setUser(currentUser);
+              setIsLoading(false);
+            }
+          } catch {
+            if (isMounted) {
+              setIsLoading(false);
+            }
+          }
+        });
+
+        subscription = result.data.subscription;
       } catch {
         if (isMounted) {
           setIsLoading(false);
         }
       }
-    });
+    })();
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [loadUser]);
 
@@ -224,7 +264,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     void (async () => {
       try {
-        if (isSupabaseEnabled()) {
+        if (isSupabaseAuthEnabled()) {
+          const { getSupabaseClient } = await import("./supabase");
           const client = getSupabaseClient();
           await client!.auth.signOut();
         }

@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { toPng } from "html-to-image";
 import { useGetManseryokMonth } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { AdminPersonLookup, type AdminLookupTarget } from "@/components/AdminPersonLookup";
@@ -521,6 +520,7 @@ export default function ManseryokPage() {
     if (!calendarRef.current || savingImage) return;
     setSavingImage(true);
     try {
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(calendarRef.current, {
         pixelRatio: 2,
         backgroundColor: "#ffffff",

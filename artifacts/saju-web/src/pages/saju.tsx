@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { toPng } from "html-to-image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCalculateSaju, useSaveSaju, useGetSavedSaju, useSubmitInquiry } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -250,6 +249,7 @@ export default function SajuPage() {
     if (!shareCardRef.current || savingImage || !displayResult) return;
     setSavingImage(true);
     try {
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(shareCardRef.current, {
         pixelRatio: 2,
         skipFonts: false,

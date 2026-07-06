@@ -49,11 +49,6 @@ function getFontCandidates(fileName: string) {
 }
 
 async function getFontBuffer(name: FontName): Promise<Buffer> {
-  // esbuild base64 loader로 번들에 임베드된 경우 (Vercel 최우선)
-  const embedded = await loadEmbeddedFont(name);
-  if (embedded) {
-    return Buffer.from(embedded, "base64");
-  }
   const fileName = FONT_FILES[name];
   // 로컬 개발: import.meta.url 기준
   try {
