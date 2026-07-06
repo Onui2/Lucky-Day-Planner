@@ -179,7 +179,11 @@ export interface RelationContext {
   monthBranch?: string | null;
 }
 
-type SpecialRelation = ElementRelation & { priority: number; pairKey: string };
+type SpecialRelation = ElementRelation & {
+  priority: number;
+  pairKey: string;
+  coreConflict: boolean;
+};
 
 function samePair(left: string, right: string, pair: readonly [string, string]) {
   return (left === pair[0] && right === pair[1]) || (left === pair[1] && right === pair[0]);
@@ -383,6 +387,9 @@ function createSpecialRelation(params: {
       : params.name;
   const matchText = `원국 ${formatLabels(params.matchLabels)}와`;
   const focusText = getCoreHitNote(params.matchLabels, params.positive);
+  const coreHit = params.matchLabels.some((label) => label === "일간" || label === "일지");
+  const coreConflict =
+    coreHit && !params.positive && (params.type === "천간충" || params.type === "지지충");
   const transform = params.positive
     ? getTransformCondition(
         params.resultElement,
@@ -408,6 +415,7 @@ function createSpecialRelation(params: {
     positive: params.positive,
     priority: params.priority,
     pairKey,
+    coreConflict,
   };
 }
 
@@ -852,6 +860,9 @@ export function getElementRelation(
   }
 
   specials.sort((left, right) => {
+    if (right.coreConflict !== left.coreConflict) {
+      return Number(right.coreConflict) - Number(left.coreConflict);
+    }
     if (right.priority !== left.priority) return right.priority - left.priority;
     return right.score - left.score;
   });
@@ -879,6 +890,9 @@ export function getElementRelation(
     extraAdjust += extra.positive ? 1 : -1;
   }
   score += Math.max(-2, Math.min(2, extraAdjust));
+  if (primary.coreConflict) {
+    score = Math.min(score, primary.score);
+  }
 
   const extrasText =
     extras.length > 0

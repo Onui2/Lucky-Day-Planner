@@ -248,6 +248,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setProfileReady(false);
 
       const localProfile = readLocalProfile(user.id);
+      if (localProfile && !cancelled) {
+        setProfileState(localProfile);
+        setProfileReady(true);
+      }
 
       try {
         const remoteProfile = await fetchRemoteProfile();

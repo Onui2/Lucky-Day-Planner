@@ -581,12 +581,14 @@ export default function ManseryokPage() {
         ].join(":")
       : "no-profile"
   ), [profile]);
+  const shouldLoadManseryok = Boolean(activeAdminTarget) || profileReady || Boolean(profile);
 
   const { data, isLoading, error } = useGetManseryokMonth(
     { year: yearStr, month: monthStr, ...personalizationParams },
     {
       query: {
         queryKey: ["/api/manseryok/month", { year: yearStr, month: monthStr, personalizationKey }, accessScope],
+        enabled: shouldLoadManseryok,
       },
     },
   );
@@ -600,7 +602,7 @@ export default function ManseryokPage() {
 
   // 오늘 날짜 자동 선택 (데이터·프로필 로드 후, 현재 달일 때)
   useEffect(() => {
-    if (!data?.days || !isCurrentMonth || !profileReady) return;
+    if (!data?.days || !isCurrentMonth) return;
     const todayNum = today.getDate();
     // 아무것도 선택 안 됐거나, 오늘이 이미 선택돼 있으면 갱신 (다른 날 선택 시엔 덮어쓰지 않음)
     if (selected && selected.dayNum !== todayNum) return;
@@ -614,7 +616,6 @@ export default function ManseryokPage() {
     data,
     isCurrentMonth,
     monthStr,
-    profileReady,
     selected?.dayNum,
     yearStr,
     myBranch,

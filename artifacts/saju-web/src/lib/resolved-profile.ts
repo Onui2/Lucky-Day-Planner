@@ -112,7 +112,6 @@ export function useResolvedProfile() {
       return;
     }
 
-    if (!profileReady) return;
     setCachedProfile(readCachedSajuProfile(user.id));
   }, [authLoading, isAuthenticated, profile, profileReady, user?.id]);
 

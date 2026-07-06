@@ -90,3 +90,26 @@ test("보조 관계 가감은 총 ±2를 넘지 않는다", () => {
   // 서로 다른 페어 가감: 축오(-1), 미오(+1) → 순 0. 캡 적용 후에도 [1,10] 안.
   assert.ok(rel.score >= 3, `score ${rel.score} — 같은 페어 중첩이 다시 스택되면 실패`);
 });
+
+test("일간 직접 천간충은 시주 천간합보다 우선한다", () => {
+  // 1998-04-26 20:30 = 무인년 병진월 계묘일 임술시.
+  // 오늘 천간이 정이면 시주 임과 정임합도 잡히지만, 내 일간 계와 정계충이 핵심이다.
+  const userProfile = buildProfile(1998, 4, 26, 20);
+  assert.equal(userProfile.dayMasterStem, "계");
+  assert.equal(userProfile.hourStem, "임");
+
+  const rel = getElementRelation(
+    userProfile.dayMasterElement ?? "",
+    "화",
+    userProfile.dayMasterStem,
+    "정",
+    userProfile.dayMasterBranch,
+    "묘",
+    getProfileRelationContext(userProfile),
+  );
+
+  assert.equal(rel.type, "천간충");
+  assert.match(rel.label, /정계충/);
+  assert.equal(rel.positive, false);
+  assert.ok(rel.score <= 4, `score ${rel.score} — 시주 정임합이 일간 정계충을 덮으면 실패`);
+});
