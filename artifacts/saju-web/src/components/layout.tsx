@@ -52,6 +52,13 @@ const ELEM_COLOR: Record<string, string> = {
   수: "text-blue-600",
 };
 
+const footerLinks = [
+  { href: "/terms", label: "이용약관" },
+  { href: "/privacy", label: "개인정보처리방침" },
+  { href: "/refund-policy", label: "환불 및 취소 정책" },
+  { href: "/inquiries", label: "문의하기" },
+];
+
 function UnreadBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
@@ -778,11 +785,30 @@ export function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
-      <footer className="border-t border-primary/10 py-5 text-center text-muted-foreground/60 text-sm mt-auto glass-panel rounded-t-3xl">
-        <p className="font-serif tracking-widest">
-          © {new Date().getFullYear()} 명해원(命海苑). 운명의 바다, 지혜가
-          모이는 곳.
-        </p>
+      <footer className="border-t border-primary/10 px-4 py-6 text-center text-sm text-muted-foreground/60 mt-auto glass-panel rounded-t-3xl">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground/75">
+            {footerLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="transition-colors hover:text-primary"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+          <p className="font-serif tracking-widest">
+            Copyright © {new Date().getFullYear()} 명해원(命海苑). All rights reserved.
+          </p>
+          <p className="mt-1 text-xs tracking-[0.2em]">
+            운명의 바다, 지혜가 모이는 곳.
+          </p>
+          <p className="mx-auto mt-3 max-w-3xl text-xs leading-6 text-muted-foreground/55">
+            명해원의 사주 분석 결과는 참고용 콘텐츠이며, 의료·법률·투자·진로·결혼 등
+            중요한 의사결정을 대신하지 않습니다.
+          </p>
+        </div>
       </footer>
 
       {isAuthenticated && (

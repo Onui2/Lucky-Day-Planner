@@ -38,6 +38,7 @@ const GlossaryPage = lazy(() => import("@/pages/glossary"));
 const SajuTablesPage = lazy(() => import("@/pages/saju-tables"));
 const DayPillarAnalysisPage = lazy(() => import("@/pages/day-pillar-analysis"));
 const LoveFortunePage = lazy(() => import("@/pages/love-fortune"));
+const LegalPage = lazy(() => import("@/pages/legal"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -148,6 +149,9 @@ function Router() {
               />
               <Route path="/sinsal-guide" component={SinsalGuidePage} />
               <Route path="/glossary" component={GlossaryPage} />
+              <Route path="/terms" component={LegalPage} />
+              <Route path="/privacy" component={LegalPage} />
+              <Route path="/refund-policy" component={LegalPage} />
               <Route
                 path="/saju-tables"
                 component={() => (
