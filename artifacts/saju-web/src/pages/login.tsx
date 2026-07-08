@@ -22,6 +22,39 @@ import {
 import { buildAuthHref, sanitizeReturnTo } from "@/lib/auth-redirect";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
+const SAVED_EMAIL_KEY = "myunghae_saved_email";
+type PasswordCredentialConstructor = new (data: {
+  id: string;
+  name?: string;
+  password: string;
+}) => Credential;
+
+async function storeBrowserPasswordCredential(email: string, password: string) {
+  const credentialApi = navigator.credentials as CredentialsContainer & {
+    store?: (credential: Credential) => Promise<Credential | null>;
+  };
+  const passwordCredential = (
+    window as typeof window & {
+      PasswordCredential?: PasswordCredentialConstructor;
+    }
+  ).PasswordCredential;
+
+  if (!credentialApi?.store || typeof passwordCredential !== "function") {
+    return;
+  }
+
+  try {
+    await credentialApi.store(
+      new passwordCredential({
+        id: email,
+        name: email,
+        password,
+      }),
+    );
+  } catch {
+    // Browser password managers may reject silently depending on user settings.
+  }
+}
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -30,7 +63,6 @@ export default function LoginPage() {
   const returnTo = sanitizeReturnTo(params.get("returnTo"));
   const { isAuthenticated, isLoading, refreshUser, setAuthenticatedUser } = useAuth();
 
-  const SAVED_EMAIL_KEY = "myunghae_saved_email";
   const [email, setEmail] = useState(() => {
     try {
       return localStorage.getItem(SAVED_EMAIL_KEY) ?? "";
@@ -90,9 +122,10 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
+      const trimmedEmail = email.trim();
       if (rememberMe) {
         try {
-          localStorage.setItem(SAVED_EMAIL_KEY, email.trim());
+          localStorage.setItem(SAVED_EMAIL_KEY, trimmedEmail);
         } catch {}
       } else {
         try {
@@ -100,7 +133,10 @@ export default function LoginPage() {
         } catch {}
       }
 
-      const user = await loginWithPassword({ email: email.trim(), password });
+      const user = await loginWithPassword({ email: trimmedEmail, password });
+      if (rememberMe) {
+        await storeBrowserPasswordCredential(trimmedEmail, password);
+      }
       if (user) {
         setAuthenticatedUser(user);
       } else {
@@ -172,20 +208,25 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">
+              <label
+                htmlFor="login-email"
+                className="text-sm font-medium text-foreground/80"
+              >
                 이메일
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
+                  id="login-email"
+                  name="username"
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="example@email.com"
                   className="pl-10 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
-                  autoComplete="email"
+                  autoComplete="username"
                   autoFocus
                   disabled={submitting}
                 />
@@ -193,12 +234,17 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">
+              <label
+                htmlFor="login-password"
+                className="text-sm font-medium text-foreground/80"
+              >
                 비밀번호
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
+                  id="login-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -243,7 +289,7 @@ export default function LoginPage() {
                   disabled={submitting}
                 />
                 <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                  로그인 정보 저장
+                  아이디/비밀번호 저장
                 </span>
               </label>
               <Link
