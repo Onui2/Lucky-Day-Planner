@@ -1361,6 +1361,10 @@ function getAiLogUserLabel(log: AdminAiQuestionLog) {
   return name || log.userEmail || `사용자 ${log.userId.slice(0, 8)}`;
 }
 
+function isSuspiciousAiLog(log: AdminAiQuestionLog) {
+  return !log.blockedByGuard && log.riskLevel !== "none";
+}
+
 function AiRiskBadge({ log }: { log: AdminAiQuestionLog }) {
   if (log.blockedByGuard) {
     return (
@@ -1371,20 +1375,11 @@ function AiRiskBadge({ log }: { log: AdminAiQuestionLog }) {
     );
   }
 
-  if (log.riskLevel === "medium" || log.riskLevel === "high") {
+  if (isSuspiciousAiLog(log)) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600">
         <AlertTriangle className="w-3 h-3" />
         의심
-      </span>
-    );
-  }
-
-  if (log.riskLevel === "low") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-600">
-        <Eye className="w-3 h-3" />
-        낮음
       </span>
     );
   }
@@ -1421,7 +1416,7 @@ function AiLogCard({ log }: { log: AdminAiQuestionLog }) {
         "glass-panel rounded-2xl border p-4 space-y-3",
         log.blockedByGuard
           ? "border-rose-500/30 bg-rose-500/5"
-          : log.riskLevel === "medium" || log.riskLevel === "high"
+          : isSuspiciousAiLog(log)
             ? "border-amber-500/30 bg-amber-500/5"
             : "border-foreground/10",
       )}

@@ -16,8 +16,9 @@ interface GuardRule {
   pattern: RegExp;
 }
 
-export const PROMPT_GUARD_VERSION = "2026-07-08.1";
-const BLOCK_THRESHOLD = 4;
+export const PROMPT_GUARD_VERSION = "2026-07-08.2";
+const BLOCK_THRESHOLD = 2;
+const HIGH_RISK_THRESHOLD = 4;
 const MAX_QUESTION_LENGTH = 1800;
 
 const RULES: GuardRule[] = [
@@ -81,7 +82,7 @@ const RULES: GuardRule[] = [
     id: "jailbreak-keyword",
     label: "탈옥 키워드",
     weight: 2,
-    pattern: /\b(jailbreak|DAN|do anything now|developer mode|탈옥|제약 해제)\b/i,
+    pattern: /(?:\b(?:jailbreak|DAN|do anything now|developer mode)\b|탈옥|제약\s*해제)/i,
   },
   {
     id: "prompt-injection-topic",
@@ -99,8 +100,8 @@ function normalizeInput(value: string) {
 }
 
 function getRiskLevel(score: number): PromptInjectionRiskLevel {
-  if (score >= BLOCK_THRESHOLD) return "high";
-  if (score >= 2) return "medium";
+  if (score >= HIGH_RISK_THRESHOLD) return "high";
+  if (score >= BLOCK_THRESHOLD) return "medium";
   if (score >= 1) return "low";
   return "none";
 }
@@ -124,7 +125,7 @@ export function assessPromptInjection(question: string): PromptInjectionAssessme
   }
 
   if (normalized.length > MAX_QUESTION_LENGTH) {
-    score += BLOCK_THRESHOLD;
+    score += HIGH_RISK_THRESHOLD;
     matchedPatternIds.push("question-too-long");
     reasons.push("질문 길이 제한 초과");
   }

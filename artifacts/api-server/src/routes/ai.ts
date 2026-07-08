@@ -127,16 +127,25 @@ router.get("/admin/ai/questions", async (req, res) => {
   if (filter === "blocked") {
     filters.push(eq(aiQuestionsTable.blockedByGuard, true));
   } else if (filter === "suspicious") {
-    const suspiciousCondition = or(
+    const suspiciousRiskCondition = or(
+      eq(aiQuestionsTable.riskLevel, "low"),
       eq(aiQuestionsTable.riskLevel, "medium"),
       eq(aiQuestionsTable.riskLevel, "high"),
-      eq(aiQuestionsTable.blockedByGuard, true),
     );
+    const suspiciousCondition = suspiciousRiskCondition
+      ? and(eq(aiQuestionsTable.blockedByGuard, false), suspiciousRiskCondition)
+      : undefined;
     if (suspiciousCondition) {
       filters.push(suspiciousCondition);
     }
   } else if (filter === "answered") {
-    filters.push(eq(aiQuestionsTable.blockedByGuard, false));
+    const answeredCondition = and(
+      eq(aiQuestionsTable.blockedByGuard, false),
+      eq(aiQuestionsTable.riskLevel, "none"),
+    );
+    if (answeredCondition) {
+      filters.push(answeredCondition);
+    }
   }
 
   if (search) {
