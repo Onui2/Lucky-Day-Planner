@@ -17,7 +17,9 @@ import {
   useCreateAnnouncement,
   useUpdateAnnouncement,
   useDeleteAnnouncement,
+  useGetAdminAiQuestionLogs,
   type Announcement,
+  type AdminAiQuestionLog,
   type AdminStatsResponse,
   type AdminStatsRecentInquiry,
   type AdminStatsRecentUser,
@@ -55,12 +57,14 @@ import {
   TrendingUp,
   Database,
   Bell,
+  Bot,
   Pin,
   PinOff,
   PlusCircle,
   Info,
   AlertTriangle as AlertIcon,
   FileText,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBirthHourLabel } from "@/components/ProfileModal";
@@ -1343,6 +1347,264 @@ function AnnouncementsTab() {
   );
 }
 
+type AiLogFilter = "all" | "blocked" | "suspicious" | "answered";
+
+const AI_LOG_FILTERS: Array<{ label: string; value: AiLogFilter }> = [
+  { label: "전체", value: "all" },
+  { label: "차단", value: "blocked" },
+  { label: "의심", value: "suspicious" },
+  { label: "정상", value: "answered" },
+];
+
+function getAiLogUserLabel(log: AdminAiQuestionLog) {
+  const name = [log.userFirstName, log.userLastName].filter(Boolean).join(" ").trim();
+  return name || log.userEmail || `사용자 ${log.userId.slice(0, 8)}`;
+}
+
+function AiRiskBadge({ log }: { log: AdminAiQuestionLog }) {
+  if (log.blockedByGuard) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-rose-600">
+        <ShieldAlert className="w-3 h-3" />
+        차단됨
+      </span>
+    );
+  }
+
+  if (log.riskLevel === "medium" || log.riskLevel === "high") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600">
+        <AlertTriangle className="w-3 h-3" />
+        의심
+      </span>
+    );
+  }
+
+  if (log.riskLevel === "low") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-600">
+        <Eye className="w-3 h-3" />
+        낮음
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+      <CheckCircle2 className="w-3 h-3" />
+      정상
+    </span>
+  );
+}
+
+function formatAiBirthInfo(log: AdminAiQuestionLog) {
+  const birth = log.birthInfo;
+  if (!birth) return "사주 정보 없음";
+
+  const calendar = birth.calendarType === "lunar" ? "음력" : "양력";
+  const gender = birth.gender === "male" ? "남" : "여";
+  const minute = typeof birth.minute === "number" ? birth.minute : 0;
+  return `${calendar} ${birth.year}.${birth.month}.${birth.day} ${getBirthHourLabel(birth.hour)} ${String(minute).padStart(2, "0")}분 · ${gender}`;
+}
+
+function AiLogCard({ log }: { log: AdminAiQuestionLog }) {
+  const reasons = log.riskReasons?.filter(Boolean) ?? [];
+  const history = log.conversationHistory?.filter(
+    (item) => item.question || item.answer,
+  ) ?? [];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "glass-panel rounded-2xl border p-4 space-y-3",
+        log.blockedByGuard
+          ? "border-rose-500/30 bg-rose-500/5"
+          : log.riskLevel === "medium" || log.riskLevel === "high"
+            ? "border-amber-500/30 bg-amber-500/5"
+            : "border-foreground/10",
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-foreground">
+              {getAiLogUserLabel(log)}
+            </span>
+            <AiRiskBadge log={log} />
+            {log.subscriptionPlanCode && (
+              <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                {log.subscriptionPlanCode}
+              </span>
+            )}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {log.userEmail ?? "이메일 없음"} · {formatDate(log.createdAt)}
+          </div>
+        </div>
+        <div className="text-right text-[11px] text-muted-foreground">
+          <div>{log.monthlyBucket}</div>
+          {log.promptGuardVersion && <div>guard {log.promptGuardVersion}</div>}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2 text-xs text-muted-foreground">
+        {formatAiBirthInfo(log)}
+      </div>
+
+      {reasons.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {reasons.map((reason) => (
+            <span
+              key={reason}
+              className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700"
+            >
+              {reason}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <details className="rounded-xl border border-foreground/10 bg-background/40 px-3 py-2 text-xs">
+          <summary className="cursor-pointer text-muted-foreground">
+            이전 대화 {history.length}개
+          </summary>
+          <div className="mt-2 space-y-2">
+            {history.map((turn, index) => (
+              <div key={`${log.id}-${index}`} className="space-y-1 border-t border-foreground/10 pt-2 first:border-t-0 first:pt-0">
+                <div className="text-foreground/80 break-words">Q. {turn.question}</div>
+                <div className="text-muted-foreground break-words">A. {turn.answer}</div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      <div className="space-y-2">
+        <div className="flex justify-end">
+          <div className="max-w-[92%] rounded-2xl rounded-br-md bg-violet-500/15 px-4 py-3 text-sm leading-6 text-violet-900 whitespace-pre-line break-words">
+            {log.question}
+          </div>
+        </div>
+        <div className="flex justify-start">
+          <div className="max-w-[96%] rounded-2xl rounded-bl-md border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm leading-7 text-muted-foreground whitespace-pre-line break-words">
+            {log.answer}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function AiLogsTab() {
+  const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState<AiLogFilter>("all");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data, isLoading } = useGetAdminAiQuestionLogs(
+    page,
+    filter,
+    debouncedSearch,
+  );
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="질문, 답변, 이메일 검색..."
+            className="bg-foreground/5 border-foreground/10 pl-9"
+          />
+        </div>
+        <div className="flex gap-1 rounded-xl border border-foreground/10 bg-foreground/5 p-1">
+          {AI_LOG_FILTERS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => {
+                setFilter(item.value);
+                setPage(1);
+              }}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
+                filter === item.value
+                  ? "border border-primary/30 bg-primary/20 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>
+          총 <strong className="text-foreground">{data?.total ?? 0}</strong>건
+        </span>
+        <span>최근 AI 상담 감사 로그</span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-7 h-7 animate-spin text-primary" />
+        </div>
+      ) : !data?.logs.length ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Bot className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>AI 채팅 로그가 없습니다.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {data.logs.map((log) => (
+            <AiLogCard key={log.id} log={log} />
+          ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatsCard({
   icon: Icon,
   label,
@@ -1617,7 +1879,7 @@ export default function AdminPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "inquiries" | "users" | "announcements"
+    "dashboard" | "inquiries" | "users" | "aiLogs" | "announcements"
   >("dashboard");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(
@@ -1695,7 +1957,7 @@ export default function AdminPage() {
         </div>
 
         {/* 탭 */}
-        <div className="flex gap-1 p-1 rounded-2xl bg-foreground/5 border border-foreground/10 mb-8 w-fit">
+        <div className="flex flex-wrap gap-1 p-1 rounded-2xl bg-foreground/5 border border-foreground/10 mb-8 w-fit">
           <button
             onClick={() => setActiveTab("dashboard")}
             className={cn(
@@ -1736,6 +1998,18 @@ export default function AdminPage() {
           >
             <Users className="w-4 h-4" />
             회원 관리
+          </button>
+          <button
+            onClick={() => setActiveTab("aiLogs")}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all",
+              activeTab === "aiLogs"
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Bot className="w-4 h-4" />
+            AI 로그
           </button>
           <button
             onClick={() => setActiveTab("announcements")}
@@ -1869,6 +2143,16 @@ export default function AdminPage() {
                 currentUserId={String(user?.id ?? "")}
                 currentUserRole={user?.role ?? "user"}
               />
+            </motion.div>
+          ) : activeTab === "aiLogs" ? (
+            <motion.div
+              key="aiLogs"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <AiLogsTab />
             </motion.div>
           ) : (
             <motion.div

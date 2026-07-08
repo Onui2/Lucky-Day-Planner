@@ -6,6 +6,8 @@ export const HEAVENLY_STEMS_EN = ['Jia', 'Yi', 'Bing', 'Ding', 'Wu', 'Ji', 'Geng
 export const EARTHLY_BRANCHES = ['자', '축', '인', '묘', '진', '사', '오', '미', '신', '유', '술', '해'];
 export const EARTHLY_BRANCHES_EN = ['Zi', 'Chou', 'Yin', 'Mao', 'Chen', 'Si', 'Wu', 'Wei', 'Shen', 'You', 'Xu', 'Hai'];
 export const ZODIAC_KR = ['쥐', '소', '호랑이', '토끼', '용', '뱀', '말', '양', '원숭이', '닭', '개', '돼지'];
+const HEAVENLY_STEMS_HANJA = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+const EARTHLY_BRANCHES_HANJA = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 
 // Five elements for heavenly stems (pairs)
 export const STEM_ELEMENTS = ['목', '목', '화', '화', '토', '토', '금', '금', '수', '수'];
@@ -789,6 +791,187 @@ const CONTROLS: Record<string, string>  = { '목': '토', '화': '금', '토': '
 // 해: idx = (6*stem - 5*branch + 60) % 60
 export function getGanziIdx(stemIdx: number, branchIdx: number): number {
   return ((6 * stemIdx - 5 * branchIdx) % 60 + 60) % 60;
+}
+
+type SajuCorePillar = ReturnType<typeof getYearPillar>;
+
+export interface SajuSpecialSummaryBranchInfo {
+  branches: string[];
+  branchesHanja: string[];
+  label: string;
+  foundIn: string[];
+}
+
+export interface SajuSpecialSummary {
+  elementLine: string;
+  detailLine: string;
+  gongmang: {
+    year: SajuSpecialSummaryBranchInfo;
+    day: SajuSpecialSummaryBranchInfo;
+  };
+  cheoneulGuin: SajuSpecialSummaryBranchInfo;
+  monthCommand: {
+    stem: string;
+    stemHanja: string;
+    branch: string;
+    branchHanja: string;
+    elapsedDays: number;
+    label: string;
+  };
+}
+
+const PILLAR_BRANCH_LABELS = ['년지', '월지', '일지', '시지'] as const;
+
+const MONTH_COMMAND_STEMS: Record<number, Array<{ stemIndex: number; days: number }>> = {
+  0: [{ stemIndex: 8, days: 10 }, { stemIndex: 9, days: 20 }],
+  1: [{ stemIndex: 9, days: 9 }, { stemIndex: 7, days: 3 }, { stemIndex: 5, days: 18 }],
+  2: [{ stemIndex: 4, days: 7 }, { stemIndex: 2, days: 7 }, { stemIndex: 0, days: 16 }],
+  3: [{ stemIndex: 0, days: 10 }, { stemIndex: 1, days: 20 }],
+  4: [{ stemIndex: 1, days: 9 }, { stemIndex: 9, days: 3 }, { stemIndex: 4, days: 18 }],
+  5: [{ stemIndex: 4, days: 7 }, { stemIndex: 6, days: 7 }, { stemIndex: 2, days: 16 }],
+  6: [{ stemIndex: 2, days: 10 }, { stemIndex: 5, days: 9 }, { stemIndex: 3, days: 11 }],
+  7: [{ stemIndex: 3, days: 9 }, { stemIndex: 1, days: 3 }, { stemIndex: 5, days: 18 }],
+  8: [{ stemIndex: 4, days: 7 }, { stemIndex: 8, days: 7 }, { stemIndex: 6, days: 16 }],
+  9: [{ stemIndex: 6, days: 10 }, { stemIndex: 7, days: 20 }],
+  10: [{ stemIndex: 7, days: 9 }, { stemIndex: 3, days: 3 }, { stemIndex: 4, days: 18 }],
+  11: [{ stemIndex: 4, days: 7 }, { stemIndex: 0, days: 7 }, { stemIndex: 8, days: 16 }],
+};
+
+function getBranchInfo(
+  branchIndexes: number[],
+  allPillars: Array<SajuCorePillar | null>,
+): SajuSpecialSummaryBranchInfo {
+  const branches = branchIndexes.map((idx) => EARTHLY_BRANCHES[idx] ?? '');
+  const branchesHanja = branchIndexes.map((idx) => EARTHLY_BRANCHES_HANJA[idx] ?? '');
+  const foundIn: string[] = [];
+
+  allPillars.forEach((pillar, index) => {
+    if (pillar && branchIndexes.includes(pillar.branchIndex)) {
+      foundIn.push(PILLAR_BRANCH_LABELS[index]);
+    }
+  });
+
+  return {
+    branches,
+    branchesHanja,
+    label: branchesHanja.join(''),
+    foundIn,
+  };
+}
+
+function getGongmangInfo(
+  pillar: SajuCorePillar,
+  allPillars: Array<SajuCorePillar | null>,
+): SajuSpecialSummaryBranchInfo {
+  const ganziIdx = getGanziIdx(pillar.stemIndex, pillar.branchIndex);
+  return getBranchInfo(getGongmangBranches(ganziIdx), allPillars);
+}
+
+function getMonthCommandStem(
+  year: number,
+  month: number,
+  day: number,
+  birthHour: number = -1,
+  birthMinute: number = 0,
+) {
+  const birthDate = new Date(
+    year,
+    month - 1,
+    day,
+    birthHour === -1 ? 12 : birthHour,
+    birthMinute,
+  );
+  const terms: Array<{ branchIndex: number; date: Date }> = [];
+
+  for (const termYear of [year - 1, year, year + 1]) {
+    for (let branchIndex = 0; branchIndex < 12; branchIndex++) {
+      const term = getMonthTermDateTime(termYear, branchIndex);
+      const actualYear = term.month === 1 ? termYear + 1 : termYear;
+      terms.push({
+        branchIndex,
+        date: new Date(actualYear, term.month - 1, term.day, term.hour, term.minute),
+      });
+    }
+  }
+
+  terms.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  let currentTerm = terms[0] ?? { branchIndex: 0, date: birthDate };
+  for (const term of terms) {
+    if (term.date <= birthDate) {
+      currentTerm = term;
+    } else {
+      break;
+    }
+  }
+
+  const elapsedDays = Math.max(
+    1,
+    Math.floor((birthDate.getTime() - currentTerm.date.getTime()) / 86400000) + 1,
+  );
+  const commands = MONTH_COMMAND_STEMS[currentTerm.branchIndex] ?? [];
+  let chosen = commands[commands.length - 1] ?? { stemIndex: -1, days: 0 };
+  let cumulativeDays = 0;
+
+  for (const command of commands) {
+    cumulativeDays += command.days;
+    if (elapsedDays <= cumulativeDays) {
+      chosen = command;
+      break;
+    }
+  }
+
+  return {
+    stem: HEAVENLY_STEMS[chosen.stemIndex] ?? '',
+    stemHanja: HEAVENLY_STEMS_HANJA[chosen.stemIndex] ?? '',
+    branch: EARTHLY_BRANCHES[currentTerm.branchIndex] ?? '',
+    branchHanja: EARTHLY_BRANCHES_HANJA[currentTerm.branchIndex] ?? '',
+    elapsedDays,
+    label: HEAVENLY_STEMS_HANJA[chosen.stemIndex] ?? '',
+  };
+}
+
+export function getSajuSpecialSummary(
+  year: number,
+  month: number,
+  day: number,
+  birthHour: number,
+  birthMinute: number,
+  yearPillar: SajuCorePillar,
+  monthPillar: SajuCorePillar,
+  dayPillar: SajuCorePillar,
+  hourPillar: SajuCorePillar | null,
+  elementBalance: { wood: number; fire: number; earth: number; metal: number; water: number },
+): SajuSpecialSummary {
+  const allPillars = [yearPillar, monthPillar, dayPillar, hourPillar];
+  const yearGongmang = getGongmangInfo(yearPillar, allPillars);
+  const dayGongmang = getGongmangInfo(dayPillar, allPillars);
+  const cheoneulTargets = CHEONEUL[dayPillar.stem] ?? [];
+  const cheoneulGuin = getBranchInfo(cheoneulTargets, allPillars);
+  const monthCommand = getMonthCommandStem(year, month, day, birthHour, birthMinute);
+  const elementLine = [
+    `木${elementBalance.wood}`,
+    `火${elementBalance.fire}`,
+    `土${elementBalance.earth}`,
+    `金${elementBalance.metal}`,
+    `水${elementBalance.water}`,
+  ].join(', ');
+  const detailLine = [
+    `空亡:[年]${yearGongmang.label || '-'} [日]${dayGongmang.label || '-'}`,
+    `天乙貴人:${cheoneulGuin.label || '-'}`,
+    `월령:${monthCommand.label || '-'}`,
+  ].join(', ');
+
+  return {
+    elementLine,
+    detailLine,
+    gongmang: {
+      year: yearGongmang,
+      day: dayGongmang,
+    },
+    cheoneulGuin,
+    monthCommand,
+  };
 }
 
 // ──────────── 대운 (大運) ────────────

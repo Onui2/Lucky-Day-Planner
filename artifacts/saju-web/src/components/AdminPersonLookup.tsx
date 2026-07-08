@@ -8,6 +8,7 @@ import { Loader2, ShieldCheck, X } from "lucide-react";
 import { BIRTH_HOURS } from "@/components/ProfileModal";
 import { sajuResultToProfile } from "@/lib/resolved-profile";
 import type { UserProfile } from "@/contexts/UserContext";
+import { cn } from "@/lib/utils";
 
 export interface AdminLookupTarget {
   profile: UserProfile;
@@ -18,6 +19,7 @@ interface Props {
   active: AdminLookupTarget | null;
   onLoad: (target: AdminLookupTarget) => void;
   onClear: () => void;
+  className?: string;
 }
 
 type Gender = "male" | "female";
@@ -27,7 +29,7 @@ type CalType = "solar" | "lunar";
  * 관리자 전용: 임의의 생년월일을 입력해 그 사람의 사주를 계산하고,
  * 만세력을 그 사람 기준으로 렌더링하도록 프로필을 주입한다.
  */
-export function AdminPersonLookup({ active, onLoad, onClear }: Props) {
+export function AdminPersonLookup({ active, onLoad, onClear, className }: Props) {
   const [name, setName] = useState("");
   const [gender, setGender] = useState<Gender>("male");
   const [calendarType, setCalendarType] = useState<CalType>("solar");
@@ -87,7 +89,7 @@ export function AdminPersonLookup({ active, onLoad, onClear }: Props) {
   };
 
   return (
-    <Card className="mb-5 border-amber-500/30 bg-amber-500/[0.04] p-4 md:p-5">
+    <Card className={cn("mb-5 border-amber-500/30 bg-amber-500/[0.04] p-4 md:p-5", className)}>
       <div className="flex items-center gap-2 mb-3">
         <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
         <h3 className="text-sm font-semibold text-amber-700">관리자 전용 · 다른 사람 만세력 조회</h3>
@@ -105,7 +107,7 @@ export function AdminPersonLookup({ active, onLoad, onClear }: Props) {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground/70">이름 (선택)</label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="예) 홍길동"
@@ -138,7 +140,7 @@ export function AdminPersonLookup({ active, onLoad, onClear }: Props) {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground/70">시 (Hour)</label>
               <Select value={String(hour)} onValueChange={v => setHour(Number(v))}>

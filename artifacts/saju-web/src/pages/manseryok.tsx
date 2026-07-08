@@ -5,7 +5,7 @@ import { AdminPersonLookup, type AdminLookupTarget } from "@/components/AdminPer
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem, ImageDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem, ImageDown, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
@@ -510,6 +510,7 @@ export default function ManseryokPage() {
 
   // 관리자 전용: 다른 사람 사주를 조회하면 그 프로필로 만세력을 렌더한다.
   const [adminTarget, setAdminTarget] = useState<AdminLookupTarget | null>(null);
+  const [adminLookupOpen, setAdminLookupOpen] = useState(false);
   const activeAdminTarget = isAdmin ? adminTarget : null;
   const profile = activeAdminTarget ? activeAdminTarget.profile : resolvedProfile;
 
@@ -693,15 +694,6 @@ export default function ManseryokPage() {
         <p className="text-muted-foreground">날마다 깃든 우주의 기운과 운세를 달력으로 한눈에 파악하세요.</p>
       </div>
 
-      {/* 관리자 전용: 다른 사람 사주 조회 */}
-      {isAdmin && (
-        <AdminPersonLookup
-          active={activeAdminTarget}
-          onLoad={(target) => { setAdminTarget(target); setSelected(null); }}
-          onClear={() => { setAdminTarget(null); setSelected(null); }}
-        />
-      )}
-
       {/* 내 사주 개인화 배너 */}
       {myElem ? (
         <div className="mb-5 p-4 rounded-2xl border border-primary/30 bg-primary/5 flex items-center gap-3">
@@ -749,13 +741,60 @@ export default function ManseryokPage() {
         </div>
       )}
 
-      {/* 관리자 전용: 달력 이미지 저장 */}
-      {isAdmin && data && (
-        <div className="flex justify-end mb-3">
-          <Button variant="outline" size="sm" onClick={saveCalendarImage} disabled={savingImage} className="gap-1.5">
-            {savingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
-            달력 이미지 저장
-          </Button>
+      {/* 관리자 전용 액션 */}
+      {isAdmin && (
+        <div className="relative mb-3">
+          <div className="flex justify-end items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAdminLookupOpen((open) => !open)}
+              title="다른 사람 만세력 조회"
+              aria-label="다른 사람 만세력 조회"
+              className={cn(
+                "h-9 w-9 rounded-full border shadow-sm transition-all flex items-center justify-center",
+                adminLookupOpen || activeAdminTarget
+                  ? "border-amber-500/50 bg-amber-500/15 text-amber-700"
+                  : "border-primary/25 bg-background/80 text-primary hover:bg-primary/10",
+              )}
+            >
+              <ShieldCheck className="w-4 h-4" />
+            </button>
+
+            {data && (
+              <Button variant="outline" size="sm" onClick={saveCalendarImage} disabled={savingImage} className="gap-1.5">
+                {savingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
+                달력 이미지 저장
+              </Button>
+            )}
+          </div>
+
+          <AnimatePresence>
+            {adminLookupOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                transition={{ duration: 0.18 }}
+                className="absolute right-0 top-12 z-50 w-[min(760px,calc(100vw-2rem))] max-h-[calc(100vh-7rem)] overflow-y-auto"
+              >
+                <button
+                  type="button"
+                  onClick={() => setAdminLookupOpen(false)}
+                  title="닫기"
+                  aria-label="닫기"
+                  className="absolute right-3 top-3 z-10 h-8 w-8 rounded-full border border-amber-500/25 bg-white/85 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground"
+                >
+                  <X className="mx-auto h-4 w-4" />
+                </button>
+                <AdminPersonLookup
+                  active={activeAdminTarget}
+                  onLoad={(target) => { setAdminTarget(target); setSelected(null); }}
+                  onClear={() => { setAdminTarget(null); setSelected(null); }}
+                  className="mb-0 !bg-white shadow-2xl"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 

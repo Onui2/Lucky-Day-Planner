@@ -201,11 +201,20 @@ export const aiQuestionsTable = pgTable(
     answer: text("answer").notNull(),
     birthInfo: jsonb("birth_info").$type<ReportBirthInfo>(),
     sajuResult: jsonb("saju_result").$type<JsonObject>(),
+    blockedByGuard: boolean("blocked_by_guard").notNull().default(false),
+    riskLevel: varchar("risk_level", { length: 20 }).notNull().default("none"),
+    riskReasons: jsonb("risk_reasons").$type<string[]>(),
+    conversationHistory: jsonb("conversation_history").$type<
+      Array<{ question: string; answer: string }>
+    >(),
+    requestMetadata: jsonb("request_metadata").$type<JsonObject>(),
+    promptGuardVersion: varchar("prompt_guard_version", { length: 40 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("ai_questions_user_bucket_idx").on(table.userId, table.monthlyBucket),
     index("ai_questions_user_created_idx").on(table.userId, table.createdAt),
+    index("ai_questions_guard_created_idx").on(table.blockedByGuard, table.createdAt),
   ],
 );
 

@@ -411,6 +411,83 @@ components:
         - pitfalls
         - advice
 
+    SajuSpecialSummaryBranchInfo:
+      type: object
+      properties:
+        branches:
+          type: array
+          items:
+            type: string
+          description: Korean branch letters
+        branchesHanja:
+          type: array
+          items:
+            type: string
+          description: Hanja branch letters
+        label:
+          type: string
+          description: Compact hanja branch label
+        foundIn:
+          type: array
+          items:
+            type: string
+          description: Pillar branches where the target appears
+      required:
+        - branches
+        - branchesHanja
+        - label
+        - foundIn
+
+    SajuSpecialSummary:
+      type: object
+      properties:
+        elementLine:
+          type: string
+          description: Compact five-element count line
+        detailLine:
+          type: string
+          description: Compact gongmang, cheoneul guin, and month command line
+        gongmang:
+          type: object
+          properties:
+            year:
+              $ref: "#/components/schemas/SajuSpecialSummaryBranchInfo"
+            day:
+              $ref: "#/components/schemas/SajuSpecialSummaryBranchInfo"
+          required:
+            - year
+            - day
+        cheoneulGuin:
+          $ref: "#/components/schemas/SajuSpecialSummaryBranchInfo"
+        monthCommand:
+          type: object
+          properties:
+            stem:
+              type: string
+            stemHanja:
+              type: string
+            branch:
+              type: string
+            branchHanja:
+              type: string
+            elapsedDays:
+              type: integer
+            label:
+              type: string
+          required:
+            - stem
+            - stemHanja
+            - branch
+            - branchHanja
+            - elapsedDays
+            - label
+      required:
+        - elementLine
+        - detailLine
+        - gongmang
+        - cheoneulGuin
+        - monthCommand
+
     SajuResult:
       type: object
       properties:
@@ -426,6 +503,8 @@ components:
           $ref: "#/components/schemas/SajuPillar"
         elementBalance:
           $ref: "#/components/schemas/ElementCount"
+        specialSummary:
+          $ref: "#/components/schemas/SajuSpecialSummary"
         dominantElement:
           type: string
           description: The strongest element in the chart
@@ -474,6 +553,7 @@ components:
         - monthPillar
         - dayPillar
         - elementBalance
+        - specialSummary
         - dominantElement
         - lackingElement
         - dayMasterElement

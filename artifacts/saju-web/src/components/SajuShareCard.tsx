@@ -86,6 +86,11 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
   const shadowShort = compactShadowReading(result.shadowReading);
 
   const elBalance = (result.elementBalance ?? {}) as Record<string, number>;
+  const specialSummary = (result.specialSummary ?? {}) as Record<string, unknown>;
+  const specialElementLine =
+    typeof specialSummary.elementLine === "string" ? specialSummary.elementLine : "";
+  const specialDetailLine =
+    typeof specialSummary.detailLine === "string" ? specialSummary.detailLine : "";
   const elems = ["목", "화", "토", "금", "수"];
   // elementBalance는 영문 키(wood/fire/earth/metal/water)로 내려온다.
   // 한글 키로 조회하면 전부 undefined→0이 되므로 매핑해서 읽는다.
@@ -226,6 +231,46 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
             );
           })}
         </div>
+        {(specialElementLine || specialDetailLine) && (
+          <div
+            style={{
+              marginTop: 14,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 12,
+              overflow: "hidden",
+              background: "rgba(255,255,255,0.035)",
+              textAlign: "center",
+            }}
+          >
+            {specialElementLine && (
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderBottom: specialDetailLine ? `1px solid ${BORDER}` : "none",
+                  fontFamily: "'Noto Serif KR', 'Noto Sans KR', serif",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: TEXT,
+                }}
+              >
+                {specialElementLine}
+              </div>
+            )}
+            {specialDetailLine && (
+              <div
+                style={{
+                  padding: "8px 12px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "rgba(240,232,208,0.82)",
+                  lineHeight: 1.55,
+                }}
+              >
+                {specialDetailLine}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── 핵심 정보 ── */}

@@ -534,6 +534,12 @@ export default function SajuPage() {
         `  일주 ${pillarStr(dp.heavenlyStem, dp.earthlyBranch)} / 일간 ${dp.heavenlyStem}(${result.dayMasterElement})`,
         `  시주 ${hourStr}`,
       );
+      if (typeof result.specialSummary?.elementLine === "string") {
+        lines.push(`  ${result.specialSummary.elementLine}`);
+      }
+      if (typeof result.specialSummary?.detailLine === "string") {
+        lines.push(`  ${result.specialSummary.detailLine}`);
+      }
     }
 
     if (sections.singang && result.sinGangYak) {
@@ -719,6 +725,13 @@ export default function SajuPage() {
       `  시주(時柱) ${hourStr}`,
       `  일간 오행: ${dp.heavenlyStem}(${r.dayMasterElement})`,
     ];
+
+    if (typeof r.specialSummary?.elementLine === 'string') {
+      lines.push(`  ${r.specialSummary.elementLine}`);
+    }
+    if (typeof r.specialSummary?.detailLine === 'string') {
+      lines.push(`  ${r.specialSummary.detailLine}`);
+    }
 
     if (r.sinGangYak) {
       lines.push('');
@@ -1309,6 +1322,16 @@ export default function SajuPage() {
                       </div>
                     );})}
                   </div>
+                  {r.specialSummary && (
+                    <div className="mt-6 mx-auto max-w-2xl overflow-hidden rounded-xl border border-primary/25 bg-background/45 text-center shadow-inner">
+                      <div className="px-3 py-2 border-b border-primary/15 font-serif text-lg md:text-xl font-semibold tracking-normal text-foreground">
+                        {r.specialSummary.elementLine}
+                      </div>
+                      <div className="px-3 py-2 text-sm md:text-base font-medium tracking-normal text-foreground/85 break-keep">
+                        {r.specialSummary.detailLine}
+                      </div>
+                    </div>
+                  )}
                 </Card>
                 <Card className="glass-panel border-primary/30 p-6 flex flex-col">
                   <h3 className="text-lg font-serif mb-3 text-primary text-center">오행 분석 (五行)</h3>
