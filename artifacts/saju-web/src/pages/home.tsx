@@ -104,10 +104,10 @@ export default function Home() {
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-primary">당신의 운명을 비추는 빛</span>
         </div>
-        <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 text-gradient-gold drop-shadow-2xl">
+        <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif font-bold mb-6 text-gradient-gold drop-shadow-2xl break-keep">
           하늘의 뜻을 읽어<br className="hidden md:block" /> 내일을 준비하다
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground leading-relaxed font-light">
+        <p className="text-lg md:text-xl text-muted-foreground leading-relaxed font-light break-keep">
           정통 명리학을 바탕으로 당신의 사주팔자와 오늘의 운세, <br className="hidden md:block" />
           그리고 인생의 흐름을 정확하게 짚어드립니다.
         </p>
