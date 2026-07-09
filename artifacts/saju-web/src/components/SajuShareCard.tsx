@@ -86,11 +86,18 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
   const shadowShort = compactShadowReading(result.shadowReading);
 
   const elBalance = (result.elementBalance ?? {}) as Record<string, number>;
-  const specialSummary = (result.specialSummary ?? {}) as Record<string, unknown>;
-  const specialElementLine =
-    typeof specialSummary.elementLine === "string" ? specialSummary.elementLine : "";
-  const specialDetailLine =
-    typeof specialSummary.detailLine === "string" ? specialSummary.detailLine : "";
+  const specialSummary = (result.specialSummary ?? {}) as Record<string, any>;
+  const gongmangDay = specialSummary.gongmang?.day as Record<string, any> | undefined;
+  const cheoneulGuin = specialSummary.cheoneulGuin as Record<string, any> | undefined;
+  const monthCommand = specialSummary.monthCommand as Record<string, any> | undefined;
+  const fmtBranchInfo = (b?: Record<string, any>) =>
+    b?.label
+      ? `${b.label}(${(Array.isArray(b.branches) ? b.branches : []).join("·")})`
+      : "-";
+  const foundInLabel = (b?: Record<string, any>) =>
+    Array.isArray(b?.foundIn) && b.foundIn.length > 0
+      ? `${b.foundIn.join("·")}에 있음`
+      : "사주에 없음";
   const elems = ["목", "화", "토", "금", "수"];
   // elementBalance는 영문 키(wood/fire/earth/metal/water)로 내려온다.
   // 한글 키로 조회하면 전부 undefined→0이 되므로 매핑해서 읽는다.
@@ -231,44 +238,76 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
             );
           })}
         </div>
-        {(specialElementLine || specialDetailLine) && (
+        {(gongmangDay || cheoneulGuin || monthCommand) && (
           <div
             style={{
               marginTop: 14,
               border: `1px solid ${BORDER}`,
               borderRadius: 12,
-              overflow: "hidden",
               background: "rgba(255,255,255,0.035)",
+              display: "flex",
               textAlign: "center",
             }}
           >
-            {specialElementLine && (
+            {[
+              {
+                label: "공망 空亡",
+                value: fmtBranchInfo(gongmangDay),
+                sub: foundInLabel(gongmangDay),
+                subColor:
+                  Array.isArray(gongmangDay?.foundIn) && gongmangDay.foundIn.length > 0
+                    ? "#f87171"
+                    : MUTED,
+              },
+              {
+                label: "천을귀인 天乙貴人",
+                value: fmtBranchInfo(cheoneulGuin),
+                sub: foundInLabel(cheoneulGuin),
+                subColor:
+                  Array.isArray(cheoneulGuin?.foundIn) && cheoneulGuin.foundIn.length > 0
+                    ? GOLD
+                    : MUTED,
+              },
+              {
+                label: "월령 月令",
+                value: monthCommand?.label
+                  ? `${monthCommand.label}(${monthCommand.stem ?? ""})`
+                  : "-",
+                sub: monthCommand?.branch
+                  ? `${monthCommand.branch}월 ${monthCommand.elapsedDays}일차`
+                  : "",
+                subColor: MUTED,
+              },
+            ].map((cell, i) => (
               <div
+                key={cell.label}
                 style={{
-                  padding: "8px 12px",
-                  borderBottom: specialDetailLine ? `1px solid ${BORDER}` : "none",
-                  fontFamily: "'Noto Serif KR', 'Noto Sans KR', serif",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: TEXT,
+                  flex: 1,
+                  padding: "10px 8px",
+                  borderLeft: i > 0 ? `1px solid ${BORDER}` : "none",
                 }}
               >
-                {specialElementLine}
+                <div style={{ fontSize: 10, color: GOLD, letterSpacing: "0.08em", marginBottom: 5 }}>
+                  {cell.label}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "'Noto Serif KR', 'Noto Sans KR', serif",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: TEXT,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {cell.value}
+                </div>
+                {cell.sub && (
+                  <div style={{ fontSize: 10, color: cell.subColor, marginTop: 4 }}>
+                    {cell.sub}
+                  </div>
+                )}
               </div>
-            )}
-            {specialDetailLine && (
-              <div
-                style={{
-                  padding: "8px 12px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "rgba(240,232,208,0.82)",
-                  lineHeight: 1.55,
-                }}
-              >
-                {specialDetailLine}
-              </div>
-            )}
+            ))}
           </div>
         )}
       </div>

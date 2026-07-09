@@ -99,6 +99,30 @@ const GONGMANG_PILLAR_DESC: Record<string, string> = {
   '시지': '시지(자녀·말년 자리)가 공망이에요. 자녀 인연이 늦거나 말년이 허전하게 느껴질 수 있는데, 취미·공부·신앙 같은 정신적 성취로 채우면 좋은 방향으로 승화돼요',
 };
 
+// ─── 정보 툴팁 (탭/클릭으로 열림 — 모바일 대응) ─────────
+function InfoTip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setOpen(false)}
+        className="inline-flex items-center gap-1 cursor-help"
+        aria-label={text}
+      >
+        {children}
+        <Info className="w-3 h-3 opacity-60" />
+      </button>
+      {open && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 z-30 rounded-lg border border-primary/25 bg-popover px-2.5 py-2 text-[11px] font-normal leading-relaxed text-popover-foreground text-left shadow-xl break-keep">
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
 // ─── 타입 ───────────────────────────────────────────────
 interface InputForm {
   birthYear: string; birthMonth: string; birthDay: string;
@@ -1361,9 +1385,10 @@ export default function SajuPage() {
                       <div className="mt-6 mx-auto max-w-2xl rounded-xl border border-primary/25 bg-background/45 shadow-inner divide-y divide-primary/15">
                         <div className="px-4 py-3 grid grid-cols-3 gap-2 text-center">
                           <div>
-                            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1 cursor-help"
-                              title="60갑자를 열 개씩 묶을 때 내 일주 묶음(旬)에 들지 못하고 비는 두 지지 — 그 자리의 기운이 허하게 작용해요">
-                              공망 (空亡) <Info className="w-3 h-3 opacity-60" />
+                            <div className="flex items-center justify-center text-xs text-muted-foreground mb-1">
+                              <InfoTip text="60갑자를 열 개씩 묶을 때 내 일주 묶음(旬)에 들지 못하고 비는 두 지지 — 그 자리의 기운이 허하게 작용해요">
+                                공망 (空亡)
+                              </InfoTip>
                             </div>
                             <div className="font-serif text-lg text-primary font-bold">{fmt(sp.gongmang?.day)}</div>
                             {gmFound.length > 0 ? (
@@ -1373,9 +1398,10 @@ export default function SajuPage() {
                             )}
                           </div>
                           <div>
-                            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1 cursor-help"
-                              title="하늘의 도움을 뜻하는 최고 길신 — 이 지지가 사주에 있으면 어려울 때 귀인이 나타나요">
-                              천을귀인 (天乙貴人) <Info className="w-3 h-3 opacity-60" />
+                            <div className="flex items-center justify-center text-xs text-muted-foreground mb-1">
+                              <InfoTip text="하늘의 도움을 뜻하는 최고 길신 — 이 지지가 사주에 있으면 어려울 때 귀인이 나타나요">
+                                천을귀인 (天乙貴人)
+                              </InfoTip>
                             </div>
                             <div className="font-serif text-lg text-primary font-bold">{fmt(sp.cheoneulGuin)}</div>
                             {(sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? (
@@ -1385,9 +1411,10 @@ export default function SajuPage() {
                             )}
                           </div>
                           <div>
-                            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1 cursor-help"
-                              title="태어난 달을 주도하는 기운(사령) — 사주 전체의 계절 바탕이 돼요">
-                              월령 (月令) <Info className="w-3 h-3 opacity-60" />
+                            <div className="flex items-center justify-center text-xs text-muted-foreground mb-1">
+                              <InfoTip text="태어난 달을 주도하는 기운(사령) — 사주 전체의 계절 바탕이 돼요">
+                                월령 (月令)
+                              </InfoTip>
                             </div>
                             <div className="font-serif text-lg text-primary font-bold">
                               {sp.monthCommand?.label ? `${sp.monthCommand.label}(${sp.monthCommand.stem})` : '-'}
