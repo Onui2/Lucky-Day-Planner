@@ -1283,19 +1283,21 @@ export default function SajuPage() {
                               <span className="text-2xl md:text-3xl font-serif font-bold">{toStemHanja(item.p.heavenlyStem)}</span>
                               <span className="text-[10px] opacity-70">{item.p.heavenlyStemElement}</span>
                             </div>
-                            <div className={`w-full aspect-square rounded-full flex flex-col items-center justify-center border-2 ${getElementStyles(item.p.earthlyBranchElement)}`}>
-                              <span className="text-2xl md:text-3xl font-serif font-bold">{toBranchHanja(item.p.earthlyBranch)}</span>
-                              <span className="text-[10px] opacity-70">{item.p.earthlyBranchElement}</span>
+                            <div className="relative">
+                              <div className={`w-full aspect-square rounded-full flex flex-col items-center justify-center border-2 ${getElementStyles(item.p.earthlyBranchElement)}`}>
+                                <span className="text-2xl md:text-3xl font-serif font-bold">{toBranchHanja(item.p.earthlyBranch)}</span>
+                                <span className="text-[10px] opacity-70">{item.p.earthlyBranchElement}</span>
+                              </div>
+                              {/* 공망 표시 — 원 위 오버레이 */}
+                              {r.specialSummary?.gongmang?.day?.foundIn?.includes(
+                                ({ hour: '시지', day: '일지', month: '월지', year: '년지' } as const)[item.scoreKey]
+                              ) && (
+                                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold shadow-md"
+                                  title="일주 기준 공망 — 이 자리의 기운이 비어 허하게 작용합니다">
+                                  空
+                                </span>
+                              )}
                             </div>
-                            {/* 공망 표시 */}
-                            {r.specialSummary?.gongmang?.day?.foundIn?.includes(
-                              ({ hour: '시지', day: '일지', month: '월지', year: '년지' } as const)[item.scoreKey]
-                            ) && (
-                              <span className="self-center px-2 py-0.5 rounded-full bg-destructive/15 border border-destructive/30 text-destructive text-[10px] font-bold"
-                                title="일주 기준 공망 — 이 자리의 기운이 비어 허하게 작용합니다">
-                                空 공망
-                              </span>
-                            )}
                             {/* 지장간 */}
                             <div className="flex flex-col items-center gap-0.5 pt-0.5">
                               <span className="text-[9px] text-muted-foreground/50 tracking-wide">지장간</span>
