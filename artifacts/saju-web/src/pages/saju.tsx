@@ -99,27 +99,83 @@ const GONGMANG_PILLAR_DESC: Record<string, string> = {
   '시지': '시지(자녀·말년 자리)가 공망이에요. 자녀 인연이 늦거나 말년이 허전하게 느껴질 수 있는데, 취미·공부·신앙 같은 정신적 성취로 채우면 좋은 방향으로 승화돼요',
 };
 
-// ─── 정보 툴팁 (탭/클릭으로 열림 — 모바일 대응) ─────────
-function InfoTip({ text, children }: { text: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+// ─── 공망·천을귀인·월령 요약 박스 ────────────────────────
+// ⓘ 탭 시 플로팅 팝오버 대신 박스 안에 설명 줄을 펼친다(모바일에서 잘림·중복 방지).
+const SPECIAL_TIPS: Record<string, string> = {
+  gongmang: '공망(空亡) — 60갑자를 열 개씩 묶을 때 내 일주 묶음(旬)에 들지 못하고 비는 두 지지예요. 그 자리의 기운이 허하게 작용해요.',
+  cheoneul: '천을귀인(天乙貴人) — 하늘의 도움을 뜻하는 최고 길신이에요. 이 지지가 사주에 있으면 어려울 때 귀인이 나타나요.',
+  wolryeong: '월령(月令) — 태어난 달을 주도하는 기운(사령)이에요. 사주 전체의 계절 바탕이 돼요.',
+};
+
+function SpecialSummaryBox({ sp }: { sp: any }) {
+  const [openTip, setOpenTip] = useState<string | null>(null);
+  const gmFound: string[] = sp.gongmang?.day?.foundIn ?? [];
+  const cells = [
+    {
+      key: 'gongmang', label: '공망', hanja: '空亡',
+      value: sp.gongmang?.day?.label || '-',
+      reading: (sp.gongmang?.day?.branches ?? []).join('·'),
+      sub: gmFound.length > 0 ? `${gmFound.join('·')}에 있음` : '사주에 없음',
+      subClass: gmFound.length > 0 ? 'text-destructive font-medium' : 'text-muted-foreground/70',
+    },
+    {
+      key: 'cheoneul', label: '천을귀인', hanja: '天乙貴人',
+      value: sp.cheoneulGuin?.label || '-',
+      reading: (sp.cheoneulGuin?.branches ?? []).join('·'),
+      sub: (sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? `${sp.cheoneulGuin.foundIn.join('·')}에 있음` : '사주에 없음',
+      subClass: (sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? 'text-primary font-medium' : 'text-muted-foreground/70',
+    },
+    {
+      key: 'wolryeong', label: '월령', hanja: '月令',
+      value: sp.monthCommand?.label || '-',
+      reading: sp.monthCommand?.stem ?? '',
+      sub: sp.monthCommand?.branch ? `${sp.monthCommand.branch}월 ${sp.monthCommand.elapsedDays}일차` : '',
+      subClass: 'text-muted-foreground/70',
+    },
+  ];
   return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        onBlur={() => setOpen(false)}
-        className="inline-flex items-center gap-1 cursor-help"
-        aria-label={text}
-      >
-        {children}
-        <Info className="w-3 h-3 opacity-60" />
-      </button>
-      {open && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 z-30 rounded-lg border border-primary/25 bg-popover px-2.5 py-2 text-[11px] font-normal leading-relaxed text-popover-foreground text-left shadow-xl break-keep">
-          {text}
-        </span>
+    <div className="mt-6 mx-auto max-w-2xl rounded-xl border border-primary/25 bg-background/45 shadow-inner divide-y divide-primary/15">
+      <div className="px-2 py-3 grid grid-cols-3 gap-1">
+        {cells.map((c) => (
+          <div key={c.key} className="text-center min-w-0">
+            <button
+              type="button"
+              onClick={() => setOpenTip(openTip === c.key ? null : c.key)}
+              className={`inline-flex items-center justify-center gap-1 text-xs mb-1 transition-colors ${
+                openTip === c.key ? 'text-primary' : 'text-muted-foreground'
+              }`}
+              aria-label={SPECIAL_TIPS[c.key]}
+            >
+              <span className="whitespace-nowrap">
+                {c.label}<span className="hidden sm:inline"> ({c.hanja})</span>
+              </span>
+              <Info className="w-3 h-3 opacity-60 shrink-0" />
+            </button>
+            <div className="font-serif text-lg text-primary font-bold leading-tight whitespace-nowrap">{c.value}</div>
+            {c.reading && <div className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">{c.reading}</div>}
+            {c.sub && <div className={`text-[10px] mt-0.5 ${c.subClass}`}>{c.sub}</div>}
+          </div>
+        ))}
+      </div>
+      {openTip && (
+        <div className="px-4 py-2 text-[11px] text-muted-foreground leading-relaxed break-keep bg-primary/5 text-left">
+          {SPECIAL_TIPS[openTip]}
+        </div>
       )}
-    </span>
+      {/* 공망 분석 */}
+      <div className="px-4 py-3 text-xs text-muted-foreground text-left break-keep leading-relaxed space-y-1.5">
+        <p>{GONGMANG_PAIR_DESC[(sp.gongmang?.day?.branches ?? []).join('')] ?? ''}</p>
+        {gmFound.length > 0 ? (
+          gmFound.map((f: string) => (
+            <p key={f}>
+              <span className="text-destructive font-medium">·</span> {GONGMANG_PILLAR_DESC[f] ?? `${f}가 공망이에요`}.
+            </p>
+          ))
+        ) : (
+          <p>· 다행히 지금 사주에는 이 두 지지가 없어서 공망이 실제로 작용하는 자리는 없어요. 각 기둥이 제 힘을 온전히 냅니다.</p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1376,70 +1432,7 @@ export default function SajuPage() {
                       </div>
                     );})}
                   </div>
-                  {r.specialSummary && (() => {
-                    const sp = r.specialSummary;
-                    const fmt = (b: { label?: string; branches?: string[] }) =>
-                      b?.label ? `${b.label}(${(b.branches ?? []).join('·')})` : '-';
-                    const gmFound = sp.gongmang?.day?.foundIn ?? [];
-                    return (
-                      <div className="mt-6 mx-auto max-w-2xl rounded-xl border border-primary/25 bg-background/45 shadow-inner divide-y divide-primary/15">
-                        <div className="px-4 py-3 grid grid-cols-3 gap-2 text-center">
-                          <div>
-                            <div className="flex items-center justify-center text-xs text-muted-foreground mb-1">
-                              <InfoTip text="60갑자를 열 개씩 묶을 때 내 일주 묶음(旬)에 들지 못하고 비는 두 지지 — 그 자리의 기운이 허하게 작용해요">
-                                공망 (空亡)
-                              </InfoTip>
-                            </div>
-                            <div className="font-serif text-lg text-primary font-bold">{fmt(sp.gongmang?.day)}</div>
-                            {gmFound.length > 0 ? (
-                              <div className="text-[10px] text-destructive font-medium mt-0.5">{gmFound.join('·')}에 있음</div>
-                            ) : (
-                              <div className="text-[10px] text-muted-foreground/70 mt-0.5">사주에 없음</div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-center text-xs text-muted-foreground mb-1">
-                              <InfoTip text="하늘의 도움을 뜻하는 최고 길신 — 이 지지가 사주에 있으면 어려울 때 귀인이 나타나요">
-                                천을귀인 (天乙貴人)
-                              </InfoTip>
-                            </div>
-                            <div className="font-serif text-lg text-primary font-bold">{fmt(sp.cheoneulGuin)}</div>
-                            {(sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? (
-                              <div className="text-[10px] text-primary font-medium mt-0.5">{sp.cheoneulGuin.foundIn.join('·')}에 있음</div>
-                            ) : (
-                              <div className="text-[10px] text-muted-foreground/70 mt-0.5">사주에 없음</div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-center text-xs text-muted-foreground mb-1">
-                              <InfoTip text="태어난 달을 주도하는 기운(사령) — 사주 전체의 계절 바탕이 돼요">
-                                월령 (月令)
-                              </InfoTip>
-                            </div>
-                            <div className="font-serif text-lg text-primary font-bold">
-                              {sp.monthCommand?.label ? `${sp.monthCommand.label}(${sp.monthCommand.stem})` : '-'}
-                            </div>
-                            {sp.monthCommand?.branch && (
-                              <div className="text-[10px] text-muted-foreground/70 mt-0.5">{sp.monthCommand.branch}월 {sp.monthCommand.elapsedDays}일차</div>
-                            )}
-                          </div>
-                        </div>
-                        {/* 공망 분석 */}
-                        <div className="px-4 py-3 text-xs text-muted-foreground text-left break-keep leading-relaxed space-y-1.5">
-                          <p>{GONGMANG_PAIR_DESC[(sp.gongmang?.day?.branches ?? []).join('')] ?? ''}</p>
-                          {gmFound.length > 0 ? (
-                            gmFound.map((f: string) => (
-                              <p key={f}>
-                                <span className="text-destructive font-medium">·</span> {GONGMANG_PILLAR_DESC[f] ?? `${f}가 공망이에요`}.
-                              </p>
-                            ))
-                          ) : (
-                            <p>· 다행히 지금 사주에는 이 두 지지가 없어서 공망이 실제로 작용하는 자리는 없어요. 각 기둥이 제 힘을 온전히 냅니다.</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {r.specialSummary && <SpecialSummaryBox sp={r.specialSummary} />}
                 </Card>
                 <Card className="glass-panel border-primary/30 p-6 flex flex-col">
                   <h3 className="text-lg font-serif mb-3 text-primary text-center">오행 분석 (五行)</h3>
