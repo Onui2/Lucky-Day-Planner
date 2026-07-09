@@ -1,5 +1,4 @@
 import type { AuthUser } from "@workspace/replit-auth-web";
-import { appendCsrfHeader } from "@workspace/api-client-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -56,8 +55,10 @@ async function postJson<TResponse>(
   body: Record<string, unknown>,
   fallbackMessage: string,
 ): Promise<TResponse> {
+  // 이 파일의 경로들은 서버 csrf 미들웨어의 PUBLIC_MUTATION_PATHS에 포함되어
+  // CSRF 토큰을 검사하지 않는다. 토큰 선요청(/api/auth/csrf) 왕복을 생략해
+  // 로그인/회원가입 첫 클릭 지연을 줄인다.
   const headers = new Headers({ "Content-Type": "application/json" });
-  await appendCsrfHeader(headers, "POST", `${BASE}${path}`);
 
   const response = await fetch(`${BASE}${path}`, {
     method: "POST",

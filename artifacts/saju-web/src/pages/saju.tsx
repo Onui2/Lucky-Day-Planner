@@ -80,6 +80,25 @@ const JIJANGGAN: Record<string, { stem: string; element: string }[]> = {
   '해': [{ stem:'무', element:'토' }, { stem:'갑', element:'목' }, { stem:'임', element:'수' }],
 };
 
+// ─── 공망 (空亡) 해석 ────────────────────────────────────
+// 60갑자를 10개씩 묶은 순(旬)마다 비는 두 지지가 정해져 있어 총 6가지 쌍.
+const GONGMANG_PAIR_DESC: Record<string, string> = {
+  '술해': '술해(戌亥)는 하늘로 통하는 문(天門)에 해당하는 자리예요. 이 자리가 비면 눈에 보이는 성취보다 정신세계·종교·철학 쪽에 마음이 끌리고, 꿈은 크게 꾸는데 마무리에서 어딘가 허전함을 느끼기 쉬워요.',
+  '신유': '신유(申酉)는 가을 결실을 뜻하는 자리예요. 이 자리가 비면 애쓴 만큼 결과를 손에 쥐는 힘이 약해질 수 있어서, 성과나 재물에 조급해하기보다 과정을 단단히 다지는 쪽이 유리해요.',
+  '오미': '오미(午未)는 한낮의 가장 화려한 기운이 모이는 자리예요. 이 자리가 비면 겉으로는 화려해 보여도 속이 허할 수 있으니, 명예나 겉치레보다 실속을 챙기는 게 좋아요.',
+  '진사': '진사(辰巳)는 변화와 도약을 뜻하는 자리예요. 이 자리가 비면 이동·변동이 잦고 큰 뜻을 품게 되지만, 허황된 그림을 좇지 않도록 현실 감각을 붙잡는 게 중요해요.',
+  '인묘': '인묘(寅卯)는 봄의 시작과 성장을 뜻하는 자리예요. 이 자리가 비면 출발이 늦어지거나 계획이 자주 바뀌기 쉬워서, 조급함 대신 꾸준함이 열쇠가 돼요.',
+  '자축': '자축(子丑)은 한밤의 고요한 기운이 모이는 자리예요. 이 자리가 비면 속마음을 잘 드러내지 않고 혼자만의 시간이 길어지기 쉽지만, 그만큼 깊은 내공이 쌓이는 구조예요.',
+};
+
+// 공망이 실제로 어느 기둥(자리)에 떨어졌는지에 따른 해석.
+const GONGMANG_PILLAR_DESC: Record<string, string> = {
+  '년지': '년지(조상·초년 자리)가 공망이에요. 조상이나 집안의 덕에 기대기 어려운 대신, 고향을 떠나 스스로 일군 것이 오래 남는 자수성가형 흐름이에요',
+  '월지': '월지(부모·형제·청년기 자리)가 공망이에요. 가족의 울타리에 기대기보다 일찍 독립해서 스스로 기반을 만드는 쪽으로 풀리기 쉬워요',
+  '일지': '일지(배우자 자리)가 공망이에요. 배우자 인연에서 문득 외로움을 느낄 수 있지만, 서로의 영역을 존중하는 관계를 만들면 오히려 편안해져요',
+  '시지': '시지(자녀·말년 자리)가 공망이에요. 자녀 인연이 늦거나 말년이 허전하게 느껴질 수 있는데, 취미·공부·신앙 같은 정신적 성취로 채우면 좋은 방향으로 승화돼요',
+};
+
 // ─── 타입 ───────────────────────────────────────────────
 interface InputForm {
   birthYear: string; birthMonth: string; birthDay: string;
@@ -1358,13 +1377,24 @@ export default function SajuPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="px-4 py-2.5 text-xs text-muted-foreground text-center break-keep leading-relaxed">
+                        <div className="px-4 py-3 text-xs text-muted-foreground text-left break-keep leading-relaxed space-y-1.5">
+                          <p>
+                            <span className="text-primary font-semibold">공망(空亡)</span> — 60갑자를 열 개씩 묶으면 내 일주가 속한 묶음(旬)에 끼지 못하고 비는 지지가 두 개 생기는데, 그게 바로 공망이에요.{' '}
+                            {GONGMANG_PAIR_DESC[(sp.gongmang?.day?.branches ?? []).join('')] ?? ''}
+                          </p>
                           {gmFound.length > 0 ? (
-                            <>일주(나)를 기준으로 비어 있는 지지 {fmt(sp.gongmang?.day)}가 <span className="text-destructive font-medium">{gmFound.join('·')}</span>에 있어 공망 — 그 자리가 뜻하는 인연·영역의 기운이 허하게 작용할 수 있습니다.</>
+                            gmFound.map((f: string) => (
+                              <p key={f}>
+                                <span className="text-destructive font-medium">·</span> {GONGMANG_PILLAR_DESC[f] ?? `${f}가 공망이에요`}.
+                              </p>
+                            ))
                           ) : (
-                            <>공망 지지({fmt(sp.gongmang?.day)})가 사주 안에 없어 각 기둥이 온전히 힘을 발휘합니다.</>
+                            <p>· 다행히 지금 사주에는 이 두 지지가 없어서 공망이 실제로 작용하는 자리는 없어요. 각 기둥이 제 힘을 온전히 냅니다.</p>
                           )}
-                          {' '}천을귀인은 하늘의 도움을 뜻하는 최고 길신{(sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? `으로 ${sp.cheoneulGuin.foundIn.join('·')}에 있으며` : '이며'}, 월령은 태어난 달을 주도하는 기운입니다.
+                          <p>
+                            <span className="text-primary font-semibold">천을귀인(天乙貴人)</span>은 하늘의 도움을 뜻하는 최고 길신{(sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? `으로, ${sp.cheoneulGuin.foundIn.join('·')}에 있어 어려울 때 귀인의 도움을 받기 좋아요` : '인데, 지금 사주 안에는 들어 있지 않아요'}.{' '}
+                            <span className="text-primary font-semibold">월령(月令)</span>은 태어난 달을 주도하는 기운이에요.
+                          </p>
                         </div>
                       </div>
                     );

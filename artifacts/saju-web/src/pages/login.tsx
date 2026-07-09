@@ -23,38 +23,6 @@ import { buildAuthHref, sanitizeReturnTo } from "@/lib/auth-redirect";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 const SAVED_EMAIL_KEY = "myunghae_saved_email";
-type PasswordCredentialConstructor = new (data: {
-  id: string;
-  name?: string;
-  password: string;
-}) => Credential;
-
-async function storeBrowserPasswordCredential(email: string, password: string) {
-  const credentialApi = navigator.credentials as CredentialsContainer & {
-    store?: (credential: Credential) => Promise<Credential | null>;
-  };
-  const passwordCredential = (
-    window as typeof window & {
-      PasswordCredential?: PasswordCredentialConstructor;
-    }
-  ).PasswordCredential;
-
-  if (!credentialApi?.store || typeof passwordCredential !== "function") {
-    return;
-  }
-
-  try {
-    await credentialApi.store(
-      new passwordCredential({
-        id: email,
-        name: email,
-        password,
-      }),
-    );
-  } catch {
-    // Browser password managers may reject silently depending on user settings.
-  }
-}
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -134,9 +102,6 @@ export default function LoginPage() {
       }
 
       const user = await loginWithPassword({ email: trimmedEmail, password });
-      if (rememberMe) {
-        await storeBrowserPasswordCredential(trimmedEmail, password);
-      }
       if (user) {
         setAuthenticatedUser(user);
       } else {
@@ -289,7 +254,7 @@ export default function LoginPage() {
                   disabled={submitting}
                 />
                 <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                  아이디/비밀번호 저장
+                  아이디 저장
                 </span>
               </label>
               <Link
