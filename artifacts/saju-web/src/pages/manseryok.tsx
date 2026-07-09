@@ -858,7 +858,7 @@ export default function ManseryokPage() {
             key={yearStr + monthStr}
           >
             {/* 요일 헤더 */}
-            <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2">
+            <div className="grid grid-cols-7 gap-1.5 md:gap-2 mb-2">
               {weekDays.map((day, i) => (
                 <div key={day} className={cn(
                   "text-center font-medium pb-2 border-b border-border/50 text-sm",
@@ -870,7 +870,7 @@ export default function ManseryokPage() {
             </div>
 
             {/* 날짜 그리드 */}
-            <div className="grid grid-cols-7 gap-1 md:gap-2">
+            <div className="grid grid-cols-7 gap-1.5 md:gap-2">
               {blanks.map(blank => (
                 <div key={`blank-${blank}`} className="min-h-[94px] md:min-h-[112px]" />
               ))}
@@ -900,7 +900,7 @@ export default function ManseryokPage() {
                     }}
                     disabled={!canSelectDay}
                     className={cn(
-                      "min-h-[94px] md:min-h-[112px] p-1 md:p-1.5 rounded-xl border flex flex-col transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
+                      "min-h-[88px] md:min-h-[112px] p-1.5 rounded-xl border flex flex-col gap-1 md:gap-0 transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
                       canSelectDay
                         ? "cursor-pointer hover:-translate-y-[1px] hover:shadow-md"
                         : isBlockedFutureDate
@@ -926,8 +926,8 @@ export default function ManseryokPage() {
                           </span>
                         </div>
 
-                        {/* 음력 */}
-                        <span className="text-[8px] md:text-[9px] text-slate-500 leading-none mb-0.5">
+                        {/* 음력 — 모바일에선 숨김(탭하면 상세에 표시) */}
+                        <span className="hidden md:inline text-[9px] text-slate-500 leading-none mb-0.5">
                           {dayData.lunar}
                         </span>
 
@@ -959,8 +959,9 @@ export default function ManseryokPage() {
 
                         {/* 운세 레이블 + 관계 심볼 */}
                         <div className="flex items-center justify-between gap-0.5 mt-auto pt-0.5">
+                          {/* 운세 레이블 — 모바일에선 숨김(점수 색상이 같은 정보 전달) */}
                           {score != null && (
-                            <span className={cn("inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] md:text-[9px] font-bold leading-none whitespace-nowrap shrink-0", scoreBadgeClass(score))}>
+                            <span className={cn("hidden md:inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-bold leading-none whitespace-nowrap shrink-0", scoreBadgeClass(score))}>
                               {scoreLabel(score)}
                             </span>
                           )}
