@@ -1287,6 +1287,15 @@ export default function SajuPage() {
                               <span className="text-2xl md:text-3xl font-serif font-bold">{toBranchHanja(item.p.earthlyBranch)}</span>
                               <span className="text-[10px] opacity-70">{item.p.earthlyBranchElement}</span>
                             </div>
+                            {/* 공망 표시 */}
+                            {r.specialSummary?.gongmang?.day?.foundIn?.includes(
+                              ({ hour: '시지', day: '일지', month: '월지', year: '년지' } as const)[item.scoreKey]
+                            ) && (
+                              <span className="self-center px-2 py-0.5 rounded-full bg-destructive/15 border border-destructive/30 text-destructive text-[10px] font-bold"
+                                title="일주 기준 공망 — 이 자리의 기운이 비어 허하게 작용합니다">
+                                空 공망
+                              </span>
+                            )}
                             {/* 지장간 */}
                             <div className="flex flex-col items-center gap-0.5 pt-0.5">
                               <span className="text-[9px] text-muted-foreground/50 tracking-wide">지장간</span>
@@ -1322,16 +1331,42 @@ export default function SajuPage() {
                       </div>
                     );})}
                   </div>
-                  {r.specialSummary && (
-                    <div className="mt-6 mx-auto max-w-2xl overflow-hidden rounded-xl border border-primary/25 bg-background/45 text-center shadow-inner">
-                      <div className="px-3 py-2 border-b border-primary/15 font-serif text-lg md:text-xl font-semibold tracking-normal text-foreground">
-                        {r.specialSummary.elementLine}
+                  {r.specialSummary && (() => {
+                    const sp = r.specialSummary;
+                    const fmt = (b: { label?: string; branches?: string[] }) =>
+                      b?.label ? `${b.label}(${(b.branches ?? []).join('·')})` : '-';
+                    const gmFound = sp.gongmang?.day?.foundIn ?? [];
+                    return (
+                      <div className="mt-6 mx-auto max-w-2xl rounded-xl border border-primary/25 bg-background/45 shadow-inner divide-y divide-primary/15">
+                        <div className="px-4 py-3 flex flex-col md:flex-row items-center justify-around gap-3 text-center">
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">공망 (空亡)</div>
+                            <div className="font-serif text-lg text-primary font-bold">{fmt(sp.gongmang?.day)}</div>
+                          </div>
+                          <div className="w-px h-8 bg-primary/20 hidden md:block" />
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">천을귀인 (天乙貴人)</div>
+                            <div className="font-serif text-lg text-primary font-bold">{fmt(sp.cheoneulGuin)}</div>
+                          </div>
+                          <div className="w-px h-8 bg-primary/20 hidden md:block" />
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">월령 (月令)</div>
+                            <div className="font-serif text-lg text-primary font-bold">
+                              {sp.monthCommand?.label ? `${sp.monthCommand.label}(${sp.monthCommand.stem})` : '-'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-4 py-2.5 text-xs text-muted-foreground text-center break-keep leading-relaxed">
+                          {gmFound.length > 0 ? (
+                            <>일주(나)를 기준으로 비어 있는 지지 {fmt(sp.gongmang?.day)}가 <span className="text-destructive font-medium">{gmFound.join('·')}</span>에 있어 공망 — 그 자리가 뜻하는 인연·영역의 기운이 허하게 작용할 수 있습니다.</>
+                          ) : (
+                            <>공망 지지({fmt(sp.gongmang?.day)})가 사주 안에 없어 각 기둥이 온전히 힘을 발휘합니다.</>
+                          )}
+                          {' '}천을귀인은 하늘의 도움을 뜻하는 최고 길신{(sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? `으로 ${sp.cheoneulGuin.foundIn.join('·')}에 있으며` : '이며'}, 월령은 태어난 달을 주도하는 기운입니다.
+                        </div>
                       </div>
-                      <div className="px-3 py-2 text-sm md:text-base font-medium tracking-normal text-foreground/85 break-keep">
-                        {r.specialSummary.detailLine}
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </Card>
                 <Card className="glass-panel border-primary/30 p-6 flex flex-col">
                   <h3 className="text-lg font-serif mb-3 text-primary text-center">오행 분석 (五行)</h3>
