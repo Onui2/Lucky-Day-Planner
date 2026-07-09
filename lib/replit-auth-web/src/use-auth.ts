@@ -38,6 +38,32 @@ function isSupabaseAuthEnabled(): boolean {
   return SUPABASE_URL.length > 0 && SUPABASE_PUBLISHABLE_KEY.length > 0;
 }
 
+// ─── 인증 상태 스냅샷 ────────────────────────────────────
+// /api/auth/user 첫 응답(콜드 스타트 시 수 초)까지 로그인 버튼·폼이 안 그려지는
+// 문제를 줄이기 위해, 마지막으로 확인된 인증 상태를 저장해 두고 다음 방문에서
+// 즉시 낙관적으로 렌더링한다. 백그라운드 재검증이 끝나면 실제 상태로 보정된다.
+// UI 표시에만 쓰이고 권한 검사는 항상 서버가 한다.
+const AUTH_SNAPSHOT_KEY = "lucky_day_auth_snapshot_v1";
+
+function readAuthSnapshot(): { user: AuthUser | null } | null {
+  if (!canUseStorage()) return null;
+  try {
+    const raw = window.localStorage.getItem(AUTH_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { user?: AuthUser | null };
+    return { user: parsed.user ?? null };
+  } catch {
+    return null;
+  }
+}
+
+function writeAuthSnapshot(user: AuthUser | null): void {
+  if (!canUseStorage()) return;
+  try {
+    window.localStorage.setItem(AUTH_SNAPSHOT_KEY, JSON.stringify({ user }));
+  } catch {}
+}
+
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
@@ -172,8 +198,16 @@ const AuthContext = createContext<AuthState>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // 스냅샷이 있으면 그 상태로 즉시 렌더링하고(isLoading=false),
+  // 최초 방문처럼 스냅샷이 없을 때만 첫 응답을 기다린다.
+  const [initialSnapshot] = useState(() => readAuthSnapshot());
+  const [user, setUser] = useState<AuthUser | null>(initialSnapshot?.user ?? null);
+  const [isLoading, setIsLoading] = useState(initialSnapshot === null);
+
+  const applyUser = useCallback((next: AuthUser | null) => {
+    writeAuthSnapshot(next);
+    setUser(next);
+  }, []);
 
   const syncSupabaseSession = useCallback(async () => {
     if (!isSupabaseAuthEnabled()) {
@@ -196,13 +230,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await syncSupabaseSession();
       const currentUser = await fetchCurrentUserWithRetry();
-      setUser(currentUser);
+      applyUser(currentUser);
     } catch {
       // Avoid logging the user out on transient auth endpoint failures.
     } finally {
       setIsLoading(false);
     }
-  }, [syncSupabaseSession]);
+  }, [syncSupabaseSession, applyUser]);
 
   useEffect(() => {
     let isMounted = true;
@@ -233,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const currentUser = await fetchCurrentUserWithRetry();
             if (isMounted) {
-              setUser(currentUser);
+              applyUser(currentUser);
               setIsLoading(false);
             }
           } catch {
@@ -276,21 +310,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Best-effort logout cleanup.
       } finally {
         clearStoredSupabaseTokens();
-        setUser(null);
+        applyUser(null);
         window.location.href = `${BASE}/`;
       }
     })();
-  }, []);
+  }, [applyUser]);
 
   const refreshUser = useCallback(async () => {
     try {
       await syncSupabaseSession();
       const currentUser = await fetchCurrentUserWithRetry();
-      setUser(currentUser);
+      applyUser(currentUser);
     } catch {
       // Preserve the last known authenticated user on transient failures.
     }
-  }, [syncSupabaseSession]);
+  }, [syncSupabaseSession, applyUser]);
 
   const value: AuthState = {
     user,
@@ -299,7 +333,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     refreshUser,
-    setAuthenticatedUser: setUser,
+    setAuthenticatedUser: applyUser,
   };
 
   return createElement(AuthContext.Provider, { value }, children);

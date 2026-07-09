@@ -25,7 +25,7 @@ import {
   sanitizeBirthYearInput,
 } from "@/lib/birth-date";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
-import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown, Info } from "lucide-react";
 import { getDayPillarAnalysis } from "@/data/dayPillarAnalysis";
 
 // ─── 한자 변환 ───────────────────────────────────────────
@@ -1359,29 +1359,47 @@ export default function SajuPage() {
                     const gmFound = sp.gongmang?.day?.foundIn ?? [];
                     return (
                       <div className="mt-6 mx-auto max-w-2xl rounded-xl border border-primary/25 bg-background/45 shadow-inner divide-y divide-primary/15">
-                        <div className="px-4 py-3 flex flex-col md:flex-row items-center justify-around gap-3 text-center">
+                        <div className="px-4 py-3 grid grid-cols-3 gap-2 text-center">
                           <div>
-                            <div className="text-xs text-muted-foreground mb-1">공망 (空亡)</div>
+                            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1 cursor-help"
+                              title="60갑자를 열 개씩 묶을 때 내 일주 묶음(旬)에 들지 못하고 비는 두 지지 — 그 자리의 기운이 허하게 작용해요">
+                              공망 (空亡) <Info className="w-3 h-3 opacity-60" />
+                            </div>
                             <div className="font-serif text-lg text-primary font-bold">{fmt(sp.gongmang?.day)}</div>
+                            {gmFound.length > 0 ? (
+                              <div className="text-[10px] text-destructive font-medium mt-0.5">{gmFound.join('·')}에 있음</div>
+                            ) : (
+                              <div className="text-[10px] text-muted-foreground/70 mt-0.5">사주에 없음</div>
+                            )}
                           </div>
-                          <div className="w-px h-8 bg-primary/20 hidden md:block" />
                           <div>
-                            <div className="text-xs text-muted-foreground mb-1">천을귀인 (天乙貴人)</div>
+                            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1 cursor-help"
+                              title="하늘의 도움을 뜻하는 최고 길신 — 이 지지가 사주에 있으면 어려울 때 귀인이 나타나요">
+                              천을귀인 (天乙貴人) <Info className="w-3 h-3 opacity-60" />
+                            </div>
                             <div className="font-serif text-lg text-primary font-bold">{fmt(sp.cheoneulGuin)}</div>
+                            {(sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? (
+                              <div className="text-[10px] text-primary font-medium mt-0.5">{sp.cheoneulGuin.foundIn.join('·')}에 있음</div>
+                            ) : (
+                              <div className="text-[10px] text-muted-foreground/70 mt-0.5">사주에 없음</div>
+                            )}
                           </div>
-                          <div className="w-px h-8 bg-primary/20 hidden md:block" />
                           <div>
-                            <div className="text-xs text-muted-foreground mb-1">월령 (月令)</div>
+                            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1 cursor-help"
+                              title="태어난 달을 주도하는 기운(사령) — 사주 전체의 계절 바탕이 돼요">
+                              월령 (月令) <Info className="w-3 h-3 opacity-60" />
+                            </div>
                             <div className="font-serif text-lg text-primary font-bold">
                               {sp.monthCommand?.label ? `${sp.monthCommand.label}(${sp.monthCommand.stem})` : '-'}
                             </div>
+                            {sp.monthCommand?.branch && (
+                              <div className="text-[10px] text-muted-foreground/70 mt-0.5">{sp.monthCommand.branch}월 {sp.monthCommand.elapsedDays}일차</div>
+                            )}
                           </div>
                         </div>
+                        {/* 공망 분석 */}
                         <div className="px-4 py-3 text-xs text-muted-foreground text-left break-keep leading-relaxed space-y-1.5">
-                          <p>
-                            <span className="text-primary font-semibold">공망(空亡)</span> — 60갑자를 열 개씩 묶으면 내 일주가 속한 묶음(旬)에 끼지 못하고 비는 지지가 두 개 생기는데, 그게 바로 공망이에요.{' '}
-                            {GONGMANG_PAIR_DESC[(sp.gongmang?.day?.branches ?? []).join('')] ?? ''}
-                          </p>
+                          <p>{GONGMANG_PAIR_DESC[(sp.gongmang?.day?.branches ?? []).join('')] ?? ''}</p>
                           {gmFound.length > 0 ? (
                             gmFound.map((f: string) => (
                               <p key={f}>
@@ -1391,10 +1409,6 @@ export default function SajuPage() {
                           ) : (
                             <p>· 다행히 지금 사주에는 이 두 지지가 없어서 공망이 실제로 작용하는 자리는 없어요. 각 기둥이 제 힘을 온전히 냅니다.</p>
                           )}
-                          <p>
-                            <span className="text-primary font-semibold">천을귀인(天乙貴人)</span>은 하늘의 도움을 뜻하는 최고 길신{(sp.cheoneulGuin?.foundIn?.length ?? 0) > 0 ? `으로, ${sp.cheoneulGuin.foundIn.join('·')}에 있어 어려울 때 귀인의 도움을 받기 좋아요` : '인데, 지금 사주 안에는 들어 있지 않아요'}.{' '}
-                            <span className="text-primary font-semibold">월령(月令)</span>은 태어난 달을 주도하는 기운이에요.
-                          </p>
                         </div>
                       </div>
                     );

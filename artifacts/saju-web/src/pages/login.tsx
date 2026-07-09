@@ -119,8 +119,8 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading) return null;
-
+  // 인증 확인(/api/auth/user)이 끝나기 전에도 폼을 바로 그린다.
+  // 이미 로그인된 경우는 위 useEffect가 확인 즉시 리다이렉트한다.
   const localLoginUnavailable = setupStatus?.localPasswordAuthEnabled === false;
 
   return (

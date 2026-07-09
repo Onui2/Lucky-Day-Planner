@@ -114,8 +114,7 @@ export default function RegisterPage() {
     }
   };
 
-  if (isLoading) return null;
-
+  // 인증 확인이 끝나기 전에도 폼을 바로 그린다. 로그인 상태면 useEffect가 리다이렉트.
   const passwordMismatch =
     confirmPassword.length > 0 && password !== confirmPassword;
   const localSignupUnavailable =
