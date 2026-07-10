@@ -585,7 +585,7 @@ function BirthTimeCandidatesSection({ result }: { result: any }) {
 
 export default function AdvancedSajuAnalysis({ result }: { result: any }) {
   return (
-    <div className="mt-8 border border-primary/20 rounded-lg px-4 sm:px-5 bg-background/25">
+    <div className="saju-analysis-flow mt-8 border border-primary/20 rounded-lg px-4 sm:px-5 bg-background/25">
       <div className="py-5 border-b border-primary/15">
         <div className="flex items-center gap-2">
           <Activity className="w-5 h-5 text-primary" />

@@ -135,4 +135,29 @@
   .bg-layout-pattern {
     background-image: url('/images/mystical-bg.webp');
   }
+
+  .saju-analysis-flow :is(p, div)[class*="leading-relaxed"],
+  .saju-analysis-flow p {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    text-wrap: pretty;
+    hyphens: none;
+  }
+
+  .saju-analysis-flow :is(h2, h3, h4) {
+    text-wrap: balance;
+  }
+
+  .saju-analysis-flow :is(p, div)[class*="text-base"][class*="leading-relaxed"] {
+    line-height: 1.85;
+  }
+
+  .saju-analysis-flow :is(p, div)[class*="text-sm"][class*="leading-relaxed"] {
+    line-height: 1.75;
+  }
+
+  .saju-analysis-flow :is(p, div)[class*="text-xs"][class*="leading-relaxed"],
+  .saju-analysis-flow :is(p, div)[class*="text-[11px]"][class*="leading-relaxed"] {
+    line-height: 1.7;
+  }
 }

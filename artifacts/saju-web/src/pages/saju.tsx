@@ -1374,7 +1374,7 @@ export default function SajuPage() {
         <SajuShareCard ref={shareCardRef} result={displayResult} />
       </div>
 
-      <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
+      <motion.div key="result" className="saju-analysis-flow" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
 
         {/* 헤더 */}
         <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
