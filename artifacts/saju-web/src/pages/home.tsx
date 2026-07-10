@@ -32,6 +32,9 @@ import {
   Download,
   ReceiptText,
   MessageCircleQuestion,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -41,13 +44,16 @@ import {
   useGetMyAiQuestions,
   useGetMyOrders,
   useGetMyReports,
+  useRegenerateReport,
 } from "@workspace/api-client-react";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
 import {
+  clearRecentActivities,
   formatBookmarkDate,
   getRecentActivities,
+  type LuckyDayBookmark,
   type RecentActivityItem,
 } from "@/lib/member-insights";
 import { getSeoulTodayString } from "@/lib/seoul-date";
@@ -56,6 +62,25 @@ import { getElementRelation } from "@/lib/saju-relation";
 import { fetchMonthlyFortune } from "@/lib/monthly-fortune";
 
 type InquiryType = "general" | "saju" | "gungap";
+type MemberServiceFocus =
+  | "all"
+  | "fortune"
+  | "planning"
+  | "relationship"
+  | "tool";
+type InquiryDraftBirth = {
+  name?: string;
+  year?: string;
+  month?: string;
+  day?: string;
+  hour?: string;
+  gender?: string;
+};
+type InquiryDraft = {
+  message?: string;
+  person1?: InquiryDraftBirth;
+  person2?: InquiryDraftBirth;
+};
 
 const PREVIEW_FEATURES = [
   {
@@ -113,6 +138,124 @@ const PREVIEW_FEATURES = [
     desc: "인연 만날 흐름과 오행 궁합 점수",
     icon: Heart,
     iconClass: "bg-rose-500/15 border-rose-500/30 text-rose-400",
+  },
+] as const;
+
+const MEMBER_SERVICE_FOCUS_OPTIONS: Array<{
+  value: MemberServiceFocus;
+  label: string;
+}> = [
+  { value: "all", label: "전체" },
+  { value: "fortune", label: "운세 흐름" },
+  { value: "planning", label: "일정 선택" },
+  { value: "relationship", label: "관계 해석" },
+  { value: "tool", label: "해석 도구" },
+];
+
+const MEMBER_SERVICE_CARDS = [
+  {
+    href: "/daeun",
+    title: "대운 계산기",
+    desc: "10년 단위로 변화하는 인생의 큰 흐름을 타임라인으로 확인하고, 현재 내가 어떤 대운 안에 있는지 한눈에 파악합니다.",
+    action: "확인하기",
+    icon: TrendingUp,
+    filter: "fortune" as const,
+    cardClass: "border-teal-400/20",
+    orbClass: "bg-teal-400/10 group-hover:bg-teal-400/20",
+    iconBoxClass: "bg-teal-400/20 border-teal-400/30",
+    textClass: "text-teal-600",
+    shadowClass: "hover:shadow-[0_0_40px_rgba(45,212,191,0.15)]",
+  },
+  {
+    href: "/monthly-fortune",
+    title: "월운 분석",
+    desc: "세운(歲運)과 월건(月建)이 내 일주와 어떤 십신 관계를 맺는지 분석하여 이달의 재물·직업·애정·건강 흐름을 풀어드립니다.",
+    action: "분석하기",
+    icon: CalendarDays,
+    filter: "fortune" as const,
+    cardClass: "border-purple-400/20",
+    orbClass: "bg-purple-400/10 group-hover:bg-purple-400/20",
+    iconBoxClass: "bg-purple-400/20 border-purple-400/30",
+    textClass: "text-purple-600",
+    shadowClass: "hover:shadow-[0_0_40px_rgba(192,132,252,0.15)]",
+  },
+  {
+    href: "/lucky-calendar",
+    title: "길일 달력",
+    desc: "이사·개업·결혼·계약 등 목적별로 내 사주에 맞는 최적의 날을 달력 위에서 바로 확인하고 현명하게 선택하세요.",
+    action: "날짜 고르기",
+    icon: Calendar,
+    filter: "planning" as const,
+    cardClass: "border-emerald-400/20",
+    orbClass: "bg-emerald-400/10 group-hover:bg-emerald-400/20",
+    iconBoxClass: "bg-emerald-400/20 border-emerald-400/30",
+    textClass: "text-emerald-600",
+    shadowClass: "hover:shadow-[0_0_40px_rgba(52,211,153,0.15)]",
+  },
+  {
+    href: "/year-fortune",
+    title: "연간 운세",
+    desc: "올 한 해의 운세를 분기·월별로 상세 분석합니다.",
+    action: "확인하기",
+    icon: CalendarDays,
+    filter: "fortune" as const,
+    cardClass: "border-primary/20",
+    orbClass: "bg-blue-500/10 group-hover:bg-blue-500/20",
+    iconBoxClass: "bg-blue-500/20 border-blue-500/30",
+    textClass: "text-blue-600",
+    shadowClass: "hover:shadow-[0_0_40px_rgba(212,175,55,0.15)]",
+  },
+  {
+    href: "/zodiac",
+    title: "띠별 운세",
+    desc: "12지신의 오늘 운세를 순위별로 한눈에 확인합니다.",
+    action: "확인하기",
+    icon: Orbit,
+    filter: "fortune" as const,
+    cardClass: "border-primary/20",
+    orbClass: "bg-amber-500/10 group-hover:bg-amber-500/20",
+    iconBoxClass: "bg-amber-500/20 border-amber-500/30",
+    textClass: "text-amber-600",
+    shadowClass: "hover:shadow-[0_0_40px_rgba(212,175,55,0.15)]",
+  },
+  {
+    href: "/dream",
+    title: "꿈 해몽",
+    desc: "꿈에 나타난 키워드로 오늘의 길흉을 풀이합니다.",
+    action: "풀이하기",
+    icon: MoonStar,
+    filter: "tool" as const,
+    cardClass: "border-primary/20",
+    orbClass: "bg-indigo-500/10 group-hover:bg-indigo-500/20",
+    iconBoxClass: "bg-indigo-500/20 border-indigo-500/30",
+    textClass: "text-indigo-600",
+    shadowClass: "hover:shadow-[0_0_40px_rgba(212,175,55,0.15)]",
+  },
+  {
+    href: "/name-analysis",
+    title: "이름 풀이",
+    desc: "수리사주와 오행으로 이름의 운세와 성격을 분석합니다.",
+    action: "분석하기",
+    icon: Type,
+    filter: "tool" as const,
+    cardClass: "border-primary/20",
+    orbClass: "bg-violet-500/10 group-hover:bg-violet-500/20",
+    iconBoxClass: "bg-violet-500/20 border-violet-500/30",
+    textClass: "text-violet-600",
+    shadowClass: "hover:shadow-[0_0_40px_rgba(212,175,55,0.15)]",
+  },
+  {
+    href: "/love-fortune",
+    title: "연애운",
+    desc: "솔로라면 인연 만날 월별 흐름을, 연인이 있다면 오행 궁합 점수와 조언을 분석합니다.",
+    action: "분석하기",
+    icon: Heart,
+    filter: "relationship" as const,
+    cardClass: "border-rose-400/20",
+    orbClass: "bg-rose-500/10 group-hover:bg-rose-500/20",
+    iconBoxClass: "bg-rose-500/20 border-rose-500/30",
+    textClass: "text-rose-400",
+    shadowClass: "hover:shadow-[0_0_40px_rgba(251,113,133,0.15)]",
   },
 ] as const;
 
@@ -193,22 +336,154 @@ function getAiPlanLabel(planCode?: string | null, unlimited?: boolean) {
   return "무료";
 }
 
+function getRecentActivityMeta(kind: RecentActivityItem["kind"]) {
+  if (kind === "day-pillar") {
+    return {
+      label: "오늘 운세",
+      className: "border-amber-500/20 bg-amber-500/8 text-amber-700",
+      icon: Sun,
+    };
+  }
+  if (kind === "lucky-day") {
+    return {
+      label: "길일 분석",
+      className: "border-emerald-500/20 bg-emerald-500/8 text-emerald-700",
+      icon: Calendar,
+    };
+  }
+  return {
+    label: "사주 분석",
+    className: "border-primary/20 bg-primary/8 text-primary",
+    icon: Sparkles,
+  };
+}
+
+function getDateDiffFromToday(
+  target: { year: number; month: number; day: number },
+  todayDate: string,
+) {
+  const [year, month, day] = todayDate.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  const todayUtc = Date.UTC(year, month - 1, day);
+  const targetUtc = Date.UTC(target.year, target.month - 1, target.day);
+  return Math.round((targetUtc - todayUtc) / 86_400_000);
+}
+
+function getDailyScoreFocus(
+  dailyFortune?: {
+    moneyScore?: number;
+    loveScore?: number;
+    careerScore?: number;
+    healthScore?: number;
+  } | null,
+) {
+  if (!dailyFortune) return null;
+
+  const scores = [
+    { label: "재물", value: dailyFortune.moneyScore },
+    { label: "애정", value: dailyFortune.loveScore },
+    { label: "직업", value: dailyFortune.careerScore },
+    { label: "건강", value: dailyFortune.healthScore },
+  ].filter(
+    (item): item is { label: string; value: number } =>
+      typeof item.value === "number",
+  );
+
+  if (scores.length === 0) return null;
+
+  const best = [...scores].sort((left, right) => right.value - left.value)[0];
+  const caution = [...scores].sort((left, right) => left.value - right.value)[0];
+
+  return { best, caution };
+}
+
+function getUpcomingBookmarkSummary(
+  bookmarks: LuckyDayBookmark[],
+  todayDate: string,
+) {
+  let nearest: { bookmark: LuckyDayBookmark; diffDays: number } | null = null;
+
+  for (const bookmark of bookmarks) {
+    const diffDays = getDateDiffFromToday(bookmark, todayDate);
+    if (diffDays === null) continue;
+    if (diffDays < 0) continue;
+    if (!nearest || diffDays < nearest.diffDays) {
+      nearest = { bookmark, diffDays };
+    }
+  }
+
+  if (!nearest) return null;
+
+  return {
+    label:
+      nearest.diffDays === 0
+        ? "오늘"
+        : nearest.diffDays === 1
+          ? "내일"
+          : `D-${nearest.diffDays}`,
+    description: `${formatBookmarkDate(nearest.bookmark)} · ${nearest.bookmark.purposeLabel}`,
+    grade: nearest.bookmark.grade,
+  };
+}
+
+function getMonthlyScoreFocus(
+  monthlyFortune?: {
+    scores?: {
+      wealth?: number;
+      love?: number;
+      career?: number;
+      health?: number;
+    };
+  } | null,
+) {
+  if (!monthlyFortune?.scores) return null;
+
+  const scores = [
+    { label: "재물", value: monthlyFortune.scores.wealth },
+    { label: "관계", value: monthlyFortune.scores.love },
+    { label: "직업", value: monthlyFortune.scores.career },
+    { label: "건강", value: monthlyFortune.scores.health },
+  ].filter(
+    (item): item is { label: string; value: number } =>
+      typeof item.value === "number",
+  );
+
+  if (scores.length === 0) return null;
+
+  const best = [...scores].sort((left, right) => right.value - left.value)[0];
+  const caution = [...scores].sort((left, right) => left.value - right.value)[0];
+
+  return { best, caution };
+}
+
 export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
+  const [inquiryDraft, setInquiryDraft] = useState<InquiryDraft>({});
+  const [memberServiceFocus, setMemberServiceFocus] =
+    useState<MemberServiceFocus>("all");
+  const [memberServiceQuery, setMemberServiceQuery] = useState("");
+  const [aiPromptCopied, setAiPromptCopied] = useState(false);
+  const [showMonthlyDetailsMobile, setShowMonthlyDetailsMobile] =
+    useState(false);
+  const [bookmarksClearing, setBookmarksClearing] = useState(false);
+  const [recentActivitiesClearing, setRecentActivitiesClearing] =
+    useState(false);
   const [recentActivities, setRecentActivities] = useState<
     RecentActivityItem[]
   >([]);
   const [todayDate, setTodayDate] = useState(() => getSeoulTodayString());
   const { user, isAuthenticated } = useAuth();
   const { profile } = useResolvedProfile();
-  const { bookmarks } = useLuckyDayBookmarks();
+  const { bookmarks, removeBookmark } = useLuckyDayBookmarks();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const dashboardYear = Number(todayDate.slice(0, 4));
   const dashboardMonth = Number(todayDate.slice(5, 7));
   const { data: reportsData, isLoading: reportsLoading } =
     useGetMyReports(isAuthenticated);
   const { data: ordersData } = useGetMyOrders(isAuthenticated);
+  const regenerateReport = useRegenerateReport();
   const { data: aiQuestionsData, isLoading: aiQuestionsLoading } =
     useGetMyAiQuestions(isAuthenticated);
   const { data: dailyFortune, isLoading: dailyFortuneLoading } =
@@ -253,9 +528,44 @@ export default function Home() {
     staleTime: 30 * 60_000,
   });
 
-  function openInquiry(type: InquiryType) {
+  function openInquiry(type: InquiryType, draft?: InquiryDraft) {
     setInquiryType(type);
+    setInquiryDraft(draft ?? {});
     setInquiryOpen(true);
+  }
+
+  async function handleCopyRecommendedAiPrompt() {
+    try {
+      await navigator.clipboard.writeText(recommendedAiPrompt);
+      setAiPromptCopied(true);
+      window.setTimeout(() => setAiPromptCopied(false), 1600);
+    } catch {
+      setAiPromptCopied(false);
+    }
+  }
+
+  async function handleClearRecentActivities() {
+    if (!user?.id || recentActivitiesClearing) return;
+
+    setRecentActivitiesClearing(true);
+    try {
+      setRecentActivities(await clearRecentActivities(user.id));
+    } finally {
+      setRecentActivitiesClearing(false);
+    }
+  }
+
+  async function handleClearBookmarks() {
+    if (bookmarks.length === 0 || bookmarksClearing) return;
+
+    setBookmarksClearing(true);
+    try {
+      for (const bookmark of [...bookmarks]) {
+        await removeBookmark(bookmark.id);
+      }
+    } finally {
+      setBookmarksClearing(false);
+    }
   }
 
   const container = {
@@ -309,14 +619,30 @@ export default function Home() {
   const monthlyScoreTone = getDashboardScoreTone(
     monthlyFortune?.scores.overall,
   );
+  const todayScoreFocus = getDailyScoreFocus(dailyFortune);
+  const monthlyScoreFocus = getMonthlyScoreFocus(monthlyFortune);
+  const recommendedAiPrompt =
+    todayScoreFocus && monthlyScoreFocus
+      ? `오늘 ${todayScoreFocus.caution.label} 흐름이 ${todayScoreFocus.caution.value}점이고 이번 달 ${monthlyScoreFocus.best.label} 흐름이 ${monthlyScoreFocus.best.value}점인데, 지금 어떤 선택에 집중하면 좋을까요?`
+      : todayScoreFocus
+        ? `오늘 ${todayScoreFocus.best.label}은 ${todayScoreFocus.best.value}점이고 ${todayScoreFocus.caution.label}은 ${todayScoreFocus.caution.value}점인데, 어떻게 움직이면 좋을까요?`
+        : monthlyScoreFocus
+          ? `이번 달 ${monthlyScoreFocus.best.label} 흐름이 ${monthlyScoreFocus.best.value}점인데 가장 잘 활용하는 방법이 궁금합니다.`
+          : "지금 제 사주에서 가장 먼저 챙겨야 할 흐름을 알려주세요.";
   const latestReport = reportsData?.reports?.[0] ?? null;
   const latestOrder = ordersData?.orders?.[0] ?? null;
   const latestReportStatus = getReportStatusMeta(latestReport?.status);
   const latestAiQuestion = aiQuestionsData?.questions?.[0] ?? null;
+  const readyReportsCount =
+    reportsData?.reports?.filter((report) => report.status === "ready")
+      .length ?? 0;
   const hasUnlimitedAiAccess = Boolean(isAdmin || aiQuestionsData?.unlimited);
   const aiRemainingCount = aiQuestionsData?.remaining ?? 0;
   const aiLimitCount = aiQuestionsData?.limit ?? 0;
   const aiQuestionCount = aiQuestionsData?.questions?.length ?? 0;
+  const currentAge = profile
+    ? getCurrentAge(profile.birthYear, profile.birthMonth, profile.birthDay)
+    : null;
   const aiPlanLabel = getAiPlanLabel(
     aiQuestionsData?.planCode,
     hasUnlimitedAiAccess,
@@ -326,6 +652,339 @@ export default function Home() {
     : `${aiRemainingCount}/${aiLimitCount}회 남음`;
   const aiQuestionsExhausted =
     !hasUnlimitedAiAccess && Boolean(aiQuestionsData) && aiRemainingCount < 1;
+  const latestRecentActivity = recentActivities[0] ?? null;
+  const sortedBookmarks = [...bookmarks].sort((left, right) => {
+    const leftDiff = getDateDiffFromToday(left, todayDate);
+    const rightDiff = getDateDiffFromToday(right, todayDate);
+
+    if (leftDiff === null || rightDiff === null) return 0;
+    const leftUpcoming = leftDiff >= 0;
+    const rightUpcoming = rightDiff >= 0;
+
+    if (leftUpcoming !== rightUpcoming) {
+      return leftUpcoming ? -1 : 1;
+    }
+
+    if (leftUpcoming && rightUpcoming) {
+      return leftDiff - rightDiff;
+    }
+
+    return rightDiff - leftDiff;
+  });
+  const upcomingBookmarkSummary = getUpcomingBookmarkSummary(
+    bookmarks,
+    todayDate,
+  );
+  const dashboardActivitySummary = [
+    {
+      href: "/account",
+      label: "다운로드 가능",
+      value: `${readyReportsCount}개`,
+      description: "리포트",
+      icon: FileText,
+      toneClass: "border-primary/20 bg-primary/8 text-primary",
+    },
+    {
+      href: "/lucky-calendar",
+      label: "저장한 길일",
+      value: `${bookmarks.length}건`,
+      description: "일정 후보",
+      icon: BookmarkPlus,
+      toneClass: "border-emerald-400/20 bg-emerald-400/10 text-emerald-600",
+    },
+    {
+      href: "/account",
+      label: "이어서 보기",
+      value: `${recentActivities.length}건`,
+      description: "최근 기록",
+      icon: History,
+      toneClass: "border-amber-500/20 bg-amber-500/10 text-amber-600",
+    },
+    {
+      href: "/saju",
+      label: "남은 AI 질문",
+      value: hasUnlimitedAiAccess ? "무제한" : `${aiRemainingCount}회`,
+      description: hasUnlimitedAiAccess ? "운영자 플랜" : `${aiQuestionCount}개 기록`,
+      icon: MessageCircleQuestion,
+      toneClass: "border-sky-500/20 bg-sky-500/10 text-sky-600",
+    },
+  ];
+  const inquiryProfileDraft = profile
+    ? {
+        name: profile.name ?? user?.firstName ?? "",
+        year: String(profile.birthYear ?? ""),
+        month: String(profile.birthMonth ?? ""),
+        day: String(profile.birthDay ?? ""),
+        hour: "모름/미입력",
+        gender: profile.gender === "female" ? "female" : "male",
+      }
+    : undefined;
+  const suggestedInquiry =
+    profile && latestRecentActivity
+      ? {
+          type: "saju" as const,
+          title: "최근 본 분석 이어서 상담하기",
+          description: `${getRecentActivityMeta(latestRecentActivity.kind).label}에서 막힌 부분을 바로 질문할 수 있어요.`,
+          message: `최근에 "${latestRecentActivity.title}" 분석을 봤습니다.\n${latestRecentActivity.subtitle ? `${latestRecentActivity.subtitle}\n` : ""}이 내용을 바탕으로 지금 가장 중요하게 봐야 할 흐름과 주의할 점을 더 자세히 상담받고 싶습니다.`,
+        }
+      : profile && dailyFortune
+        ? {
+            type: "saju" as const,
+            title: "오늘 흐름 더 자세히 상담하기",
+            description: "오늘 운세 결과를 바탕으로 조심할 점과 활용 포인트를 깊게 물어볼 수 있어요.",
+            message: `오늘 운세에서 전체 흐름이 ${dailyFortune.overallScore}점으로 나왔습니다.\n"${dailyFortune.overallFortune}"\n오늘 특히 조심할 점과 활용하면 좋은 포인트를 더 자세히 알고 싶습니다.`,
+          }
+        : null;
+  const memberServiceRecommendations = [
+    monthlyFortune
+      ? {
+          href: "/monthly-fortune",
+          badge: "이번 달",
+          title: `${dashboardMonth}월 월운 이어보기`,
+          description: `월운 지수 ${monthlyFortune.scores.overall}점 · ${monthlyFortune.wun.tenGod} 기운 중심으로 보면 좋습니다.`,
+          icon: CalendarDays,
+          toneClass: "border-purple-400/20 bg-purple-400/10 text-purple-600",
+        }
+      : {
+          href: "/monthly-fortune",
+          badge: "기본 추천",
+          title: "월운 분석 먼저 보기",
+          description: "이번 달 재물, 직업, 관계 흐름을 먼저 확인해보세요.",
+          icon: CalendarDays,
+          toneClass: "border-purple-400/20 bg-purple-400/10 text-purple-600",
+        },
+    bookmarks.length > 0
+      ? {
+          href: "/lucky-calendar",
+          badge: "저장 일정",
+          title: "길일 저장분 이어보기",
+          description: `${formatBookmarkDate(bookmarks[0])} ${bookmarks[0].purposeLabel} 일정이 저장돼 있습니다.`,
+          icon: Calendar,
+          toneClass: "border-emerald-400/20 bg-emerald-400/10 text-emerald-600",
+        }
+      : {
+          href: "/lucky-calendar",
+          badge: "일정 준비",
+          title: "길일 후보부터 모으기",
+          description: "이사, 계약, 만남 일정에 맞는 날짜를 먼저 찾아 저장해보세요.",
+          icon: Calendar,
+          toneClass: "border-emerald-400/20 bg-emerald-400/10 text-emerald-600",
+        },
+    latestRecentActivity?.kind === "day-pillar"
+      ? {
+          href: "/year-fortune",
+          badge: "넓혀보기",
+          title: "연간 운세로 확장",
+          description: "오늘 흐름을 올해 전체 리듬 안에서 다시 확인해보세요.",
+          icon: CalendarDays,
+          toneClass: "border-blue-500/20 bg-blue-500/10 text-blue-600",
+        }
+      : latestAiQuestion
+        ? {
+            href: "/daeun",
+            badge: "다음 단계",
+            title: "대운 계산기로 이어보기",
+            description: currentAge
+              ? `${currentAge}세 전후 장기 흐름을 같이 보면 해석이 더 또렷해집니다.`
+              : "질문으로 본 포인트를 장기 흐름 안에서 이어서 확인해보세요.",
+            icon: TrendingUp,
+            toneClass: "border-teal-400/20 bg-teal-400/10 text-teal-600",
+          }
+        : {
+            href: "/daeun",
+            badge: "장기 흐름",
+            title: "대운 계산기 열기",
+        description: currentAge
+              ? `${currentAge}세 전후 큰 사이클을 보면 다음 선택이 더 쉬워집니다.`
+              : "10년 단위 큰 흐름부터 확인해보세요.",
+            icon: TrendingUp,
+            toneClass: "border-teal-400/20 bg-teal-400/10 text-teal-600",
+          },
+  ];
+  const memberTopicShortcuts = [
+    {
+      href: "/daeun",
+      label: "장기 흐름",
+      description: "10년 단위",
+      toneClass: "border-teal-400/20 bg-teal-400/10 text-teal-600",
+    },
+    {
+      href: "/monthly-fortune",
+      label: "이번 달",
+      description: "재물·직업·관계",
+      toneClass: "border-purple-400/20 bg-purple-400/10 text-purple-600",
+    },
+    {
+      href: "/lucky-calendar",
+      label: "일정 선택",
+      description: "이사·계약·만남",
+      toneClass: "border-emerald-400/20 bg-emerald-400/10 text-emerald-600",
+    },
+    {
+      href: "/love-fortune",
+      label: "관계 해석",
+      description: "연애·궁합",
+      toneClass: "border-rose-400/20 bg-rose-400/10 text-rose-600",
+    },
+    {
+      href: "/name-analysis",
+      label: "이름 풀이",
+      description: "오행·수리",
+      toneClass: "border-violet-400/20 bg-violet-400/10 text-violet-600",
+    },
+    {
+      href: "/dream",
+      label: "해석 도구",
+      description: "꿈·상징",
+      toneClass: "border-indigo-400/20 bg-indigo-400/10 text-indigo-600",
+    },
+  ];
+  const memberServiceInsightByHref: Record<
+    string,
+    { label: string; className: string } | undefined
+  > = {
+    "/monthly-fortune": monthlyFortune
+      ? {
+          label: `${dashboardMonth}월 흐름`,
+          className:
+            "border-purple-400/20 bg-purple-400/10 text-purple-700",
+        }
+      : undefined,
+    "/lucky-calendar":
+      bookmarks.length > 0
+        ? {
+            label: `저장 ${bookmarks.length}건`,
+            className:
+              "border-emerald-400/20 bg-emerald-400/10 text-emerald-700",
+          }
+        : undefined,
+    "/daeun": currentAge
+      ? {
+          label: `${currentAge}세 흐름`,
+          className: "border-teal-400/20 bg-teal-400/10 text-teal-700",
+        }
+      : undefined,
+    "/year-fortune":
+      dailyFortune && (dailyFortune.overallScore ?? 0) < 56
+        ? {
+            label: "오늘 흐름 확장",
+            className: "border-blue-500/20 bg-blue-500/10 text-blue-700",
+          }
+        : undefined,
+    "/love-fortune":
+      latestRecentActivity?.kind === "saju"
+        ? {
+            label: "관계 해석 추천",
+            className: "border-rose-400/20 bg-rose-400/10 text-rose-700",
+          }
+        : undefined,
+    "/dream":
+      latestAiQuestion
+        ? {
+            label: "질문 확장용",
+            className:
+              "border-indigo-400/20 bg-indigo-400/10 text-indigo-700",
+          }
+        : undefined,
+  };
+  const recommendedMemberServiceHrefs = new Set(
+    memberServiceRecommendations.map((service) => service.href),
+  );
+  const normalizedMemberServiceQuery = memberServiceQuery.trim().toLowerCase();
+  const filteredMemberServiceCards = MEMBER_SERVICE_CARDS.filter((card) => {
+    const matchesFocus =
+      memberServiceFocus === "all" ? true : card.filter === memberServiceFocus;
+    const matchesQuery =
+      !normalizedMemberServiceQuery ||
+      `${card.title} ${card.desc} ${card.action}`
+        .toLowerCase()
+        .includes(normalizedMemberServiceQuery);
+
+    return matchesFocus && matchesQuery;
+  }).sort((left, right) => {
+    const leftRecommended = recommendedMemberServiceHrefs.has(left.href);
+    const rightRecommended = recommendedMemberServiceHrefs.has(right.href);
+    if (leftRecommended === rightRecommended) return 0;
+    return leftRecommended ? -1 : 1;
+  });
+  const recommendedActions = [
+    !profile
+      ? {
+          href: "/saju",
+          label: "시작하기",
+          title: "내 사주 등록",
+          description: "대시보드를 더 정확하게 개인화해보세요.",
+          icon: UserCircle2,
+          iconClass: "border-primary/20 bg-primary/10 text-primary",
+        }
+      : dailyFortune && (dailyFortune.overallScore ?? 0) < 56
+        ? {
+            href: "/daily-fortune",
+            label: "오늘 우선",
+            title: "주의 포인트 먼저 보기",
+            description: "오늘 피해야 할 일과 조심할 타이밍을 더 자세히 봅니다.",
+            icon: Sun,
+            iconClass:
+              "border-rose-500/20 bg-rose-500/10 text-rose-600",
+          }
+        : {
+            href: "/monthly-fortune",
+            label: "이번 달",
+            title: "월운 흐름 이어보기",
+            description: `${dashboardMonth}월 재물, 직업, 관계 흐름을 한 번에 확인합니다.`,
+            icon: CalendarDays,
+            iconClass:
+              "border-blue-500/20 bg-blue-500/10 text-blue-600",
+          },
+    bookmarks.length > 0
+      ? {
+          href: bookmarks[0].href,
+          label: "저장한 일정",
+          title: "길일 다시 확인",
+          description: `${bookmarks[0].purposeLabel} 후보 중 저장한 날짜를 바로 엽니다.`,
+          icon: BookmarkPlus,
+          iconClass:
+            "border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
+        }
+      : {
+          href: "/lucky-calendar",
+          label: "준비하기",
+          title: "길일 하나 저장",
+          description: "이사, 계약, 만남 일정 후보를 먼저 모아두세요.",
+          icon: BookmarkPlus,
+          iconClass:
+            "border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
+        },
+    recentActivities.length > 0
+      ? {
+          href: recentActivities[0].href,
+          label: "이어서 보기",
+          title: "최근 분석 열기",
+          description:
+            recentActivities[0].subtitle || recentActivities[0].title,
+          icon: History,
+          iconClass:
+            "border-amber-500/20 bg-amber-500/10 text-amber-600",
+        }
+      : latestAiQuestion
+        ? {
+            href: "/saju",
+            label: "질문 이어가기",
+            title: "AI 질문 다시 열기",
+            description: "방금 본 해석에서 궁금했던 포인트를 바로 이어서 물어봅니다.",
+            icon: MessageCircleQuestion,
+            iconClass: "border-sky-500/20 bg-sky-500/10 text-sky-600",
+          }
+        : {
+            href: "/daeun",
+            label: "다음 분석",
+            title: "대운 흐름 확인",
+            description: "10년 단위의 큰 사이클을 먼저 훑어보세요.",
+            icon: TrendingUp,
+            iconClass:
+              "border-violet-500/20 bg-violet-500/10 text-violet-600",
+          },
+  ];
   const todayRelation =
     profile?.dayMasterElement && dailyFortune?.dayElement
       ? getElementRelation(
@@ -396,6 +1055,92 @@ export default function Home() {
                 >
                   내 정보 관리
                 </Link>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="w-3.5 h-3.5 text-primary" />
+                <p className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                  내 활동 요약
+                </p>
+              </div>
+              <div className="grid grid-cols-[repeat(4,minmax(160px,1fr))] gap-2 overflow-x-auto pb-1 lg:grid-cols-4 lg:overflow-visible lg:pb-0">
+                {dashboardActivitySummary.map((summary) => {
+                  const Icon = summary.icon;
+
+                  return (
+                    <Link
+                      key={`${summary.label}-${summary.href}`}
+                      href={summary.href}
+                      className="block rounded-2xl border border-primary/10 bg-background/30 px-3 py-3 hover:bg-background/45 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] text-muted-foreground">
+                            {summary.label}
+                          </div>
+                          <div className="mt-1 font-medium text-sm text-foreground">
+                            {summary.value}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {summary.description}
+                          </div>
+                        </div>
+                        <div
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${summary.toneClass}`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <p className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                  오늘 추천 동선
+                </p>
+              </div>
+              <div className="grid grid-cols-[repeat(3,minmax(220px,1fr))] gap-2 overflow-x-auto pb-1 lg:grid-cols-3 lg:overflow-visible lg:pb-0">
+                {recommendedActions.map((action) => {
+                  const Icon = action.icon;
+
+                  return (
+                    <Link
+                      key={`${action.label}-${action.href}`}
+                      href={action.href}
+                      className="block rounded-2xl border border-primary/15 bg-background/35 px-3 py-3 hover:bg-background/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] text-muted-foreground">
+                            {action.label}
+                          </div>
+                          <div className="mt-1 font-medium text-sm text-foreground">
+                            {action.title}
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                            {action.description}
+                          </p>
+                        </div>
+                        <div
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${action.iconClass}`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                        바로 열기
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
@@ -572,6 +1317,29 @@ export default function Home() {
                         </div>
                       </div>
 
+                      {todayScoreFocus && (
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 px-3 py-2">
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 mb-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              가장 밀어볼 분야
+                            </div>
+                            <p className="text-sm text-foreground/80 leading-relaxed">
+                              {todayScoreFocus.best.label} · {todayScoreFocus.best.value}점
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-orange-500/15 bg-orange-500/5 px-3 py-2">
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-orange-700 mb-1">
+                              <ShieldAlert className="w-3.5 h-3.5" />
+                              가장 조심할 분야
+                            </div>
+                            <p className="text-sm text-foreground/80 leading-relaxed">
+                              {todayScoreFocus.caution.label} · {todayScoreFocus.caution.value}점
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-4 gap-1.5 text-xs">
                         <div className="rounded-xl border border-primary/15 bg-background/45 px-2.5 py-2">
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
@@ -668,12 +1436,35 @@ export default function Home() {
                         이번 달 월운
                       </h3>
                     </div>
-                    <Link
-                      href="/monthly-fortune"
-                      className="text-xs text-primary hover:underline"
-                    >
-                      전체 보기
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      {monthlyFortune && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowMonthlyDetailsMobile((current) => !current)
+                          }
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground lg:hidden"
+                        >
+                          {showMonthlyDetailsMobile ? (
+                            <>
+                              간단히 보기
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </>
+                          ) : (
+                            <>
+                              자세히 보기
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </>
+                          )}
+                        </button>
+                      )}
+                      <Link
+                        href="/monthly-fortune"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        전체 보기
+                      </Link>
+                    </div>
                   </div>
 
                   {!profile ? (
@@ -686,7 +1477,7 @@ export default function Home() {
                       이번 달 월운 불러오는 중.
                     </div>
                   ) : monthlyFortune ? (
-                    <div className="grid grid-cols-[0.78fr_1.22fr] gap-3">
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[0.78fr_1.22fr]">
                       <div className="rounded-2xl border border-primary/15 bg-primary/8 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -735,7 +1526,9 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div
+                        className={`${showMonthlyDetailsMobile ? "block" : "hidden"} space-y-2 lg:block`}
+                      >
                         <p className="rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-foreground/80 leading-relaxed line-clamp-2">
                           {monthlyFortune.summary}
                         </p>
@@ -769,6 +1562,28 @@ export default function Home() {
                             </div>
                           </div>
                         </div>
+                        {monthlyScoreFocus && (
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 px-3 py-2">
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 mb-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                이번 달 밀어볼 분야
+                              </div>
+                              <p className="text-sm text-foreground/80 leading-relaxed">
+                                {monthlyScoreFocus.best.label} · {monthlyScoreFocus.best.value}점
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-orange-500/15 bg-orange-500/5 px-3 py-2">
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-orange-700 mb-1">
+                                <ShieldAlert className="w-3.5 h-3.5" />
+                                이번 달 조심할 분야
+                              </div>
+                              <p className="text-sm text-foreground/80 leading-relaxed">
+                                {monthlyScoreFocus.caution.label} · {monthlyScoreFocus.caution.value}점
+                              </p>
+                            </div>
+                          </div>
+                        )}
                         <div className="rounded-xl border border-primary/15 bg-background/45 px-3 py-2 text-sm text-muted-foreground leading-relaxed line-clamp-1">
                           {monthlyFortune.hapChungNotes[0] ??
                             `이번 달은 ${monthlyFortune.wun.tenGod} 기운을 중심으로 움직입니다.`}
@@ -854,6 +1669,19 @@ export default function Home() {
                               <Download className="w-3.5 h-3.5" />
                               PDF
                             </button>
+                          ) : latestReport.status === "failed" ||
+                            latestReport.status === "pending" ? (
+                            <button
+                              type="button"
+                              onClick={() => regenerateReport.mutate(latestReport.id)}
+                              disabled={regenerateReport.isPending}
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-500/25 bg-amber-500/8 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-500/12 transition-colors disabled:opacity-50"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              {regenerateReport.isPending
+                                ? "재생성 중"
+                                : "다시 생성"}
+                            </button>
                           ) : (
                             <Link
                               href="/account"
@@ -927,6 +1755,26 @@ export default function Home() {
                           </div>
                         )}
 
+                        <div className="rounded-xl border border-primary/15 bg-background/45 px-3 py-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-[11px] text-primary/75">
+                              추천 질문
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleCopyRecommendedAiPrompt();
+                              }}
+                              className="text-[11px] text-primary hover:underline"
+                            >
+                              {aiPromptCopied ? "복사됨" : "질문 복사"}
+                            </button>
+                          </div>
+                          <p className="mt-1 text-xs text-foreground/80 leading-relaxed line-clamp-2">
+                            {recommendedAiPrompt}
+                          </p>
+                        </div>
+
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
                             <Clock className="w-3.5 h-3.5 text-sky-600 shrink-0" />
@@ -940,7 +1788,7 @@ export default function Home() {
                             href="/saju"
                             className="text-xs text-primary hover:underline shrink-0"
                           >
-                            {aiQuestionsExhausted ? "사주 보기" : "열기"}
+                            {aiQuestionsExhausted ? "사주 보기" : "질문하러 가기"}
                           </Link>
                         </div>
                       </div>
@@ -955,35 +1803,90 @@ export default function Home() {
                           저장한 길일
                         </h3>
                       </div>
-                      <Link
-                        href="/lucky-calendar"
-                        className="text-xs text-primary hover:underline"
-                      >
-                        길일 달력
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        {bookmarks.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleClearBookmarks();
+                            }}
+                            disabled={bookmarksClearing}
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            {bookmarksClearing ? "비우는 중" : "전체 비우기"}
+                          </button>
+                        )}
+                        <Link
+                          href="/lucky-calendar"
+                          className="text-xs text-primary hover:underline"
+                        >
+                          길일 달력
+                        </Link>
+                      </div>
                     </div>
                     {bookmarks.length > 0 ? (
                       <div className="space-y-2">
-                        {bookmarks.slice(0, 2).map((bookmark) => (
-                          <Link
-                            key={bookmark.id}
-                            href={bookmark.href}
-                            className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
-                          >
+                        {upcomingBookmarkSummary && (
+                          <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-3 py-3">
                             <div className="flex items-center justify-between gap-3">
-                              <div className="font-medium text-sm text-foreground truncate">
-                                {bookmark.title}
+                              <div>
+                                <div className="text-[11px] text-emerald-700/80">
+                                  가장 가까운 길일
+                                </div>
+                                <div className="mt-1 text-sm font-medium text-foreground">
+                                  {upcomingBookmarkSummary.description}
+                                </div>
                               </div>
-                              <div className="text-xs text-primary shrink-0">
-                                {bookmark.grade}
+                              <div className="text-right shrink-0">
+                                <div className="text-sm font-semibold text-emerald-700">
+                                  {upcomingBookmarkSummary.label}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  {upcomingBookmarkSummary.grade}
+                                </div>
                               </div>
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {formatBookmarkDate(bookmark)} ·{" "}
-                              {bookmark.purposeLabel}
-                            </div>
-                          </Link>
-                        ))}
+                          </div>
+                        )}
+                        {sortedBookmarks.slice(0, 2).map((bookmark) => {
+                          const diffDays = getDateDiffFromToday(
+                            bookmark,
+                            todayDate,
+                          );
+                          const countdownLabel =
+                            diffDays === null
+                              ? ""
+                              : diffDays === 0
+                                ? "오늘"
+                                : diffDays === 1
+                                  ? "내일"
+                                  : diffDays > 1
+                                    ? `D-${diffDays}`
+                                    : "";
+
+                          return (
+                            <Link
+                              key={bookmark.id}
+                              href={bookmark.href}
+                              className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="font-medium text-sm text-foreground truncate">
+                                  {bookmark.title}
+                                </div>
+                                <div className="text-xs text-primary shrink-0">
+                                  {bookmark.grade}
+                                  {countdownLabel ? ` · ${countdownLabel}` : ""}
+                                </div>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {formatBookmarkDate(bookmark)} ·{" "}
+                                {bookmark.purposeLabel}
+                              </div>
+                            </Link>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
@@ -1000,29 +1903,98 @@ export default function Home() {
                           최근 본 분석
                         </h3>
                       </div>
-                      <Link
-                        href="/account"
-                        className="text-xs text-primary hover:underline"
-                      >
-                        전체 보기
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        {recentActivities.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleClearRecentActivities();
+                            }}
+                            disabled={recentActivitiesClearing}
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            {recentActivitiesClearing ? "비우는 중" : "기록 비우기"}
+                          </button>
+                        )}
+                        <Link
+                          href="/account"
+                          className="text-xs text-primary hover:underline"
+                        >
+                          전체 보기
+                        </Link>
+                      </div>
                     </div>
                     {recentActivities.length > 0 ? (
-                      <div className="space-y-2">
-                        {recentActivities.slice(0, 2).map((activity) => (
+                      <div className="space-y-2.5">
+                        {latestRecentActivity && (
+                          <Link
+                            href={latestRecentActivity.href}
+                            className="block rounded-2xl border border-primary/15 bg-primary/6 px-3 py-3 hover:bg-primary/10 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getRecentActivityMeta(latestRecentActivity.kind).className}`}
+                                  >
+                                    {getRecentActivityMeta(latestRecentActivity.kind).label}
+                                  </span>
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {formatDashboardDate(
+                                      latestRecentActivity.createdAt,
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="mt-2 font-medium text-sm text-foreground">
+                                  {latestRecentActivity.title}
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                                  {latestRecentActivity.subtitle ??
+                                    "바로 이어서 다시 볼 수 있습니다."}
+                                </p>
+                              </div>
+                              <div
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${getRecentActivityMeta(latestRecentActivity.kind).className}`}
+                              >
+                                {(() => {
+                                  const Icon = getRecentActivityMeta(
+                                    latestRecentActivity.kind,
+                                  ).icon;
+                                  return <Icon className="w-4 h-4" />;
+                                })()}
+                              </div>
+                            </div>
+                            <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                              이어서 보기
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </div>
+                          </Link>
+                        )}
+
+                        {recentActivities.slice(1, 3).map((activity) => (
                           <Link
                             key={activity.id}
                             href={activity.href}
                             className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
                           >
-                            <div className="font-medium text-sm text-foreground">
-                              {activity.title}
-                            </div>
-                            {activity.subtitle && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {activity.subtitle}
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="font-medium text-sm text-foreground truncate">
+                                  {activity.title}
+                                </div>
+                                {activity.subtitle && (
+                                  <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                    {activity.subtitle}
+                                  </div>
+                                )}
                               </div>
-                            )}
+                              <span
+                                className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${getRecentActivityMeta(activity.kind).className}`}
+                              >
+                                {getRecentActivityMeta(activity.kind).label}
+                              </span>
+                            </div>
                           </Link>
                         ))}
                       </div>
@@ -1196,176 +2168,191 @@ export default function Home() {
             </p>
           </div>
 
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6"
-            variants={container}
-            initial="hidden"
-            animate="show"
-          >
-            <motion.div variants={item}>
-              <Link href="/daeun" className="block group h-full">
-                <div className="h-full rounded-3xl border border-teal-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(45,212,191,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-teal-400/10 rounded-full blur-3xl group-hover:bg-teal-400/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-teal-400/20 flex items-center justify-center mb-6 border border-teal-400/30 group-hover:scale-110 transition-transform">
-                    <TrendingUp className="w-7 h-7 text-teal-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                    대운 계산기
-                  </h3>
-                  <p className="text-muted-foreground mb-8">
-                    10년 단위로 변화하는 인생의 큰 흐름을 타임라인으로 확인하고,
-                    현재 내가 어떤 대운 안에 있는지 한눈에 파악합니다.
-                  </p>
-                  <div className="flex items-center text-teal-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    확인하기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <p className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                지금 추천 분석
+              </p>
+            </div>
+            <div className="grid grid-cols-[repeat(3,minmax(220px,1fr))] gap-3 overflow-x-auto pb-1 lg:grid-cols-3 lg:overflow-visible lg:pb-0">
+              {memberServiceRecommendations.map((service) => {
+                const Icon = service.icon;
 
-            <motion.div variants={item}>
-              <Link href="/monthly-fortune" className="block group h-full">
-                <div className="h-full rounded-3xl border border-purple-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(192,132,252,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-purple-400/10 rounded-full blur-3xl group-hover:bg-purple-400/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-purple-400/20 flex items-center justify-center mb-6 border border-purple-400/30 group-hover:scale-110 transition-transform">
-                    <CalendarDays className="w-7 h-7 text-purple-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                    월운 분석
-                  </h3>
-                  <p className="text-muted-foreground mb-8">
-                    세운(歲運)과 월건(月建)이 내 일주와 어떤 십신 관계를 맺는지
-                    분석하여 이달의 재물·직업·애정·건강 흐름을 풀어드립니다.
-                  </p>
-                  <div className="flex items-center text-purple-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    분석하기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
+                return (
+                  <Link
+                    key={`${service.badge}-${service.href}`}
+                    href={service.href}
+                    className="block rounded-2xl border border-primary/15 bg-background/35 px-3 py-3 hover:bg-background/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[11px] text-muted-foreground">
+                          {service.badge}
+                        </div>
+                        <div className="mt-1 font-medium text-sm text-foreground">
+                          {service.title}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                          {service.description}
+                        </p>
+                      </div>
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${service.toneClass}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                      바로 열기
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
 
-            <motion.div variants={item}>
-              <Link href="/lucky-calendar" className="block group h-full">
-                <div className="h-full rounded-3xl border border-emerald-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(52,211,153,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl group-hover:bg-emerald-400/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-400/20 flex items-center justify-center mb-6 border border-emerald-400/30 group-hover:scale-110 transition-transform">
-                    <Calendar className="w-7 h-7 text-emerald-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                    길일 달력
-                  </h3>
-                  <p className="text-muted-foreground mb-8">
-                    이사·개업·결혼·계약 등 목적별로 내 사주에 맞는 최적의 날을
-                    달력 위에서 바로 확인하고 현명하게 선택하세요.
-                  </p>
-                  <div className="flex items-center text-emerald-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    날짜 고르기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
+            <div className="mt-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Compass className="w-3.5 h-3.5 text-primary" />
+                <p className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                  주제별 바로가기
+                </p>
+              </div>
+              <div className="grid grid-cols-[repeat(6,minmax(140px,1fr))] gap-2 overflow-x-auto pb-1 lg:grid-cols-6 lg:overflow-visible lg:pb-0">
+                {memberTopicShortcuts.map((shortcut) => (
+                  <Link
+                    key={`${shortcut.label}-${shortcut.href}`}
+                    href={shortcut.href}
+                    className="block rounded-2xl border border-primary/10 bg-background/30 px-3 py-3 hover:bg-background/45 transition-colors"
+                  >
+                    <div
+                      className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${shortcut.toneClass}`}
+                    >
+                      {shortcut.label}
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {shortcut.description}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
 
-            <motion.div variants={item}>
-              <Link href="/year-fortune" className="block group h-full">
-                <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6 border border-blue-500/30 group-hover:scale-110 transition-transform">
-                    <CalendarDays className="w-7 h-7 text-blue-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                    연간 운세
-                  </h3>
-                  <p className="text-muted-foreground mb-8">
-                    올 한 해의 운세를 분기·월별로 상세 분석합니다.
+            <div className="mt-3">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <Search className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                    분석 좁혀보기
                   </p>
-                  <div className="flex items-center text-blue-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    확인하기 <ArrowRight className="w-4 h-4" />
-                  </div>
                 </div>
-              </Link>
-            </motion.div>
+                <p className="text-[11px] text-muted-foreground">
+                  {filteredMemberServiceCards.length}/{MEMBER_SERVICE_CARDS.length}
+                  개 표시 중
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {MEMBER_SERVICE_FOCUS_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setMemberServiceFocus(option.value)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      memberServiceFocus === option.value
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : "border-foreground/10 bg-background/35 text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex items-center gap-2 rounded-2xl border border-foreground/10 bg-background/35 px-3 py-2">
+                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                <input
+                  value={memberServiceQuery}
+                  onChange={(event) =>
+                    setMemberServiceQuery(event.target.value)
+                  }
+                  placeholder="예: 연애, 대운, 이름, 길일"
+                  className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+                {memberServiceQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setMemberServiceQuery("")}
+                    className="shrink-0 text-xs text-primary hover:underline"
+                  >
+                    지우기
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
-            <motion.div variants={item}>
-              <Link href="/zodiac" className="block group h-full">
-                <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mb-6 border border-amber-500/30 group-hover:scale-110 transition-transform">
-                    <Orbit className="w-7 h-7 text-amber-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                    띠별 운세
-                  </h3>
-                  <p className="text-muted-foreground mb-8">
-                    12지신의 오늘 운세를 순위별로 한눈에 확인합니다.
-                  </p>
-                  <div className="flex items-center text-amber-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    확인하기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
+          {filteredMemberServiceCards.length > 0 ? (
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6"
+              variants={container}
+              initial="hidden"
+              animate="show"
+            >
+              {filteredMemberServiceCards.map((card) => {
+                const Icon = card.icon;
+                const insight = memberServiceInsightByHref[card.href];
+                const isRecommended = recommendedMemberServiceHrefs.has(card.href);
 
-            <motion.div variants={item}>
-              <Link href="/dream" className="block group h-full">
-                <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-6 border border-indigo-500/30 group-hover:scale-110 transition-transform">
-                    <MoonStar className="w-7 h-7 text-indigo-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                    꿈 해몽
-                  </h3>
-                  <p className="text-muted-foreground mb-8">
-                    꿈에 나타난 키워드로 오늘의 길흉을 풀이합니다.
-                  </p>
-                  <div className="flex items-center text-indigo-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    풀이하기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
+                return (
+                  <motion.div key={card.href} variants={item}>
+                    <Link href={card.href} className="block group h-full">
+                      <div
+                        className={`h-full rounded-3xl border bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:-translate-y-2 relative overflow-hidden ${card.cardClass} ${card.shadowClass}`}
+                      >
+                        <div
+                          className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl transition-colors ${card.orbClass}`}
+                        />
+                        {(insight || isRecommended) && (
+                          <div className="absolute left-4 top-4 flex flex-wrap gap-1.5">
+                            {insight && (
+                              <div
+                                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium backdrop-blur-sm ${insight.className}`}
+                              >
+                                {insight.label}
+                              </div>
+                            )}
+                            {isRecommended && (
+                              <div className="rounded-full border border-primary/20 bg-background/70 px-2.5 py-1 text-[11px] font-medium text-primary backdrop-blur-sm">
+                                추천 분석
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div
+                          className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 border group-hover:scale-110 transition-transform ${insight || isRecommended ? "mt-8" : ""} ${card.iconBoxClass}`}
+                        >
+                          <Icon className={`w-7 h-7 ${card.textClass}`} />
+                        </div>
+                        <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                          {card.title}
+                        </h3>
+                        <p className="text-muted-foreground mb-8">{card.desc}</p>
+                        <div
+                          className={`flex items-center font-medium group-hover:gap-3 transition-all gap-2 ${card.textClass}`}
+                        >
+                          {card.action} <ArrowRight className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </motion.div>
-
-            <motion.div variants={item}>
-              <Link href="/name-analysis" className="block group h-full">
-                <div className="h-full rounded-3xl border border-primary/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl group-hover:bg-violet-500/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center mb-6 border border-violet-500/30 group-hover:scale-110 transition-transform">
-                    <Type className="w-7 h-7 text-violet-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                    이름 풀이
-                  </h3>
-                  <p className="text-muted-foreground mb-8">
-                    수리사주와 오행으로 이름의 운세와 성격을 분석합니다.
-                  </p>
-                  <div className="flex items-center text-violet-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    분석하기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-
-            <motion.div variants={item}>
-              <Link href="/love-fortune" className="block group h-full">
-                <div className="h-full rounded-3xl border border-rose-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(251,113,133,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl group-hover:bg-rose-500/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-rose-500/20 flex items-center justify-center mb-6 border border-rose-500/30 group-hover:scale-110 transition-transform">
-                    <Heart className="w-7 h-7 text-rose-400" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                    연애운
-                  </h3>
-                  <p className="text-muted-foreground mb-8">
-                    솔로라면 인연 만날 월별 흐름을, 연인이 있다면 오행 궁합
-                    점수와 조언을 분석합니다.
-                  </p>
-                  <div className="flex items-center text-rose-400 font-medium group-hover:gap-3 transition-all gap-2">
-                    분석하기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          </motion.div>
+          ) : (
+            <div className="rounded-3xl border border-foreground/10 bg-background/35 px-4 py-5 text-sm text-muted-foreground">
+              검색 결과가 없습니다. 다른 키워드나 주제를 선택해보세요.
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -1527,10 +2514,49 @@ export default function Home() {
           </p>
         </div>
 
+        {suggestedInquiry && (
+          <button
+            type="button"
+            onClick={() =>
+              openInquiry(suggestedInquiry.type, {
+                message: suggestedInquiry.message,
+                person1: inquiryProfileDraft,
+              })
+            }
+            className="mb-4 w-full rounded-2xl border border-primary/20 bg-primary/6 px-4 py-4 text-left transition-colors hover:bg-primary/10"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <MessageCircleQuestion className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary/70">
+                    추천 문의
+                  </span>
+                </div>
+                <div className="mt-2 font-semibold text-foreground">
+                  {suggestedInquiry.title}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                  {suggestedInquiry.description}
+                </p>
+              </div>
+              <div className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-background/50 px-2.5 py-1 text-xs font-medium text-primary shrink-0">
+                초안 열기
+                <ArrowRight className="w-3.5 h-3.5" />
+              </div>
+            </div>
+          </button>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* 사주 문의 */}
           <button
-            onClick={() => openInquiry("saju")}
+            onClick={() =>
+              openInquiry(
+                "saju",
+                inquiryProfileDraft ? { person1: inquiryProfileDraft } : undefined,
+              )
+            }
             className="group text-left rounded-2xl border border-primary/25 bg-card/30 backdrop-blur-xl p-6 transition-all duration-400 hover:bg-card/50 hover:border-primary/50 hover:shadow-[0_0_30px_rgba(212,175,55,0.12)] hover:-translate-y-1 relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-24 h-24 bg-primary/8 rounded-full blur-2xl group-hover:bg-primary/15 transition-colors" />
@@ -1593,7 +2619,13 @@ export default function Home() {
       <HomeInquiryModal
         open={inquiryOpen}
         type={inquiryType}
-        onClose={() => setInquiryOpen(false)}
+        initialMessage={inquiryDraft.message}
+        initialPerson1={inquiryDraft.person1}
+        initialPerson2={inquiryDraft.person2}
+        onClose={() => {
+          setInquiryOpen(false);
+          setInquiryDraft({});
+        }}
       />
     </div>
   );

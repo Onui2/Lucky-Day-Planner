@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Sparkles, Heart, MessageCircle, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,9 @@ interface Props {
   open: boolean;
   type: InquiryType;
   onClose: () => void;
+  initialMessage?: string;
+  initialPerson1?: Partial<BirthFields>;
+  initialPerson2?: Partial<BirthFields>;
 }
 
 const TYPE_META: Record<InquiryType, { label: string; icon: React.ReactNode; color: string; borderColor: string; desc: string }> = {
@@ -47,6 +50,63 @@ const TYPE_META: Record<InquiryType, { label: string; icon: React.ReactNode; col
     borderColor: "border-rose-400/40",
     desc: "두 분의 생년월일시를 알려주시면 궁합을 분석해 드립니다.",
   },
+};
+
+const INQUIRY_TEMPLATES: Record<
+  InquiryType,
+  Array<{ label: string; message: string }>
+> = {
+  general: [
+    {
+      label: "이용 문의",
+      message:
+        "서비스를 이용하다가 궁금한 점이 생겼습니다.\n현재 어떤 방식으로 이용하면 가장 편한지 안내 부탁드립니다.",
+    },
+    {
+      label: "오류 문의",
+      message:
+        "특정 화면에서 기대한 내용과 다른 동작을 확인했습니다.\n확인해 주시면 감사하겠습니다.",
+    },
+    {
+      label: "기능 제안",
+      message:
+        "자주 쓰는 흐름에서 이런 기능이 추가되면 더 편할 것 같습니다.\n검토 부탁드립니다.",
+    },
+  ],
+  saju: [
+    {
+      label: "올해 흐름",
+      message:
+        "제 사주를 기준으로 올해 가장 중요하게 봐야 할 흐름을 알려주세요.\n직업, 재물, 관계 중 어디에 힘을 실으면 좋을지도 궁금합니다.",
+    },
+    {
+      label: "진로 상담",
+      message:
+        "현재 진로와 일 방향성에 대해 상담받고 싶습니다.\n제 사주에서 강점으로 가져가면 좋은 부분과 조심할 점을 함께 알고 싶습니다.",
+    },
+    {
+      label: "연애운",
+      message:
+        "제 사주를 기준으로 연애운과 인간관계 흐름을 자세히 알고 싶습니다.\n지금 시기에 특히 조심하거나 활용하면 좋은 포인트도 부탁드립니다.",
+    },
+  ],
+  gungap: [
+    {
+      label: "연인 궁합",
+      message:
+        "두 사람의 성향 차이와 잘 맞는 지점을 중심으로 궁합을 상담받고 싶습니다.\n장기적으로 관계를 안정적으로 이어가려면 무엇을 조심해야 할지도 궁금합니다.",
+    },
+    {
+      label: "결혼 궁합",
+      message:
+        "결혼을 전제로 봤을 때 생활 리듬, 가치관, 금전 감각 쪽 궁합이 어떤지 자세히 알고 싶습니다.",
+    },
+    {
+      label: "비즈니스 궁합",
+      message:
+        "함께 일하거나 사업을 할 때의 합과 충돌 포인트를 상담받고 싶습니다.\n역할 분담에서 누가 어떤 쪽에 강한지도 궁금합니다.",
+    },
+  ],
 };
 
 const HOUR_OPTIONS = [
@@ -168,7 +228,18 @@ function applyBirthFieldsPatch(prev: BirthFields, patch: Partial<BirthFields>): 
   return next;
 }
 
-export default function HomeInquiryModal({ open, type, onClose }: Props) {
+function buildInitialBirthFields(initial?: Partial<BirthFields>) {
+  return applyBirthFieldsPatch(defaultBirth(), initial ?? {});
+}
+
+export default function HomeInquiryModal({
+  open,
+  type,
+  onClose,
+  initialMessage,
+  initialPerson1,
+  initialPerson2,
+}: Props) {
   const meta = TYPE_META[type];
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -181,6 +252,15 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
 
   const submit = useSubmitInquiry();
   const emptyMessageError = "문의 내용을 입력해주세요.";
+
+  useEffect(() => {
+    if (!open) return;
+    setDone(false);
+    setValidationError(null);
+    setMessage(initialMessage ?? "");
+    setPerson1(buildInitialBirthFields(initialPerson1));
+    setPerson2(buildInitialBirthFields(initialPerson2));
+  }, [initialMessage, initialPerson1, initialPerson2, open, type]);
 
   function buildUserLabel(): string {
     if (type === "general") return "";
@@ -330,6 +410,42 @@ export default function HomeInquiryModal({ open, type, onClose }: Props) {
                   )}
 
                   {/* 문의 내용 */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        빠른 질문 예시
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        눌러서 초안 채우기
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {INQUIRY_TEMPLATES[type].map((template) => (
+                        <button
+                          key={template.label}
+                          type="button"
+                          onClick={() => {
+                            setMessage((current) => {
+                              if (current.includes(template.message)) {
+                                return current;
+                              }
+                              if (!current.trim()) {
+                                return template.message;
+                              }
+                              return `${current}\n\n${template.message}`;
+                            });
+                            if (validationError === emptyMessageError) {
+                              setValidationError(null);
+                            }
+                          }}
+                          className="rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1.5 text-xs text-foreground/80 transition-colors hover:bg-foreground/8 hover:text-foreground"
+                        >
+                          {template.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">문의 내용</p>
                     <Textarea
