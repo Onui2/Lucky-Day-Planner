@@ -372,6 +372,68 @@ const ELEM_BG: Record<string, string> = {
   '수': 'bg-blue-500/20 text-blue-700',
 };
 
+const KOREAN_ELEMENTS = ["목", "화", "토", "금", "수"] as const;
+type KoreanElement = (typeof KOREAN_ELEMENTS)[number];
+
+function getHiddenElementScores(hiddenStemAnalysis: any): Record<KoreanElement, number> | null {
+  const scores = hiddenStemAnalysis?.elementScores;
+  if (!scores || typeof scores !== "object") return null;
+
+  const keyMap: Record<string, KoreanElement> = {
+    wood: "목",
+    fire: "화",
+    earth: "토",
+    metal: "금",
+    water: "수",
+    목: "목",
+    화: "화",
+    토: "토",
+    금: "금",
+    수: "수",
+  };
+
+  const normalized = Object.fromEntries(
+    KOREAN_ELEMENTS.map((element) => [element, 0]),
+  ) as Record<KoreanElement, number>;
+
+  let hasValue = false;
+  Object.entries(scores as Record<string, unknown>).forEach(([rawKey, rawValue]) => {
+    const element = keyMap[rawKey];
+    const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
+    if (!element || !Number.isFinite(value)) return;
+    normalized[element] = value;
+    hasValue = true;
+  });
+
+  return hasValue ? normalized : null;
+}
+
+function getElementExtremes(scores: Record<KoreanElement, number> | null) {
+  if (!scores) return null;
+
+  let dominant: KoreanElement = "목";
+  let lacking: KoreanElement = "목";
+  let maxScore = -Infinity;
+  let minScore = Infinity;
+
+  KOREAN_ELEMENTS.forEach((element) => {
+    const score = scores[element];
+    if (score > maxScore) {
+      maxScore = score;
+      dominant = element;
+    }
+    if (score < minScore) {
+      minScore = score;
+      lacking = element;
+    }
+  });
+
+  return {
+    dominant,
+    lacking,
+  };
+}
+
 // ─── 메인 컴포넌트 ───────────────────────────────────
 export default function SajuPage() {
   const search = useSearch();
@@ -590,6 +652,8 @@ export default function SajuPage() {
   }, [compactMode, displayResult, user?.id, visibleSections]);
 
   const r = displayResult as any;
+  const hiddenElementScores = getHiddenElementScores(r?.hiddenStemAnalysis);
+  const hiddenElementStats = getElementExtremes(hiddenElementScores);
   const showAccountActions = isAuthenticated;
 
   const toggleSection = (key: SectionKey) =>
@@ -1481,7 +1545,9 @@ export default function SajuPage() {
         : "오행 분포 확인",
       description:
         r.dominantElement && r.lackingElement
-          ? `천간·지지에 드러난 개수 기준으로 ${getElementKor(r.dominantElement)}는 많고 ${getElementKor(r.lackingElement)}는 적은 편입니다.`
+          ? hiddenElementStats
+            ? `표면상 ${getElementKor(r.dominantElement)}는 많고 ${getElementKor(r.lackingElement)}는 적습니다. 지장간 반영 세력은 ${hiddenElementStats.dominant} 강, ${hiddenElementStats.lacking} 약으로 다시 봅니다.`
+            : `천간·지지에 드러난 개수 기준으로 ${getElementKor(r.dominantElement)}는 많고 ${getElementKor(r.lackingElement)}는 적은 편입니다.`
           : "천간·지지에 드러난 개수 기준으로 본 오행 분포입니다.",
     },
   ].filter(
@@ -1507,8 +1573,10 @@ export default function SajuPage() {
   const daeunHref = buildProfileAwareHref("/daeun");
   const primaryActionTitle = r.yongsin
     ? `${r.yongsin.yongsin} 기운 먼저 보완하기`
-    : r.lackingElement
-      ? `${getElementKor(r.lackingElement)} 기운 균형 살펴보기`
+    : hiddenElementStats?.lacking
+      ? `${hiddenElementStats.lacking} 기운 균형 살펴보기`
+      : r.lackingElement
+        ? `${getElementKor(r.lackingElement)} 기운 균형 살펴보기`
       : "지금 필요한 기운 먼저 채우기";
   const primaryActionDescription = r.yongsin?.advice
     ? compactActionText(r.yongsin.advice, 96)
@@ -2110,6 +2178,27 @@ export default function SajuPage() {
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       천간·지지에 보이는 개수 기준입니다. 아래 조후 보완이나 용신 판단과는 다를 수 있습니다.
                     </p>
+                    {hiddenElementScores && hiddenElementStats && (
+                      <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.03] p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-xs font-medium text-primary">지장간 반영 세력</div>
+                          <div className="text-[11px] text-muted-foreground">통근·가중치 포함</div>
+                        </div>
+                        <div className="grid grid-cols-5 gap-2 mt-2">
+                          {KOREAN_ELEMENTS.map((element) => (
+                            <div key={element} className="rounded-lg border border-foreground/10 bg-background/70 px-2 py-2 text-center">
+                              <div className={`text-[11px] font-semibold ${ELEM_TEXT[element]}`}>{element}</div>
+                              <div className="mt-1 text-sm font-semibold text-foreground">
+                                {hiddenElementScores[element].toFixed(1)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                          지장간까지 합치면 {hiddenElementStats.dominant} 기운이 가장 강하고 {hiddenElementStats.lacking} 기운이 가장 약합니다.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </Card>
               </div>
