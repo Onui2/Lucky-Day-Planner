@@ -35,8 +35,21 @@ import {
   getYongsin,
   getYongsinItems,
 } from "./saju-calculator.js";
+import {
+  resolveBirthInput,
+  type BirthCalculationOptions,
+} from "./birth-resolution.js";
+import {
+  getBirthTimeCandidateAnalysis,
+  getDaeunTransitionAnalysis,
+  getFamilyRoleAnalysis,
+  getHiddenStemPowerAnalysis,
+  getIntegratedLuckTimeline,
+  getMultiUsefulGodAnalysis,
+  getStemTransformationAnalysis,
+} from "./saju-advanced.js";
 
-export interface SajuBirthInput {
+export interface SajuBirthInput extends BirthCalculationOptions {
   birthYear: number;
   birthMonth: number;
   birthDay: number;
@@ -82,16 +95,21 @@ function makePillarResponse(
 }
 
 export function buildSajuResult(input: SajuBirthInput) {
-  const year = Number(input.birthYear);
-  const month = Number(input.birthMonth);
-  const day = Number(input.birthDay);
-  const hour = input.birthHour === -1 || input.birthHour == null ? -1 : Number(input.birthHour);
-  const minute = hour === -1 ? 0 : Number(input.birthMinute ?? 0);
+  const calculationBasis = resolveBirthInput(input);
+  const year = calculationBasis.adjusted.year;
+  const month = calculationBasis.adjusted.month;
+  const day = calculationBasis.adjusted.day;
+  const hour = calculationBasis.adjusted.hour;
+  const minute = calculationBasis.adjusted.minute;
 
   const sajuYearNum = getSajuYear(year, month, day, hour, minute);
   const yearPillar = getYearPillar(sajuYearNum);
   const monthPillar = getMonthPillar(year, month, day, hour, minute);
-  const dayPillar = getDayPillar(year, month, day);
+  const dayPillar = getDayPillar(
+    calculationBasis.dayPillarDate.year,
+    calculationBasis.dayPillarDate.month,
+    calculationBasis.dayPillarDate.day,
+  );
   const hourPillar = hour >= 0 ? getHourPillar(dayPillar.stemIndex, hour) : null;
 
   const pillars = [yearPillar, monthPillar, dayPillar];
@@ -121,6 +139,33 @@ export function buildSajuResult(input: SajuBirthInput) {
     hourPillar,
   );
   const johuAnalysis = getJohuAnalysis(monthPillar, dayPillar, elementBalance);
+  const hiddenStemAnalysis = getHiddenStemPowerAnalysis(
+    dayPillar.stem,
+    yearPillar,
+    monthPillar,
+    dayPillar,
+    hourPillar,
+  );
+  const multiYongsinAnalysis = getMultiUsefulGodAnalysis(
+    hiddenStemAnalysis,
+    johuAnalysis,
+    yongsin,
+  );
+  const stemTransformationAnalysis = getStemTransformationAnalysis(
+    hiddenStemAnalysis,
+    yearPillar,
+    monthPillar,
+    dayPillar,
+    hourPillar,
+  );
+  const familyRoleAnalysis = getFamilyRoleAnalysis(
+    input.gender,
+    dayPillar.stem,
+    yearPillar,
+    monthPillar,
+    dayPillar,
+    hourPillar,
+  );
   const shinsalTransitActivations = getShinsalTransitActivations(
     year,
     yearPillar,
@@ -147,17 +192,50 @@ export function buildSajuResult(input: SajuBirthInput) {
     daeun,
     yongsin,
   );
+  const daeunTransitionAnalysis = getDaeunTransitionAnalysis(daeun);
+  const integratedLuckTimeline = getIntegratedLuckTimeline(
+    year,
+    dayPillar.stem,
+    [yearPillar, monthPillar, dayPillar, hourPillar],
+    multiYongsinAnalysis,
+    luckFlowAnalysis,
+  );
+  const birthTimeCandidateAnalysis = hour === -1
+    ? getBirthTimeCandidateAnalysis({
+        birthYear: calculationBasis.original.year,
+        birthMonth: calculationBasis.original.month,
+        birthDay: calculationBasis.original.day,
+        birthMinute: calculationBasis.original.minute,
+        gender: input.gender,
+        calendarType: input.calendarType,
+        birthPlace: calculationBasis.birthPlace,
+        timeZone: calculationBasis.timeZone,
+        longitude: calculationBasis.longitude,
+        latitude: calculationBasis.latitude ?? undefined,
+        applyTrueSolarTime: calculationBasis.appliedTrueSolarTime,
+        dayBoundary: calculationBasis.dayBoundary,
+        isLeapMonth: calculationBasis.original.isLeapMonth,
+      })
+    : null;
 
   return {
     birthInfo: {
-      year,
-      month,
-      day,
-      hour,
-      minute,
+      year: calculationBasis.original.year,
+      month: calculationBasis.original.month,
+      day: calculationBasis.original.day,
+      hour: calculationBasis.original.hour,
+      minute: calculationBasis.original.minute,
       gender: input.gender,
       calendarType: input.calendarType,
+      isLeapMonth: calculationBasis.original.isLeapMonth,
+      birthPlace: calculationBasis.birthPlace,
+      timeZone: calculationBasis.timeZone,
+      longitude: calculationBasis.longitude,
+      latitude: calculationBasis.latitude,
+      applyTrueSolarTime: calculationBasis.appliedTrueSolarTime,
+      dayBoundary: calculationBasis.dayBoundary,
     },
+    calculationBasis,
     yearPillar: makePillarResponse(yearPillar),
     monthPillar: makePillarResponse(monthPillar),
     dayPillar: makePillarResponse(dayPillar),
@@ -227,8 +305,15 @@ export function buildSajuResult(input: SajuBirthInput) {
     yongsin,
     sinGangYak,
     johuAnalysis,
+    hiddenStemAnalysis,
+    multiYongsinAnalysis,
+    stemTransformationAnalysis,
+    familyRoleAnalysis,
     auxiliaryAnalysis,
     luckFlowAnalysis,
+    daeunTransitionAnalysis,
+    integratedLuckTimeline,
+    birthTimeCandidateAnalysis,
     carefulThings: getCarefulThings(dayPillar, monthPillar, yearPillar, elementBalance),
     samjae: getSamjae(yearPillar.branchIndex, new Date().getFullYear()),
     yongsinItems: getYongsinItems(yongsin.yongsin),

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SajuRequestCalendarType } from './sajuRequestCalendarType';
+import type { SajuRequestDayBoundary } from './sajuRequestDayBoundary';
 import type { SajuRequestGender } from './sajuRequestGender';
 
 export interface SajuRequest {
@@ -23,4 +24,18 @@ export interface SajuRequest {
   gender: SajuRequestGender;
   /** Whether birth date is in solar or lunar calendar */
   calendarType: SajuRequestCalendarType;
+  /** Whether a lunar birth date uses the intercalary month */
+  isLeapMonth?: boolean;
+  /** Human-readable birthplace label */
+  birthPlace?: string;
+  /** IANA timezone used for historical civil-time conversion */
+  timeZone?: string;
+  /** Birthplace longitude in degrees east */
+  longitude?: number;
+  /** Birthplace latitude in degrees north */
+  latitude?: number;
+  /** Apply longitude, historical DST, and equation-of-time correction */
+  applyTrueSolarTime?: boolean;
+  /** Day-pillar boundary rule for the late Zi hour */
+  dayBoundary?: SajuRequestDayBoundary;
 }

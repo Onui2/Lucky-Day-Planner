@@ -14,4 +14,11 @@ export interface SajuBirthInfo {
   minute?: number;
   gender: string;
   calendarType: string;
+  isLeapMonth?: boolean;
+  birthPlace?: string;
+  timeZone?: string;
+  longitude?: number;
+  latitude?: number | null;
+  applyTrueSolarTime?: boolean;
+  dayBoundary?: string;
 }

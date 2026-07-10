@@ -1,0 +1,11 @@
+
+> @workspace/saju-web@0.0.0 serve C:\Users\PC\Desktop\개발\Lucky-Day-Planner\artifacts\saju-web
+> vite preview --config vite.config.ts --host 0.0.0.0 "--" "--port" "4174"
+
+Port 3000 is in use, trying another one...
+Port 3001 is in use, trying another one...
+Port 3002 is in use, trying another one...
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m3003[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://169.254.83.107:[1m3003[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.15.118:[1m3003[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m

@@ -21,6 +21,7 @@ import {
   sanitizeBirthMonthInput,
   sanitizeBirthYearInput,
 } from "@/lib/birth-date";
+import { precisionFromProfile, precisionToPayload } from "@/lib/birth-precision";
 
 const ELEM_KOR: Record<string, string> = { 목:'木', 화:'火', 토:'土', 금:'金', 수:'水' };
 const ELEM_COLOR: Record<string, string> = {
@@ -319,6 +320,16 @@ export default function YearFortunePage() {
     }
 
     if (!form.birthYear || !form.birthMonth || !form.birthDay) return;
+    const matchesProfile = Boolean(
+      profile &&
+      Number(form.birthYear) === profile.birthYear &&
+      Number(form.birthMonth) === profile.birthMonth &&
+      Number(form.birthDay) === profile.birthDay &&
+      form.birthHour === profile.birthHour,
+    );
+    const precision = matchesProfile && profile
+      ? { calendarType: profile.calendarType, ...precisionToPayload(precisionFromProfile(profile)) }
+      : { calendarType: "solar" as const };
     mut.mutate({
       birthYear: Number(form.birthYear),
       birthMonth: Number(form.birthMonth),
@@ -326,6 +337,7 @@ export default function YearFortunePage() {
       birthHour: form.birthHour,
       birthMinute: form.birthHour === -1 ? 0 : parseBirthMinute(form.birthMinute),
       targetYear: Number(form.targetYear),
+      ...precision,
     });
   };
 

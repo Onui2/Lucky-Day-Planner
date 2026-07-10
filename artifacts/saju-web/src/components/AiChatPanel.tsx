@@ -497,10 +497,12 @@ export function AiChatPanel({
     <>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600/90 hover:bg-violet-500 text-white text-sm font-medium shadow-lg shadow-violet-900/30 backdrop-blur transition-all"
+        aria-label="AI 상담"
+        title="AI 상담"
+        className="flex min-h-10 items-center gap-2 px-3 sm:px-4 py-2.5 rounded-2xl bg-violet-600/90 hover:bg-violet-500 text-white text-sm font-medium shadow-lg shadow-violet-900/30 backdrop-blur transition-all"
       >
         <MessageCircleQuestion className="w-4 h-4" />
-        AI 상담
+        <span className="hidden sm:inline">AI 상담</span>
         {!open && data && !hasUnlimitedAccess && (data.remaining ?? 0) > 0 && (
           <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
             {data.remaining}

@@ -31,6 +31,17 @@ export const SajuRequestCalendarType = {
   lunar: 'lunar',
 } as const;
 
+/**
+ * Day-pillar boundary rule for the late Zi hour
+ */
+export type SajuRequestDayBoundary = typeof SajuRequestDayBoundary[keyof typeof SajuRequestDayBoundary];
+
+
+export const SajuRequestDayBoundary = {
+  midnight: 'midnight',
+  'late-zi': 'late-zi',
+} as const;
+
 export interface SajuRequest {
   /** Birth year (e.g. 1990) */
   birthYear: number;
@@ -46,6 +57,20 @@ export interface SajuRequest {
   gender: SajuRequestGender;
   /** Whether birth date is in solar or lunar calendar */
   calendarType: SajuRequestCalendarType;
+  /** Whether a lunar birth date uses the intercalary month */
+  isLeapMonth?: boolean;
+  /** Human-readable birthplace label */
+  birthPlace?: string;
+  /** IANA timezone used for historical civil-time conversion */
+  timeZone?: string;
+  /** Birthplace longitude in degrees east */
+  longitude?: number;
+  /** Birthplace latitude in degrees north */
+  latitude?: number;
+  /** Apply longitude, historical DST, and equation-of-time correction */
+  applyTrueSolarTime?: boolean;
+  /** Day-pillar boundary rule for the late Zi hour */
+  dayBoundary?: SajuRequestDayBoundary;
 }
 
 export interface SajuPillar {
@@ -79,6 +104,13 @@ export interface SajuBirthInfo {
   minute?: number;
   gender: string;
   calendarType: string;
+  isLeapMonth?: boolean;
+  birthPlace?: string;
+  timeZone?: string;
+  longitude?: number;
+  latitude?: number | null;
+  applyTrueSolarTime?: boolean;
+  dayBoundary?: string;
 }
 
 export interface SajuShadowReading {
@@ -127,8 +159,50 @@ export interface SajuSpecialSummary {
   monthCommand: SajuSpecialSummaryMonthCommand;
 }
 
+/**
+ * Calendar conversion, historical time-zone, true-solar-time, and day-boundary calculation evidence
+ */
+export type SajuResultCalculationBasis = { [key: string]: unknown };
+
+/**
+ * Weighted hidden stems, rooting, penetration, and day-master strength evidence
+ */
+export type SajuResultHiddenStemAnalysis = { [key: string]: unknown };
+
+/**
+ * Cross-check of eokbu, johu, tonggwan, byeongyak, and simple balance useful-god methods
+ */
+export type SajuResultMultiYongsinAnalysis = { [key: string]: unknown };
+
+/**
+ * Heavenly-stem combination and transformation prerequisites
+ */
+export type SajuResultStemTransformationAnalysis = { [key: string]: unknown };
+
+/**
+ * Role-specific six-relatives and palace analysis
+ */
+export type SajuResultFamilyRoleAnalysis = { [key: string]: unknown };
+
+/**
+ * Exact ten-year-luck transition dates and transition windows
+ */
+export type SajuResultDaeunTransitionAnalysis = { [key: string]: unknown };
+
+/**
+ * Layered ten-year, annual, monthly, daily, and hourly timing
+ */
+export type SajuResultIntegratedLuckTimeline = { [key: string]: unknown };
+
+/**
+ * Twelve-hour candidate comparison when birth time is unknown
+ */
+export type SajuResultBirthTimeCandidateAnalysis = { [key: string]: unknown } | null;
+
 export interface SajuResult {
   birthInfo?: SajuBirthInfo;
+  /** Calendar conversion, historical time-zone, true-solar-time, and day-boundary calculation evidence */
+  calculationBasis?: SajuResultCalculationBasis;
   yearPillar: SajuPillar;
   monthPillar: SajuPillar;
   dayPillar: SajuPillar;
@@ -158,6 +232,20 @@ export interface SajuResult {
   zodiac: string;
   /** Lunar calendar date if input was solar */
   lunarBirthDate?: string;
+  /** Weighted hidden stems, rooting, penetration, and day-master strength evidence */
+  hiddenStemAnalysis?: SajuResultHiddenStemAnalysis;
+  /** Cross-check of eokbu, johu, tonggwan, byeongyak, and simple balance useful-god methods */
+  multiYongsinAnalysis?: SajuResultMultiYongsinAnalysis;
+  /** Heavenly-stem combination and transformation prerequisites */
+  stemTransformationAnalysis?: SajuResultStemTransformationAnalysis;
+  /** Role-specific six-relatives and palace analysis */
+  familyRoleAnalysis?: SajuResultFamilyRoleAnalysis;
+  /** Exact ten-year-luck transition dates and transition windows */
+  daeunTransitionAnalysis?: SajuResultDaeunTransitionAnalysis;
+  /** Layered ten-year, annual, monthly, daily, and hourly timing */
+  integratedLuckTimeline?: SajuResultIntegratedLuckTimeline;
+  /** Twelve-hour candidate comparison when birth time is unknown */
+  birthTimeCandidateAnalysis?: SajuResultBirthTimeCandidateAnalysis;
 }
 
 export interface DailyFortune {

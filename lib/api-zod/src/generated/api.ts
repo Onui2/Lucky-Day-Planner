@@ -28,7 +28,14 @@ export const CalculateSajuBody = zod.object({
   "birthHour": zod.number().optional().describe('Birth hour in 24h format (0-23), -1 if unknown'),
   "birthMinute": zod.number().optional().describe('Birth minute (0-59)'),
   "gender": zod.enum(['male', 'female']).describe('Gender for fortune calculation'),
-  "calendarType": zod.enum(['solar', 'lunar']).describe('Whether birth date is in solar or lunar calendar')
+  "calendarType": zod.enum(['solar', 'lunar']).describe('Whether birth date is in solar or lunar calendar'),
+  "isLeapMonth": zod.boolean().optional().describe('Whether a lunar birth date uses the intercalary month'),
+  "birthPlace": zod.string().optional().describe('Human-readable birthplace label'),
+  "timeZone": zod.string().optional().describe('IANA timezone used for historical civil-time conversion'),
+  "longitude": zod.number().optional().describe('Birthplace longitude in degrees east'),
+  "latitude": zod.number().optional().describe('Birthplace latitude in degrees north'),
+  "applyTrueSolarTime": zod.boolean().optional().describe('Apply longitude, historical DST, and equation-of-time correction'),
+  "dayBoundary": zod.enum(['midnight', 'late-zi']).optional().describe('Day-pillar boundary rule for the late Zi hour')
 })
 
 export const CalculateSajuResponse = zod.object({
@@ -39,8 +46,16 @@ export const CalculateSajuResponse = zod.object({
   "hour": zod.number(),
   "minute": zod.number().optional(),
   "gender": zod.string(),
-  "calendarType": zod.string()
+  "calendarType": zod.string(),
+  "isLeapMonth": zod.boolean().optional(),
+  "birthPlace": zod.string().optional(),
+  "timeZone": zod.string().optional(),
+  "longitude": zod.number().optional(),
+  "latitude": zod.number().nullish(),
+  "applyTrueSolarTime": zod.boolean().optional(),
+  "dayBoundary": zod.string().optional()
 }).optional(),
+  "calculationBasis": zod.record(zod.string(), zod.unknown()).optional().describe('Calendar conversion, historical time-zone, true-solar-time, and day-boundary calculation evidence'),
   "yearPillar": zod.object({
   "heavenlyStem": zod.string().describe('Heavenly stem (천간)'),
   "earthlyBranch": zod.string().describe('Earthly branch (지지)'),
@@ -134,7 +149,14 @@ export const CalculateSajuResponse = zod.object({
   "luckyColors": zod.array(zod.string()),
   "luckyDirections": zod.array(zod.string()),
   "zodiac": zod.string(),
-  "lunarBirthDate": zod.string().optional().describe('Lunar calendar date if input was solar')
+  "lunarBirthDate": zod.string().optional().describe('Lunar calendar date if input was solar'),
+  "hiddenStemAnalysis": zod.record(zod.string(), zod.unknown()).optional().describe('Weighted hidden stems, rooting, penetration, and day-master strength evidence'),
+  "multiYongsinAnalysis": zod.record(zod.string(), zod.unknown()).optional().describe('Cross-check of eokbu, johu, tonggwan, byeongyak, and simple balance useful-god methods'),
+  "stemTransformationAnalysis": zod.record(zod.string(), zod.unknown()).optional().describe('Heavenly-stem combination and transformation prerequisites'),
+  "familyRoleAnalysis": zod.record(zod.string(), zod.unknown()).optional().describe('Role-specific six-relatives and palace analysis'),
+  "daeunTransitionAnalysis": zod.record(zod.string(), zod.unknown()).optional().describe('Exact ten-year-luck transition dates and transition windows'),
+  "integratedLuckTimeline": zod.record(zod.string(), zod.unknown()).optional().describe('Layered ten-year, annual, monthly, daily, and hourly timing'),
+  "birthTimeCandidateAnalysis": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional().describe('Twelve-hour candidate comparison when birth time is unknown')
 })
 
 

@@ -200,6 +200,72 @@ function formatLuckFlowAnalysis(result: Record<string, any>) {
   ].filter(Boolean).join(" ");
 }
 
+function formatCalculationBasis(result: Record<string, any>) {
+  const basis = result.calculationBasis;
+  if (!basis) return "";
+  return [
+    basis.summary,
+    Number.isFinite(basis.totalCorrectionMinutes) ? `출생시각 총 보정 ${basis.totalCorrectionMinutes}분.` : "",
+    Array.isArray(basis.warnings) ? basis.warnings.join(" ") : "",
+  ].filter(Boolean).join(" ");
+}
+
+function formatHiddenStemAnalysis(result: Record<string, any>) {
+  const analysis = result.hiddenStemAnalysis;
+  if (!analysis) return "";
+  const roots = Array.isArray(analysis.visibleStems)
+    ? analysis.visibleStems.map((item: any) => item.summary).filter(Boolean).join(" ")
+    : "";
+  return [analysis.dayMaster?.summary, roots, analysis.method ? `산출: ${analysis.method}.` : ""].filter(Boolean).join(" ");
+}
+
+function formatMultiYongsinAnalysis(result: Record<string, any>) {
+  const analysis = result.multiYongsinAnalysis;
+  if (!analysis) return "";
+  const methods = Array.isArray(analysis.methods)
+    ? analysis.methods.map((item: any) => `${item.name}: ${item.summary}`).join(" ")
+    : "";
+  return [
+    analysis.summary,
+    methods,
+    analysis.specialPattern?.summary ? `특수격 검토: ${analysis.specialPattern.summary}` : "",
+    analysis.method ? `교차검증: ${analysis.method}.` : "",
+  ].filter(Boolean).join(" ");
+}
+
+function formatTransformationAnalysis(result: Record<string, any>) {
+  const analysis = result.stemTransformationAnalysis;
+  if (!analysis) return "";
+  const items = Array.isArray(analysis.items)
+    ? analysis.items.map((item: any) => `${item.pair} ${item.status}: ${item.summary}`).join(" ")
+    : "";
+  return [analysis.summary, items, analysis.method ? `판정: ${analysis.method}.` : ""].filter(Boolean).join(" ");
+}
+
+function formatFamilyRoleAnalysis(result: Record<string, any>) {
+  const analysis = result.familyRoleAnalysis;
+  if (!analysis) return "";
+  const roles = Array.isArray(analysis.roles)
+    ? analysis.roles.map((item: any) => `${item.name}(${item.level} ${item.score}점): ${item.summary} ${item.advice}`).join(" ")
+    : "";
+  return [analysis.summary, roles, analysis.method ? `해석 기준: ${analysis.method}.` : ""].filter(Boolean).join(" ");
+}
+
+function formatTransitionTimeline(result: Record<string, any>) {
+  const transition = result.daeunTransitionAnalysis;
+  const active = transition?.active
+    ? `${transition.active.summary} ${transition.active.advice}`
+    : transition?.summary ?? "";
+  const months = Array.isArray(result.integratedLuckTimeline?.months)
+    ? [...result.integratedLuckTimeline.months]
+        .sort((left: any, right: any) => right.score - left.score)
+        .slice(0, 4)
+        .map((item: any) => `${item.month}월 ${item.level} ${item.score}점: ${item.summary}`)
+        .join(" ")
+    : "";
+  return [active, months].filter(Boolean).join(" ");
+}
+
 export function buildSajuReportHtml(title: string, result: Record<string, any>) {
   const birthInfo = result.birthInfo ?? {};
   const summary = [
@@ -213,6 +279,31 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
       title: "핵심 요약",
       body: result.fortune ?? "현재 흐름은 균형과 속도 조절이 핵심입니다.",
       accent: "#caa75d",
+    },
+    {
+      title: "계산 기준과 출생시각 보정",
+      body: formatCalculationBasis(result) || "기본 표준시와 자정 일주 기준으로 계산했습니다.",
+      accent: "#71614d",
+    },
+    {
+      title: "지장간 세력·통근·투출",
+      body: formatHiddenStemAnalysis(result) || "지장간 가중 세력 데이터가 준비되지 않았습니다.",
+      accent: "#526f62",
+    },
+    {
+      title: "다중 용신 교차검증",
+      body: formatMultiYongsinAnalysis(result) || "다중 용신 교차검증 데이터가 준비되지 않았습니다.",
+      accent: "#7b6742",
+    },
+    {
+      title: "천간합과 합화 조건",
+      body: formatTransformationAnalysis(result) || "천간합은 발견되지 않았거나 합화 조건이 성립하지 않았습니다.",
+      accent: "#636d8b",
+    },
+    {
+      title: "육친·궁성 분석",
+      body: formatFamilyRoleAnalysis(result) || "육친·궁성 데이터가 준비되지 않았습니다.",
+      accent: "#8a5964",
     },
     {
       title: "그림자와 주의점",
@@ -248,6 +339,11 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
         (result.yongsin?.advice ??
           "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요."),
       accent: "#5b5368",
+    },
+    {
+      title: "교운기와 월별 통합 흐름",
+      body: formatTransitionTimeline(result) || "현재 확인할 교운기·월별 통합 데이터가 없습니다.",
+      accent: "#4f6b77",
     },
     {
       title: "납음오행·태원·명궁·신궁",
@@ -383,6 +479,36 @@ export async function generateSajuReportPdf(title: string, result: Record<string
       accent: "#caa75d",
     },
     {
+      title: "계산 기준과 보정",
+      hanja: "計算基準",
+      body: formatCalculationBasis(result) || "기본 표준시와 자정 일주 기준으로 계산했습니다.",
+      accent: "#71614d",
+    },
+    {
+      title: "지장간 세력과 통근",
+      hanja: "地藏干通根",
+      body: formatHiddenStemAnalysis(result) || "지장간 가중 세력 데이터가 준비되지 않았습니다.",
+      accent: "#526f62",
+    },
+    {
+      title: "다중 용신 교차검증",
+      hanja: "用神交叉",
+      body: formatMultiYongsinAnalysis(result) || "다중 용신 교차검증 데이터가 준비되지 않았습니다.",
+      accent: "#7b6742",
+    },
+    {
+      title: "천간합과 합화",
+      hanja: "天干合化",
+      body: formatTransformationAnalysis(result) || "천간합은 발견되지 않았거나 합화 조건이 성립하지 않았습니다.",
+      accent: "#636d8b",
+    },
+    {
+      title: "육친과 궁성",
+      hanja: "六親宮星",
+      body: formatFamilyRoleAnalysis(result) || "육친·궁성 데이터가 준비되지 않았습니다.",
+      accent: "#8a5964",
+    },
+    {
       title: "그림자와 주의점",
       hanja: "陰影",
       body:
@@ -422,6 +548,12 @@ export async function generateSajuReportPdf(title: string, result: Record<string
         (result.yongsin?.advice ??
           "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요."),
       accent: "#6d657d",
+    },
+    {
+      title: "교운기와 통합 시기",
+      hanja: "交運期",
+      body: formatTransitionTimeline(result) || "현재 확인할 교운기·월별 통합 데이터가 없습니다.",
+      accent: "#4f6b77",
     },
     {
       title: "조심해야 할 시기와 행동",

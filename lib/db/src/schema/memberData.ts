@@ -19,6 +19,13 @@ export interface StoredUserProfile {
   birthHour: number;
   birthMinute?: number;
   calendarType: "solar" | "lunar";
+  isLeapMonth?: boolean;
+  birthPlace?: string;
+  timeZone?: string;
+  longitude?: number;
+  latitude?: number;
+  applyTrueSolarTime?: boolean;
+  dayBoundary?: "midnight" | "late-zi";
   dayMasterElement?: string;
   dayMasterStem?: string;
   dayMasterBranch?: string;

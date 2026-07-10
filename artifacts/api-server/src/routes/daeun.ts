@@ -11,6 +11,11 @@ import {
   getYongsin,
   getTenGod,
 } from "../lib/saju-calculator.js";
+import {
+  BirthResolutionError,
+  birthOptionsFromRecord,
+  resolveBirthInput,
+} from "../lib/birth-resolution.js";
 
 const router = Router();
 
@@ -41,13 +46,27 @@ function parseBirthBody(body: Record<string, unknown>) {
     return null;
   }
 
+  const basis = resolveBirthInput({
+    birthYear: Number(birthYear),
+    birthMonth: Number(birthMonth),
+    birthDay: Number(birthDay),
+    birthHour: Number(birthHour),
+    birthMinute: Number(birthMinute),
+    calendarType: body.calendarType === "lunar" ? "lunar" : "solar",
+    ...birthOptionsFromRecord(body),
+  });
+
   return {
-    year: Number(birthYear),
-    month: Number(birthMonth),
-    day: Number(birthDay),
-    hour: Number(birthHour),
-    minute: Number(birthMinute),
+    year: basis.adjusted.year,
+    month: basis.adjusted.month,
+    day: basis.adjusted.day,
+    hour: basis.adjusted.hour,
+    minute: basis.adjusted.minute,
+    dayYear: basis.dayPillarDate.year,
+    dayMonth: basis.dayPillarDate.month,
+    dayDay: basis.dayPillarDate.day,
     gender: gender as "male" | "female",
+    calculationBasis: basis,
   };
 }
 
@@ -63,12 +82,12 @@ router.post("/daeun", (req, res) => {
       return res.status(400).json({ error: "필수 입력 값이 누락되었습니다. (birthYear, birthMonth, birthDay, gender)" });
     }
 
-    const { year, month, day, hour, minute, gender } = parsed;
+    const { year, month, day, hour, minute, dayYear, dayMonth, dayDay, gender } = parsed;
 
     const sajuYear = getSajuYear(year, month, day, hour, minute);
     const yearPillar = getYearPillar(sajuYear);
     const monthPillar = getMonthPillar(year, month, day, hour, minute);
-    const dayPillar = getDayPillar(year, month, day);
+    const dayPillar = getDayPillar(dayYear, dayMonth, dayDay);
     const hourPillar = hour >= 0 ? getHourPillar(dayPillar.stemIndex, hour) : null;
 
     const daeun = getDaeun(year, month, day, gender, yearPillar, monthPillar, hour, minute);
@@ -143,6 +162,9 @@ router.post("/daeun", (req, res) => {
         : null,
     });
   } catch (err) {
+    if (err instanceof BirthResolutionError) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error("Daeun error:", err);
     return res.status(500).json({ error: "대운 계산 중 오류가 발생했습니다." });
   }
@@ -160,13 +182,13 @@ router.post("/seun", (req, res) => {
       return res.status(400).json({ error: "필수 입력 값이 누락되었습니다. (birthYear, birthMonth, birthDay, gender)" });
     }
 
-    const { year, month, day, hour, minute, gender } = parsed;
+    const { year, month, day, hour, minute, dayYear, dayMonth, dayDay, gender } = parsed;
     const { fromYear, toYear } = req.body as Record<string, unknown>;
 
     const sajuYear = getSajuYear(year, month, day, hour, minute);
     const yearPillar = getYearPillar(sajuYear);
     const monthPillar = getMonthPillar(year, month, day, hour, minute);
-    const dayPillar = getDayPillar(year, month, day);
+    const dayPillar = getDayPillar(dayYear, dayMonth, dayDay);
     const hourPillar = hour >= 0 ? getHourPillar(dayPillar.stemIndex, hour) : null;
 
     const currentYear = new Date().getFullYear();
@@ -233,6 +255,9 @@ router.post("/seun", (req, res) => {
       seuns: filteredSeuns,
     });
   } catch (err) {
+    if (err instanceof BirthResolutionError) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error("Seun error:", err);
     return res.status(500).json({ error: "세운 계산 중 오류가 발생했습니다." });
   }
@@ -245,24 +270,20 @@ router.post("/seun", (req, res) => {
  */
 router.get("/daeun/current", (req, res) => {
   try {
-    const { birthYear, birthMonth, birthDay, gender, birthHour = "-1", birthMinute = "0" } =
-      req.query as Record<string, string>;
-
-    if (!birthYear || !birthMonth || !birthDay || !gender) {
+    const query = req.query as Record<string, unknown>;
+    if (!query.birthYear || !query.birthMonth || !query.birthDay || !query.gender) {
       return res.status(400).json({ error: "birthYear, birthMonth, birthDay, gender 파라미터가 필요합니다." });
     }
-
-    const year = Number(birthYear);
-    const month = Number(birthMonth);
-    const day = Number(birthDay);
-    const hour = Number(birthHour);
-    const minute = Number(birthMinute);
-    const genderTyped = gender as "male" | "female";
+    const parsed = parseBirthBody(query);
+    if (!parsed) {
+      return res.status(400).json({ error: "출생 정보가 올바르지 않습니다." });
+    }
+    const { year, month, day, hour, minute, dayYear, dayMonth, dayDay, gender: genderTyped } = parsed;
 
     const sajuYear = getSajuYear(year, month, day, hour, minute);
     const yearPillar = getYearPillar(sajuYear);
     const monthPillar = getMonthPillar(year, month, day, hour, minute);
-    const dayPillar = getDayPillar(year, month, day);
+    const dayPillar = getDayPillar(dayYear, dayMonth, dayDay);
     const hourPillar = hour >= 0 ? getHourPillar(dayPillar.stemIndex, hour) : null;
 
     const daeun = getDaeun(year, month, day, genderTyped, yearPillar, monthPillar, hour, minute);
@@ -350,6 +371,9 @@ router.get("/daeun/current", (req, res) => {
       },
     });
   } catch (err) {
+    if (err instanceof BirthResolutionError) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error("Daeun current error:", err);
     return res.status(500).json({ error: "현재 대운 조회 중 오류가 발생했습니다." });
   }

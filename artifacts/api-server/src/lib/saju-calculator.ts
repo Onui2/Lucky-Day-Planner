@@ -1258,7 +1258,23 @@ export function getDaeun(
   }
 
   const diffDays = Math.abs(refDate.getTime() - birthDate.getTime()) / 86400000;
-  const startAge = Math.max(1, Math.round(diffDays / 3));
+  const startMonths = Math.max(1, Math.round(diffDays * 4));
+  const startAge = Math.max(1, Math.round(startMonths / 12));
+
+  const addMonths = (date: Date, months: number) => {
+    const result = new Date(date.getTime());
+    const originalDay = result.getDate();
+    result.setDate(1);
+    result.setMonth(result.getMonth() + months);
+    const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+    result.setDate(Math.min(originalDay, lastDay));
+    return result;
+  };
+  const formatDate = (date: Date) => [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
 
   const monthGanziIdx = getGanziIdx(monthPillar.stemIndex, monthPillar.branchIndex);
 
@@ -1268,12 +1284,17 @@ export function getDaeun(
     const idx = ((monthGanziIdx + offset) % 60 + 60) % 60;
     const ganzi = getGanzi(idx);
     const age = startAge + (i - 1) * 10;
+    const periodStart = addMonths(birthDate, startMonths + (i - 1) * 120);
+    const nextPeriodStart = addMonths(birthDate, startMonths + i * 120);
+    const periodEnd = new Date(nextPeriodStart.getTime() - 86400000);
     periods.push({
       idx: i,
       startAge: age,
       endAge: age + 9,
-      startYear: birthYear + age,
-      endYear: birthYear + age + 9,
+      startYear: periodStart.getFullYear(),
+      endYear: periodEnd.getFullYear(),
+      startDate: formatDate(periodStart),
+      endDate: formatDate(periodEnd),
       stem: ganzi.stem,
       branch: ganzi.branch,
       stemElement: ganzi.stemElement,
@@ -1281,7 +1302,14 @@ export function getDaeun(
       fortune: getDaeunFortune(ganzi)
     });
   }
-  return { isForward, startAge, periods };
+  return {
+    isForward,
+    startAge,
+    startMonths,
+    differenceDays: Math.round(diffDays * 100) / 100,
+    referenceTermDate: formatDate(refDate),
+    periods,
+  };
 }
 
 function getDaeunFortune(ganzi: ReturnType<typeof getGanzi>): string {
@@ -2396,13 +2424,13 @@ const REL_DYNAMICS: Record<ElemPairKey, RelDynamic> = {
 
 // ──────────── 궁합 (宮合) ────────────
 export function calculateGungap(
-  p1: { year: number; month: number; day: number; hour: number; gender: 'male' | 'female' },
-  p2: { year: number; month: number; day: number; hour: number; gender: 'male' | 'female' }
+  p1: { year: number; month: number; day: number; hour: number; gender: 'male' | 'female'; yearPillarYear?: number },
+  p2: { year: number; month: number; day: number; hour: number; gender: 'male' | 'female'; yearPillarYear?: number }
 ) {
   const d1 = getDayPillar(p1.year, p1.month, p1.day);
   const d2 = getDayPillar(p2.year, p2.month, p2.day);
-  const y1 = getYearPillar(p1.year);
-  const y2 = getYearPillar(p2.year);
+  const y1 = getYearPillar(p1.yearPillarYear ?? p1.year);
+  const y2 = getYearPillar(p2.yearPillarYear ?? p2.year);
 
   const b1 = d1.branchIndex, b2 = d2.branchIndex;
   const e1 = d1.stemElement, e2 = d2.stemElement;
@@ -2797,7 +2825,7 @@ export const TEN_GOD_INFO: Record<TenGodName, { hanja: string; element: string; 
   '정인': { hanja:'正印', element:'', brief:'학문·명예·어머니', longer:'나를 생하는 오행·다른 음양. 학문·자격·귀인의 도움. 어머니·스승 역할. 인성이 강하면 의존적.' },
 };
 
-const JIJANGGAN: Record<string, {stem:string; element:string}[]> = {
+export const JIJANGGAN: Record<string, {stem:string; element:string}[]> = {
   '자': [{stem:'임',element:'수'},{stem:'계',element:'수'}],
   '축': [{stem:'계',element:'수'},{stem:'신',element:'금'},{stem:'기',element:'토'}],
   '인': [{stem:'무',element:'토'},{stem:'병',element:'화'},{stem:'갑',element:'목'}],

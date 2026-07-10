@@ -18,6 +18,7 @@ import {
   sanitizeBirthMonthInput,
   sanitizeBirthYearInput,
 } from "@/lib/birth-date";
+import { precisionFromProfile, precisionToPayload } from "@/lib/birth-precision";
 
 const ELEM_COLOR: Record<string, string> = {
   목:'text-green-600', 화:'text-red-600', 토:'text-yellow-600', 금:'text-gray-700', 수:'text-blue-600',
@@ -482,6 +483,21 @@ export default function LoveFortunePage() {
       status,
       targetYear: CURRENT_YEAR,
     };
+    const matchesProfile = Boolean(
+      profile &&
+      Number(myBirth.year) === profile.birthYear &&
+      Number(myBirth.month) === profile.birthMonth &&
+      Number(myBirth.day) === profile.birthDay &&
+      normalizeBirthHour(myBirth.hour) === profile.birthHour,
+    );
+    if (matchesProfile && profile) {
+      Object.assign(body, {
+        calendarType: profile.calendarType,
+        ...precisionToPayload(precisionFromProfile(profile)),
+      });
+    } else {
+      body.calendarType = "solar";
+    }
     if (status === 'dating' && partnerBirth.year) {
       body.partnerYear = Number(partnerBirth.year);
       body.partnerMonth = Number(partnerBirth.month) || undefined;

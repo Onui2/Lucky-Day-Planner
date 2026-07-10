@@ -610,7 +610,7 @@ export default function Home() {
                   <BookOpen className="w-7 h-7 text-sky-600" />
                 </div>
                 <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">사주 용어 사전</h3>
-                <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국·합충형 등 사주 핵심 용어 65가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
+                <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국·합충형 등 사주 핵심 용어 77가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
                 <div className="flex items-center text-sky-600 font-medium group-hover:gap-3 transition-all gap-2">
                   찾아보기 <ArrowRight className="w-4 h-4" />
                 </div>

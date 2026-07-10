@@ -2,8 +2,13 @@ import { Router } from "express";
 import {
   getSajuYear, getYearPillar, getMonthPillar, getDayPillar, getHourPillar,
   countElements, getYongsin, getTenGod, HEAVENLY_STEMS, EARTHLY_BRANCHES,
-  BRANCH_ELEMENTS, STEM_ELEMENTS, getGanzi,
+  BRANCH_ELEMENTS, STEM_ELEMENTS, getGanzi, getDaeun,
 } from "../lib/saju-calculator.js";
+import {
+  BirthResolutionError,
+  birthOptionsFromRecord,
+  resolveBirthInput,
+} from "../lib/birth-resolution.js";
 
 const router = Router();
 
@@ -40,6 +45,18 @@ function checkStemHap(a: number, b: number) {
 }
 function checkHyeong(a: number, b: number) {
   return HYEONG.some(([x,y]) => (x===a&&y===b)||(x===b&&y===a));
+}
+
+function resolveRequestBirth(source: Record<string, unknown>) {
+  return resolveBirthInput({
+    birthYear: Number(source.birthYear),
+    birthMonth: Number(source.birthMonth),
+    birthDay: Number(source.birthDay),
+    birthHour: Number(source.birthHour ?? -1),
+    birthMinute: Number(source.birthMinute ?? 0),
+    calendarType: source.calendarType === "lunar" ? "lunar" : "solar",
+    ...birthOptionsFromRecord(source),
+  });
 }
 
 // ─── 십신 기반 월운 텍스트 ────────────────────────────────────────────────────
@@ -142,23 +159,30 @@ router.post("/saju/monthly", (req, res) => {
       return res.status(400).json({ error: "필수 입력 값이 누락되었습니다." });
     }
 
-    const bYear = Number(birthYear), bMonth = Number(birthMonth), bDay = Number(birthDay);
-    const bHour = Number(birthHour);
+    const basis = resolveRequestBirth(req.body);
+    const bYear = basis.adjusted.year, bMonth = basis.adjusted.month, bDay = basis.adjusted.day;
+    const bHour = basis.adjusted.hour, bMinute = basis.adjusted.minute;
     const now = new Date();
     const tYear  = Number(targetYear)  || now.getFullYear();
     const tMonth = Number(targetMonth) || (now.getMonth() + 1);
 
     // 본인 사주
-    const sajuYear  = getSajuYear(bYear, bMonth, bDay, Math.max(bHour, 0));
+    const sajuYear  = getSajuYear(bYear, bMonth, bDay, bHour, bMinute);
     const yearPillar  = getYearPillar(sajuYear);
-    const monthPillar = getMonthPillar(bYear, bMonth, bDay, Math.max(bHour, 0));
-    const dayPillar   = getDayPillar(bYear, bMonth, bDay);
+    const monthPillar = getMonthPillar(bYear, bMonth, bDay, bHour, bMinute);
+    const dayPillar   = getDayPillar(basis.dayPillarDate.year, basis.dayPillarDate.month, basis.dayPillarDate.day);
     const hourPillar  = bHour >= 0 ? getHourPillar(dayPillar.stemIndex, bHour) : null;
     const pillars = [yearPillar, monthPillar, dayPillar, ...(hourPillar ? [hourPillar] : [])];
     const elementBalance = countElements(pillars);
     const dayElement = dayPillar.stemElement;
     const dayStem   = dayPillar.stem;
     const { yongsin } = getYongsin(elementBalance, dayElement);
+    const daeun = getDaeun(
+      bYear, bMonth, bDay, gender === "female" ? "female" : "male",
+      yearPillar, monthPillar, bHour, bMinute,
+    );
+    const targetAge = tYear - bYear;
+    const targetDaeun = daeun.periods.find((period) => targetAge >= period.startAge && targetAge <= period.endAge) ?? null;
 
     // 세운(歲運) — 해당 연도의 년주
     const seunYear = getSajuYear(tYear, 2, 15, 12); // 2/15 — 항상 해당 년 절입 이후
@@ -193,6 +217,7 @@ router.post("/saju/monthly", (req, res) => {
     if (wunChung) adjustment -= 18;
     if (seunHap)  adjustment += 5;
     if (seunChung) adjustment -= 10;
+    if (targetDaeun?.stemElement === yongsin || targetDaeun?.branchElement === yongsin) adjustment += 5;
     // 용신 오행인 날
     if (wunPillar.stemElement === yongsin || wunPillar.branchElement === yongsin) adjustment += 8;
 
@@ -219,6 +244,14 @@ router.post("/saju/monthly", (req, res) => {
       dayStem,
       dayElement,
       dayPillar: { stem: dayPillar.stem, branch: dayPillar.branch },
+      calculationBasis: basis,
+      daeun: targetDaeun ? {
+        stem: targetDaeun.stem,
+        branch: targetDaeun.branch,
+        startDate: targetDaeun.startDate,
+        endDate: targetDaeun.endDate,
+        tenGod: getTenGod(dayStem, targetDaeun.stem),
+      } : null,
       seun: {
         stem: seunPillar.stem,
         branch: seunPillar.branch,
@@ -255,6 +288,9 @@ router.post("/saju/monthly", (req, res) => {
       }
     });
   } catch (err) {
+    if (err instanceof BirthResolutionError) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error("Monthly fortune error:", err);
     return res.status(500).json({ error: "월운 계산 중 오류가 발생했습니다." });
   }
@@ -288,19 +324,31 @@ router.get("/fortune/lucky-days", (req, res) => {
       return res.status(400).json({ error: "생년월일이 필요합니다." });
     }
 
-    const bYear = Number(birthYear), bMonth = Number(birthMonth), bDay = Number(birthDay), bHour = Number(birthHour);
+    const basis = resolveRequestBirth(req.query as Record<string, unknown>);
+    const bYear = basis.adjusted.year, bMonth = basis.adjusted.month, bDay = basis.adjusted.day;
+    const bHour = basis.adjusted.hour, bMinute = basis.adjusted.minute;
     const tYear  = Number(year)  || new Date().getFullYear();
     const tMonth = Number(month) || (new Date().getMonth() + 1);
 
-    const sajuYear   = getSajuYear(bYear, bMonth, bDay, Math.max(bHour, 0));
+    const sajuYear   = getSajuYear(bYear, bMonth, bDay, bHour, bMinute);
     const yearPillar = getYearPillar(sajuYear);
-    const bMonthPillar = getMonthPillar(bYear, bMonth, bDay, Math.max(bHour, 0));
-    const dayPillar  = getDayPillar(bYear, bMonth, bDay);
+    const bMonthPillar = getMonthPillar(bYear, bMonth, bDay, bHour, bMinute);
+    const dayPillar  = getDayPillar(basis.dayPillarDate.year, basis.dayPillarDate.month, basis.dayPillarDate.day);
     const hourPillar = bHour >= 0 ? getHourPillar(dayPillar.stemIndex, bHour) : null;
     const pillars    = [yearPillar, bMonthPillar, dayPillar, ...(hourPillar ? [hourPillar] : [])];
     const elementBalance = countElements(pillars);
     const dayElement = dayPillar.stemElement;
     const { yongsin, geesin } = getYongsin(elementBalance, dayElement);
+    const daeun = getDaeun(
+      bYear, bMonth, bDay, gender === "female" ? "female" : "male",
+      yearPillar, bMonthPillar, bHour, bMinute,
+    );
+    const targetDaeun = daeun.periods.find((period) => {
+      const age = tYear - bYear;
+      return age >= period.startAge && age <= period.endAge;
+    }) ?? null;
+    const seunPillar = getYearPillar(getSajuYear(tYear, 2, 15, 12, 0));
+    const targetMonthPillar = getMonthPillar(tYear, tMonth, 15, 12, 0);
 
     const pw = PURPOSE_WEIGHTS[purpose] ?? PURPOSE_WEIGHTS['이사'];
     const daysInMonth = getDaysInMonth(tYear, tMonth);
@@ -335,6 +383,15 @@ router.get("/fortune/lucky-days", (req, res) => {
       if (checkYukChung(yearBranchIdx, dbIdx)) { score -= 15; tags.push('태세충'); }
       // 태세 합
       if (checkYukHap(yearBranchIdx, dbIdx)) { score += 8; tags.push('태세합'); }
+      if (targetDaeun) {
+        const daeunBranchIdx = branchIdx(targetDaeun.branch);
+        if (checkYukHap(daeunBranchIdx, dbIdx)) { score += 7; tags.push('대운합'); }
+        if (checkYukChung(daeunBranchIdx, dbIdx)) { score -= 9; tags.push('대운충'); }
+      }
+      if (checkYukHap(seunPillar.branchIndex, dbIdx)) { score += 5; tags.push('세운합'); }
+      if (checkYukChung(seunPillar.branchIndex, dbIdx)) { score -= 7; tags.push('세운충'); }
+      if (checkYukHap(targetMonthPillar.branchIndex, dbIdx)) { score += 4; tags.push('월운합'); }
+      if (checkYukChung(targetMonthPillar.branchIndex, dbIdx)) { score -= 6; tags.push('월운충'); }
 
       // 오행 생(生): target day element generates day master element
       if (GENERATES[dp.stemElement] === dayElement) { score += 10; tags.push(`${ELEM_KOR(dp.stemElement)} 생 ${ELEM_KOR(dayElement)}`); }
@@ -367,6 +424,29 @@ router.get("/fortune/lucky-days", (req, res) => {
       // 요일
       const dow = new Date(tYear, tMonth - 1, d).getDay();
       const dowKr = ['일','월','화','수','목','금','토'][dow];
+      const bestHours = Array.from({ length: 12 }, (_, branchIndex) => {
+        const representativeHour = branchIndex === 0 ? 0 : branchIndex * 2;
+        const hp = getHourPillar(dp.stemIndex, representativeHour);
+        let hourScore = 50;
+        const hourTags: string[] = [];
+        if (hp.stemElement === yongsin || hp.branchElement === yongsin) { hourScore += 18; hourTags.push('용신 시각'); }
+        if (hp.stemElement === geesin || hp.branchElement === geesin) { hourScore -= 14; hourTags.push('기신 시각'); }
+        if (checkYukHap(dayBranchIdx, hp.branchIndex)) { hourScore += 9; hourTags.push('일지 육합'); }
+        if (checkYukChung(dayBranchIdx, hp.branchIndex)) { hourScore -= 11; hourTags.push('일지 충'); }
+        if (checkYukHap(dbIdx, hp.branchIndex)) { hourScore += 5; hourTags.push('일진과 합'); }
+        const start = branchIndex === 0 ? 23 : branchIndex * 2 - 1;
+        const end = branchIndex === 0 ? 1 : start + 2;
+        return {
+          branch: hp.branch,
+          ganzi: `${hp.stem}${hp.branch}`,
+          range: branchIndex === 0
+            ? '23:00~00:59'
+            : `${String(start).padStart(2, '0')}:00~${String(end - 1).padStart(2, '0')}:59`,
+          score: Math.max(5, Math.min(99, hourScore)),
+          tenGod: getTenGod(dayPillar.stem, hp.stem),
+          tags: hourTags,
+        };
+      }).sort((left, right) => right.score - left.score).slice(0, 3);
 
       results.push({
         day: d,
@@ -378,6 +458,7 @@ router.get("/fortune/lucky-days", (req, res) => {
         score,
         grade,
         tags: tags.slice(0, 3),
+        bestHours,
         isWeekend: dow === 0 || dow === 6,
       });
     }
@@ -397,10 +478,19 @@ router.get("/fortune/lucky-days", (req, res) => {
       dayMasterStem: dayPillar.stem,
       dayMasterElement: dayElement,
       yongsin,
+      calculationBasis: basis,
+      layers: {
+        daeun: targetDaeun ? `${targetDaeun.stem}${targetDaeun.branch}` : null,
+        seun: `${seunPillar.stem}${seunPillar.branch}`,
+        wolun: `${targetMonthPillar.stem}${targetMonthPillar.branch}`,
+      },
       days: results,
       topDays,
     });
   } catch (err) {
+    if (err instanceof BirthResolutionError) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error("Lucky days error:", err);
     return res.status(500).json({ error: "길일 계산 중 오류가 발생했습니다." });
   }

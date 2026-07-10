@@ -875,6 +875,14 @@ export function useYearFortune() {
       birthDay: number;
       birthHour?: number;
       birthMinute?: number;
+      calendarType?: "solar" | "lunar";
+      isLeapMonth?: boolean;
+      birthPlace?: string;
+      timeZone?: string;
+      longitude?: number;
+      latitude?: number;
+      applyTrueSolarTime?: boolean;
+      dayBoundary?: "midnight" | "late-zi";
       targetYear?: number;
     }) =>
       customFetch<YearFortuneData>("/api/year-fortune", {
@@ -1315,6 +1323,14 @@ export function useLoveFortune() {
       birthDay: number;
       birthHour?: number;
       birthMinute?: number;
+      calendarType?: "solar" | "lunar";
+      isLeapMonth?: boolean;
+      birthPlace?: string;
+      timeZone?: string;
+      longitude?: number;
+      latitude?: number;
+      applyTrueSolarTime?: boolean;
+      dayBoundary?: "midnight" | "late-zi";
       gender: string;
       status: string;
       targetYear?: number;
@@ -1323,6 +1339,14 @@ export function useLoveFortune() {
       partnerDay?: number;
       partnerHour?: number;
       partnerMinute?: number;
+      partnerCalendarType?: "solar" | "lunar";
+      partnerIsLeapMonth?: boolean;
+      partnerBirthPlace?: string;
+      partnerTimeZone?: string;
+      partnerLongitude?: number;
+      partnerLatitude?: number;
+      partnerApplyTrueSolarTime?: boolean;
+      partnerDayBoundary?: "midnight" | "late-zi";
       partnerGender?: string;
     }) =>
       customFetch<LoveFortuneResult>("/api/love-fortune", {

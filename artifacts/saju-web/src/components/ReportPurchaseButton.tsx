@@ -132,10 +132,12 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
       {/* 토글 버튼 */}
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-600/90 hover:bg-amber-500 text-white text-sm font-medium shadow-lg shadow-amber-900/30 backdrop-blur transition-all"
+        aria-label="PDF 리포트 무료 발급"
+        title="PDF 리포트 무료 발급"
+        className="flex min-h-10 items-center gap-2 px-3 sm:px-4 py-2.5 rounded-2xl bg-amber-600/90 hover:bg-amber-500 text-white text-sm font-medium shadow-lg shadow-amber-900/30 backdrop-blur transition-all"
       >
         <Crown className="w-4 h-4" />
-        PDF 리포트 무료 발급
+        <span className="hidden sm:inline">PDF 리포트 무료 발급</span>
       </button>
 
       {/* 팝업 */}

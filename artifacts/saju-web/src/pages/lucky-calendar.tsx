@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import {
   Loader2, Sparkles, ChevronLeft, ChevronRight, Calendar, Star, Trophy, Home,
   Briefcase, Heart, FileText, BookOpen, Plane, Activity, TrendingUp, BookmarkPlus, Trash2, CheckCheck,
+  Bell, BellOff, CalendarPlus, Clock3, ExternalLink,
 } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
@@ -21,6 +22,14 @@ import {
   formatBookmarkDate,
 } from "@/lib/member-insights";
 import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
+import { appendBirthPrecisionParams } from "@/lib/birth-precision";
+import {
+  buildGoogleCalendarUrl,
+  downloadIcs,
+  parseRecommendedHour,
+  type CalendarExportEvent,
+} from "@/lib/calendar-export";
+import { useLuckReminders } from "@/hooks/use-luck-reminders";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
 const STEM_HANJA: Record<string,string> = { 갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸' };
@@ -49,6 +58,7 @@ interface LuckyDay {
   day: number; dayOfWeek: string; ganzi: string; ganziHanja: string;
   stemElement: string; branchElement: string; score: number;
   grade: '대길' | '길' | '보통' | '흉' | '대흉'; tags: string[]; isWeekend: boolean;
+  bestHours: Array<{ branch: string; ganzi: string; range: string; score: number; tenGod: string; tags: string[] }>;
 }
 interface LuckyData {
   year: number; month: number; purpose: string; purposeLabel: string;
@@ -66,6 +76,7 @@ async function fetchLuckyDays(
     birthDay: String(profile.birthDay), birthHour: String(profile.birthHour),
     gender: profile.gender, year: String(year), month: String(month), purpose,
   });
+  appendBirthPrecisionParams(params, profile);
   return customFetch<LuckyData>(`/api/fortune/lucky-days?${params}`);
 }
 
@@ -81,6 +92,7 @@ export default function LuckyCalendarPage() {
   const { profile, hasCachedProfile } = useResolvedProfile();
   const { user } = useAuth();
   const { bookmarks, saveBookmark, removeBookmark, isSaving, isRemoving } = useLuckyDayBookmarks();
+  const { isEnabled: isReminderEnabled, toggle: toggleReminder, message: reminderMessage } = useLuckReminders(user?.id);
   const [profileOpen, setProfileOpen] = useState(false);
   const now = new Date();
   const initialYear = Number(searchParams.get("y")) || now.getFullYear();
@@ -110,7 +122,7 @@ export default function LuckyCalendarPage() {
   };
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['lucky-days', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.gender, year, month, purpose],
+    queryKey: ['lucky-days', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.birthHour, profile?.birthMinute, profile?.gender, profile?.calendarType, profile?.isLeapMonth, profile?.timeZone, profile?.longitude, profile?.applyTrueSolarTime, profile?.dayBoundary, year, month, purpose],
     queryFn: () => fetchLuckyDays(profile, year, month, purpose),
     enabled: !!profile,
   });
@@ -210,6 +222,23 @@ export default function LuckyCalendarPage() {
     } catch (error) {
       setBookmarkMessage(error instanceof Error ? error.message : "길일 삭제 실패");
     }
+  }
+
+  function selectedCalendarEvent(): CalendarExportEvent | null {
+    if (!selectedDay || !data) return null;
+    const recommended = parseRecommendedHour(selectedDay.bestHours[0]?.range);
+    return {
+      title: `${data.purposeLabel} 추천 길일`,
+      description: `${selectedDay.ganziHanja}(${selectedDay.ganzi}) ${selectedDay.grade} ${selectedDay.score}점. ${selectedDay.tags.join(" · ")}`,
+      location: profile?.birthPlace,
+      year,
+      month,
+      day: selectedDay.day,
+      startHour: recommended.hour,
+      startMinute: recommended.minute,
+      durationMinutes: 120,
+      timeZone: profile?.timeZone ?? "Asia/Seoul",
+    };
   }
 
   return (
@@ -411,6 +440,53 @@ export default function LuckyCalendarPage() {
                           {tag}
                         </span>
                       ))}
+                    </div>
+                  )}
+
+                  {selectedDay.bestHours.length > 0 && (
+                    <div className="mt-4 border-y border-primary/15 py-4">
+                      <div className="flex items-center gap-2 text-sm font-medium mb-3">
+                        <Clock3 className="w-4 h-4 text-primary" />추천 시간
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {selectedDay.bestHours.map((hour, index) => (
+                          <div key={`${hour.ganzi}-${hour.range}`} className="rounded-lg border border-foreground/10 bg-foreground/[0.03] p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-semibold">{index + 1}. {hour.range}</span>
+                              <span className="text-xs font-bold text-primary">{hour.score}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">{hour.ganzi} · {hour.tenGod}</div>
+                            {hour.tags.length > 0 && <div className="text-[11px] text-foreground/60 mt-1">{hour.tags.join(" · ")}</div>}
+                          </div>
+                        ))}
+                      </div>
+
+                      {(() => {
+                        const event = selectedCalendarEvent();
+                        if (!event) return null;
+                        const reminderEnabled = isReminderEnabled(event);
+                        return (
+                          <div className="flex flex-wrap items-center gap-2 mt-3">
+                            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => downloadIcs(event)}>
+                              <CalendarPlus className="w-4 h-4" />일정 파일
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => window.open(buildGoogleCalendarUrl(event), "_blank", "noopener,noreferrer")}
+                            >
+                              <ExternalLink className="w-4 h-4" />Google 캘린더
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => void toggleReminder(event)}>
+                              {reminderEnabled ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                              {reminderEnabled ? "알림 해제" : "브라우저 알림"}
+                            </Button>
+                          </div>
+                        );
+                      })()}
+                      {reminderMessage && <p className="text-xs text-muted-foreground mt-2">{reminderMessage}</p>}
                     </div>
                   )}
 

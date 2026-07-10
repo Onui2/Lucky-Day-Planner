@@ -5,6 +5,8 @@ import { useUser, type UserProfile } from "@/contexts/UserContext";
 import { getSajuCacheStorageKey, LEGACY_SAJU_CACHE_STORAGE_KEY } from "@/lib/profile-storage";
 
 function parseNumber(value: unknown, fallback = -1): number {
+  if (value === null || value === undefined || typeof value === "boolean") return fallback;
+  if (typeof value === "string" && value.trim() === "") return fallback;
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
 }
@@ -40,6 +42,13 @@ export function sajuResultToProfile(result?: Record<string, unknown> | null): Us
     birthHour: parseNumber(birthInfo.hour, -1),
     birthMinute: parseNumber(birthInfo.minute, 0),
     calendarType: normalizeCalendarType(birthInfo.calendarType),
+    isLeapMonth: birthInfo.isLeapMonth === true,
+    birthPlace: typeof birthInfo.birthPlace === "string" ? birthInfo.birthPlace : undefined,
+    timeZone: typeof birthInfo.timeZone === "string" ? birthInfo.timeZone : undefined,
+    longitude: parseNumber(birthInfo.longitude, Number.NaN),
+    latitude: parseNumber(birthInfo.latitude, Number.NaN),
+    applyTrueSolarTime: birthInfo.applyTrueSolarTime === true,
+    dayBoundary: birthInfo.dayBoundary === "late-zi" ? "late-zi" : "midnight",
     dayMasterElement:
       typeof result.dayMasterElement === "string"
         ? result.dayMasterElement

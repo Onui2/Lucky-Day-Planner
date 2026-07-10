@@ -1,0 +1,16 @@
+
+> @workspace/saju-web@0.0.0 serve C:\Users\PC\Desktop\개발\Lucky-Day-Planner\artifacts\saju-web
+> vite preview --config vite.config.ts --host 0.0.0.0 "--" "--host" "127.0.0.1" "--port" "4173"
+
+Port 3000 is in use, trying another one...
+Port 3001 is in use, trying another one...
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m3002[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://169.254.83.107:[1m3002[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.15.118:[1m3002[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[2mPM 5:01:04[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/saju/calculate[39m
+Error: connect ECONNREFUSED 127.0.0.1:5001
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2mPM 5:01:04[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/saju/calculate[39m
+Error: connect ECONNREFUSED 127.0.0.1:5001
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)

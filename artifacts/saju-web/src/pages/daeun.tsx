@@ -9,6 +9,7 @@ import { Loader2, Sparkles, ChevronDown, ChevronUp, Star, TrendingUp, Calendar }
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
+import { profileBirthPayload } from "@/lib/birth-precision";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
 const ELEM_BG: Record<string,string>    = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
@@ -50,12 +51,7 @@ async function fetchDaeun(p: ReturnType<typeof useUser>['profile']): Promise<Dae
   if (!p) throw new Error("프로필 없음");
   const data = await customFetch<Record<string,unknown>>("/api/saju/calculate", {
     method: "POST",
-    body: JSON.stringify({
-      birthYear: p.birthYear, birthMonth: p.birthMonth, birthDay: p.birthDay,
-      birthHour: p.birthHour >= 0 ? p.birthHour : -1,
-      birthMinute: p.birthMinute ?? 0,
-      gender: p.gender, calendarType: p.calendarType,
-    }),
+    body: JSON.stringify(profileBirthPayload(p)),
   });
   const periods = (data.daeun as any).periods as DaeunPeriod[];
   const periodAnalysis = ((data.luckFlowAnalysis as any)?.periods ?? []) as DaeunPeriod[];
@@ -186,7 +182,7 @@ export default function DaeunPage() {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['daeun', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.birthHour, profile?.birthMinute, profile?.gender, profile?.calendarType],
+    queryKey: ['daeun', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.birthHour, profile?.birthMinute, profile?.gender, profile?.calendarType, profile?.isLeapMonth, profile?.timeZone, profile?.longitude, profile?.applyTrueSolarTime, profile?.dayBoundary],
     queryFn: () => fetchDaeun(profile),
     enabled: !!profile,
   });

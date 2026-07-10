@@ -482,11 +482,16 @@ function calcOverallScore(params: {
 export function getYearFortune(
   birthYear: number, birthMonth: number, birthDay: number,
   birthHour: number = -1, targetYear?: number,
+  dayPillarDate?: { year: number; month: number; day: number },
 ): YearFortuneData {
   const year = targetYear ?? new Date().getFullYear();
   const yearPillar  = getYearPillar(year);
   const sajuYearNum = getSajuYear(birthYear, birthMonth, birthDay, birthHour);
-  const dayPillar   = getDayPillar(birthYear, birthMonth, birthDay);
+  const dayPillar   = getDayPillar(
+    dayPillarDate?.year ?? birthYear,
+    dayPillarDate?.month ?? birthMonth,
+    dayPillarDate?.day ?? birthDay,
+  );
 
   // ── 사주 4주 모두 계산 ──────────────────────────────
   const birthYearPillar  = getYearPillar(sajuYearNum);

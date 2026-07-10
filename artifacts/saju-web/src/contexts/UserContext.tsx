@@ -24,6 +24,13 @@ export interface UserProfile {
   birthHour: number;
   birthMinute?: number;
   calendarType: "solar" | "lunar";
+  isLeapMonth?: boolean;
+  birthPlace?: string;
+  timeZone?: string;
+  longitude?: number;
+  latitude?: number;
+  applyTrueSolarTime?: boolean;
+  dayBoundary?: "midnight" | "late-zi";
   dayMasterElement?: string;
   dayMasterStem?: string;
   dayMasterBranch?: string;
@@ -96,6 +103,13 @@ function normalizeProfile(value: unknown): UserProfile | null {
     birthHour,
     birthMinute: parseNumber(value.birthMinute),
     calendarType,
+    isLeapMonth: value.isLeapMonth === true,
+    birthPlace: typeof value.birthPlace === "string" ? value.birthPlace : undefined,
+    timeZone: typeof value.timeZone === "string" ? value.timeZone : undefined,
+    longitude: parseNumber(value.longitude),
+    latitude: parseNumber(value.latitude),
+    applyTrueSolarTime: value.applyTrueSolarTime === true,
+    dayBoundary: value.dayBoundary === "late-zi" ? "late-zi" : "midnight",
     dayMasterElement:
       typeof value.dayMasterElement === "string" ? value.dayMasterElement : undefined,
     dayMasterStem:
@@ -169,6 +183,13 @@ async function fetchProfilePillars(p: UserProfile): Promise<Partial<UserProfile>
       birthMinute: p.birthMinute ?? 0,
       gender: p.gender,
       calendarType: p.calendarType,
+      isLeapMonth: p.isLeapMonth ?? false,
+      birthPlace: p.birthPlace,
+      timeZone: p.timeZone,
+      longitude: p.longitude,
+      latitude: p.latitude,
+      applyTrueSolarTime: p.applyTrueSolarTime ?? false,
+      dayBoundary: p.dayBoundary ?? "midnight",
     }),
   });
 

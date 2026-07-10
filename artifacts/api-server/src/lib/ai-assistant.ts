@@ -62,17 +62,79 @@ function buildSajuContext(result: Record<string, any>): string {
       ].join("\n")
     : "";
 
+  const calculationBasis = result.calculationBasis
+    ? [
+        result.calculationBasis.summary,
+        Array.isArray(result.calculationBasis.warnings) ? result.calculationBasis.warnings.join(" · ") : "",
+      ].filter(Boolean).join("\n")
+    : "";
+
+  const hiddenPower = result.hiddenStemAnalysis?.dayMaster
+    ? [
+        oneLine(result.hiddenStemAnalysis.dayMaster.summary),
+        ...(Array.isArray(result.hiddenStemAnalysis.visibleStems)
+          ? result.hiddenStemAnalysis.visibleStems.map((item: any) => oneLine(item.summary))
+          : []),
+      ].filter(Boolean).join("\n")
+    : "";
+
+  const usefulGodMethods = result.multiYongsinAnalysis
+    ? [
+        `종합: ${oneLine(result.multiYongsinAnalysis.summary)}`,
+        ...(Array.isArray(result.multiYongsinAnalysis.methods)
+          ? result.multiYongsinAnalysis.methods.map((item: any) => `${item.name}: ${oneLine(item.summary)}`)
+          : []),
+        result.multiYongsinAnalysis.specialPattern?.summary
+          ? `특수격 검토: ${oneLine(result.multiYongsinAnalysis.specialPattern.summary)}`
+          : "",
+      ].filter(Boolean).join("\n")
+    : "";
+
+  const transformations = result.stemTransformationAnalysis
+    ? [
+        oneLine(result.stemTransformationAnalysis.summary),
+        ...(Array.isArray(result.stemTransformationAnalysis.items)
+          ? result.stemTransformationAnalysis.items.map((item: any) => `${item.pair} ${item.status}: ${oneLine(item.summary)}`)
+          : []),
+      ].filter(Boolean).join("\n")
+    : "";
+
+  const familyRoles = Array.isArray(result.familyRoleAnalysis?.roles)
+    ? result.familyRoleAnalysis.roles
+        .map((item: any) => `${item.name} ${item.level} ${item.score}점: ${oneLine(item.summary)} 조언: ${oneLine(item.advice)}`)
+        .join("\n")
+    : "";
+
+  const transition = result.daeunTransitionAnalysis?.active
+    ? `${oneLine(result.daeunTransitionAnalysis.active.summary)} ${oneLine(result.daeunTransitionAnalysis.active.advice)}`
+    : oneLine(result.daeunTransitionAnalysis?.summary);
+
+  const integratedTimeline = Array.isArray(result.integratedLuckTimeline?.months)
+    ? [...result.integratedLuckTimeline.months]
+        .sort((a: any, b: any) => b.score - a.score)
+        .slice(0, 4)
+        .map((item: any) => `${item.month}월 ${item.level} ${item.score}점: ${oneLine(item.summary)}`)
+        .join("\n")
+    : "";
+
   const lines = [
     birth ? `## 기본 정보\n${birth}` : "",
+    calculationBasis ? `## 계산 기준과 보정\n${calculationBasis}` : "",
     pillars ? `## 사주팔자\n${pillars}` : "",
     balance ? `## 오행 분포\n${balance}` : "",
     result.dayMasterElement ? `## 일간 오행: ${result.dayMasterElement}` : "",
     result.sinGangYak?.type ? `## 신강/신약: ${result.sinGangYak.type}` : "",
     result.yongsin?.yongsin ? `## 용신: ${result.yongsin.yongsin}` : "",
+    hiddenPower ? `## 지장간 가중 세력·통근·투출\n${hiddenPower}` : "",
+    usefulGodMethods ? `## 다중 용신 교차검증\n${usefulGodMethods}` : "",
+    transformations ? `## 천간합과 합화 조건\n${transformations}` : "",
+    familyRoles ? `## 육친·궁성별 분석\n${familyRoles}` : "",
     result.samjae?.inSamjae ? `## 삼재: ${result.samjae.advice ?? "해당"}` : "",
     daeun ? `## 대운 흐름\n${daeun}` : "",
     detailedDaeun ? `## 현재 대운 종합\n${detailedDaeun}` : "",
     annualFlow ? `## 향후 5년 종합 흐름\n${annualFlow}` : "",
+    transition ? `## 교운기\n${transition}` : "",
+    integratedTimeline ? `## 대운·세운·월운 통합 시기\n${integratedTimeline}` : "",
     auxiliary ? `## 납음·태원·명궁·신궁\n${auxiliary}` : "",
     result.personality ? `## 성격/기질\n${oneLine(result.personality).slice(0, 200)}` : "",
     result.fortune ? `## 종합 운세\n${oneLine(result.fortune).slice(0, 200)}` : "",

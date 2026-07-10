@@ -15,6 +15,14 @@ import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
 import { ReportPurchaseButton } from "@/components/ReportPurchaseButton";
 import { AiChatPanel } from "@/components/AiChatPanel";
 import { SajuShareCard } from "@/components/SajuShareCard";
+import BirthPrecisionFields from "@/components/BirthPrecisionFields";
+import AdvancedSajuAnalysis from "@/components/AdvancedSajuAnalysis";
+import {
+  DEFAULT_BIRTH_PRECISION,
+  precisionToPayload,
+  profileBirthPayload,
+  type BirthPrecisionValues,
+} from "@/lib/birth-precision";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
 import {
   clampBirthDayValue,
@@ -192,11 +200,13 @@ interface InputForm {
   birthYear: string; birthMonth: string; birthDay: string;
   birthHour: number; birthMinute: string;
   gender: "male" | "female"; calendarType: "solar" | "lunar";
+  precision: BirthPrecisionValues;
 }
 
 // 섹션 키
 const SECTIONS = [
   { key: "saju",        label: "사주팔자",   icon: "☯️" },
+  { key: "advanced",    label: "정밀 명리",   icon: "🧬" },
   { key: "auxiliary",   label: "납음·삼원",   icon: "🧭" },
   { key: "singang",     label: "신강/신약",   icon: "⚖️" },
   { key: "yongsin",     label: "용신 분석",   icon: "🔮" },
@@ -222,6 +232,7 @@ type ShareMode = "text" | "link";
 
 const DEFAULT_VISIBLE_SECTIONS: Record<SectionKey, boolean> = {
   saju: true,
+  advanced: true,
   auxiliary: true,
   singang: true,
   yongsin: true,
@@ -244,6 +255,7 @@ const DEFAULT_VISIBLE_SECTIONS: Record<SectionKey, boolean> = {
 
 const COMPACT_SECTION_KEYS: SectionKey[] = [
   "saju",
+  "advanced",
   "singang",
   "yongsin",
   "johu",
@@ -335,14 +347,24 @@ export default function SajuPage() {
     const d = searchParams.get("d"); const h = searchParams.get("h");
     const min = searchParams.get("min");
     const g = searchParams.get("g"); const c = searchParams.get("c");
+    const precision: BirthPrecisionValues = {
+      birthPlace: searchParams.get("bp") ?? DEFAULT_BIRTH_PRECISION.birthPlace,
+      timeZone: searchParams.get("tz") ?? DEFAULT_BIRTH_PRECISION.timeZone,
+      longitude: searchParams.get("lon") ?? DEFAULT_BIRTH_PRECISION.longitude,
+      latitude: searchParams.get("lat") ?? DEFAULT_BIRTH_PRECISION.latitude,
+      applyTrueSolarTime: searchParams.get("tst") === "1",
+      dayBoundary: searchParams.get("db") === "late-zi" ? "late-zi" : "midnight",
+      isLeapMonth: searchParams.get("leap") === "1",
+    };
     if (y && m && d) {
       return {
         birthYear: y, birthMonth: m, birthDay: d,
         birthHour: h ? Number(h) : -1, birthMinute: min ?? "",
         gender: (g as any) ?? "male", calendarType: (c as any) ?? "solar",
+        precision,
       };
     }
-    return { birthYear: "", birthMonth: "", birthDay: "", birthHour: -1, birthMinute: "", gender: "male", calendarType: "solar" };
+    return { birthYear: "", birthMonth: "", birthDay: "", birthHour: -1, birthMinute: "", gender: "male", calendarType: "solar", precision };
   });
   const [formError, setFormError] = useState<string | null>(null);
   const maxBirthDay = getBirthDayMax(inputForm.birthYear, inputForm.birthMonth, inputForm.calendarType);
@@ -421,7 +443,7 @@ export default function SajuPage() {
 
   const sajuCacheKey = user?.id ? getSajuCacheStorageKey(user.id) : null;
   const makeCacheKey = (p: typeof profile) =>
-    p ? `v3/${p.birthYear}/${p.birthMonth}/${p.birthDay}/${p.birthHour}/${p.birthMinute ?? 0}/${p.gender}/${p.calendarType}` : null;
+    p ? `v5/${p.birthYear}/${p.birthMonth}/${p.birthDay}/${p.birthHour}/${p.birthMinute ?? 0}/${p.gender}/${p.calendarType}/${p.isLeapMonth ?? false}/${p.timeZone ?? "Asia/Seoul"}/${p.longitude ?? 126.978}/${p.applyTrueSolarTime ?? false}/${p.dayBoundary ?? "midnight"}` : null;
 
   const [displayResult, setDisplayResult] = useState<any>(null);
   const [cachedTs, setCachedTs] = useState<number | null>(null);
@@ -454,7 +476,7 @@ export default function SajuPage() {
       const bi = result.birthInfo;
       if (!bi) return;
 
-      const fallbackKey = `v4/${bi.year}/${bi.month}/${bi.day}/${bi.hour ?? -1}/${bi.minute ?? 0}/${bi.gender ?? "male"}/${bi.calendarType ?? "solar"}`;
+      const fallbackKey = `v5/${bi.year}/${bi.month}/${bi.day}/${bi.hour ?? -1}/${bi.minute ?? 0}/${bi.gender ?? "male"}/${bi.calendarType ?? "solar"}/${bi.isLeapMonth ?? false}/${bi.timeZone ?? "Asia/Seoul"}/${bi.longitude ?? 126.978}/${bi.applyTrueSolarTime ?? false}/${bi.dayBoundary ?? "midnight"}`;
       localStorage.setItem(sajuCacheKey, JSON.stringify({ key: fallbackKey, result, ts: Date.now() }));
       localStorage.removeItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
 
@@ -1009,22 +1031,23 @@ export default function SajuPage() {
     const day = parseInt(inputForm.birthDay);
     const minute = inputForm.birthMinute ? parseInt(inputForm.birthMinute) : 0;
     pendingResultSourceRef.current = "manual";
-    calculateSaju({ data: { birthYear: year, birthMonth: month, birthDay: day, birthHour: inputForm.birthHour, birthMinute: isNaN(minute) ? 0 : minute, gender: inputForm.gender, calendarType: inputForm.calendarType } });
+    calculateSaju({ data: {
+      birthYear: year,
+      birthMonth: month,
+      birthDay: day,
+      birthHour: inputForm.birthHour,
+      birthMinute: isNaN(minute) ? 0 : minute,
+      gender: inputForm.gender,
+      calendarType: inputForm.calendarType,
+      ...precisionToPayload(inputForm.precision),
+    } });
   };
 
   const handleProfileAnalyze = useCallback(() => {
     if (!profile) return;
     pendingResultSourceRef.current = "profile";
     calculateSaju({
-      data: {
-        birthYear: profile.birthYear,
-        birthMonth: profile.birthMonth,
-        birthDay: profile.birthDay,
-        birthHour: profile.birthHour,
-        birthMinute: profile.birthMinute ?? 0,
-        gender: profile.gender,
-        calendarType: profile.calendarType,
-      },
+      data: profileBirthPayload(profile),
     });
   }, [profile, calculateSaju]);
 
@@ -1082,11 +1105,21 @@ export default function SajuPage() {
       const h = searchParams.get("h");
       const minute = parseInt(searchParams.get("min") ?? "0", 10);
       const g = searchParams.get("g"); const c = searchParams.get("c");
+      const precision = {
+        birthPlace: searchParams.get("bp") ?? DEFAULT_BIRTH_PRECISION.birthPlace,
+        timeZone: searchParams.get("tz") ?? DEFAULT_BIRTH_PRECISION.timeZone,
+        longitude: searchParams.get("lon") ?? DEFAULT_BIRTH_PRECISION.longitude,
+        latitude: searchParams.get("lat") ?? DEFAULT_BIRTH_PRECISION.latitude,
+        applyTrueSolarTime: searchParams.get("tst") === "1",
+        dayBoundary: searchParams.get("db") === "late-zi" ? "late-zi" as const : "midnight" as const,
+        isLeapMonth: searchParams.get("leap") === "1",
+      };
       pendingResultSourceRef.current = "query";
       calculateSaju({ data: {
         birthYear: parseInt(y), birthMonth: parseInt(m), birthDay: parseInt(d),
         birthHour: h ? parseInt(h) : -1, birthMinute: Number.isFinite(minute) ? minute : 0,
         gender: (g as any) ?? "male", calendarType: (c as any) ?? "solar",
+        ...precisionToPayload(precision),
       }});
     }
   }, []);
@@ -1104,6 +1137,13 @@ export default function SajuPage() {
     url.searchParams.set("min", String(bi.minute ?? 0));
     url.searchParams.set("g", String(bi.gender ?? "male"));
     url.searchParams.set("c", String(bi.calendarType ?? "solar"));
+    url.searchParams.set("bp", String(bi.birthPlace ?? "서울"));
+    url.searchParams.set("tz", String(bi.timeZone ?? "Asia/Seoul"));
+    url.searchParams.set("lon", String(bi.longitude ?? 126.978));
+    url.searchParams.set("lat", String(bi.latitude ?? 37.5665));
+    url.searchParams.set("tst", bi.applyTrueSolarTime ? "1" : "0");
+    url.searchParams.set("db", String(bi.dayBoundary ?? "midnight"));
+    url.searchParams.set("leap", bi.isLeapMonth ? "1" : "0");
 
     const serializedSections = serializeVisibleSections(visibleSections);
     if (serializedSections && serializedSections !== serializeVisibleSections(DEFAULT_VISIBLE_SECTIONS)) {
@@ -1291,6 +1331,11 @@ export default function SajuPage() {
                       placeholder="0~59" min={0} max={59} disabled={inputForm.birthHour === -1} className="placeholder:text-muted-foreground/40" />
                   </div>
                 </div>
+                <BirthPrecisionFields
+                  values={inputForm.precision}
+                  calendarType={inputForm.calendarType}
+                  onChange={(precision) => setInputForm((current) => ({ ...current, precision }))}
+                />
                 {(formError || error) && (
                   <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
                     {formError || "분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
@@ -1409,7 +1454,7 @@ export default function SajuPage() {
         </div>
 
         {/* 플로팅 액션 버튼 — 우하단 고정 */}
-        <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-2">
+        <div className="mb-4 flex items-center justify-end gap-2 sm:fixed sm:bottom-6 sm:right-20 sm:z-40 sm:mb-0 sm:flex-col sm:items-end">
           <AiChatPanel
             birthInfo={monetizationBirthInfo}
             isAuthenticated={isAuthenticated}
@@ -1586,6 +1631,8 @@ export default function SajuPage() {
               </Card>
             </motion.div>
           )}
+
+          {visibleSections.advanced && <AdvancedSajuAnalysis result={r} />}
 
           {/* ── 일주 심층 분석 카드 (사주팔자 바로 아래) ── */}
           {r?.dayPillar && (() => {
