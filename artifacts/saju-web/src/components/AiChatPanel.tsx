@@ -242,6 +242,8 @@ export function AiChatPanel({
   useEffect(() => {
     const nextQuestion = initialQuestion?.trim();
     if (!nextQuestion) {
+      appliedInitialQuestionRef.current = null;
+      pendingInitialQuestionRef.current = null;
       return;
     }
 

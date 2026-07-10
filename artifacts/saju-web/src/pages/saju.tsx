@@ -23,6 +23,7 @@ import {
   profileBirthPayload,
   type BirthPrecisionValues,
 } from "@/lib/birth-precision";
+import { createBirthProfileSearchParams } from "@/lib/birth-profile-query";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
 import {
   clampBirthDayValue,
@@ -33,7 +34,7 @@ import {
   sanitizeBirthYearInput,
 } from "@/lib/birth-date";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
-import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown, Info, CalendarDays, Briefcase, Heart, Activity, Compass } from "lucide-react";
 import { getDayPillarAnalysis } from "@/data/dayPillarAnalysis";
 
 // ─── 한자 변환 ───────────────────────────────────────────
@@ -300,6 +301,40 @@ function formatShadowReadingText(shadow: any) {
     .join(" ");
 }
 
+function compactActionText(value: unknown, maxLength = 92) {
+  if (typeof value !== "string") return "";
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  if (normalized.length <= maxLength) return normalized;
+
+  const sentences = normalized
+    .split(/(?<=[.!?。！？])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (sentences.length > 0 && sentences[0]!.length <= maxLength) {
+    return sentences[0]!;
+  }
+
+  const clauses = normalized
+    .split(/[,:;·]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (clauses.length > 0) {
+    let summary = "";
+    for (const clause of clauses) {
+      const next = summary ? `${summary} · ${clause}` : clause;
+      if (next.length > maxLength) break;
+      summary = next;
+    }
+    if (summary) return summary;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
+}
+
 function parseVisibleSectionsParam(value: string | null) {
   if (!value) {
     return null;
@@ -417,6 +452,9 @@ export default function SajuPage() {
   const [inquiryMessage, setInquiryMessage] = useState("");
   const [inquiryDone, setInquiryDone] = useState(false);
   const [floatingPanel, setFloatingPanel] = useState<"ai" | "report" | null>(null);
+  const [actionPlanQuestion, setActionPlanQuestion] = useState<
+    string | null | undefined
+  >(undefined);
   const handleAiPanelOpenChange = useCallback((nextOpen: boolean) => {
     setFloatingPanel((current) => {
       if (!nextOpen) {
@@ -1381,6 +1419,32 @@ export default function SajuPage() {
     gender: (bi.gender === "female" ? "female" : "male") as "male" | "female",
     calendarType: (bi.calendarType === "lunar" ? "lunar" : "solar") as "solar" | "lunar",
   };
+  const buildProfileAwareHref = (
+    pathname: string,
+    configure?: (params: URLSearchParams) => void,
+  ) => {
+    const params = createBirthProfileSearchParams({
+      year: monetizationBirthInfo.year,
+      month: monetizationBirthInfo.month,
+      day: monetizationBirthInfo.day,
+      hour: monetizationBirthInfo.hour,
+      minute: monetizationBirthInfo.minute,
+      gender: monetizationBirthInfo.gender,
+      calendarType: monetizationBirthInfo.calendarType,
+      isLeapMonth: bi.isLeapMonth === true,
+      birthPlace:
+        typeof bi.birthPlace === "string" ? bi.birthPlace : undefined,
+      timeZone: typeof bi.timeZone === "string" ? bi.timeZone : undefined,
+      longitude:
+        typeof bi.longitude === "number" ? bi.longitude : undefined,
+      latitude: typeof bi.latitude === "number" ? bi.latitude : undefined,
+      applyTrueSolarTime: bi.applyTrueSolarTime === true,
+      dayBoundary: bi.dayBoundary === "late-zi" ? "late-zi" : "midnight",
+    });
+    configure?.(params);
+    const queryString = params.toString();
+    return queryString ? `${pathname}?${queryString}` : pathname;
+  };
   const analysisHighlights = [
     {
       label: "일주 중심축",
@@ -1425,6 +1489,182 @@ export default function SajuPage() {
     ): item is { label: string; value: string; description: string } =>
       Boolean(item),
   );
+  const actionPlanPurpose = r.career
+    ? "계약"
+    : r.love
+      ? "결혼"
+      : r.health
+        ? "건강"
+        : "공부";
+  const now = new Date();
+  const luckyCalendarHref = buildProfileAwareHref("/lucky-calendar", (params) => {
+    params.set("y", String(now.getFullYear()));
+    params.set("m", String(now.getMonth() + 1));
+    params.set("p", actionPlanPurpose);
+  });
+  const monthlyFortuneHref = buildProfileAwareHref("/monthly-fortune");
+  const daeunHref = buildProfileAwareHref("/daeun");
+  const primaryActionTitle = r.yongsin
+    ? `${r.yongsin.yongsin} 기운 먼저 보완하기`
+    : r.lackingElement
+      ? `${getElementKor(r.lackingElement)} 기운 먼저 채우기`
+      : "지금 필요한 기운 먼저 채우기";
+  const primaryActionDescription = r.yongsin?.advice
+    ? compactActionText(r.yongsin.advice, 96)
+    : compactActionText(
+        [
+          r.luckyColors?.length
+            ? `보완 색상은 ${r.luckyColors.slice(0, 2).join(", ")}`
+            : "",
+          r.luckyDirections?.length
+            ? `움직일 방향은 ${r.luckyDirections.slice(0, 2).join(", ")}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" · ") || "생활 공간과 일정 안에 보완 포인트를 먼저 넣어보세요.",
+        96,
+      );
+  const focusActionTitle = r.career
+    ? "일과 돈 흐름 구체화하기"
+    : r.love
+      ? "관계 패턴 정리하기"
+      : r.health
+        ? "생활 리듬 먼저 다듬기"
+        : "총운의 중심축 다시 정리하기";
+  const focusActionDescription = compactActionText(
+    r.career ?? r.love ?? r.health ?? r.fortune,
+    96,
+  );
+  const timingActionDescription = compactActionText(
+    [
+      `${actionPlanPurpose} 관련 일정 하나를 길일로 먼저 고정해보세요.`,
+      r.luckyDirections?.length
+        ? `방향은 ${r.luckyDirections.slice(0, 2).join(", ")} 쪽이 좋습니다.`
+        : "",
+      r.luckyNumbers?.length
+        ? `참고 숫자는 ${r.luckyNumbers.slice(0, 3).join(", ")}입니다.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+    96,
+  );
+  const actionPlanSteps = [
+    {
+      step: "01",
+      title: primaryActionTitle,
+      description: primaryActionDescription,
+      hint:
+        r.luckyColors?.length || r.luckyDirections?.length
+          ? [
+              r.luckyColors?.length
+                ? `색상 ${r.luckyColors.slice(0, 2).join(" · ")}`
+                : "",
+              r.luckyDirections?.length
+                ? `방향 ${r.luckyDirections.slice(0, 2).join(" · ")}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : "보완 포인트부터 생활 안에 섞어보세요.",
+      icon: Sparkles,
+      toneClass:
+        "border-violet-500/20 bg-violet-500/5 text-violet-700",
+    },
+    {
+      step: "02",
+      title: focusActionTitle,
+      description: focusActionDescription,
+      hint:
+        typeof currentAge === "number"
+          ? `${currentAge}세 전후 흐름 기준으로 다음 선택을 정리합니다.`
+          : "이번 달 또는 다음 10년 흐름으로 바로 이어서 보면 좋습니다.",
+      icon: r.career ? Briefcase : r.love ? Heart : Activity,
+      toneClass:
+        r.career
+          ? "border-blue-500/20 bg-blue-500/5 text-blue-700"
+          : r.love
+            ? "border-rose-500/20 bg-rose-500/5 text-rose-700"
+            : "border-emerald-500/20 bg-emerald-500/5 text-emerald-700",
+      href: r.samjae?.inSamjae || typeof currentAge === "number"
+        ? daeunHref
+        : monthlyFortuneHref,
+      ctaLabel:
+        r.samjae?.inSamjae || typeof currentAge === "number"
+          ? "대운 흐름 보기"
+          : "월운 이어보기",
+    },
+    {
+      step: "03",
+      title: "좋은 날짜 하나 먼저 확정하기",
+      description: timingActionDescription,
+      hint: `${actionPlanPurpose} 목적 기준으로 길일을 먼저 추려볼 수 있습니다.`,
+      icon: CalendarDays,
+      toneClass:
+        "border-amber-500/20 bg-amber-500/5 text-amber-700",
+      href: luckyCalendarHref,
+      ctaLabel: "길일 달력 열기",
+    },
+  ];
+  const cautionItems = [
+    r.samjae?.inSamjae
+      ? {
+          title: `${r.samjae.type} 구간은 속도보다 리듬`,
+          description: compactActionText(
+            r.samjae.advice ?? r.samjae.description,
+            92,
+          ),
+        }
+      : null,
+    ...(Array.isArray(r.carefulThings) ? r.carefulThings : [])
+      .slice(0, 2)
+      .map((item: any) => ({
+        title: item.category,
+        description: compactActionText(item.content, 92),
+      })),
+    !Array.isArray(r.carefulThings) || r.carefulThings.length === 0
+      ? formatShadowReadingText(r.shadowReading)
+        ? {
+            title: "감정 과열과 무리한 결정",
+            description: compactActionText(
+              formatShadowReadingText(r.shadowReading),
+              92,
+            ),
+          }
+        : null
+      : null,
+  ]
+    .filter(
+      (
+        item,
+      ): item is {
+        title: string;
+        description: string;
+      } => Boolean(item?.title && item?.description),
+    )
+    .slice(0, 2);
+  const actionPlanPrompt = [
+    "제 사주 결과를 바탕으로 바로 실행할 행동 계획을 짜주세요.",
+    `우선순위 1은 ${actionPlanSteps[0].title}, 우선순위 2는 ${actionPlanSteps[1].title}입니다.`,
+    cautionItems[0]
+      ? `특히 ${cautionItems[0].title} 부분은 조심하고 싶습니다.`
+      : "",
+    "오늘, 이번 주, 이번 달로 나눠서 3단계로 정리해주세요.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const effectiveInitialAiQuestion =
+    actionPlanQuestion === null
+      ? undefined
+      : actionPlanQuestion ?? initialAiQuestion;
+  const handleOpenActionPlanAi = useCallback((question: string) => {
+    setActionPlanQuestion(null);
+    setFloatingPanel("ai");
+    globalThis.requestAnimationFrame(() => {
+      setActionPlanQuestion(question);
+      setFloatingPanel("ai");
+    });
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -1520,7 +1760,7 @@ export default function SajuPage() {
             isAdmin={isAdmin}
             externalOpen={floatingPanel === "ai"}
             onOpenChange={handleAiPanelOpenChange}
-            initialQuestion={initialAiQuestion}
+            initialQuestion={effectiveInitialAiQuestion}
           />
           <ReportPurchaseButton
             birthInfo={monetizationBirthInfo}
@@ -1580,6 +1820,177 @@ export default function SajuPage() {
             </div>
           ))}
         </div>
+
+        <Card className="mb-8 glass-panel border-primary/25 bg-background/25">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                  Action Plan
+                </div>
+                <CardTitle className="mt-1 text-2xl font-serif text-foreground">
+                  지금 바로 실행 플랜
+                </CardTitle>
+                <CardDescription className="mt-2 max-w-2xl text-sm leading-relaxed break-keep">
+                  해석을 읽고 끝내지 않고, 바로 실행으로 옮길 수 있게 우선순위를 정리했습니다.
+                </CardDescription>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenActionPlanAi(actionPlanPrompt)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-primary/20 bg-background/45 px-3 py-1.5 text-xs font-medium text-primary hover:bg-background/60"
+              >
+                <MessageCircleQuestion className="w-3.5 h-3.5" />
+                AI에게 실행 순서 묻기
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <div className="space-y-3">
+                {actionPlanSteps.map((action) => {
+                  const Icon = action.icon;
+
+                  return (
+                    <div
+                      key={action.step}
+                      className="rounded-2xl border border-primary/15 bg-background/35 p-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                            STEP {action.step}
+                          </span>
+                          <div
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl border ${action.toneClass}`}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-foreground">
+                            {action.title}
+                          </div>
+                          <p className="mt-1 text-sm text-foreground/80 leading-relaxed break-keep">
+                            {action.description}
+                          </p>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {action.hint}
+                          </div>
+                          {action.href && action.ctaLabel && (
+                            <div className="mt-3">
+                              <Link
+                                href={action.href}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                              >
+                                {action.ctaLabel}
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-rose-500/15 bg-rose-500/5 p-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-rose-700" />
+                    <div className="text-sm font-medium text-foreground">
+                      특히 조심할 점
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2.5">
+                    {cautionItems.length > 0 ? (
+                      cautionItems.map((item) => (
+                        <div
+                          key={item.title}
+                          className="rounded-xl border border-rose-500/10 bg-background/45 px-3 py-3"
+                        >
+                          <div className="text-sm font-medium text-foreground">
+                            {item.title}
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground leading-relaxed break-keep">
+                            {item.description}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-xl border border-foreground/10 bg-background/45 px-3 py-3 text-sm text-muted-foreground">
+                        조심 포인트가 크지 않은 편이라 기본 리듬을 유지하는 쪽이 좋습니다.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-primary/15 bg-background/35 p-4">
+                  <div className="flex items-center gap-2">
+                    <Compass className="w-4 h-4 text-primary" />
+                    <div className="text-sm font-medium text-foreground">
+                      바로 이어서 할 일
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenActionPlanAi(actionPlanPrompt)}
+                      className="flex w-full items-center justify-between rounded-xl border border-primary/15 bg-primary/6 px-3 py-3 text-left hover:bg-primary/10"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          실행 순서 AI에게 묻기
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          오늘 · 이번 주 · 이번 달 순서로 바로 정리
+                        </div>
+                      </div>
+                      <MessageCircleQuestion className="w-4 h-4 text-primary" />
+                    </button>
+
+                    <Link
+                      href={luckyCalendarHref}
+                      className="flex items-center justify-between rounded-xl border border-amber-500/15 bg-amber-500/5 px-3 py-3 hover:bg-amber-500/10"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          길일로 일정 하나 고정하기
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {actionPlanPurpose} 목적 기준으로 바로 날짜 추리기
+                        </div>
+                      </div>
+                      <CalendarDays className="w-4 h-4 text-amber-700" />
+                    </Link>
+
+                    <Link
+                      href={
+                        r.samjae?.inSamjae || typeof currentAge === "number"
+                          ? daeunHref
+                          : monthlyFortuneHref
+                      }
+                      className="flex items-center justify-between rounded-xl border border-blue-500/15 bg-blue-500/5 px-3 py-3 hover:bg-blue-500/10"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          {r.samjae?.inSamjae || typeof currentAge === "number"
+                            ? "대운 흐름으로 확장하기"
+                            : "월운으로 바로 이어보기"}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          지금 시기의 큰 리듬 안에서 다시 확인
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-blue-700" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className={compactMode ? "space-y-4" : "space-y-8"}>
 
