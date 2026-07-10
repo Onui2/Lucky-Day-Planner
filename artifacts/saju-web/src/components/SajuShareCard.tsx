@@ -17,6 +17,8 @@ const ELEM_KOR: Record<string, string> = {
 const ELEM_LABEL: Record<string, string> = {
   목: "목 (木)", 화: "화 (火)", 토: "토 (土)", 금: "금 (金)", 수: "수 (水)",
 };
+const KOREAN_ELEMENTS = ["목", "화", "토", "금", "수"] as const;
+type KoreanElement = (typeof KOREAN_ELEMENTS)[number];
 
 function sh(k: string) { return STEM_HANJA[k] ?? k; }
 function bh(k: string) { return BRANCH_HANJA[k] ?? k; }
@@ -49,6 +51,63 @@ function compactShadowReading(shadow: unknown) {
   return text.length > 90 ? `${text.slice(0, 87)}...` : text;
 }
 
+function getHiddenElementScores(hiddenStemAnalysis: unknown): Record<KoreanElement, number> | null {
+  if (!hiddenStemAnalysis || typeof hiddenStemAnalysis !== "object") return null;
+  const scores = (hiddenStemAnalysis as Record<string, unknown>).elementScores;
+  if (!scores || typeof scores !== "object") return null;
+
+  const keyMap: Record<string, KoreanElement> = {
+    wood: "목",
+    fire: "화",
+    earth: "토",
+    metal: "금",
+    water: "수",
+    목: "목",
+    화: "화",
+    토: "토",
+    금: "금",
+    수: "수",
+  };
+
+  const normalized = Object.fromEntries(
+    KOREAN_ELEMENTS.map((element) => [element, 0]),
+  ) as Record<KoreanElement, number>;
+
+  let hasValue = false;
+  Object.entries(scores as Record<string, unknown>).forEach(([rawKey, rawValue]) => {
+    const element = keyMap[rawKey];
+    const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
+    if (!element || !Number.isFinite(value)) return;
+    normalized[element] = value;
+    hasValue = true;
+  });
+
+  return hasValue ? normalized : null;
+}
+
+function getElementExtremes(scores: Record<KoreanElement, number> | null) {
+  if (!scores) return null;
+
+  let dominant: KoreanElement = "목";
+  let lacking: KoreanElement = "목";
+  let maxScore = -Infinity;
+  let minScore = Infinity;
+
+  KOREAN_ELEMENTS.forEach((element) => {
+    const score = scores[element];
+    if (score > maxScore) {
+      maxScore = score;
+      dominant = element;
+    }
+    if (score < minScore) {
+      minScore = score;
+      lacking = element;
+    }
+  });
+
+  return { dominant, lacking };
+}
+
 interface Props {
   result: Record<string, any>;
 }
@@ -78,6 +137,8 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
   const geokguk = String(result.geokguk?.name ?? "");
   const dominant = String(result.dominantElement ?? "");
   const lacking = String(result.lackingElement ?? "");
+  const hiddenElementScores = getHiddenElementScores(result.hiddenStemAnalysis);
+  const hiddenElementStats = getElementExtremes(hiddenElementScores);
 
   const fortune = String(result.fortune ?? "").replace(/\s+/g, " ").trim();
   const fortuneShort = fortune.length > 90
@@ -394,11 +455,31 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
                 justifyContent: "space-between",
               }}
             >
-              <span style={{ fontSize: 11, color: MUTED }}>강함 · 약함</span>
+              <span style={{ fontSize: 11, color: MUTED }}>표면 분포</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>
-                <span style={{ color: elemColor(dominant) }}>{dominant}</span>
+                <span style={{ color: elemColor(dominant) }}>많이 {dominant}</span>
                 {" / "}
-                <span style={{ color: elemColor(lacking) }}>{lacking}</span>
+                <span style={{ color: elemColor(lacking) }}>적게 {lacking}</span>
+              </span>
+            </div>
+          )}
+          {hiddenElementStats && (
+            <div
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${BORDER}`,
+                borderRadius: 10,
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontSize: 11, color: MUTED }}>지장간 세력</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>
+                <span style={{ color: elemColor(hiddenElementStats.dominant) }}>강 {hiddenElementStats.dominant}</span>
+                {" / "}
+                <span style={{ color: elemColor(hiddenElementStats.lacking) }}>약 {hiddenElementStats.lacking}</span>
               </span>
             </div>
           )}
@@ -407,8 +488,11 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
 
       {/* ── 오행 분포 ── */}
       <div style={{ ...sectionStyle }}>
-        <div style={{ fontSize: 10, letterSpacing: "0.18em", color: GOLD, textTransform: "uppercase", marginBottom: 14 }}>
+        <div style={{ fontSize: 10, letterSpacing: "0.18em", color: GOLD, textTransform: "uppercase", marginBottom: 6 }}>
           오행 분포 五行
+        </div>
+        <div style={{ fontSize: 11, color: MUTED, marginBottom: 12 }}>
+          천간·지지에 드러난 개수 기준
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {elems.map((e) => {
