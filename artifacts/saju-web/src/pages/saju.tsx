@@ -1475,13 +1475,14 @@ export default function SajuPage() {
         }
       : null,
     {
-      label: "보완 포인트",
+      label: "표면 오행 분포",
       value: r.lackingElement
-        ? `${getElementKor(r.lackingElement)} 보완`
-        : "오행 균형",
-      description: r.dominantElement
-        ? `${getElementKor(r.dominantElement)} 기운이 강하게 드러나는 편입니다.`
-        : "강한 기운과 부족한 기운의 균형을 함께 보세요.",
+        ? `${getElementKor(r.lackingElement)} 기운이 적게 드러남`
+        : "오행 분포 확인",
+      description:
+        r.dominantElement && r.lackingElement
+          ? `천간·지지에 드러난 개수 기준으로 ${getElementKor(r.dominantElement)}는 많고 ${getElementKor(r.lackingElement)}는 적은 편입니다.`
+          : "천간·지지에 드러난 개수 기준으로 본 오행 분포입니다.",
     },
   ].filter(
     (
@@ -1507,7 +1508,7 @@ export default function SajuPage() {
   const primaryActionTitle = r.yongsin
     ? `${r.yongsin.yongsin} 기운 먼저 보완하기`
     : r.lackingElement
-      ? `${getElementKor(r.lackingElement)} 기운 먼저 채우기`
+      ? `${getElementKor(r.lackingElement)} 기운 균형 살펴보기`
       : "지금 필요한 기운 먼저 채우기";
   const primaryActionDescription = r.yongsin?.advice
     ? compactActionText(r.yongsin.advice, 96)
@@ -1566,7 +1567,7 @@ export default function SajuPage() {
             ]
               .filter(Boolean)
               .join(" · ")
-          : "보완 포인트부터 생활 안에 섞어보세요.",
+          : "표면상 적게 드러난 기운부터 생활 안에 천천히 섞어보세요.",
       icon: Sparkles,
       toneClass:
         "border-violet-500/20 bg-violet-500/5 text-violet-700",
@@ -2103,9 +2104,12 @@ export default function SajuPage() {
                       })}
                     </div>
                     <div className="flex gap-2 flex-wrap mt-1">
-                      <span className="px-3 py-1 rounded-full bg-primary/20 text-primary text-xs border border-primary/30">강한: {getElementKor(r.dominantElement)}</span>
-                      <span className="px-3 py-1 rounded-full bg-destructive/20 text-destructive text-xs border border-destructive/30">부족: {getElementKor(r.lackingElement)}</span>
+                      <span className="px-3 py-1 rounded-full bg-primary/20 text-primary text-xs border border-primary/30">많이 드러남: {getElementKor(r.dominantElement)}</span>
+                      <span className="px-3 py-1 rounded-full bg-destructive/20 text-destructive text-xs border border-destructive/30">적게 드러남: {getElementKor(r.lackingElement)}</span>
                     </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      천간·지지에 보이는 개수 기준입니다. 아래 조후 보완이나 용신 판단과는 다를 수 있습니다.
+                    </p>
                   </div>
                 </Card>
               </div>
@@ -2363,8 +2367,11 @@ export default function SajuPage() {
                         ))}
                       </div>
                       <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                        <div className="text-sm font-medium text-primary mb-1.5">조후 보완</div>
+                        <div className="text-sm font-medium text-primary mb-1.5">계절 균형 기준 보완</div>
                         <p className="text-base text-foreground/85 leading-relaxed">{r.johuAnalysis.advice}</p>
+                        <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                          여기서 보완 요소는 오행 개수 부족이 아니라 한난조습 균형 기준입니다.
+                        </p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {(r.johuAnalysis.needElements?.length ? r.johuAnalysis.needElements : ['균형 유지']).map((elem: string) => (
                             <span key={elem} className={`px-2.5 py-1 rounded-full text-xs border ${ELEM_BG[elem] ?? 'bg-primary/15 text-primary border-primary/25'}`}>
