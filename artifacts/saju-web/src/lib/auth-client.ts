@@ -1,10 +1,15 @@
 import type { AuthUser } from "@workspace/replit-auth-web";
+import { customFetch } from "@workspace/api-client-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
 interface AuthErrorShape {
   error?: unknown;
   message?: unknown;
+}
+
+interface ApiErrorLike {
+  data?: unknown;
 }
 
 interface ResetTokenVerificationResult {
@@ -39,15 +44,24 @@ function getErrorMessage(
   return fallback;
 }
 
-async function parseJson<T>(response: Response): Promise<T | null> {
-  const text = await response.text();
-  if (!text.trim()) return null;
+function isApiErrorShape(value: unknown): value is ApiErrorLike {
+  return typeof value === "object" && value !== null && "data" in value;
+}
 
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return null;
+function getRequestMessage(error: unknown, fallbackMessage: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
   }
+
+  if (isApiErrorShape(error)) {
+    return getErrorMessage(error.data as AuthErrorShape | null, fallbackMessage);
+  }
+
+  return fallbackMessage;
+}
+
+function withBasePath(path: string) {
+  return `${BASE}${path}`;
 }
 
 async function postJson<TResponse>(
@@ -55,25 +69,16 @@ async function postJson<TResponse>(
   body: Record<string, unknown>,
   fallbackMessage: string,
 ): Promise<TResponse> {
-  // 이 파일의 경로들은 서버 csrf 미들웨어의 PUBLIC_MUTATION_PATHS에 포함되어
-  // CSRF 토큰을 검사하지 않는다. 토큰 선요청(/api/auth/csrf) 왕복을 생략해
-  // 로그인/회원가입 첫 클릭 지연을 줄인다.
-  const headers = new Headers({ "Content-Type": "application/json" });
-
-  const response = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    credentials: "include",
-  });
-
-  const payload = await parseJson<TResponse & AuthErrorShape>(response);
-
-  if (!response.ok) {
-    throw new Error(getErrorMessage(payload, fallbackMessage));
+  try {
+    return await customFetch<TResponse>(withBasePath(path), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "include",
+    });
+  } catch (error) {
+    throw new Error(getRequestMessage(error, fallbackMessage));
   }
-
-  return (payload ?? ({} as TResponse)) as TResponse;
 }
 
 export async function registerWithPassword(input: {
@@ -125,35 +130,39 @@ export async function resetPasswordWithToken(input: {
 export async function verifyResetPasswordToken(
   token: string,
 ): Promise<ResetTokenVerificationResult> {
-  const response = await fetch(
-    `${BASE}/api/auth/reset-password/verify?token=${encodeURIComponent(token)}`,
+  try {
+    const payload = await customFetch<ResetTokenVerificationResult>(
+      withBasePath(`/api/auth/reset-password/verify?token=${encodeURIComponent(token)}`),
+      {
+        credentials: "include",
+      },
+    );
+
+    return {
+      valid: Boolean(payload.valid),
+      error: typeof payload.error === "string" ? payload.error : undefined,
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      error: getRequestMessage(error, "링크가 유효하지 않거나 만료되었습니다."),
+    };
+  }
+}
+
+export async function getAuthSetupStatus(): Promise<AuthSetupStatus> {
+  const payload = await customFetch<AuthSetupStatus>(
+    withBasePath("/api/auth/setup-status"),
     {
       credentials: "include",
     },
   );
 
-  const payload =
-    (await parseJson<ResetTokenVerificationResult & AuthErrorShape>(response)) ??
-    { valid: false, error: "링크 확인 중 오류가 발생했습니다." };
-
   return {
-    valid: Boolean(payload.valid),
-    error: typeof payload.error === "string" ? payload.error : undefined,
-  };
-}
-
-export async function getAuthSetupStatus(): Promise<AuthSetupStatus> {
-  const response = await fetch(`${BASE}/api/auth/setup-status`, {
-    credentials: "include",
-  });
-
-  const payload = await parseJson<AuthSetupStatus>(response);
-
-  return {
-    canSelfBootstrapAdmin: Boolean(payload?.canSelfBootstrapAdmin),
-    hasConfiguredPrivilegedEmails: Boolean(payload?.hasConfiguredPrivilegedEmails),
-    databaseConfigured: Boolean(payload?.databaseConfigured),
-    localPasswordAuthEnabled: Boolean(payload?.localPasswordAuthEnabled),
-    oidcEnabled: Boolean(payload?.oidcEnabled),
+    canSelfBootstrapAdmin: Boolean(payload.canSelfBootstrapAdmin),
+    hasConfiguredPrivilegedEmails: Boolean(payload.hasConfiguredPrivilegedEmails),
+    databaseConfigured: Boolean(payload.databaseConfigured),
+    localPasswordAuthEnabled: Boolean(payload.localPasswordAuthEnabled),
+    oidcEnabled: Boolean(payload.oidcEnabled),
   };
 }

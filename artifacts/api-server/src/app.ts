@@ -71,6 +71,10 @@ function collectCorsOrigins(): Set<string> {
 const allowedCorsOrigins = collectCorsOrigins();
 
 const app = express();
+const API_SECURITY_HEADERS = {
+  "Permissions-Policy":
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()",
+};
 
 function isProductionLike(): boolean {
   return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
@@ -95,8 +99,13 @@ app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("X-Frame-Options", "DENY");
+  for (const [key, value] of Object.entries(API_SECURITY_HEADERS)) {
+    res.setHeader(key, value);
+  }
   next();
 });
 app.use(
@@ -113,8 +122,13 @@ app.use(
   }),
 );
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
 app.use(
   "/api",
   createRateLimiter({
