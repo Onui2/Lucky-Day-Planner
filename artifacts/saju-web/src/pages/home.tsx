@@ -31,12 +31,14 @@ import {
   FileText,
   Download,
   ReceiptText,
+  MessageCircleQuestion,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@workspace/replit-auth-web";
 import {
   downloadReportFile,
   useGetDailyFortune,
+  useGetMyAiQuestions,
   useGetMyOrders,
   useGetMyReports,
 } from "@workspace/api-client-react";
@@ -183,6 +185,14 @@ function getOrderStatusLabel(status?: string | null) {
   return status ?? "상태 확인 중";
 }
 
+function getAiPlanLabel(planCode?: string | null, unlimited?: boolean) {
+  if (unlimited) return "운영자";
+  if (planCode === "expert") return "Expert";
+  if (planCode === "pro") return "Pro";
+  if (planCode === "premium") return "Premium";
+  return "무료";
+}
+
 export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
@@ -199,6 +209,8 @@ export default function Home() {
   const { data: reportsData, isLoading: reportsLoading } =
     useGetMyReports(isAuthenticated);
   const { data: ordersData } = useGetMyOrders(isAuthenticated);
+  const { data: aiQuestionsData, isLoading: aiQuestionsLoading } =
+    useGetMyAiQuestions(isAuthenticated);
   const { data: dailyFortune, isLoading: dailyFortuneLoading } =
     useGetDailyFortune(
       { date: todayDate },
@@ -300,6 +312,20 @@ export default function Home() {
   const latestReport = reportsData?.reports?.[0] ?? null;
   const latestOrder = ordersData?.orders?.[0] ?? null;
   const latestReportStatus = getReportStatusMeta(latestReport?.status);
+  const latestAiQuestion = aiQuestionsData?.questions?.[0] ?? null;
+  const hasUnlimitedAiAccess = Boolean(isAdmin || aiQuestionsData?.unlimited);
+  const aiRemainingCount = aiQuestionsData?.remaining ?? 0;
+  const aiLimitCount = aiQuestionsData?.limit ?? 0;
+  const aiQuestionCount = aiQuestionsData?.questions?.length ?? 0;
+  const aiPlanLabel = getAiPlanLabel(
+    aiQuestionsData?.planCode,
+    hasUnlimitedAiAccess,
+  );
+  const aiUsageLabel = hasUnlimitedAiAccess
+    ? "이번 달 무제한 이용"
+    : `${aiRemainingCount}/${aiLimitCount}회 남음`;
+  const aiQuestionsExhausted =
+    !hasUnlimitedAiAccess && Boolean(aiQuestionsData) && aiRemainingCount < 1;
   const todayRelation =
     profile?.dayMasterElement && dailyFortune?.dayElement
       ? getElementRelation(
@@ -756,7 +782,7 @@ export default function Home() {
                   ) : null}
                 </div>
 
-                <div className="xl:col-span-2 grid grid-cols-[repeat(3,minmax(160px,1fr))] gap-3 overflow-x-auto pb-1 lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:pb-0">
+                <div className="xl:col-span-2 grid grid-cols-[repeat(4,minmax(180px,1fr))] gap-3 overflow-x-auto pb-1 lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
                   <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
@@ -841,6 +867,82 @@ export default function Home() {
                     ) : (
                       <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
                         아직 구매한 리포트 없음.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <MessageCircleQuestion className="w-4 h-4 text-sky-600" />
+                        <h3 className="font-medium text-foreground">
+                          AI 질문
+                        </h3>
+                      </div>
+                      <Link
+                        href="/saju"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        질문하기
+                      </Link>
+                    </div>
+
+                    {aiQuestionsLoading ? (
+                      <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
+                        이용 현황 확인 중.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-[11px] text-muted-foreground">
+                                현재 플랜
+                              </div>
+                              <div className="mt-1 font-medium text-sm text-foreground">
+                                {aiPlanLabel} · {aiUsageLabel}
+                              </div>
+                            </div>
+                            <span className="shrink-0 rounded-full border border-sky-500/25 bg-sky-500/8 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                              {hasUnlimitedAiAccess ? "무제한" : "월간"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            최근 저장된 질문 {aiQuestionCount}개
+                          </div>
+                        </div>
+
+                        {latestAiQuestion ? (
+                          <div className="rounded-xl border border-sky-500/15 bg-sky-500/5 px-3 py-2.5">
+                            <div className="text-[11px] text-sky-700/80">
+                              최근 질문
+                            </div>
+                            <p className="mt-1 text-xs text-foreground/80 leading-relaxed line-clamp-2">
+                              {latestAiQuestion.question}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
+                            아직 AI 질문 기록 없음.
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                            <Clock className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                            <span className="truncate">
+                              {latestAiQuestion
+                                ? `${formatDashboardDate(latestAiQuestion.createdAt)} 마지막 질문`
+                                : "사주 해석 뒤 바로 이어서 물어볼 수 있어요"}
+                            </span>
+                          </div>
+                          <Link
+                            href="/saju"
+                            className="text-xs text-primary hover:underline shrink-0"
+                          >
+                            {aiQuestionsExhausted ? "사주 보기" : "열기"}
+                          </Link>
+                        </div>
                       </div>
                     )}
                   </div>
