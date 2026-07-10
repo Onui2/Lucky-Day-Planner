@@ -62,6 +62,7 @@ import { getElementRelation } from "@/lib/saju-relation";
 import { fetchMonthlyFortune } from "@/lib/monthly-fortune";
 
 type InquiryType = "general" | "saju" | "gungap";
+type DashboardDetailView = "core" | "history" | "all";
 type MemberServiceFocus =
   | "all"
   | "fortune"
@@ -399,10 +400,18 @@ function getDailyScoreFocus(
 }
 
 function getUpcomingBookmarkSummary(
-  bookmarks: LuckyDayBookmark[],
+  bookmarks: Array<
+    Pick<LuckyDayBookmark, "year" | "month" | "day" | "purposeLabel" | "grade">
+  >,
   todayDate: string,
 ) {
-  let nearest: { bookmark: LuckyDayBookmark; diffDays: number } | null = null;
+  let nearest: {
+    bookmark: Pick<
+      LuckyDayBookmark,
+      "year" | "month" | "day" | "purposeLabel" | "grade"
+    >;
+    diffDays: number;
+  } | null = null;
 
   for (const bookmark of bookmarks) {
     const diffDays = getDateDiffFromToday(bookmark, todayDate);
@@ -461,9 +470,13 @@ export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
   const [inquiryDraft, setInquiryDraft] = useState<InquiryDraft>({});
+  const [dashboardDetailView, setDashboardDetailView] =
+    useState<DashboardDetailView>("core");
   const [memberServiceFocus, setMemberServiceFocus] =
     useState<MemberServiceFocus>("all");
   const [memberServiceQuery, setMemberServiceQuery] = useState("");
+  const [showMemberServiceCatalog, setShowMemberServiceCatalog] =
+    useState(false);
   const [aiPromptCopied, setAiPromptCopied] = useState(false);
   const [showMonthlyDetailsMobile, setShowMonthlyDetailsMobile] =
     useState(false);
@@ -921,6 +934,8 @@ export default function Home() {
     if (leftRecommended === rightRecommended) return 0;
     return leftRecommended ? -1 : 1;
   });
+  const showDashboardCoreCards = dashboardDetailView !== "history";
+  const showDashboardHistoryCards = dashboardDetailView !== "core";
   const recommendedActions = [
     !profile
       ? {
@@ -1611,7 +1626,54 @@ export default function Home() {
                   ) : null}
                 </div>
 
-                <div className="xl:col-span-2 grid grid-cols-[repeat(4,minmax(180px,1fr))] gap-3 overflow-x-auto pb-1 lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
+                <div className="xl:col-span-2 space-y-3">
+                  <div className="flex flex-col gap-3 rounded-3xl border border-primary/15 bg-background/20 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                        대시보드 보기
+                      </div>
+                      <p className="mt-1 text-sm text-foreground">
+                        자주 쓰는 정보만 먼저 보이도록 정리했습니다.
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        핵심 보기에서는 AI와 리포트, 기록 보기에서는 길일과 최근
+                        분석만 먼저 보여줍니다.
+                      </p>
+                    </div>
+                    <div className="inline-flex w-full rounded-full border border-primary/15 bg-background/35 p-1 md:w-auto">
+                      {[
+                        { value: "core", label: "핵심" },
+                        { value: "history", label: "기록" },
+                        { value: "all", label: "전체" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() =>
+                            setDashboardDetailView(
+                              option.value as DashboardDetailView,
+                            )
+                          }
+                          className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors md:flex-none ${
+                            dashboardDetailView === option.value
+                              ? "bg-primary/12 text-primary"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div
+                    className={`grid gap-3 overflow-x-auto pb-1 lg:gap-4 lg:overflow-visible lg:pb-0 ${
+                      dashboardDetailView === "all"
+                        ? "grid-cols-[repeat(4,minmax(180px,1fr))] lg:grid-cols-4"
+                        : "grid-cols-[repeat(2,minmax(220px,1fr))] lg:grid-cols-2"
+                    }`}
+                  >
+                  {showDashboardCoreCards && (
                   <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
@@ -1712,7 +1774,9 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+                  )}
 
+                  {showDashboardCoreCards && (
                   <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
@@ -1808,7 +1872,9 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+                  )}
 
+                  {showDashboardHistoryCards && (
                   <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
@@ -1908,7 +1974,9 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+                  )}
 
+                  {showDashboardHistoryCards && (
                   <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
@@ -2017,6 +2085,8 @@ export default function Home() {
                         아직 최근 기록 없음.
                       </div>
                     )}
+                  </div>
+                  )}
                   </div>
                 </div>
               </div>
@@ -2253,120 +2323,175 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-3">
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <div className="flex items-center gap-2">
-                  <Search className="w-3.5 h-3.5 text-primary" />
-                  <p className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
-                    분석 좁혀보기
+            <div className="mt-4 rounded-3xl border border-primary/15 bg-background/20 p-4 md:p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Search className="w-3.5 h-3.5 text-primary" />
+                    <p className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                      전체 서비스 탐색
+                    </p>
+                  </div>
+                  <p className="mt-1 text-sm text-foreground">
+                    추천 분석만 먼저 보여주고, 필요할 때 전체 목록을 펼칠 수
+                    있게 바꿨습니다.
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    전체 {MEMBER_SERVICE_CARDS.length}개 서비스 중 지금은 추천
+                    흐름부터 먼저 보이게 정리했습니다.
                   </p>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {filteredMemberServiceCards.length}/{MEMBER_SERVICE_CARDS.length}
-                  개 표시 중
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {MEMBER_SERVICE_FOCUS_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setMemberServiceFocus(option.value)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      memberServiceFocus === option.value
-                        ? "border-primary/30 bg-primary/10 text-primary"
-                        : "border-foreground/10 bg-background/35 text-muted-foreground hover:bg-background/50 hover:text-foreground"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-3 flex items-center gap-2 rounded-2xl border border-foreground/10 bg-background/35 px-3 py-2">
-                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-                <input
-                  value={memberServiceQuery}
-                  onChange={(event) =>
-                    setMemberServiceQuery(event.target.value)
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowMemberServiceCatalog((current) => !current)
                   }
-                  placeholder="예: 연애, 대운, 이름, 길일"
-                  className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                />
-                {memberServiceQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setMemberServiceQuery("")}
-                    className="shrink-0 text-xs text-primary hover:underline"
-                  >
-                    지우기
-                  </button>
-                )}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full border border-primary/20 bg-background/45 px-3 py-1.5 text-xs font-medium text-primary hover:bg-background/60"
+                >
+                  {showMemberServiceCatalog ? "서비스 접기" : "서비스 펼치기"}
+                  {showMemberServiceCatalog ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
               </div>
+
+              {showMemberServiceCatalog ? (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Search className="w-3.5 h-3.5 text-primary" />
+                      <p className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                        분석 좁혀보기
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {filteredMemberServiceCards.length}/
+                      {MEMBER_SERVICE_CARDS.length}개 표시 중
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {MEMBER_SERVICE_FOCUS_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setMemberServiceFocus(option.value)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          memberServiceFocus === option.value
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "border-foreground/10 bg-background/35 text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 rounded-2xl border border-foreground/10 bg-background/35 px-3 py-2">
+                    <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <input
+                      value={memberServiceQuery}
+                      onChange={(event) =>
+                        setMemberServiceQuery(event.target.value)
+                      }
+                      placeholder="예: 연애, 대운, 이름, 길일"
+                      className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                    {memberServiceQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setMemberServiceQuery("")}
+                        className="shrink-0 text-xs text-primary hover:underline"
+                      >
+                        지우기
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    {filteredMemberServiceCards.length > 0 ? (
+                      <motion.div
+                        className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4"
+                        variants={container}
+                        initial="hidden"
+                        animate="show"
+                      >
+                        {filteredMemberServiceCards.map((card) => {
+                          const Icon = card.icon;
+                          const insight = memberServiceInsightByHref[card.href];
+                          const isRecommended =
+                            recommendedMemberServiceHrefs.has(card.href);
+
+                          return (
+                            <motion.div key={card.href} variants={item}>
+                              <Link href={card.href} className="block group h-full">
+                                <div
+                                  className={`h-full rounded-3xl border bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:-translate-y-2 relative overflow-hidden ${card.cardClass} ${card.shadowClass}`}
+                                >
+                                  <div
+                                    className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl transition-colors ${card.orbClass}`}
+                                  />
+                                  {(insight || isRecommended) && (
+                                    <div className="absolute left-4 top-4 flex flex-wrap gap-1.5">
+                                      {insight && (
+                                        <div
+                                          className={`rounded-full border px-2.5 py-1 text-[11px] font-medium backdrop-blur-sm ${insight.className}`}
+                                        >
+                                          {insight.label}
+                                        </div>
+                                      )}
+                                      {isRecommended && (
+                                        <div className="rounded-full border border-primary/20 bg-background/70 px-2.5 py-1 text-[11px] font-medium text-primary backdrop-blur-sm">
+                                          추천 분석
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  <div
+                                    className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 border group-hover:scale-110 transition-transform ${insight || isRecommended ? "mt-8" : ""} ${card.iconBoxClass}`}
+                                  >
+                                    <Icon className={`w-7 h-7 ${card.textClass}`} />
+                                  </div>
+                                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                                    {card.title}
+                                  </h3>
+                                  <p className="text-muted-foreground mb-8">
+                                    {card.desc}
+                                  </p>
+                                  <div
+                                    className={`flex items-center font-medium group-hover:gap-3 transition-all gap-2 ${card.textClass}`}
+                                  >
+                                    {card.action}{" "}
+                                    <ArrowRight className="w-4 h-4" />
+                                  </div>
+                                </div>
+                              </Link>
+                            </motion.div>
+                          );
+                        })}
+                      </motion.div>
+                    ) : (
+                      <div className="rounded-3xl border border-foreground/10 bg-background/35 px-4 py-5 text-sm text-muted-foreground">
+                        검색 결과가 없습니다. 다른 키워드나 주제를 선택해보세요.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-primary/15 bg-background/45 px-3 py-1 text-xs text-primary">
+                    추천 분석 {memberServiceRecommendations.length}개 우선 노출
+                  </span>
+                  <span className="rounded-full border border-foreground/10 bg-background/35 px-3 py-1 text-xs text-muted-foreground">
+                    전체 서비스 {MEMBER_SERVICE_CARDS.length}개
+                  </span>
+                  <span className="rounded-full border border-foreground/10 bg-background/35 px-3 py-1 text-xs text-muted-foreground">
+                    필터·검색은 펼친 뒤 사용
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-
-          {filteredMemberServiceCards.length > 0 ? (
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6"
-              variants={container}
-              initial="hidden"
-              animate="show"
-            >
-              {filteredMemberServiceCards.map((card) => {
-                const Icon = card.icon;
-                const insight = memberServiceInsightByHref[card.href];
-                const isRecommended = recommendedMemberServiceHrefs.has(card.href);
-
-                return (
-                  <motion.div key={card.href} variants={item}>
-                    <Link href={card.href} className="block group h-full">
-                      <div
-                        className={`h-full rounded-3xl border bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:-translate-y-2 relative overflow-hidden ${card.cardClass} ${card.shadowClass}`}
-                      >
-                        <div
-                          className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl transition-colors ${card.orbClass}`}
-                        />
-                        {(insight || isRecommended) && (
-                          <div className="absolute left-4 top-4 flex flex-wrap gap-1.5">
-                            {insight && (
-                              <div
-                                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium backdrop-blur-sm ${insight.className}`}
-                              >
-                                {insight.label}
-                              </div>
-                            )}
-                            {isRecommended && (
-                              <div className="rounded-full border border-primary/20 bg-background/70 px-2.5 py-1 text-[11px] font-medium text-primary backdrop-blur-sm">
-                                추천 분석
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <div
-                          className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 border group-hover:scale-110 transition-transform ${insight || isRecommended ? "mt-8" : ""} ${card.iconBoxClass}`}
-                        >
-                          <Icon className={`w-7 h-7 ${card.textClass}`} />
-                        </div>
-                        <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                          {card.title}
-                        </h3>
-                        <p className="text-muted-foreground mb-8">{card.desc}</p>
-                        <div
-                          className={`flex items-center font-medium group-hover:gap-3 transition-all gap-2 ${card.textClass}`}
-                        >
-                          {card.action} <ArrowRight className="w-4 h-4" />
-                        </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
-          ) : (
-            <div className="rounded-3xl border border-foreground/10 bg-background/35 px-4 py-5 text-sm text-muted-foreground">
-              검색 결과가 없습니다. 다른 키워드나 주제를 선택해보세요.
-            </div>
-          )}
         </motion.div>
       )}
 

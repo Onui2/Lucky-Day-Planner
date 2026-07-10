@@ -1381,6 +1381,50 @@ export default function SajuPage() {
     gender: (bi.gender === "female" ? "female" : "male") as "male" | "female",
     calendarType: (bi.calendarType === "lunar" ? "lunar" : "solar") as "solar" | "lunar",
   };
+  const analysisHighlights = [
+    {
+      label: "일주 중심축",
+      value:
+        r.dayPillar?.heavenlyStem && r.dayPillar?.earthlyBranch
+          ? `${toStemHanja(r.dayPillar.heavenlyStem)}${toBranchHanja(r.dayPillar.earthlyBranch)} · ${r.dayMasterElement ?? ""}`
+          : `${r.dayMasterElement ?? "일간"} 중심`,
+      description: currentAge
+        ? `${currentAge}세 전후 흐름을 읽는 기준축입니다.`
+        : "타고난 기질과 선택 방향을 읽는 기준축입니다.",
+    },
+    r.sinGangYak
+      ? {
+          label: "신강/신약",
+          value: r.sinGangYak.type,
+          description:
+            r.sinGangYak.advice ??
+            r.sinGangYak.description ??
+            "기운의 강약 균형을 먼저 확인해보세요.",
+        }
+      : null,
+    r.yongsin
+      ? {
+          label: "용신·희신",
+          value: `${r.yongsin.yongsin} · ${r.yongsin.heegsin}`,
+          description:
+            r.yongsin.advice ?? "균형을 잡아주는 핵심 오행 포인트입니다.",
+        }
+      : null,
+    {
+      label: "보완 포인트",
+      value: r.lackingElement
+        ? `${getElementKor(r.lackingElement)} 보완`
+        : "오행 균형",
+      description: r.dominantElement
+        ? `${getElementKor(r.dominantElement)} 기운이 강하게 드러나는 편입니다.`
+        : "강한 기운과 부족한 기운의 균형을 함께 보세요.",
+    },
+  ].filter(
+    (
+      item,
+    ): item is { label: string; value: string; description: string } =>
+      Boolean(item),
+  );
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -1515,6 +1559,25 @@ export default function SajuPage() {
               {s.label}
               {visibleSections[s.key] ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
             </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 mb-8 sm:grid-cols-2 xl:grid-cols-4">
+          {analysisHighlights.map((highlight) => (
+            <div
+              key={highlight.label}
+              className="rounded-2xl border border-primary/15 bg-background/30 px-4 py-3"
+            >
+              <div className="text-[11px] tracking-[0.18em] uppercase text-primary/65">
+                {highlight.label}
+              </div>
+              <div className="mt-1 font-serif text-lg font-bold text-foreground">
+                {highlight.value}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-2 break-keep">
+                {highlight.description}
+              </p>
+            </div>
           ))}
         </div>
 
@@ -2709,28 +2772,116 @@ export default function SajuPage() {
           )}
 
           {/* ── 일간 심층 분석 ── */}
-          {visibleSections.daymaster && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="space-y-4">
-              <SectionHeader icon="🌟" title="일간 심층 분석 (日干)" />
+          {visibleSections.daymaster && (() => {
+            const daymasterCards = [
+              {
+                key: "fortune",
+                title: "평생 총운",
+                desc: r.fortune,
+                icon: "✨",
+              },
+              {
+                key: "personality",
+                title: "타고난 성향",
+                desc: r.personality,
+                icon: "🧠",
+              },
+              {
+                key: "shadow",
+                title: "그림자와 주의점",
+                desc: formatShadowReadingText(r.shadowReading),
+                icon: "⚠️",
+                borderClass: "border-amber-500/20",
+              },
+              {
+                key: "love",
+                title: "애정·연애운",
+                desc: r.love,
+                icon: "💕",
+              },
+              {
+                key: "health",
+                title: "건강 관리",
+                desc: r.health,
+                icon: "🌿",
+              },
+            ].filter(
+              (
+                section,
+              ): section is {
+                key: string;
+                title: string;
+                desc: string;
+                icon: string;
+                borderClass?: string;
+              } => Boolean(section.desc),
+            );
+            const featuredCard =
+              daymasterCards.find((card) => card.key === "fortune") ??
+              daymasterCards[0] ??
+              null;
+            const supportingCards = daymasterCards.filter(
+              (card) => card.key !== featuredCard?.key,
+            );
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { title:"타고난 성향", desc: r.personality, icon: "🧠" },
-                  { title:"그림자와 주의점", desc: formatShadowReadingText(r.shadowReading), icon: "⚠️" },
-                  { title:"애정·연애운",  desc: r.love,        icon: "💕" },
-                  { title:"건강 관리",   desc: r.health,      icon: "🌿" },
-                  { title:"평생 총운",   desc: r.fortune,     icon: "✨" },
-                ].filter((s) => Boolean(s.desc)).map((s, idx) => (
-                  <Card key={idx} className="glass-panel border-primary/20">
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.16 }}
+                className="space-y-4"
+              >
+                <SectionHeader icon="🌟" title="일간 심층 분석 (日干)" />
+
+                {featuredCard && (
+                  <Card className="glass-panel border-primary/25 bg-background/25">
                     <CardHeader className="pb-3 border-b border-primary/10">
-                      <CardTitle className="text-lg flex items-center gap-2"><span>{s.icon}</span>{s.title}</CardTitle>
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <span>{featuredCard.icon}</span>
+                          {featuredCard.title}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          먼저 읽으면 전체 흐름이 더 잘 잡힙니다.
+                        </p>
+                      </div>
                     </CardHeader>
-                    <CardContent className="pt-4"><p className="text-base text-foreground/90 leading-relaxed">{s.desc}</p></CardContent>
+                    <CardContent className="pt-4">
+                      <p className="max-w-3xl text-[15px] text-foreground/90 leading-7 break-keep">
+                        {featuredCard.desc}
+                      </p>
+                    </CardContent>
                   </Card>
-                ))}
-              </div>
-            </motion.div>
-          )}
+                )}
+
+                {supportingCards.length > 0 && (
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-stretch">
+                    {supportingCards.map((section) => (
+                      <Card
+                        key={section.key}
+                        className={cn(
+                          "glass-panel h-full border-primary/20",
+                          section.borderClass,
+                        )}
+                      >
+                        <CardHeader className="min-h-[72px] pb-3 border-b border-primary/10">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <span>{section.icon}</span>
+                            {section.title}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                          <p className="text-[15px] text-foreground/90 leading-7 break-keep">
+                            {section.desc}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })()}
 
           {/* ── 직업 적성 ── */}
           {visibleSections.career && (
