@@ -1590,7 +1590,7 @@ export default function SajuPage() {
             : "",
         ]
           .filter(Boolean)
-          .join(" · ") || "생활 공간과 일정 안에 보완 포인트를 먼저 넣어보세요.",
+          .join(" · ") || "생활 공간과 일정 안에 균형 포인트를 먼저 넣어보세요.",
         96,
       );
   const focusActionTitle = r.career
@@ -2176,7 +2176,7 @@ export default function SajuPage() {
                       <span className="px-3 py-1 rounded-full bg-destructive/20 text-destructive text-xs border border-destructive/30">적게 드러남: {getElementKor(r.lackingElement)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      천간·지지에 보이는 개수 기준입니다. 아래 조후 보완이나 용신 판단과는 다를 수 있습니다.
+                      천간·지지에 보이는 개수 기준입니다. 아래 계절 균형 기준 보완이나 용신 판단과는 다를 수 있습니다.
                     </p>
                     {hiddenElementScores && hiddenElementStats && (
                       <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.03] p-3">
@@ -2395,8 +2395,8 @@ export default function SajuPage() {
                     <div className="text-sm text-muted-foreground mb-1">{label}</div>
                     <div className={`text-4xl font-serif font-bold mb-1 ${ELEM_COLOR[elem]?.split(' ')[0]}`}>{elem}</div>
                     <div className="text-xs text-muted-foreground">{subtitle}</div>
-                    {positive && <div className={`mt-3 inline-block px-3 py-1 rounded-full text-xs ${ELEM_BG[elem]}`}>{elem}(을)를 보충하세요</div>}
-                    {!positive && <div className="mt-3 inline-block px-3 py-1 rounded-full text-xs bg-destructive/15 text-destructive/80">{elem} 기운을 자제하세요</div>}
+                    {positive && <div className={`mt-3 inline-block px-3 py-1 rounded-full text-xs ${ELEM_BG[elem]}`}>{elem} 기운을 생활에 더해보세요</div>}
+                    {!positive && <div className="mt-3 inline-block px-3 py-1 rounded-full text-xs bg-destructive/15 text-destructive/80">{elem} 기운은 강하게 키우지 않는 편이 좋습니다</div>}
                   </Card>
                 ))}
               </div>
