@@ -26,6 +26,11 @@ import {
 import { createBirthProfileSearchParams } from "@/lib/birth-profile-query";
 import { cn, getElementStyles, getElementKor } from "@/lib/utils";
 import {
+  getElementExtremes,
+  getHiddenElementScores,
+  KOREAN_ELEMENTS,
+} from "@/lib/saju-balance";
+import {
   clampBirthDayValue,
   getBirthDateError,
   getBirthDayMax,
@@ -371,68 +376,6 @@ const ELEM_BG: Record<string, string> = {
   '금': 'bg-gray-400/20 text-gray-700',
   '수': 'bg-blue-500/20 text-blue-700',
 };
-
-const KOREAN_ELEMENTS = ["목", "화", "토", "금", "수"] as const;
-type KoreanElement = (typeof KOREAN_ELEMENTS)[number];
-
-function getHiddenElementScores(hiddenStemAnalysis: any): Record<KoreanElement, number> | null {
-  const scores = hiddenStemAnalysis?.elementScores;
-  if (!scores || typeof scores !== "object") return null;
-
-  const keyMap: Record<string, KoreanElement> = {
-    wood: "목",
-    fire: "화",
-    earth: "토",
-    metal: "금",
-    water: "수",
-    목: "목",
-    화: "화",
-    토: "토",
-    금: "금",
-    수: "수",
-  };
-
-  const normalized = Object.fromEntries(
-    KOREAN_ELEMENTS.map((element) => [element, 0]),
-  ) as Record<KoreanElement, number>;
-
-  let hasValue = false;
-  Object.entries(scores as Record<string, unknown>).forEach(([rawKey, rawValue]) => {
-    const element = keyMap[rawKey];
-    const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
-    if (!element || !Number.isFinite(value)) return;
-    normalized[element] = value;
-    hasValue = true;
-  });
-
-  return hasValue ? normalized : null;
-}
-
-function getElementExtremes(scores: Record<KoreanElement, number> | null) {
-  if (!scores) return null;
-
-  let dominant: KoreanElement = "목";
-  let lacking: KoreanElement = "목";
-  let maxScore = -Infinity;
-  let minScore = Infinity;
-
-  KOREAN_ELEMENTS.forEach((element) => {
-    const score = scores[element];
-    if (score > maxScore) {
-      maxScore = score;
-      dominant = element;
-    }
-    if (score < minScore) {
-      minScore = score;
-      lacking = element;
-    }
-  });
-
-  return {
-    dominant,
-    lacking,
-  };
-}
 
 // ─── 메인 컴포넌트 ───────────────────────────────────
 export default function SajuPage() {
@@ -1303,6 +1246,15 @@ export default function SajuPage() {
     });
   };
 
+  const handleOpenActionPlanAi = useCallback((question: string) => {
+    setActionPlanQuestion(null);
+    setFloatingPanel("ai");
+    globalThis.requestAnimationFrame(() => {
+      setActionPlanQuestion(question);
+      setFloatingPanel("ai");
+    });
+  }, []);
+
   // ─── 입력 폼 ───────────────────────────────────────
   if (!r) return (
     <div className="max-w-6xl mx-auto">
@@ -1726,14 +1678,6 @@ export default function SajuPage() {
     actionPlanQuestion === null
       ? undefined
       : actionPlanQuestion ?? initialAiQuestion;
-  const handleOpenActionPlanAi = useCallback((question: string) => {
-    setActionPlanQuestion(null);
-    setFloatingPanel("ai");
-    globalThis.requestAnimationFrame(() => {
-      setActionPlanQuestion(question);
-      setFloatingPanel("ai");
-    });
-  }, []);
 
   return (
     <div className="max-w-6xl mx-auto">

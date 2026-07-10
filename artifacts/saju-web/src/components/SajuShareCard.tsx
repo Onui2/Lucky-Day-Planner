@@ -1,4 +1,8 @@
 import { forwardRef } from "react";
+import {
+  getElementExtremes,
+  getHiddenElementScores,
+} from "@/lib/saju-balance";
 
 const STEM_HANJA: Record<string, string> = {
   갑: "甲", 을: "乙", 병: "丙", 정: "丁", 무: "戊",
@@ -17,8 +21,6 @@ const ELEM_KOR: Record<string, string> = {
 const ELEM_LABEL: Record<string, string> = {
   목: "목 (木)", 화: "화 (火)", 토: "토 (土)", 금: "금 (金)", 수: "수 (水)",
 };
-const KOREAN_ELEMENTS = ["목", "화", "토", "금", "수"] as const;
-type KoreanElement = (typeof KOREAN_ELEMENTS)[number];
 
 function sh(k: string) { return STEM_HANJA[k] ?? k; }
 function bh(k: string) { return BRANCH_HANJA[k] ?? k; }
@@ -49,63 +51,6 @@ function compactShadowReading(shadow: unknown) {
     : "";
   const text = [summary, firstPitfall ? `주의: ${firstPitfall.trim()}` : ""].filter(Boolean).join(" ");
   return text.length > 90 ? `${text.slice(0, 87)}...` : text;
-}
-
-function getHiddenElementScores(hiddenStemAnalysis: unknown): Record<KoreanElement, number> | null {
-  if (!hiddenStemAnalysis || typeof hiddenStemAnalysis !== "object") return null;
-  const scores = (hiddenStemAnalysis as Record<string, unknown>).elementScores;
-  if (!scores || typeof scores !== "object") return null;
-
-  const keyMap: Record<string, KoreanElement> = {
-    wood: "목",
-    fire: "화",
-    earth: "토",
-    metal: "금",
-    water: "수",
-    목: "목",
-    화: "화",
-    토: "토",
-    금: "금",
-    수: "수",
-  };
-
-  const normalized = Object.fromEntries(
-    KOREAN_ELEMENTS.map((element) => [element, 0]),
-  ) as Record<KoreanElement, number>;
-
-  let hasValue = false;
-  Object.entries(scores as Record<string, unknown>).forEach(([rawKey, rawValue]) => {
-    const element = keyMap[rawKey];
-    const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
-    if (!element || !Number.isFinite(value)) return;
-    normalized[element] = value;
-    hasValue = true;
-  });
-
-  return hasValue ? normalized : null;
-}
-
-function getElementExtremes(scores: Record<KoreanElement, number> | null) {
-  if (!scores) return null;
-
-  let dominant: KoreanElement = "목";
-  let lacking: KoreanElement = "목";
-  let maxScore = -Infinity;
-  let minScore = Infinity;
-
-  KOREAN_ELEMENTS.forEach((element) => {
-    const score = scores[element];
-    if (score > maxScore) {
-      maxScore = score;
-      dominant = element;
-    }
-    if (score < minScore) {
-      minScore = score;
-      lacking = element;
-    }
-  });
-
-  return { dominant, lacking };
 }
 
 interface Props {
