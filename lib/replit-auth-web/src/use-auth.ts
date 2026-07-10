@@ -68,6 +68,17 @@ function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
+function hasStoredSupabaseSession(): boolean {
+  if (!canUseStorage()) {
+    return false;
+  }
+
+  return Boolean(
+    window.localStorage.getItem(SUPABASE_ACCESS_TOKEN_STORAGE_KEY) ??
+    window.localStorage.getItem(SUPABASE_REFRESH_TOKEN_STORAGE_KEY),
+  );
+}
+
 function getStoredAccessToken(): string | null {
   if (!canUseStorage()) return null;
   return window.localStorage.getItem(SUPABASE_ACCESS_TOKEN_STORAGE_KEY);
@@ -210,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const syncSupabaseSession = useCallback(async () => {
-    if (!isSupabaseAuthEnabled()) {
+    if (!isSupabaseAuthEnabled() || !hasStoredSupabaseSession()) {
       return;
     }
 
@@ -228,7 +239,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUser = useCallback(async () => {
     try {
-      await syncSupabaseSession();
+      if (hasStoredSupabaseSession()) {
+        await syncSupabaseSession();
+      }
       const currentUser = await fetchCurrentUserWithRetry();
       applyUser(currentUser);
     } catch {
@@ -243,7 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void loadUser();
 
-    if (!isSupabaseAuthEnabled()) {
+    if (!isSupabaseAuthEnabled() || !hasStoredSupabaseSession()) {
       return () => {
         isMounted = false;
       };
