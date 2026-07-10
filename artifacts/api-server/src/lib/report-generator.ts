@@ -337,7 +337,7 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
       body:
         formatLuckFlowAnalysis(result) ||
         (result.yongsin?.advice ??
-          "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요."),
+          "조급하게 결론을 내리기보다 표면 분포와 조후·용신 판단을 함께 보며 움직이세요."),
       accent: "#5b5368",
     },
     {
@@ -546,7 +546,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
       body:
         formatLuckFlowAnalysis(result) ||
         (result.yongsin?.advice ??
-          "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요."),
+          "조급하게 결론을 내리기보다 표면 분포와 조후·용신 판단을 함께 보며 움직이세요."),
       accent: "#6d657d",
     },
     {
@@ -797,9 +797,9 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   }
   doc.y = chartTop + elementOrder.length * rowHeight + 6;
 
-  // 많은/부족한 오행 캡션
+  // 표면 오행 분포 캡션
   doc.font("body").fillColor(TEXT_SUB).fontSize(9.5).text(
-    `강한 기운 — ${result.dominantElement ?? "미확인"}    ·    부족한 기운 — ${result.lackingElement ?? "미확인"}`,
+    `표면 분포 — 많이 드러남 ${result.dominantElement ?? "미확인"}    ·    적게 드러남 ${result.lackingElement ?? "미확인"}`,
     margin, doc.y,
     { width: contentWidth },
   );
