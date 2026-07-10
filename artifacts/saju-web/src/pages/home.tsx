@@ -1,14 +1,53 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search, BookmarkPlus, History, UserCircle2, Clock, Palette, Hash, Compass, CheckCircle2, ShieldAlert, Briefcase, Activity } from "lucide-react";
+import {
+  Sparkles,
+  Sun,
+  Calendar,
+  ArrowRight,
+  Heart,
+  FileQuestion,
+  CalendarDays,
+  Type,
+  Orbit,
+  MoonStar,
+  TrendingUp,
+  BookOpen,
+  Star,
+  TableProperties,
+  Search,
+  BookmarkPlus,
+  History,
+  UserCircle2,
+  Clock,
+  Palette,
+  Hash,
+  Compass,
+  CheckCircle2,
+  ShieldAlert,
+  Briefcase,
+  Activity,
+  FileText,
+  Download,
+  ReceiptText,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@workspace/replit-auth-web";
-import { useGetDailyFortune } from "@workspace/api-client-react";
+import {
+  downloadReportFile,
+  useGetDailyFortune,
+  useGetMyOrders,
+  useGetMyReports,
+} from "@workspace/api-client-react";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
-import { formatBookmarkDate, getRecentActivities, type RecentActivityItem } from "@/lib/member-insights";
+import {
+  formatBookmarkDate,
+  getRecentActivities,
+  type RecentActivityItem,
+} from "@/lib/member-insights";
 import { getSeoulTodayString } from "@/lib/seoul-date";
 import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 import { getElementRelation } from "@/lib/saju-relation";
@@ -17,31 +56,139 @@ import { fetchMonthlyFortune } from "@/lib/monthly-fortune";
 type InquiryType = "general" | "saju" | "gungap";
 
 const PREVIEW_FEATURES = [
-  { href: "/daeun", title: "대운 계산기", desc: "10년 단위 인생의 큰 흐름을 타임라인으로", icon: TrendingUp, iconClass: "bg-teal-400/15 border-teal-400/30 text-teal-600" },
-  { href: "/monthly-fortune", title: "월운 분석", desc: "이달의 재물·직업·애정·건강 흐름", icon: CalendarDays, iconClass: "bg-purple-400/15 border-purple-400/30 text-purple-600" },
-  { href: "/year-fortune", title: "연간 운세", desc: "올 한 해를 분기·월별로 상세 분석", icon: CalendarDays, iconClass: "bg-blue-500/15 border-blue-500/30 text-blue-600" },
-  { href: "/lucky-calendar", title: "길일 달력", desc: "이사·개업·결혼에 맞는 최적의 날", icon: Calendar, iconClass: "bg-emerald-400/15 border-emerald-400/30 text-emerald-600" },
-  { href: "/zodiac", title: "띠별 운세", desc: "12지신의 오늘 운세를 순위별로", icon: Orbit, iconClass: "bg-amber-500/15 border-amber-500/30 text-amber-600" },
-  { href: "/dream", title: "꿈 해몽", desc: "꿈 속 키워드로 오늘의 길흉 풀이", icon: MoonStar, iconClass: "bg-indigo-500/15 border-indigo-500/30 text-indigo-600" },
-  { href: "/name-analysis", title: "이름 풀이", desc: "수리사주와 오행으로 이름 운세 분석", icon: Type, iconClass: "bg-violet-500/15 border-violet-500/30 text-violet-600" },
-  { href: "/love-fortune", title: "연애운", desc: "인연 만날 흐름과 오행 궁합 점수", icon: Heart, iconClass: "bg-rose-500/15 border-rose-500/30 text-rose-400" },
+  {
+    href: "/daeun",
+    title: "대운 계산기",
+    desc: "10년 단위 인생의 큰 흐름을 타임라인으로",
+    icon: TrendingUp,
+    iconClass: "bg-teal-400/15 border-teal-400/30 text-teal-600",
+  },
+  {
+    href: "/monthly-fortune",
+    title: "월운 분석",
+    desc: "이달의 재물·직업·애정·건강 흐름",
+    icon: CalendarDays,
+    iconClass: "bg-purple-400/15 border-purple-400/30 text-purple-600",
+  },
+  {
+    href: "/year-fortune",
+    title: "연간 운세",
+    desc: "올 한 해를 분기·월별로 상세 분석",
+    icon: CalendarDays,
+    iconClass: "bg-blue-500/15 border-blue-500/30 text-blue-600",
+  },
+  {
+    href: "/lucky-calendar",
+    title: "길일 달력",
+    desc: "이사·개업·결혼에 맞는 최적의 날",
+    icon: Calendar,
+    iconClass: "bg-emerald-400/15 border-emerald-400/30 text-emerald-600",
+  },
+  {
+    href: "/zodiac",
+    title: "띠별 운세",
+    desc: "12지신의 오늘 운세를 순위별로",
+    icon: Orbit,
+    iconClass: "bg-amber-500/15 border-amber-500/30 text-amber-600",
+  },
+  {
+    href: "/dream",
+    title: "꿈 해몽",
+    desc: "꿈 속 키워드로 오늘의 길흉 풀이",
+    icon: MoonStar,
+    iconClass: "bg-indigo-500/15 border-indigo-500/30 text-indigo-600",
+  },
+  {
+    href: "/name-analysis",
+    title: "이름 풀이",
+    desc: "수리사주와 오행으로 이름 운세 분석",
+    icon: Type,
+    iconClass: "bg-violet-500/15 border-violet-500/30 text-violet-600",
+  },
+  {
+    href: "/love-fortune",
+    title: "연애운",
+    desc: "인연 만날 흐름과 오행 궁합 점수",
+    icon: Heart,
+    iconClass: "bg-rose-500/15 border-rose-500/30 text-rose-400",
+  },
 ] as const;
 
 function getDashboardScoreTone(score?: number) {
   if (typeof score !== "number") {
-    return { label: "확인 중", textClass: "text-muted-foreground", barClass: "bg-muted-foreground" };
+    return {
+      label: "확인 중",
+      textClass: "text-muted-foreground",
+      barClass: "bg-muted-foreground",
+    };
   }
-  if (score >= 82) return { label: "상승", textClass: "text-emerald-600", barClass: "bg-emerald-500" };
-  if (score >= 70) return { label: "활용", textClass: "text-blue-600", barClass: "bg-blue-500" };
-  if (score >= 56) return { label: "무난", textClass: "text-amber-600", barClass: "bg-amber-500" };
-  if (score >= 42) return { label: "주의", textClass: "text-orange-600", barClass: "bg-orange-500" };
+  if (score >= 82)
+    return {
+      label: "상승",
+      textClass: "text-emerald-600",
+      barClass: "bg-emerald-500",
+    };
+  if (score >= 70)
+    return {
+      label: "활용",
+      textClass: "text-blue-600",
+      barClass: "bg-blue-500",
+    };
+  if (score >= 56)
+    return {
+      label: "무난",
+      textClass: "text-amber-600",
+      barClass: "bg-amber-500",
+    };
+  if (score >= 42)
+    return {
+      label: "주의",
+      textClass: "text-orange-600",
+      barClass: "bg-orange-500",
+    };
   return { label: "보수", textClass: "text-rose-600", barClass: "bg-rose-500" };
+}
+
+function formatDashboardDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+}
+
+function getReportStatusMeta(status?: string | null) {
+  if (status === "ready") {
+    return {
+      label: "다운로드 가능",
+      className: "border-emerald-500/25 bg-emerald-500/8 text-emerald-700",
+    };
+  }
+  if (status === "failed") {
+    return {
+      label: "생성 실패",
+      className: "border-rose-500/25 bg-rose-500/8 text-rose-700",
+    };
+  }
+  return {
+    label: "생성 중",
+    className: "border-amber-500/25 bg-amber-500/8 text-amber-700",
+  };
+}
+
+function getOrderStatusLabel(status?: string | null) {
+  if (status === "paid") return "결제 완료";
+  if (status === "pending") return "결제 대기";
+  if (status === "failed") return "결제 실패";
+  if (status === "cancelled") return "결제 취소";
+  return status ?? "상태 확인 중";
 }
 
 export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
-  const [recentActivities, setRecentActivities] = useState<RecentActivityItem[]>([]);
+  const [recentActivities, setRecentActivities] = useState<
+    RecentActivityItem[]
+  >([]);
   const [todayDate, setTodayDate] = useState(() => getSeoulTodayString());
   const { user, isAuthenticated } = useAuth();
   const { profile } = useResolvedProfile();
@@ -49,16 +196,24 @@ export default function Home() {
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const dashboardYear = Number(todayDate.slice(0, 4));
   const dashboardMonth = Number(todayDate.slice(5, 7));
-  const { data: dailyFortune, isLoading: dailyFortuneLoading } = useGetDailyFortune(
-    { date: todayDate },
-    {
-      query: {
-        queryKey: ["/api/fortune/daily", { date: todayDate }, "home-dashboard"],
-        staleTime: 5 * 60_000,
-        enabled: true,
+  const { data: reportsData, isLoading: reportsLoading } =
+    useGetMyReports(isAuthenticated);
+  const { data: ordersData } = useGetMyOrders(isAuthenticated);
+  const { data: dailyFortune, isLoading: dailyFortuneLoading } =
+    useGetDailyFortune(
+      { date: todayDate },
+      {
+        query: {
+          queryKey: [
+            "/api/fortune/daily",
+            { date: todayDate },
+            "home-dashboard",
+          ],
+          staleTime: 5 * 60_000,
+          enabled: true,
+        },
       },
-    },
-  );
+    );
   const {
     data: monthlyFortune,
     isLoading: monthlyFortuneLoading,
@@ -96,14 +251,18 @@ export default function Home() {
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08
-      }
-    }
+        staggerChildren: 0.08,
+      },
+    },
   };
 
   const item = {
     hidden: { opacity: 0, y: 30 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring" as const, stiffness: 300, damping: 24 },
+    },
   };
 
   useEffect(() => {
@@ -135,21 +294,27 @@ export default function Home() {
   }, []);
 
   const todayScoreTone = getDashboardScoreTone(dailyFortune?.overallScore);
-  const monthlyScoreTone = getDashboardScoreTone(monthlyFortune?.scores.overall);
-  const todayRelation = profile?.dayMasterElement && dailyFortune?.dayElement
-    ? getElementRelation(
-        profile.dayMasterElement,
-        dailyFortune.dayElement,
-        profile.dayMasterStem,
-        dailyFortune.dayHeavenlyStem,
-        profile.dayMasterBranch,
-        dailyFortune.dayEarthlyBranch,
-      )
-    : null;
+  const monthlyScoreTone = getDashboardScoreTone(
+    monthlyFortune?.scores.overall,
+  );
+  const latestReport = reportsData?.reports?.[0] ?? null;
+  const latestOrder = ordersData?.orders?.[0] ?? null;
+  const latestReportStatus = getReportStatusMeta(latestReport?.status);
+  const todayRelation =
+    profile?.dayMasterElement && dailyFortune?.dayElement
+      ? getElementRelation(
+          profile.dayMasterElement,
+          dailyFortune.dayElement,
+          profile.dayMasterStem,
+          dailyFortune.dayHeavenlyStem,
+          profile.dayMasterBranch,
+          dailyFortune.dayEarthlyBranch,
+        )
+      : null;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
-      <motion.div 
+      <motion.div
         className="text-center max-w-3xl mx-auto mb-16"
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -157,64 +322,99 @@ export default function Home() {
       >
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-md mb-8">
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-primary">당신의 운명을 비추는 빛</span>
+          <span className="text-sm font-medium text-primary">
+            당신의 운명을 비추는 빛
+          </span>
         </div>
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif font-bold mb-6 text-gradient-gold drop-shadow-2xl break-keep">
-          하늘의 뜻을 읽어<br className="hidden md:block" /> 내일을 준비하다
+          하늘의 뜻을 읽어
+          <br className="hidden md:block" /> 내일을 준비하다
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground leading-relaxed font-light break-keep">
-          정통 명리학을 바탕으로 당신의 사주팔자와 오늘의 운세, <br className="hidden md:block" />
+          정통 명리학을 바탕으로 당신의 사주팔자와 오늘의 운세,{" "}
+          <br className="hidden md:block" />
           그리고 인생의 흐름을 정확하게 짚어드립니다.
         </p>
       </motion.div>
 
       {isAuthenticated && (
         <motion.div
-          className="w-full max-w-5xl mb-12"
+          className="w-full max-w-6xl mb-12"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
         >
-          <div className="rounded-[28px] border border-primary/20 bg-card/35 backdrop-blur-xl p-6 md:p-7">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+          <div className="rounded-[28px] border border-primary/20 bg-card/35 backdrop-blur-xl p-5 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
               <div>
-                <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">my dashboard</p>
-                <h2 className="font-serif text-3xl font-bold text-foreground">내 사주 대시보드</h2>
-                <p className="text-sm text-muted-foreground mt-2">다시 볼 분석과 저장한 길일을 한곳에 모았습니다</p>
+                <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">
+                  my dashboard
+                </p>
+                <h2 className="font-serif text-2xl md:text-3xl font-bold text-foreground">
+                  내 사주 대시보드
+                </h2>
+                <p className="text-sm text-muted-foreground mt-2">
+                  다시 볼 분석과 저장한 길일을 한곳에 모았습니다
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Link href="/saju" className="px-3 py-2 rounded-xl border border-primary/20 bg-primary/8 text-primary text-sm hover:bg-primary/12 transition-colors">
+                <Link
+                  href="/saju"
+                  className="px-3 py-2 rounded-xl border border-primary/20 bg-primary/8 text-primary text-sm hover:bg-primary/12 transition-colors"
+                >
                   사주 다시 보기
                 </Link>
-                <Link href="/account" className="px-3 py-2 rounded-xl border border-foreground/10 bg-foreground/5 text-foreground/80 text-sm hover:bg-foreground/8 transition-colors">
+                <Link
+                  href="/account"
+                  className="px-3 py-2 rounded-xl border border-foreground/10 bg-foreground/5 text-foreground/80 text-sm hover:bg-foreground/8 transition-colors"
+                >
                   내 정보 관리
                 </Link>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4 items-start">
-              <div className="h-fit self-start rounded-3xl border border-primary/15 bg-background/25 p-5">
+            <div className="grid grid-cols-1 xl:grid-cols-[0.82fr_1.18fr] gap-4 items-start">
+              <div className="h-fit self-start rounded-3xl border border-primary/15 bg-background/25 p-4 md:p-5">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
                     <UserCircle2 className="w-6 h-6 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-muted-foreground">내 사주 요약</div>
+                    <div className="text-sm text-muted-foreground">
+                      내 사주 요약
+                    </div>
                     <div className="text-xl font-semibold text-foreground mt-1">
                       {profile?.name ?? user?.firstName ?? "회원님"}
                     </div>
                     {profile ? (
                       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                         <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-3">
-                          <div className="text-[11px] text-muted-foreground mb-1">생년월일</div>
-                          <div className="font-medium">{profile.birthYear}.{String(profile.birthMonth).padStart(2, "0")}.{String(profile.birthDay).padStart(2, "0")}</div>
+                          <div className="text-[11px] text-muted-foreground mb-1">
+                            생년월일
+                          </div>
+                          <div className="font-medium">
+                            {profile.birthYear}.
+                            {String(profile.birthMonth).padStart(2, "0")}.
+                            {String(profile.birthDay).padStart(2, "0")}
+                          </div>
                         </div>
                         <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-3">
-                          <div className="text-[11px] text-muted-foreground mb-1">현재 나이</div>
-                          <div className="font-medium">{getCurrentAge(profile.birthYear, profile.birthMonth, profile.birthDay)}세</div>
+                          <div className="text-[11px] text-muted-foreground mb-1">
+                            현재 나이
+                          </div>
+                          <div className="font-medium">
+                            {getCurrentAge(
+                              profile.birthYear,
+                              profile.birthMonth,
+                              profile.birthDay,
+                            )}
+                            세
+                          </div>
                         </div>
                         <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-3">
-                          <div className="text-[11px] text-muted-foreground mb-1">일주</div>
+                          <div className="text-[11px] text-muted-foreground mb-1">
+                            일주
+                          </div>
                           <div className="font-medium">
                             {profile.dayMasterStem && profile.dayMasterBranch
                               ? `${profile.dayMasterStem}${profile.dayMasterBranch}`
@@ -222,13 +422,19 @@ export default function Home() {
                           </div>
                         </div>
                         <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-3">
-                          <div className="text-[11px] text-muted-foreground mb-1">성별 · 달력</div>
-                          <div className="font-medium">{profile.gender === "male" ? "남성" : "여성"} · {profile.calendarType === "solar" ? "양력" : "음력"}</div>
+                          <div className="text-[11px] text-muted-foreground mb-1">
+                            성별 · 달력
+                          </div>
+                          <div className="font-medium">
+                            {profile.gender === "male" ? "남성" : "여성"} ·{" "}
+                            {profile.calendarType === "solar" ? "양력" : "음력"}
+                          </div>
                         </div>
                       </div>
                     ) : (
                       <div className="mt-3 rounded-2xl border border-primary/15 bg-primary/6 p-4 text-sm text-muted-foreground">
-                        아직 저장된 사주 없음. 등록하면 개인화 메뉴가 훨씬 편해집니다.
+                        아직 저장된 사주 없음. 등록하면 개인화 메뉴가 훨씬
+                        편해집니다.
                       </div>
                     )}
                   </div>
@@ -236,13 +442,20 @@ export default function Home() {
               </div>
 
               <div className="contents">
-                <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">
+                <div className="rounded-3xl border border-primary/15 bg-background/25 p-4 md:p-5">
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2">
                       <Sun className="w-4 h-4 text-primary" />
-                      <h3 className="font-medium text-foreground">오늘의 흐름</h3>
+                      <h3 className="font-medium text-foreground">
+                        오늘의 흐름
+                      </h3>
                     </div>
-                    <Link href="/daily-fortune" className="text-xs text-primary hover:underline">전체 보기</Link>
+                    <Link
+                      href="/daily-fortune"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      전체 보기
+                    </Link>
                   </div>
 
                   {dailyFortuneLoading ? (
@@ -250,133 +463,168 @@ export default function Home() {
                       오늘 운세 불러오는 중.
                     </div>
                   ) : dailyFortune ? (
-                    <div className="space-y-2.5">
-                      <div className="rounded-2xl border border-primary/15 bg-primary/8 p-4">
+                    <div className="space-y-2">
+                      <div className="rounded-2xl border border-primary/15 bg-primary/8 p-3 md:p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-[11px] text-muted-foreground">{todayDate}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {todayDate}
+                            </div>
                             <div className="text-lg font-semibold text-foreground mt-1">
-                              {dailyFortune.dayGanzi} · {dailyFortune.dayElement}
+                              {dailyFortune.dayGanzi} ·{" "}
+                              {dailyFortune.dayElement}
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-[11px] text-muted-foreground">흐름 지수</div>
-                            <div className={`text-2xl font-bold ${todayScoreTone.textClass}`}>{dailyFortune.overallScore}점</div>
-                            <div className={`text-[11px] font-medium ${todayScoreTone.textClass}`}>{todayScoreTone.label}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              흐름 지수
+                            </div>
+                            <div
+                              className={`text-2xl font-bold ${todayScoreTone.textClass}`}
+                            >
+                              {dailyFortune.overallScore}점
+                            </div>
+                            <div
+                              className={`text-[11px] font-medium ${todayScoreTone.textClass}`}
+                            >
+                              {todayScoreTone.label}
+                            </div>
                           </div>
                         </div>
                         <div className="mt-3 h-2 rounded-full bg-background/70 overflow-hidden">
                           <div
                             className={`h-full rounded-full ${todayScoreTone.barClass}`}
-                            style={{ width: `${Math.max(0, Math.min(100, dailyFortune.overallScore ?? 0))}%` }}
+                            style={{
+                              width: `${Math.max(0, Math.min(100, dailyFortune.overallScore ?? 0))}%`,
+                            }}
                           />
                         </div>
-                        <p className="text-sm text-foreground/80 leading-relaxed mt-3 line-clamp-2">
+                        <p className="text-sm text-foreground/80 leading-relaxed mt-3 line-clamp-1">
                           {dailyFortune.overallFortune}
                         </p>
+                        {todayRelation && (
+                          <div
+                            className={`mt-2 inline-flex max-w-full items-center gap-2 rounded-full border px-2.5 py-1 text-xs ${todayRelation.borderClass}`}
+                          >
+                            <span
+                              className={`font-medium truncate ${todayRelation.colorClass}`}
+                            >
+                              {profile?.name ?? "내"} 일간과{" "}
+                              {todayRelation.label}
+                            </span>
+                            <span className="text-muted-foreground shrink-0">
+                              {todayRelation.score}/10
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-4 gap-1.5 text-[11px]">
                         <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-2 py-2 text-center">
                           <div className="text-muted-foreground">재물</div>
-                          <div className="font-semibold text-foreground mt-0.5">{dailyFortune.moneyScore}</div>
+                          <div className="font-semibold text-foreground mt-0.5">
+                            {dailyFortune.moneyScore}
+                          </div>
                         </div>
                         <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-2 py-2 text-center">
                           <div className="text-muted-foreground">애정</div>
-                          <div className="font-semibold text-foreground mt-0.5">{dailyFortune.loveScore}</div>
+                          <div className="font-semibold text-foreground mt-0.5">
+                            {dailyFortune.loveScore}
+                          </div>
                         </div>
                         <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-2 py-2 text-center">
                           <div className="text-muted-foreground">직업</div>
-                          <div className="font-semibold text-foreground mt-0.5">{dailyFortune.careerScore}</div>
+                          <div className="font-semibold text-foreground mt-0.5">
+                            {dailyFortune.careerScore}
+                          </div>
                         </div>
                         <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-2 py-2 text-center">
                           <div className="text-muted-foreground">건강</div>
-                          <div className="font-semibold text-foreground mt-0.5">{dailyFortune.healthScore}</div>
+                          <div className="font-semibold text-foreground mt-0.5">
+                            {dailyFortune.healthScore}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <div className="rounded-xl border border-primary/15 bg-background/45 px-3 py-2">
+                      <div className="grid grid-cols-4 gap-1.5 text-xs">
+                        <div className="rounded-xl border border-primary/15 bg-background/45 px-2.5 py-2">
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
                             <Clock className="w-3.5 h-3.5 text-primary" />
                             행운 시간
                           </div>
-                          <div className="text-sm font-medium text-foreground">
-                            {dailyFortune.luckyHours?.slice(0, 2).join(" · ") || "오늘 안에서 조율"}
+                          <div className="font-medium text-foreground truncate">
+                            {dailyFortune.luckyHours?.slice(0, 2).join(" · ") ||
+                              "오늘 안에서 조율"}
                           </div>
                         </div>
-                        <div className="rounded-xl border border-primary/15 bg-background/45 px-3 py-2">
+                        <div className="rounded-xl border border-primary/15 bg-background/45 px-2.5 py-2">
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
                             <Palette className="w-3.5 h-3.5 text-primary" />
                             보완 색상
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(dailyFortune.luckyColors ?? []).slice(0, 3).map((color, index) => (
-                              <span key={`${color}-${index}`} className="rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-xs font-medium text-primary">
-                                {color}
-                              </span>
-                            ))}
+                          <div className="font-medium text-foreground truncate">
+                            {(dailyFortune.luckyColors ?? [])
+                              .slice(0, 3)
+                              .join(" · ") || "보완 색상"}
                           </div>
                         </div>
-                        <div className="rounded-xl border border-primary/15 bg-background/45 px-3 py-2">
+                        <div className="rounded-xl border border-primary/15 bg-background/45 px-2.5 py-2">
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
                             <Hash className="w-3.5 h-3.5 text-primary" />
                             참고 숫자
                           </div>
-                          <div className="flex gap-1.5">
-                            {(dailyFortune.luckyNumbers ?? []).slice(0, 3).map((number, index) => (
-                              <span key={`${number}-${index}`} className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-xs font-bold text-primary">
-                                {number}
-                              </span>
-                            ))}
+                          <div className="font-medium text-foreground truncate">
+                            {(dailyFortune.luckyNumbers ?? [])
+                              .slice(0, 3)
+                              .join(" · ") || "오늘 안에서 조율"}
                           </div>
                         </div>
-                        <div className="rounded-xl border border-primary/15 bg-background/45 px-3 py-2">
+                        <div className="rounded-xl border border-primary/15 bg-background/45 px-2.5 py-2">
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
                             <Compass className="w-3.5 h-3.5 text-primary" />
                             방향
                           </div>
-                          <div className="text-sm font-medium text-foreground">
+                          <div className="font-medium text-foreground truncate">
                             {dailyFortune.luckyDirection}
                             {dailyFortune.avoidDirection && (
-                              <span className="text-xs font-normal text-muted-foreground"> · 주의 {dailyFortune.avoidDirection}</span>
+                              <span className="text-xs font-normal text-muted-foreground">
+                                {" "}
+                                · 주의 {dailyFortune.avoidDirection}
+                              </span>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {todayRelation && (
-                        <div className={`rounded-xl border px-3 py-2 text-sm ${todayRelation.borderClass}`}>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className={`font-semibold ${todayRelation.colorClass}`}>{profile?.name ?? "내"} 일간과 {todayRelation.label}</span>
-                            <span className="text-xs text-muted-foreground">{todayRelation.score}/10</span>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-3 py-2.5">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 mb-1.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-3 py-2">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 mb-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             하면 좋은 일
                           </div>
                           <p className="text-sm text-foreground/80 leading-relaxed line-clamp-1">
-                            {(dailyFortune.goodThings ?? [dailyFortune.advice]).slice(0, 1)[0]}
+                            {
+                              (
+                                dailyFortune.goodThings ?? [dailyFortune.advice]
+                              ).slice(0, 1)[0]
+                            }
                           </p>
                         </div>
-                        <div className="rounded-xl border border-rose-500/15 bg-rose-500/5 px-3 py-2.5">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 mb-1.5">
+                        <div className="rounded-xl border border-rose-500/15 bg-rose-500/5 px-3 py-2">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 mb-1">
                             <ShieldAlert className="w-3.5 h-3.5" />
                             피해야 할 일
                           </div>
                           <p className="text-sm text-foreground/80 leading-relaxed line-clamp-1">
-                            {(dailyFortune.avoidThings ?? [dailyFortune.advice]).slice(0, 1)[0]}
+                            {
+                              (
+                                dailyFortune.avoidThings ?? [
+                                  dailyFortune.advice,
+                                ]
+                              ).slice(0, 1)[0]
+                            }
                           </p>
                         </div>
-                      </div>
-
-                      <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2 text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                        오늘 한마디: <span className="text-foreground/80">{dailyFortune.advice}</span>
                       </div>
                     </div>
                   ) : (
@@ -386,51 +634,77 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="rounded-3xl border border-primary/15 bg-background/25 p-5 xl:col-span-2">
+                <div className="rounded-3xl border border-primary/15 bg-background/25 p-4 md:p-5 xl:col-span-2">
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-primary" />
-                      <h3 className="font-medium text-foreground">이번 달 월운</h3>
+                      <h3 className="font-medium text-foreground">
+                        이번 달 월운
+                      </h3>
                     </div>
-                    <Link href="/monthly-fortune" className="text-xs text-primary hover:underline">전체 보기</Link>
+                    <Link
+                      href="/monthly-fortune"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      전체 보기
+                    </Link>
                   </div>
 
                   {!profile ? (
                     <div className="rounded-2xl border border-primary/15 bg-primary/6 px-4 py-3 text-sm text-muted-foreground">
-                      사주를 등록하면 이번 달 재물·직업·관계 흐름을 바로 볼 수 있습니다.
+                      사주를 등록하면 이번 달 재물·직업·관계 흐름을 바로 볼 수
+                      있습니다.
                     </div>
                   ) : monthlyFortuneLoading ? (
                     <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-muted-foreground">
                       이번 달 월운 불러오는 중.
                     </div>
                   ) : monthlyFortune ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-[0.72fr_1.28fr] gap-3">
+                    <div className="grid grid-cols-[0.78fr_1.22fr] gap-3">
                       <div className="rounded-2xl border border-primary/15 bg-primary/8 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-[11px] text-muted-foreground">{monthlyFortune.monthName}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {monthlyFortune.monthName}
+                            </div>
                             <div className="text-lg font-semibold text-foreground mt-1">
-                              {monthlyFortune.wun.stemHanja}{monthlyFortune.wun.branchHanja} · {monthlyFortune.wun.tenGod}
+                              {monthlyFortune.wun.stemHanja}
+                              {monthlyFortune.wun.branchHanja} ·{" "}
+                              {monthlyFortune.wun.tenGod}
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-[11px] text-muted-foreground">월운 지수</div>
-                            <div className={`text-2xl font-bold ${monthlyScoreTone.textClass}`}>{monthlyFortune.scores.overall}점</div>
-                            <div className={`text-[11px] font-medium ${monthlyScoreTone.textClass}`}>{monthlyScoreTone.label}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              월운 지수
+                            </div>
+                            <div
+                              className={`text-2xl font-bold ${monthlyScoreTone.textClass}`}
+                            >
+                              {monthlyFortune.scores.overall}점
+                            </div>
+                            <div
+                              className={`text-[11px] font-medium ${monthlyScoreTone.textClass}`}
+                            >
+                              {monthlyScoreTone.label}
+                            </div>
                           </div>
                         </div>
                         <div className="mt-3 h-2 rounded-full bg-background/70 overflow-hidden">
                           <div
                             className={`h-full rounded-full ${monthlyScoreTone.barClass}`}
-                            style={{ width: `${Math.max(0, Math.min(100, monthlyFortune.scores.overall))}%` }}
+                            style={{
+                              width: `${Math.max(0, Math.min(100, monthlyFortune.scores.overall))}%`,
+                            }}
                           />
                         </div>
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           <span className="rounded-full border border-primary/20 bg-background/45 px-2 py-0.5 text-xs text-muted-foreground">
-                            세운 {monthlyFortune.seun.stemHanja}{monthlyFortune.seun.branchHanja}
+                            세운 {monthlyFortune.seun.stemHanja}
+                            {monthlyFortune.seun.branchHanja}
                           </span>
                           <span className="rounded-full border border-primary/20 bg-background/45 px-2 py-0.5 text-xs text-muted-foreground">
-                            월건 {monthlyFortune.wun.stem}{monthlyFortune.wun.branch}
+                            월건 {monthlyFortune.wun.stem}
+                            {monthlyFortune.wun.branch}
                           </span>
                         </div>
                       </div>
@@ -443,26 +717,35 @@ export default function Home() {
                           <div className="rounded-xl border border-amber-500/15 bg-amber-500/5 px-2 py-2 text-center">
                             <TrendingUp className="w-3.5 h-3.5 mx-auto mb-0.5 text-amber-600" />
                             <div className="text-muted-foreground">재물</div>
-                            <div className="font-semibold text-foreground mt-0.5">{monthlyFortune.scores.wealth}</div>
+                            <div className="font-semibold text-foreground mt-0.5">
+                              {monthlyFortune.scores.wealth}
+                            </div>
                           </div>
                           <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 px-2 py-2 text-center">
                             <Briefcase className="w-3.5 h-3.5 mx-auto mb-0.5 text-blue-600" />
                             <div className="text-muted-foreground">직업</div>
-                            <div className="font-semibold text-foreground mt-0.5">{monthlyFortune.scores.career}</div>
+                            <div className="font-semibold text-foreground mt-0.5">
+                              {monthlyFortune.scores.career}
+                            </div>
                           </div>
                           <div className="rounded-xl border border-rose-500/15 bg-rose-500/5 px-2 py-2 text-center">
                             <Heart className="w-3.5 h-3.5 mx-auto mb-0.5 text-rose-600" />
                             <div className="text-muted-foreground">관계</div>
-                            <div className="font-semibold text-foreground mt-0.5">{monthlyFortune.scores.love}</div>
+                            <div className="font-semibold text-foreground mt-0.5">
+                              {monthlyFortune.scores.love}
+                            </div>
                           </div>
                           <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-2 py-2 text-center">
                             <Activity className="w-3.5 h-3.5 mx-auto mb-0.5 text-emerald-600" />
                             <div className="text-muted-foreground">건강</div>
-                            <div className="font-semibold text-foreground mt-0.5">{monthlyFortune.scores.health}</div>
+                            <div className="font-semibold text-foreground mt-0.5">
+                              {monthlyFortune.scores.health}
+                            </div>
                           </div>
                         </div>
                         <div className="rounded-xl border border-primary/15 bg-background/45 px-3 py-2 text-sm text-muted-foreground leading-relaxed line-clamp-1">
-                          {monthlyFortune.hapChungNotes[0] ?? `이번 달은 ${monthlyFortune.wun.tenGod} 기운을 중심으로 움직입니다.`}
+                          {monthlyFortune.hapChungNotes[0] ??
+                            `이번 달은 ${monthlyFortune.wun.tenGod} 기운을 중심으로 움직입니다.`}
                         </div>
                       </div>
                     </div>
@@ -473,67 +756,180 @@ export default function Home() {
                   ) : null}
                 </div>
 
-                <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <BookmarkPlus className="w-4 h-4 text-primary" />
-                      <h3 className="font-medium text-foreground">저장한 길일</h3>
+                <div className="xl:col-span-2 grid grid-cols-[repeat(3,minmax(160px,1fr))] gap-3 overflow-x-auto pb-1 lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:pb-0">
+                  <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-primary" />
+                        <h3 className="font-medium text-foreground">
+                          최근 리포트
+                        </h3>
+                      </div>
+                      <Link
+                        href="/account"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        마이페이지
+                      </Link>
                     </div>
-                    <Link href="/lucky-calendar" className="text-xs text-primary hover:underline">길일 달력</Link>
-                  </div>
-                  {bookmarks.length > 0 ? (
-                    <div className="space-y-2">
-                      {bookmarks.slice(0, 3).map((bookmark) => (
-                        <Link
-                          key={bookmark.id}
-                          href={bookmark.href}
-                          className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="font-medium text-sm text-foreground truncate">{bookmark.title}</div>
-                            <div className="text-xs text-primary shrink-0">{bookmark.grade}</div>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {formatBookmarkDate(bookmark)} · {bookmark.purposeLabel}
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
-                      아직 저장한 길일 없음.
-                    </div>
-                  )}
-                </div>
 
-                <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <History className="w-4 h-4 text-primary" />
-                      <h3 className="font-medium text-foreground">최근 본 분석</h3>
-                    </div>
-                    <Link href="/account" className="text-xs text-primary hover:underline">전체 보기</Link>
-                  </div>
-                  {recentActivities.length > 0 ? (
-                    <div className="space-y-2">
-                      {recentActivities.slice(0, 4).map((activity) => (
-                        <Link
-                          key={activity.id}
-                          href={activity.href}
-                          className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
-                        >
-                          <div className="font-medium text-sm text-foreground">{activity.title}</div>
-                          {activity.subtitle && (
-                            <div className="text-xs text-muted-foreground mt-1">{activity.subtitle}</div>
+                    {reportsLoading ? (
+                      <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
+                        리포트 확인 중.
+                      </div>
+                    ) : latestReport ? (
+                      <div className="space-y-2.5">
+                        <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-medium text-sm text-foreground truncate">
+                                {latestReport.title}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {formatDashboardDate(latestReport.createdAt)}
+                                {latestReport.fileName
+                                  ? ` · ${latestReport.fileName}`
+                                  : ""}
+                              </div>
+                            </div>
+                            <span
+                              className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${latestReportStatus.className}`}
+                            >
+                              {latestReportStatus.label}
+                            </span>
+                          </div>
+                          {latestReport.previewText && (
+                            <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-1">
+                              {latestReport.previewText}
+                            </p>
                           )}
-                        </Link>
-                      ))}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                            <ReceiptText className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span className="truncate">
+                              {latestOrder
+                                ? `${getOrderStatusLabel(latestOrder.status)} · ${latestOrder.amount.toLocaleString("ko-KR")}원`
+                                : "주문 내역 없음"}
+                            </span>
+                          </div>
+                          {latestReport.status === "ready" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void downloadReportFile(
+                                  latestReport.id,
+                                  latestReport.fileName ?? latestReport.title,
+                                );
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-primary/25 bg-primary/8 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/12 transition-colors"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              PDF
+                            </button>
+                          ) : (
+                            <Link
+                              href="/account"
+                              className="text-xs text-primary hover:underline shrink-0"
+                            >
+                              상태 보기
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
+                        아직 구매한 리포트 없음.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <BookmarkPlus className="w-4 h-4 text-primary" />
+                        <h3 className="font-medium text-foreground">
+                          저장한 길일
+                        </h3>
+                      </div>
+                      <Link
+                        href="/lucky-calendar"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        길일 달력
+                      </Link>
                     </div>
-                  ) : (
-                    <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
-                      아직 최근 기록 없음.
+                    {bookmarks.length > 0 ? (
+                      <div className="space-y-2">
+                        {bookmarks.slice(0, 2).map((bookmark) => (
+                          <Link
+                            key={bookmark.id}
+                            href={bookmark.href}
+                            className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="font-medium text-sm text-foreground truncate">
+                                {bookmark.title}
+                              </div>
+                              <div className="text-xs text-primary shrink-0">
+                                {bookmark.grade}
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {formatBookmarkDate(bookmark)} ·{" "}
+                              {bookmark.purposeLabel}
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
+                        아직 저장한 길일 없음.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-3xl border border-primary/15 bg-background/25 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-primary" />
+                        <h3 className="font-medium text-foreground">
+                          최근 본 분석
+                        </h3>
+                      </div>
+                      <Link
+                        href="/account"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        전체 보기
+                      </Link>
                     </div>
-                  )}
+                    {recentActivities.length > 0 ? (
+                      <div className="space-y-2">
+                        {recentActivities.slice(0, 2).map((activity) => (
+                          <Link
+                            key={activity.id}
+                            href={activity.href}
+                            className="block rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-3 hover:bg-foreground/8 transition-colors"
+                          >
+                            <div className="font-medium text-sm text-foreground">
+                              {activity.title}
+                            </div>
+                            {activity.subtitle && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {activity.subtitle}
+                              </div>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-muted-foreground">
+                        아직 최근 기록 없음.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -542,7 +938,7 @@ export default function Home() {
       )}
 
       {/* 메인 기능 카드 */}
-      <motion.div 
+      <motion.div
         className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl"
         variants={container}
         initial="hidden"
@@ -555,8 +951,13 @@ export default function Home() {
               <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center mb-6 border border-primary/30 group-hover:scale-110 transition-transform">
                 <Sparkles className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">사주팔자 (四柱八字)</h3>
-              <p className="text-muted-foreground mb-8">태어난 연월일시를 바탕으로 당신의 평생 운의 흐름과 오행의 조화를 분석합니다.</p>
+              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                사주팔자 (四柱八字)
+              </h3>
+              <p className="text-muted-foreground mb-8">
+                태어난 연월일시를 바탕으로 당신의 평생 운의 흐름과 오행의 조화를
+                분석합니다.
+              </p>
               <div className="flex items-center text-primary font-medium group-hover:gap-3 transition-all gap-2">
                 분석하기 <ArrowRight className="w-4 h-4" />
               </div>
@@ -571,8 +972,14 @@ export default function Home() {
               <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center mb-6 border border-accent/30 group-hover:scale-110 transition-transform">
                 <Sun className="w-7 h-7 text-accent" />
               </div>
-              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">오늘의 일진 (日辰)</h3>
-              <p className="text-muted-foreground mb-8">오늘의 천간지지가 내 사주와 어떻게 맞물리는지 풀어드립니다. 재물·애정·건강·직업 운은 물론, 오늘 특히 조심해야 할 것과 적극적으로 나서면 좋은 분야까지 구체적으로 안내합니다.</p>
+              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                오늘의 일진 (日辰)
+              </h3>
+              <p className="text-muted-foreground mb-8">
+                오늘의 천간지지가 내 사주와 어떻게 맞물리는지 풀어드립니다.
+                재물·애정·건강·직업 운은 물론, 오늘 특히 조심해야 할 것과
+                적극적으로 나서면 좋은 분야까지 구체적으로 안내합니다.
+              </p>
               <div className="flex items-center text-accent font-medium group-hover:gap-3 transition-all gap-2">
                 확인하기 <ArrowRight className="w-4 h-4" />
               </div>
@@ -587,8 +994,14 @@ export default function Home() {
               <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-6 border border-emerald-500/30 group-hover:scale-110 transition-transform">
                 <Calendar className="w-7 h-7 text-emerald-600" />
               </div>
-              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">만세력 (萬年曆)</h3>
-              <p className="text-muted-foreground mb-8">한 달의 날마다 깃든 오행 기운과 운세 점수를 달력 위에 펼칩니다. 길일·흉일을 한눈에 파악해 이사, 계약, 중요한 만남 등 결정적인 날을 현명하게 고르세요.</p>
+              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                만세력 (萬年曆)
+              </h3>
+              <p className="text-muted-foreground mb-8">
+                한 달의 날마다 깃든 오행 기운과 운세 점수를 달력 위에 펼칩니다.
+                길일·흉일을 한눈에 파악해 이사, 계약, 중요한 만남 등 결정적인
+                날을 현명하게 고르세요.
+              </p>
               <div className="flex items-center text-emerald-600 font-medium group-hover:gap-3 transition-all gap-2">
                 달력보기 <ArrowRight className="w-4 h-4" />
               </div>
@@ -603,15 +1016,19 @@ export default function Home() {
               <div className="w-14 h-14 rounded-2xl bg-rose-400/20 flex items-center justify-center mb-6 border border-rose-400/30 group-hover:scale-110 transition-transform">
                 <Heart className="w-7 h-7 text-rose-600" />
               </div>
-              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">궁합 &amp; 연애운</h3>
-              <p className="text-muted-foreground mb-8">솔로라면 언제 인연을 만날지 월별 흐름으로, 연인이 있다면 두 사람의 오행 궁합을 종합 점수와 지지 관계로 풀어드립니다.</p>
+              <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                궁합 &amp; 연애운
+              </h3>
+              <p className="text-muted-foreground mb-8">
+                솔로라면 언제 인연을 만날지 월별 흐름으로, 연인이 있다면 두
+                사람의 오행 궁합을 종합 점수와 지지 관계로 풀어드립니다.
+              </p>
               <div className="flex items-center text-rose-600 font-medium group-hover:gap-3 transition-all gap-2">
                 분석하기 <ArrowRight className="w-4 h-4" />
               </div>
             </div>
           </Link>
         </motion.div>
-
       </motion.div>
 
       {/* 전체 기능 미리보기 (비로그인 방문자용 — 발견성) */}
@@ -623,21 +1040,33 @@ export default function Home() {
           transition={{ delay: 0.45, duration: 0.6, ease: "easeOut" }}
         >
           <div className="text-center mb-8">
-            <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">all features</p>
-            <h2 className="font-serif text-3xl font-bold text-foreground mb-2">명해원의 모든 분석</h2>
-            <p className="text-muted-foreground text-sm">로그인하면 아래 분석을 모두 이용할 수 있습니다</p>
+            <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">
+              all features
+            </p>
+            <h2 className="font-serif text-3xl font-bold text-foreground mb-2">
+              명해원의 모든 분석
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              로그인하면 아래 분석을 모두 이용할 수 있습니다
+            </p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
             {PREVIEW_FEATURES.map((f) => (
               <Link key={f.href} href={f.href} className="block group h-full">
                 <div className="h-full flex items-start gap-3 rounded-2xl border border-foreground/10 bg-card/30 backdrop-blur-xl p-4 transition-all duration-300 hover:bg-card/50 hover:border-primary/30 hover:-translate-y-0.5">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${f.iconClass}`}>
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${f.iconClass}`}
+                  >
                     <f.icon className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-medium text-sm text-foreground truncate">{f.title}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">{f.desc}</p>
+                    <h3 className="font-medium text-sm text-foreground truncate">
+                      {f.title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
+                      {f.desc}
+                    </p>
                   </div>
                 </div>
               </Link>
@@ -654,9 +1083,15 @@ export default function Home() {
           transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
         >
           <div className="text-center mb-8">
-            <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">member only</p>
-            <h2 className="font-serif text-3xl font-bold text-foreground mb-2">회원 전용 서비스</h2>
-            <p className="text-muted-foreground text-sm">로그인한 회원만 볼 수 있는 분석 화면만 따로 모았습니다</p>
+            <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">
+              member only
+            </p>
+            <h2 className="font-serif text-3xl font-bold text-foreground mb-2">
+              회원 전용 서비스
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              로그인한 회원만 볼 수 있는 분석 화면만 따로 모았습니다
+            </p>
           </div>
 
           <motion.div
@@ -672,8 +1107,13 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-teal-400/20 flex items-center justify-center mb-6 border border-teal-400/30 group-hover:scale-110 transition-transform">
                     <TrendingUp className="w-7 h-7 text-teal-600" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">대운 계산기</h3>
-                  <p className="text-muted-foreground mb-8">10년 단위로 변화하는 인생의 큰 흐름을 타임라인으로 확인하고, 현재 내가 어떤 대운 안에 있는지 한눈에 파악합니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    대운 계산기
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    10년 단위로 변화하는 인생의 큰 흐름을 타임라인으로 확인하고,
+                    현재 내가 어떤 대운 안에 있는지 한눈에 파악합니다.
+                  </p>
                   <div className="flex items-center text-teal-600 font-medium group-hover:gap-3 transition-all gap-2">
                     확인하기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -688,8 +1128,13 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-purple-400/20 flex items-center justify-center mb-6 border border-purple-400/30 group-hover:scale-110 transition-transform">
                     <CalendarDays className="w-7 h-7 text-purple-600" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">월운 분석</h3>
-                  <p className="text-muted-foreground mb-8">세운(歲運)과 월건(月建)이 내 일주와 어떤 십신 관계를 맺는지 분석하여 이달의 재물·직업·애정·건강 흐름을 풀어드립니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    월운 분석
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    세운(歲運)과 월건(月建)이 내 일주와 어떤 십신 관계를 맺는지
+                    분석하여 이달의 재물·직업·애정·건강 흐름을 풀어드립니다.
+                  </p>
                   <div className="flex items-center text-purple-600 font-medium group-hover:gap-3 transition-all gap-2">
                     분석하기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -704,8 +1149,13 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-emerald-400/20 flex items-center justify-center mb-6 border border-emerald-400/30 group-hover:scale-110 transition-transform">
                     <Calendar className="w-7 h-7 text-emerald-600" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">길일 달력</h3>
-                  <p className="text-muted-foreground mb-8">이사·개업·결혼·계약 등 목적별로 내 사주에 맞는 최적의 날을 달력 위에서 바로 확인하고 현명하게 선택하세요.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    길일 달력
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    이사·개업·결혼·계약 등 목적별로 내 사주에 맞는 최적의 날을
+                    달력 위에서 바로 확인하고 현명하게 선택하세요.
+                  </p>
                   <div className="flex items-center text-emerald-600 font-medium group-hover:gap-3 transition-all gap-2">
                     날짜 고르기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -720,8 +1170,12 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6 border border-blue-500/30 group-hover:scale-110 transition-transform">
                     <CalendarDays className="w-7 h-7 text-blue-600" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">연간 운세</h3>
-                  <p className="text-muted-foreground mb-8">올 한 해의 운세를 분기·월별로 상세 분석합니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    연간 운세
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    올 한 해의 운세를 분기·월별로 상세 분석합니다.
+                  </p>
                   <div className="flex items-center text-blue-600 font-medium group-hover:gap-3 transition-all gap-2">
                     확인하기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -736,8 +1190,12 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mb-6 border border-amber-500/30 group-hover:scale-110 transition-transform">
                     <Orbit className="w-7 h-7 text-amber-600" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">띠별 운세</h3>
-                  <p className="text-muted-foreground mb-8">12지신의 오늘 운세를 순위별로 한눈에 확인합니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    띠별 운세
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    12지신의 오늘 운세를 순위별로 한눈에 확인합니다.
+                  </p>
                   <div className="flex items-center text-amber-600 font-medium group-hover:gap-3 transition-all gap-2">
                     확인하기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -752,8 +1210,12 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-6 border border-indigo-500/30 group-hover:scale-110 transition-transform">
                     <MoonStar className="w-7 h-7 text-indigo-600" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">꿈 해몽</h3>
-                  <p className="text-muted-foreground mb-8">꿈에 나타난 키워드로 오늘의 길흉을 풀이합니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    꿈 해몽
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    꿈에 나타난 키워드로 오늘의 길흉을 풀이합니다.
+                  </p>
                   <div className="flex items-center text-indigo-600 font-medium group-hover:gap-3 transition-all gap-2">
                     풀이하기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -768,8 +1230,12 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center mb-6 border border-violet-500/30 group-hover:scale-110 transition-transform">
                     <Type className="w-7 h-7 text-violet-600" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">이름 풀이</h3>
-                  <p className="text-muted-foreground mb-8">수리사주와 오행으로 이름의 운세와 성격을 분석합니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    이름 풀이
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    수리사주와 오행으로 이름의 운세와 성격을 분석합니다.
+                  </p>
                   <div className="flex items-center text-violet-600 font-medium group-hover:gap-3 transition-all gap-2">
                     분석하기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -784,8 +1250,13 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-rose-500/20 flex items-center justify-center mb-6 border border-rose-500/30 group-hover:scale-110 transition-transform">
                     <Heart className="w-7 h-7 text-rose-400" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">연애운</h3>
-                  <p className="text-muted-foreground mb-8">솔로라면 인연 만날 월별 흐름을, 연인이 있다면 오행 궁합 점수와 조언을 분석합니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    연애운
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    솔로라면 인연 만날 월별 흐름을, 연인이 있다면 오행 궁합
+                    점수와 조언을 분석합니다.
+                  </p>
                   <div className="flex items-center text-rose-400 font-medium group-hover:gap-3 transition-all gap-2">
                     분석하기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -804,9 +1275,15 @@ export default function Home() {
         transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
       >
         <div className="text-center mb-8">
-          <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">reference</p>
-          <h2 className="font-serif text-3xl font-bold text-foreground mb-2">사주 자료실</h2>
-          <p className="text-muted-foreground text-sm">사주를 더 깊이 이해하고 싶다면 — 누구나 볼 수 있는 무료 해설</p>
+          <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">
+            reference
+          </p>
+          <h2 className="font-serif text-3xl font-bold text-foreground mb-2">
+            사주 자료실
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            사주를 더 깊이 이해하고 싶다면 — 누구나 볼 수 있는 무료 해설
+          </p>
         </div>
 
         <motion.div
@@ -822,8 +1299,13 @@ export default function Home() {
                 <div className="w-14 h-14 rounded-2xl bg-amber-400/20 flex items-center justify-center mb-6 border border-amber-400/30 group-hover:scale-110 transition-transform">
                   <Star className="w-7 h-7 text-amber-600" />
                 </div>
-                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">신살(神殺) 안내</h3>
-                <p className="text-muted-foreground mb-8">천을귀인·도화살·역마살·12신살·백호살·괴강살 등 23종 신살의 의미, 긍정적 활용법, 주의사항을 상세히 해설합니다.</p>
+                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                  신살(神殺) 안내
+                </h3>
+                <p className="text-muted-foreground mb-8">
+                  천을귀인·도화살·역마살·12신살·백호살·괴강살 등 23종 신살의
+                  의미, 긍정적 활용법, 주의사항을 상세히 해설합니다.
+                </p>
                 <div className="flex items-center text-amber-600 font-medium group-hover:gap-3 transition-all gap-2">
                   알아보기 <ArrowRight className="w-4 h-4" />
                 </div>
@@ -838,8 +1320,13 @@ export default function Home() {
                 <div className="w-14 h-14 rounded-2xl bg-sky-400/20 flex items-center justify-center mb-6 border border-sky-400/30 group-hover:scale-110 transition-transform">
                   <BookOpen className="w-7 h-7 text-sky-600" />
                 </div>
-                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">사주 용어 사전</h3>
-                <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국·합충형 등 사주 핵심 용어 77가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
+                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                  사주 용어 사전
+                </h3>
+                <p className="text-muted-foreground mb-8">
+                  천간·지지·오행·십신·격국·합충형 등 사주 핵심 용어 77가지를
+                  카테고리별로 쉽고 정확하게 정리했습니다.
+                </p>
                 <div className="flex items-center text-sky-600 font-medium group-hover:gap-3 transition-all gap-2">
                   찾아보기 <ArrowRight className="w-4 h-4" />
                 </div>
@@ -857,9 +1344,15 @@ export default function Home() {
           transition={{ delay: 0.55, duration: 0.6, ease: "easeOut" }}
         >
           <div className="text-center mb-8">
-            <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">admin only</p>
-            <h2 className="font-serif text-3xl font-bold text-foreground mb-2">관리자 전용 자료실</h2>
-            <p className="text-muted-foreground text-sm">일반 회원에게는 숨겨진 내부 참고 화면만 따로 분리했습니다</p>
+            <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">
+              admin only
+            </p>
+            <h2 className="font-serif text-3xl font-bold text-foreground mb-2">
+              관리자 전용 자료실
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              일반 회원에게는 숨겨진 내부 참고 화면만 따로 분리했습니다
+            </p>
           </div>
 
           <motion.div
@@ -875,8 +1368,13 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-orange-400/20 flex items-center justify-center mb-6 border border-orange-400/30 group-hover:scale-110 transition-transform">
                     <TableProperties className="w-7 h-7 text-orange-700" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">이론 조견표</h3>
-                  <p className="text-muted-foreground mb-8">합충형·삼재·귀문살·장간처럼 자주 찾는 이론 표를 관리자 화면에서 빠르게 확인합니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    이론 조견표
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    합충형·삼재·귀문살·장간처럼 자주 찾는 이론 표를 관리자
+                    화면에서 빠르게 확인합니다.
+                  </p>
                   <div className="flex items-center text-orange-700 font-medium group-hover:gap-3 transition-all gap-2">
                     열어보기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -891,8 +1389,13 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-2xl bg-cyan-400/20 flex items-center justify-center mb-6 border border-cyan-400/30 group-hover:scale-110 transition-transform">
                     <Search className="w-7 h-7 text-cyan-700" />
                   </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">일주 분석 검색</h3>
-                  <p className="text-muted-foreground mb-8">계묘·癸卯처럼 60갑자 일주를 직접 검색해서 다른 사람의 일주 해석도 바로 찾아봅니다.</p>
+                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
+                    일주 분석 검색
+                  </h3>
+                  <p className="text-muted-foreground mb-8">
+                    계묘·癸卯처럼 60갑자 일주를 직접 검색해서 다른 사람의 일주
+                    해석도 바로 찾아봅니다.
+                  </p>
                   <div className="flex items-center text-cyan-700 font-medium group-hover:gap-3 transition-all gap-2">
                     검색하기 <ArrowRight className="w-4 h-4" />
                   </div>
@@ -911,9 +1414,15 @@ export default function Home() {
         transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
       >
         <div className="text-center mb-8">
-          <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">consultation</p>
-          <h2 className="font-serif text-3xl font-bold text-foreground mb-2">상담 문의</h2>
-          <p className="text-muted-foreground text-sm">궁금하신 사항을 문의해 주시면 정성껏 답변해 드립니다</p>
+          <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">
+            consultation
+          </p>
+          <h2 className="font-serif text-3xl font-bold text-foreground mb-2">
+            상담 문의
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            궁금하신 사항을 문의해 주시면 정성껏 답변해 드립니다
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -926,8 +1435,12 @@ export default function Home() {
             <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center mb-4 border border-primary/25 group-hover:scale-110 transition-transform">
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
-            <h3 className="font-semibold text-base mb-1.5 text-foreground">사주 문의</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">생년월일시를 바탕으로 사주·운세·적성 등 궁금한 점을 상담하세요.</p>
+            <h3 className="font-semibold text-base mb-1.5 text-foreground">
+              사주 문의
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              생년월일시를 바탕으로 사주·운세·적성 등 궁금한 점을 상담하세요.
+            </p>
             <div className="flex items-center gap-1 mt-4 text-primary text-xs font-medium group-hover:gap-2 transition-all">
               문의하기 <ArrowRight className="w-3 h-3" />
             </div>
@@ -942,8 +1455,12 @@ export default function Home() {
             <div className="w-11 h-11 rounded-xl bg-rose-400/15 flex items-center justify-center mb-4 border border-rose-400/25 group-hover:scale-110 transition-transform">
               <Heart className="w-5 h-5 text-rose-600" />
             </div>
-            <h3 className="font-semibold text-base mb-1.5 text-foreground">궁합 문의</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">연인·배우자·비즈니스 파트너와의 궁합을 전문가에게 직접 물어보세요.</p>
+            <h3 className="font-semibold text-base mb-1.5 text-foreground">
+              궁합 문의
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              연인·배우자·비즈니스 파트너와의 궁합을 전문가에게 직접 물어보세요.
+            </p>
             <div className="flex items-center gap-1 mt-4 text-rose-600 text-xs font-medium group-hover:gap-2 transition-all">
               문의하기 <ArrowRight className="w-3 h-3" />
             </div>
@@ -958,8 +1475,12 @@ export default function Home() {
             <div className="w-11 h-11 rounded-xl bg-sky-400/15 flex items-center justify-center mb-4 border border-sky-400/25 group-hover:scale-110 transition-transform">
               <FileQuestion className="w-5 h-5 text-sky-600" />
             </div>
-            <h3 className="font-semibold text-base mb-1.5 text-foreground">일반 문의</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">서비스 이용이나 기타 궁금한 점을 자유롭게 남겨주세요.</p>
+            <h3 className="font-semibold text-base mb-1.5 text-foreground">
+              일반 문의
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              서비스 이용이나 기타 궁금한 점을 자유롭게 남겨주세요.
+            </p>
             <div className="flex items-center gap-1 mt-4 text-sky-600 text-xs font-medium group-hover:gap-2 transition-all">
               문의하기 <ArrowRight className="w-3 h-3" />
             </div>
