@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search, BookmarkPlus, History, UserCircle2, Clock, Palette, Hash, Compass, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Sparkles, Sun, Calendar, ArrowRight, MessageCircle, Heart, FileQuestion, CalendarDays, Type, Orbit, MoonStar, TrendingUp, BookOpen, Star, TableProperties, Search, BookmarkPlus, History, UserCircle2, Clock, Palette, Hash, Compass, CheckCircle2, ShieldAlert, Briefcase, Activity } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useGetDailyFortune } from "@workspace/api-client-react";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
@@ -11,6 +12,7 @@ import { formatBookmarkDate, getRecentActivities, type RecentActivityItem } from
 import { getSeoulTodayString } from "@/lib/seoul-date";
 import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 import { getElementRelation } from "@/lib/saju-relation";
+import { fetchMonthlyFortune } from "@/lib/monthly-fortune";
 
 type InquiryType = "general" | "saju" | "gungap";
 
@@ -45,6 +47,8 @@ export default function Home() {
   const { profile } = useResolvedProfile();
   const { bookmarks } = useLuckyDayBookmarks();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const dashboardYear = Number(todayDate.slice(0, 4));
+  const dashboardMonth = Number(todayDate.slice(5, 7));
   const { data: dailyFortune, isLoading: dailyFortuneLoading } = useGetDailyFortune(
     { date: todayDate },
     {
@@ -55,6 +59,32 @@ export default function Home() {
       },
     },
   );
+  const {
+    data: monthlyFortune,
+    isLoading: monthlyFortuneLoading,
+    isError: monthlyFortuneError,
+  } = useQuery({
+    queryKey: [
+      "home-monthly-fortune",
+      profile?.birthYear,
+      profile?.birthMonth,
+      profile?.birthDay,
+      profile?.birthHour,
+      profile?.birthMinute,
+      profile?.gender,
+      profile?.calendarType,
+      profile?.isLeapMonth,
+      profile?.timeZone,
+      profile?.longitude,
+      profile?.applyTrueSolarTime,
+      profile?.dayBoundary,
+      dashboardYear,
+      dashboardMonth,
+    ],
+    queryFn: () => fetchMonthlyFortune(profile, dashboardYear, dashboardMonth),
+    enabled: Boolean(isAuthenticated && profile),
+    staleTime: 30 * 60_000,
+  });
 
   function openInquiry(type: InquiryType) {
     setInquiryType(type);
@@ -105,6 +135,7 @@ export default function Home() {
   }, []);
 
   const todayScoreTone = getDashboardScoreTone(dailyFortune?.overallScore);
+  const monthlyScoreTone = getDashboardScoreTone(monthlyFortune?.scores.overall);
   const todayRelation = profile?.dayMasterElement && dailyFortune?.dayElement
     ? getElementRelation(
         profile.dayMasterElement,
@@ -353,6 +384,93 @@ export default function Home() {
                       오늘 운세를 아직 불러오지 못함.
                     </div>
                   )}
+                </div>
+
+                <div className="rounded-3xl border border-primary/15 bg-background/25 p-5 xl:col-span-2">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4 text-primary" />
+                      <h3 className="font-medium text-foreground">이번 달 월운</h3>
+                    </div>
+                    <Link href="/monthly-fortune" className="text-xs text-primary hover:underline">전체 보기</Link>
+                  </div>
+
+                  {!profile ? (
+                    <div className="rounded-2xl border border-primary/15 bg-primary/6 px-4 py-3 text-sm text-muted-foreground">
+                      사주를 등록하면 이번 달 재물·직업·관계 흐름을 바로 볼 수 있습니다.
+                    </div>
+                  ) : monthlyFortuneLoading ? (
+                    <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-muted-foreground">
+                      이번 달 월운 불러오는 중.
+                    </div>
+                  ) : monthlyFortune ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-[0.72fr_1.28fr] gap-3">
+                      <div className="rounded-2xl border border-primary/15 bg-primary/8 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[11px] text-muted-foreground">{monthlyFortune.monthName}</div>
+                            <div className="text-lg font-semibold text-foreground mt-1">
+                              {monthlyFortune.wun.stemHanja}{monthlyFortune.wun.branchHanja} · {monthlyFortune.wun.tenGod}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[11px] text-muted-foreground">월운 지수</div>
+                            <div className={`text-2xl font-bold ${monthlyScoreTone.textClass}`}>{monthlyFortune.scores.overall}점</div>
+                            <div className={`text-[11px] font-medium ${monthlyScoreTone.textClass}`}>{monthlyScoreTone.label}</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 h-2 rounded-full bg-background/70 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${monthlyScoreTone.barClass}`}
+                            style={{ width: `${Math.max(0, Math.min(100, monthlyFortune.scores.overall))}%` }}
+                          />
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          <span className="rounded-full border border-primary/20 bg-background/45 px-2 py-0.5 text-xs text-muted-foreground">
+                            세운 {monthlyFortune.seun.stemHanja}{monthlyFortune.seun.branchHanja}
+                          </span>
+                          <span className="rounded-full border border-primary/20 bg-background/45 px-2 py-0.5 text-xs text-muted-foreground">
+                            월건 {monthlyFortune.wun.stem}{monthlyFortune.wun.branch}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-foreground/80 leading-relaxed line-clamp-2">
+                          {monthlyFortune.summary}
+                        </p>
+                        <div className="grid grid-cols-4 gap-1.5 text-[11px]">
+                          <div className="rounded-xl border border-amber-500/15 bg-amber-500/5 px-2 py-2 text-center">
+                            <TrendingUp className="w-3.5 h-3.5 mx-auto mb-0.5 text-amber-600" />
+                            <div className="text-muted-foreground">재물</div>
+                            <div className="font-semibold text-foreground mt-0.5">{monthlyFortune.scores.wealth}</div>
+                          </div>
+                          <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 px-2 py-2 text-center">
+                            <Briefcase className="w-3.5 h-3.5 mx-auto mb-0.5 text-blue-600" />
+                            <div className="text-muted-foreground">직업</div>
+                            <div className="font-semibold text-foreground mt-0.5">{monthlyFortune.scores.career}</div>
+                          </div>
+                          <div className="rounded-xl border border-rose-500/15 bg-rose-500/5 px-2 py-2 text-center">
+                            <Heart className="w-3.5 h-3.5 mx-auto mb-0.5 text-rose-600" />
+                            <div className="text-muted-foreground">관계</div>
+                            <div className="font-semibold text-foreground mt-0.5">{monthlyFortune.scores.love}</div>
+                          </div>
+                          <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-2 py-2 text-center">
+                            <Activity className="w-3.5 h-3.5 mx-auto mb-0.5 text-emerald-600" />
+                            <div className="text-muted-foreground">건강</div>
+                            <div className="font-semibold text-foreground mt-0.5">{monthlyFortune.scores.health}</div>
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-primary/15 bg-background/45 px-3 py-2 text-sm text-muted-foreground leading-relaxed line-clamp-1">
+                          {monthlyFortune.hapChungNotes[0] ?? `이번 달은 ${monthlyFortune.wun.tenGod} 기운을 중심으로 움직입니다.`}
+                        </div>
+                      </div>
+                    </div>
+                  ) : monthlyFortuneError ? (
+                    <div className="rounded-2xl border border-rose-500/15 bg-rose-500/5 px-4 py-3 text-sm text-rose-700">
+                      이번 달 월운을 불러오지 못했습니다.
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="rounded-3xl border border-primary/15 bg-background/25 p-5">

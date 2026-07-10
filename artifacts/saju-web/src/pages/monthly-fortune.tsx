@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useUser } from "@/contexts/UserContext";
-import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -11,7 +9,7 @@ import {
 } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
-import { profileBirthPayload } from "@/lib/birth-precision";
+import { fetchMonthlyFortune } from "@/lib/monthly-fortune";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
 const ELEM_BG:   Record<string,string>  = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
@@ -27,32 +25,6 @@ const TENGOD_HANJA: Record<string,string> = {
 };
 const STEM_HANJA: Record<string,string> = { 갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸' };
 const BRANCH_HANJA: Record<string,string> = { 자:'子',축:'丑',인:'寅',묘:'卯',진:'辰',사:'巳',오:'午',미:'未',신:'申',유:'酉',술:'戌',해:'亥' };
-
-interface MonthlyData {
-  monthName: string; targetYear: number; targetMonth: number;
-  dayStem: string; dayElement: string;
-  dayPillar: { stem: string; branch: string };
-  seun: { stem: string; branch: string; stemHanja: string; branchHanja: string; tenGod: string; element: string; branchElement: string };
-  wun: { stem: string; branch: string; stemHanja: string; branchHanja: string; tenGod: string; element: string; branchElement: string };
-  scores: { overall: number; wealth: number; career: number; love: number; health: number };
-  summary: string; wealthText: string; careerText: string; loveText: string; healthText: string;
-  hapChungNotes: string[];
-  interactions: { wunHap: boolean; wunChung: boolean; stemHap: boolean; seunHap: boolean; seunChung: boolean };
-}
-
-async function fetchMonthly(
-  profile: ReturnType<typeof useUser>['profile'],
-  year: number, month: number
-): Promise<MonthlyData> {
-  if (!profile) throw new Error("프로필 없음");
-  return customFetch<MonthlyData>("/api/saju/monthly", {
-    method: "POST",
-    body: JSON.stringify({
-      ...profileBirthPayload(profile),
-      targetYear: year, targetMonth: month,
-    }),
-  });
-}
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
   return (
@@ -134,7 +106,7 @@ export default function MonthlyFortunePage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['monthly', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.birthHour, profile?.birthMinute, profile?.gender, profile?.calendarType, profile?.isLeapMonth, profile?.timeZone, profile?.longitude, profile?.applyTrueSolarTime, profile?.dayBoundary, year, month],
-    queryFn: () => fetchMonthly(profile, year, month),
+    queryFn: () => fetchMonthlyFortune(profile, year, month),
     enabled: !!profile,
   });
 
