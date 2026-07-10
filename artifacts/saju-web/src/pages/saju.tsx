@@ -1662,10 +1662,10 @@ export default function SajuPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <div className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
+                    <div className="text-base text-foreground/90 leading-relaxed whitespace-pre-line">
                       {analysis.text}
                     </div>
-                    <p className="mt-4 text-[11px] text-muted-foreground/50 border-t border-foreground/10 pt-3">
+                    <p className="mt-4 text-xs text-muted-foreground/55 border-t border-foreground/10 pt-3">
                       * 일주 분석은 개인의 성향·경향을 참고하는 자료이며, 전체 사주팔자와 종합하여 해석해야 합니다.
                     </p>
                   </CardContent>
@@ -1684,7 +1684,7 @@ export default function SajuPage() {
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
                         <h3 className="font-serif font-semibold text-foreground">사주 네 기둥의 납음오행 (納音五行)</h3>
-                        <p className="text-xs text-muted-foreground mt-1">정오행 위에 더하는 물상 해석이며, 기둥마다 담당하는 삶의 영역이 다릅니다.</p>
+                        <p className="text-sm text-muted-foreground mt-1">정오행 위에 더하는 물상 해석이며, 기둥마다 담당하는 삶의 영역이 다릅니다.</p>
                       </div>
                       <span className="text-xs text-muted-foreground border border-primary/15 rounded-full px-2.5 py-1 shrink-0">보조 지표</span>
                     </div>
@@ -1700,7 +1700,7 @@ export default function SajuPage() {
                               {item.element} 오행
                             </span>
                           </div>
-                          <p className="text-sm text-foreground/75 leading-relaxed">{item.reading}</p>
+                          <p className="text-base text-foreground/80 leading-relaxed">{item.reading}</p>
                         </div>
                       ))}
                     </div>
@@ -1708,7 +1708,7 @@ export default function SajuPage() {
 
                   <div className="border-t border-primary/15 pt-5">
                     <h3 className="font-serif font-semibold text-foreground mb-1">삼원 보조 분석</h3>
-                    <p className="text-xs text-muted-foreground mb-3">태원은 타고난 바탕, 명궁은 삶의 중심축, 신궁은 현실 행동 방식을 보완해서 봅니다.</p>
+                    <p className="text-sm text-muted-foreground mb-3">태원은 타고난 바탕, 명궁은 삶의 중심축, 신궁은 현실 행동 방식을 보완해서 봅니다.</p>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                       {[
                         r.auxiliaryAnalysis.taewon,
@@ -1727,8 +1727,8 @@ export default function SajuPage() {
                               <div className="rounded-full border border-primary/20 bg-background/60 px-2 py-0.5">{item.unseong}</div>
                             </div>
                           </div>
-                          <p className="text-sm text-foreground/75 leading-relaxed">{item.summary}</p>
-                          <div className="mt-3 rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-xs text-primary/85 leading-relaxed">
+                          <p className="text-base text-foreground/80 leading-relaxed">{item.summary}</p>
+                          <div className="mt-3 rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-sm text-primary/85 leading-relaxed">
                             {item.advice}
                           </div>
                           <p className="mt-2 text-[10px] text-muted-foreground/70 leading-relaxed">산식: {item.basis}</p>
@@ -1778,7 +1778,7 @@ export default function SajuPage() {
                       <p className="text-foreground/90">{r.sinGangYak.description}</p>
                       <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                         <div className="text-sm font-medium text-primary mb-1">조언</div>
-                        <p className="text-sm text-foreground/80">{r.sinGangYak.advice}</p>
+                        <p className="text-base text-foreground/85 leading-relaxed">{r.sinGangYak.advice}</p>
                       </div>
                       <div>
                         <div className="text-sm font-medium text-foreground/60 mb-2">적합한 분야</div>
@@ -1819,8 +1819,8 @@ export default function SajuPage() {
               </div>
               <Card className="glass-panel border-primary/20 mt-4">
                 <CardContent className="pt-5 space-y-3">
-                  <p className="text-foreground/80">{r.yongsin.advice}</p>
-                  <p className="text-foreground/60 text-sm">{r.yongsin.avoidAdvice}</p>
+                  <p className="text-base text-foreground/85 leading-relaxed">{r.yongsin.advice}</p>
+                  <p className="text-base text-foreground/65 leading-relaxed">{r.yongsin.avoidAdvice}</p>
                   <div className="flex flex-wrap gap-4 mt-3">
                     <div>
                       <div className="text-xs text-muted-foreground mb-1">보완 색상 (용신 기반)</div>
@@ -1874,7 +1874,7 @@ export default function SajuPage() {
                       </div>
                       <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                         <div className="text-sm font-medium text-primary mb-1.5">조후 보완</div>
-                        <p className="text-sm text-foreground/80 leading-relaxed">{r.johuAnalysis.advice}</p>
+                        <p className="text-base text-foreground/85 leading-relaxed">{r.johuAnalysis.advice}</p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {(r.johuAnalysis.needElements?.length ? r.johuAnalysis.needElements : ['균형 유지']).map((elem: string) => (
                             <span key={elem} className={`px-2.5 py-1 rounded-full text-xs border ${ELEM_BG[elem] ?? 'bg-primary/15 text-primary border-primary/25'}`}>
@@ -1953,7 +1953,7 @@ export default function SajuPage() {
                       {r.geokguk.statusDescription && (
                         <div className="p-4 rounded-xl bg-muted/20 border border-primary/10">
                           <div className="text-sm font-medium text-foreground/80 mb-1.5">성패 판단</div>
-                          <p className="text-sm text-foreground/70 leading-relaxed">{r.geokguk.statusDescription}</p>
+                          <p className="text-base text-foreground/75 leading-relaxed">{r.geokguk.statusDescription}</p>
                         </div>
                       )}
                       {(r.geokguk.successFactors?.length > 0 || r.geokguk.riskFactors?.length > 0) && (
@@ -1962,7 +1962,7 @@ export default function SajuPage() {
                             <div className="text-xs font-semibold text-emerald-700 mb-2">살아나는 요소</div>
                             <div className="space-y-1.5">
                               {(r.geokguk.successFactors?.length ? r.geokguk.successFactors : ['뚜렷한 보조 요소는 약합니다.']).map((factor: string, idx: number) => (
-                                <p key={idx} className="text-xs text-foreground/70 leading-relaxed">• {factor}</p>
+                                <p key={idx} className="text-sm text-foreground/75 leading-relaxed">• {factor}</p>
                               ))}
                             </div>
                           </div>
@@ -1970,7 +1970,7 @@ export default function SajuPage() {
                             <div className="text-xs font-semibold text-orange-700 mb-2">흔드는 요소</div>
                             <div className="space-y-1.5">
                               {(r.geokguk.riskFactors?.length ? r.geokguk.riskFactors : ['큰 파격 요소는 약합니다.']).map((factor: string, idx: number) => (
-                                <p key={idx} className="text-xs text-foreground/70 leading-relaxed">• {factor}</p>
+                                <p key={idx} className="text-sm text-foreground/75 leading-relaxed">• {factor}</p>
                               ))}
                             </div>
                           </div>
@@ -1978,7 +1978,7 @@ export default function SajuPage() {
                       )}
                       <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                         <div className="text-sm font-medium text-primary mb-1.5">✅ 격국 조언 & 적합 분야</div>
-                        <p className="text-sm text-foreground/80">{r.geokguk.advice}</p>
+                        <p className="text-base text-foreground/85 leading-relaxed">{r.geokguk.advice}</p>
                       </div>
                     </div>
                   </div>
@@ -1999,7 +1999,7 @@ export default function SajuPage() {
                         <div className="text-xs text-muted-foreground mb-1">가장 강한 흐름</div>
                         <div className="text-xl font-serif font-bold text-primary">{r.tenGodDistribution.dominantLabel}</div>
                       </div>
-                      <p className="text-sm text-foreground/75 leading-relaxed md:max-w-2xl">{r.tenGodDistribution.summary}</p>
+                      <p className="text-base text-foreground/80 leading-relaxed md:max-w-2xl">{r.tenGodDistribution.summary}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -2021,7 +2021,7 @@ export default function SajuPage() {
                             </span>
                           </div>
                           <div className="text-2xl font-semibold text-primary mb-2">{Number(detail.score).toFixed(1)}</div>
-                          <p className="text-xs text-foreground/70 leading-relaxed flex-1">{detail.interpretation}</p>
+                          <p className="text-sm text-foreground/75 leading-relaxed flex-1">{detail.interpretation}</p>
                           <div className="mt-3 flex flex-wrap gap-1">
                             {detail.gods?.map((god: any) => (
                               <span key={god.name} className="px-1.5 py-0.5 rounded bg-muted/30 text-[10px] text-muted-foreground border border-muted/30">
@@ -2035,7 +2035,7 @@ export default function SajuPage() {
                   </div>
                   <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
                     <div className="text-sm font-medium text-accent mb-1.5">분포 조언</div>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{r.tenGodDistribution.advice}</p>
+                    <p className="text-base text-foreground/85 leading-relaxed">{r.tenGodDistribution.advice}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -2048,7 +2048,7 @@ export default function SajuPage() {
               <SectionHeader icon="🎯" title="십신 & 12운성 (十神·十二運星)" />
               <Card className="glass-panel border-primary/30">
                 <CardContent className="pt-6">
-                  <div className="text-xs text-muted-foreground mb-4 p-3 rounded-lg bg-muted/20 border border-primary/10">
+                  <div className="text-sm text-muted-foreground mb-4 p-3 rounded-lg bg-muted/20 border border-primary/10 leading-relaxed">
                     <strong className="text-primary">십신(十神)</strong>은 일간(나)과 각 기둥 천간·지장간의 오행 관계를 나타내며,
                     <strong className="text-accent"> 12운성</strong>은 일간의 기운이 각 지지에서 어떤 생애 단계에 있는지를 보여줍니다.
                   </div>
@@ -2155,7 +2155,7 @@ export default function SajuPage() {
               <SectionHeader icon="✨" title="신살 분석 (神煞)" />
               <Card className="glass-panel border-primary/30">
                 <CardContent className="pt-6">
-                  <p className="text-xs text-muted-foreground mb-5 p-3 rounded-lg bg-muted/20 border border-primary/10">
+                  <p className="text-sm text-muted-foreground mb-5 p-3 rounded-lg bg-muted/20 border border-primary/10 leading-relaxed">
                     신살(神煞)은 사주 속에 숨어 있는 특별한 에너지 기운입니다.
                     길신(吉神)은 삶을 빛나게 하는 힘이고, 흉살(凶殺)은 주의가 필요한 영역을 알려줍니다.
                   </p>
@@ -2189,14 +2189,14 @@ export default function SajuPage() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-foreground/70 leading-relaxed mb-2">{item.description}</p>
+                            <p className="text-base text-foreground/80 leading-relaxed mb-2">{item.description}</p>
                             {item.basis && (
-                              <p className="text-[11px] text-muted-foreground/65 leading-relaxed mb-2">
+                              <p className="text-xs text-muted-foreground/65 leading-relaxed mb-2">
                                 기준: {item.basis}
                               </p>
                             )}
                             {item.advice && (
-                              <div className="text-xs text-primary/80 bg-primary/5 rounded-lg px-2.5 py-1.5 border border-primary/15">
+                              <div className="text-sm text-primary/85 bg-primary/5 rounded-lg px-2.5 py-1.5 border border-primary/15 leading-relaxed">
                                 💡 {item.advice}
                               </div>
                             )}
@@ -2266,7 +2266,7 @@ export default function SajuPage() {
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-sm text-foreground/70 leading-relaxed">{item.description}</p>
+                                <p className="text-base text-foreground/80 leading-relaxed">{item.description}</p>
                               </div>
                             </div>
                           </div>
@@ -2324,7 +2324,7 @@ export default function SajuPage() {
                                 ))}
                               </div>
                             )}
-                            <p className="text-sm text-foreground/75 leading-relaxed">{flow?.summary ?? p.fortune}</p>
+                            <p className="text-base text-foreground/80 leading-relaxed">{flow?.summary ?? p.fortune}</p>
                             {flow?.interactions?.length > 0 && (
                               <div className="flex flex-wrap gap-1.5">
                                 {flow.interactions.slice(0, 3).map((interaction: any, idx: number) => (
@@ -2334,7 +2334,7 @@ export default function SajuPage() {
                                 ))}
                               </div>
                             )}
-                            {flow?.advice && <p className="text-xs text-primary/80 leading-relaxed">{flow.advice}</p>}
+                            {flow?.advice && <p className="text-sm text-primary/85 leading-relaxed">{flow.advice}</p>}
                           </div>
                         </div>
                       );
@@ -2365,7 +2365,7 @@ export default function SajuPage() {
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${ELEM_BG[s.stemElement]}`}>{toStemHanja(s.stem)} {s.stemElement}</span>
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${ELEM_BG[s.branchElement]}`}>{toBranchHanja(s.branch)} {s.branchElement}</span>
                           </div>
-                          <p className="text-xs text-foreground/70 leading-relaxed">{s.fortune}</p>
+                          <p className="text-sm text-foreground/75 leading-relaxed">{s.fortune}</p>
                         </div>
                       );
                     })}
@@ -2397,12 +2397,12 @@ export default function SajuPage() {
                       <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3 min-w-0">
                         <div className="text-xs text-muted-foreground">기회가 큰 해</div>
                         <div className="font-serif text-lg font-bold text-emerald-700 mt-1">{strongest.year}년 · {strongest.score}점</div>
-                        <p className="text-xs text-foreground/65 mt-1 line-clamp-2">{strongest.headline}</p>
+                        <p className="text-sm text-foreground/70 mt-1 line-clamp-2">{strongest.headline}</p>
                       </div>
                       <div className="rounded-xl border border-orange-500/25 bg-orange-500/5 px-4 py-3 min-w-0">
                         <div className="text-xs text-muted-foreground">상대적으로 조정할 해</div>
                         <div className="font-serif text-lg font-bold text-orange-700 mt-1">{careful.year}년 · {careful.score}점</div>
-                        <p className="text-xs text-foreground/65 mt-1 line-clamp-2">{careful.headline}</p>
+                        <p className="text-sm text-foreground/70 mt-1 line-clamp-2">{careful.headline}</p>
                       </div>
                     </div>
 
@@ -2455,18 +2455,18 @@ export default function SajuPage() {
                                         <span key={theme} className="text-xs bg-muted/30 rounded-full px-2 py-0.5">{theme}</span>
                                       ))}
                                     </div>
-                                    <p className="text-sm text-foreground/80 leading-relaxed">{item.summary}</p>
+                                    <p className="text-base text-foreground/85 leading-relaxed">{item.summary}</p>
                                     {item.interactions?.length > 0 && (
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         {item.interactions.map((interaction: any, idx: number) => (
-                                          <div key={`${interaction.type}-${interaction.target}-${idx}`} className={`rounded-lg border px-3 py-2 text-xs leading-relaxed ${interaction.positive ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-800' : 'border-rose-500/20 bg-rose-500/5 text-rose-800'}`}>
+                                          <div key={`${interaction.type}-${interaction.target}-${idx}`} className={`rounded-lg border px-3 py-2 text-sm leading-relaxed ${interaction.positive ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-800' : 'border-rose-500/20 bg-rose-500/5 text-rose-800'}`}>
                                             <div className="font-semibold mb-0.5">{interaction.type} · {interaction.target}</div>
                                             {interaction.description}
                                           </div>
                                         ))}
                                       </div>
                                     )}
-                                    <div className="rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-xs text-primary/85 leading-relaxed">
+                                    <div className="rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-sm text-primary/85 leading-relaxed">
                                       {item.advice}
                                     </div>
                                   </div>
@@ -2521,8 +2521,8 @@ export default function SajuPage() {
                                 발동
                               </span>
                             </div>
-                            <p className="text-sm text-foreground/75 leading-relaxed mb-2">{item.impact}</p>
-                            <div className="text-xs text-primary/80 bg-primary/5 rounded-lg px-2.5 py-1.5 border border-primary/15">
+                            <p className="text-base text-foreground/80 leading-relaxed mb-2">{item.impact}</p>
+                            <div className="text-sm text-primary/85 bg-primary/5 rounded-lg px-2.5 py-1.5 border border-primary/15 leading-relaxed">
                               {item.advice}
                             </div>
                           </div>
@@ -2580,10 +2580,10 @@ export default function SajuPage() {
                             <AlertTriangle className={`w-4 h-4 ${r.samjae.type === '눌삼재' ? 'text-red-600' : 'text-orange-600'}`} />
                             <span className="text-sm font-semibold text-foreground/90">삼재 대처법</span>
                           </div>
-                          <p className="text-sm text-foreground/80 leading-relaxed">{r.samjae.advice}</p>
+                          <p className="text-base text-foreground/85 leading-relaxed">{r.samjae.advice}</p>
                         </div>
                       )}
-                      <div className="p-3 rounded-lg bg-primary/5 border border-primary/15 text-xs text-muted-foreground leading-relaxed">
+                      <div className="p-3 rounded-lg bg-primary/5 border border-primary/15 text-sm text-muted-foreground leading-relaxed">
                         💡 삼재(三災)는 띠(년주 지지) 기준으로 12년마다 3년간 돌아오는 힘든 시기를 뜻합니다. 미리 알고 준비하면 충분히 극복할 수 있습니다.
                       </div>
                     </div>
@@ -2610,7 +2610,7 @@ export default function SajuPage() {
                         <span className="text-2xl shrink-0">{f.icon}</span>
                         <div>
                           <div className="text-sm font-semibold text-foreground/90">{f.name}</div>
-                          <div className="text-xs text-muted-foreground leading-relaxed">{f.desc}</div>
+                          <div className="text-sm text-muted-foreground leading-relaxed">{f.desc}</div>
                         </div>
                       </div>
                     ))}
@@ -2628,7 +2628,7 @@ export default function SajuPage() {
                         <span className="text-2xl shrink-0">{c.icon}</span>
                         <div>
                           <div className="text-sm font-semibold text-foreground/90">{c.name}</div>
-                          <div className="text-xs text-muted-foreground leading-relaxed">{c.desc}</div>
+                          <div className="text-sm text-muted-foreground leading-relaxed">{c.desc}</div>
                         </div>
                       </div>
                     ))}
@@ -2642,7 +2642,7 @@ export default function SajuPage() {
                   <CardContent className="pt-4">
                     <div className="space-y-2">
                       {r.yongsinItems.habits?.map((h: string, i: number) => (
-                        <div key={i} className="flex items-center gap-2 text-sm text-foreground/80">
+                        <div key={i} className="flex items-center gap-2 text-base text-foreground/85">
                           <ChevronRight className="w-3 h-3 text-primary/60 shrink-0" />{h}
                         </div>
                       ))}
@@ -2657,7 +2657,7 @@ export default function SajuPage() {
                   <CardContent className="pt-4">
                     <div className="space-y-2">
                       {r.yongsinItems.avoid?.map((a: string, i: number) => (
-                        <div key={i} className="flex items-center gap-2 text-sm text-foreground/80">
+                        <div key={i} className="flex items-center gap-2 text-base text-foreground/85">
                           <ChevronRight className="w-3 h-3 text-destructive/60 shrink-0" />{a}
                         </div>
                       ))}
@@ -2682,7 +2682,7 @@ export default function SajuPage() {
                         </div>
                         <div>
                           <div className="text-sm font-semibold text-foreground/90 mb-1">{w.category}</div>
-                          <p className="text-sm text-foreground/75 leading-relaxed">{w.content}</p>
+                          <p className="text-base text-foreground/80 leading-relaxed">{w.content}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -2709,7 +2709,7 @@ export default function SajuPage() {
                     <CardHeader className="pb-3 border-b border-primary/10">
                       <CardTitle className="text-lg flex items-center gap-2"><span>{s.icon}</span>{s.title}</CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4"><p className="text-sm text-foreground/85 leading-relaxed">{s.desc}</p></CardContent>
+                    <CardContent className="pt-4"><p className="text-base text-foreground/90 leading-relaxed">{s.desc}</p></CardContent>
                   </Card>
                 ))}
               </div>
@@ -2919,7 +2919,7 @@ function CareerCards({ stem, element }: { stem: string; element: string }) {
           <div className="text-xs font-semibold text-primary text-center">{c.category}</div>
           <div className="flex flex-col gap-1">
             {c.jobs.map(j => (
-              <div key={j} className="flex items-center gap-1 text-xs text-foreground/70">
+              <div key={j} className="flex items-center gap-1 text-sm text-foreground/75">
                 <ChevronRight className="w-3 h-3 text-primary/50 shrink-0" />{j}
               </div>
             ))}

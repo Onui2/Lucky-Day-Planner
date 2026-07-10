@@ -69,13 +69,13 @@ function Evidence({ items }: { items?: string[] }) {
 
 function Method({ children }: { children?: string }) {
   if (!children) return null;
-  return <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground border-t border-foreground/8 pt-2">산식: {children}</p>;
+  return <p className="mt-3 text-xs leading-relaxed text-muted-foreground border-t border-foreground/8 pt-2">산식: {children}</p>;
 }
 
 function InterpretationNote({ school, alternative }: { school?: string; alternative?: string }) {
   if (!school && !alternative) return null;
   return (
-    <div className="mt-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+    <div className="mt-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
       {school && <p><span className="font-medium text-foreground/70">적용 관점</span> · {school}</p>}
       {alternative && <p className={school ? "mt-1" : undefined}><span className="font-medium text-foreground/70">다른 해석 가능성</span> · {alternative}</p>}
     </div>
@@ -125,7 +125,7 @@ function PillarComparison({ comparison }: { comparison: any }) {
         <p className="text-sm font-semibold">보정 전후 팔자 비교</p>
         <span className="text-[11px] text-primary">{comparison.changedPillars?.length ? `${comparison.changedPillars.length}개 변경` : "변경 없음"}</span>
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-foreground/70">{comparison.summary}</p>
+      <p className="mt-1 text-sm leading-relaxed text-foreground/75">{comparison.summary}</p>
       <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
         {rows.map(([key, label]) => {
           const changed = comparison.changedPillars?.some((item: any) => item.key === key);
@@ -212,7 +212,7 @@ function HiddenStemSection({ analysis }: { analysis: any }) {
         title="지장간 · 통근 · 투출"
         meta={<div className="flex items-center gap-2"><span className="text-sm font-semibold">{dayMaster.type} {dayMaster.strengthPercent}%</span><Confidence value={analysis.confidence} /></div>}
       />
-      <p className="text-sm leading-relaxed text-foreground/80">{dayMaster.summary}</p>
+      <p className="text-base leading-relaxed text-foreground/85">{dayMaster.summary}</p>
       <div className="grid grid-cols-3 gap-2 mt-3">
         {[
           ["득령", dayMaster.deukryeong],
@@ -234,7 +234,7 @@ function HiddenStemSection({ analysis }: { analysis: any }) {
                 <div><p className="text-sm font-medium">{item.pillar} · {item.tenGod}</p><p className="text-[11px] text-muted-foreground">통근 {item.rootScore} · {item.level}</p></div>
               </div>
             </div>
-            <p className="text-xs leading-relaxed text-foreground/70 mt-2">{item.summary}</p>
+            <p className="text-sm leading-relaxed text-foreground/75 mt-2">{item.summary}</p>
           </div>
         ))}
       </div>
@@ -271,7 +271,7 @@ function UsefulGodSection({ analysis, transformations }: { analysis: any; transf
         title="용신 교차 판정 · 합화"
         meta={<div className="flex items-center gap-2"><span className={cn("rounded-md border px-2 py-1 text-sm font-semibold", ELEMENT_TONE[analysis.primary])}>{analysis.primary} 1순위</span><Confidence value={analysis.confidence} /></div>}
       />
-      <p className="text-sm leading-relaxed text-foreground/80">{analysis.summary}</p>
+      <p className="text-base leading-relaxed text-foreground/85">{analysis.summary}</p>
       <div className="mt-3 rounded-md border border-foreground/10 bg-foreground/[0.025] p-3">
         <div className="flex items-center justify-between gap-3 text-xs">
           <span className="text-muted-foreground">판정 일치도</span>
@@ -289,7 +289,7 @@ function UsefulGodSection({ analysis, transformations }: { analysis: any; transf
             <div className="flex gap-1.5 mt-2">
               {method.usefulElements?.map((element: string) => <span key={element} className={cn("text-xs rounded-md border px-2 py-0.5", ELEMENT_TONE[element])}>{element}</span>)}
             </div>
-            <p className="text-xs leading-relaxed text-foreground/70 mt-2">{method.summary}</p>
+            <p className="text-sm leading-relaxed text-foreground/75 mt-2">{method.summary}</p>
             <Evidence items={method.evidence?.slice(0, 2)} />
             <InterpretationNote school={method.school} alternative={method.alternativeInterpretation} />
           </div>
@@ -297,7 +297,7 @@ function UsefulGodSection({ analysis, transformations }: { analysis: any; transf
       </div>
       <div className="mt-3 rounded-md border border-amber-500/20 bg-amber-500/5 p-3">
         <div className="flex items-center justify-between gap-2"><p className="text-sm font-semibold">{analysis.specialPattern?.type}</p><span className="text-xs text-amber-700">{analysis.specialPattern?.status}</span></div>
-        <p className="text-xs leading-relaxed text-foreground/75 mt-1">{analysis.specialPattern?.summary}</p>
+        <p className="text-sm leading-relaxed text-foreground/80 mt-1">{analysis.specialPattern?.summary}</p>
         {analysis.specialPattern?.conditions?.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
             {analysis.specialPattern.conditions.map((condition: any) => (
@@ -306,7 +306,7 @@ function UsefulGodSection({ analysis, transformations }: { analysis: any; transf
                   {condition.passed ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <Scale className="w-3.5 h-3.5 shrink-0" />}
                   <span className="font-medium">{condition.label}</span>
                 </div>
-                <p className="mt-1 text-[11px] opacity-80">{condition.detail}</p>
+                <p className="mt-1 text-xs opacity-80">{condition.detail}</p>
               </div>
             ))}
           </div>
@@ -322,10 +322,10 @@ function UsefulGodSection({ analysis, transformations }: { analysis: any; transf
               <p className="text-sm font-semibold">{item.pair} · {item.pillars?.join("·")}</p>
               <span className="text-xs text-primary">{item.status}</span>
             </div>
-            <p className="text-xs leading-relaxed text-foreground/70 mt-1">{item.summary}</p>
+            <p className="text-sm leading-relaxed text-foreground/75 mt-1">{item.summary}</p>
             <Evidence items={item.evidence} />
           </div>
-        )) : <p className="text-xs text-muted-foreground rounded-md border border-foreground/10 px-3 py-2">{transformations?.summary}</p>}
+        )) : <p className="text-sm text-muted-foreground rounded-md border border-foreground/10 px-3 py-2">{transformations?.summary}</p>}
       </div>
       <InterpretationNote
         school="용신 다중 판정과 월령·통근·방해 오행·충 관계를 함께 보는 합화 성립 조건"
@@ -342,8 +342,8 @@ function FamilySection({ analysis }: { analysis: any }) {
     <section className="border-b border-primary/15 py-5">
       <SectionTitle icon={Users} title="육친 · 궁성" />
       <div className="rounded-md border border-primary/15 bg-primary/[0.03] p-3">
-        <p className="text-sm text-foreground/80 leading-relaxed">{analysis.summary}</p>
-        <p className="mt-1 text-xs text-muted-foreground">관계별 십신 점수, 어느 궁성에서 나온 판단인지, 합충해 작용을 분리해서 표시합니다.</p>
+        <p className="text-base text-foreground/85 leading-relaxed">{analysis.summary}</p>
+        <p className="mt-1 text-sm text-muted-foreground">관계별 십신 점수, 어느 궁성에서 나온 판단인지, 합충해 작용을 분리해서 표시합니다.</p>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-4">
         {analysis.roles?.map((role: any) => (
@@ -351,7 +351,7 @@ function FamilySection({ analysis }: { analysis: any }) {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-semibold">{role.name}</p>
-                <p className="text-[11px] leading-relaxed text-muted-foreground mt-0.5">{role.domain}</p>
+                <p className="text-xs leading-relaxed text-muted-foreground mt-0.5">{role.domain}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Confidence value={role.confidence} />
@@ -364,7 +364,7 @@ function FamilySection({ analysis }: { analysis: any }) {
                 <span className="font-semibold">{role.score}점</span>
               </div>
               <div className="mt-2"><ScoreBar score={familyScorePercent(role.score)} /></div>
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <div>
                   <p className="text-muted-foreground">궁성 출처</p>
                   <p className="font-medium text-foreground/80">{role.palaces?.join(" · ") || "없음"}</p>
@@ -377,12 +377,12 @@ function FamilySection({ analysis }: { analysis: any }) {
             </div>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="rounded-md border border-foreground/10 bg-background/35 p-2.5">
-                <p className="text-[11px] font-semibold text-foreground/70">해석</p>
-                <p className="text-xs leading-relaxed text-foreground/75 mt-1">{role.summary}</p>
+                <p className="text-xs font-semibold text-foreground/70">해석</p>
+                <p className="text-sm leading-relaxed text-foreground/80 mt-1">{role.summary}</p>
               </div>
               <div className="rounded-md border border-primary/15 bg-primary/[0.04] p-2.5">
-                <p className="text-[11px] font-semibold text-primary/85">맞춤 행동</p>
-                <p className="text-xs leading-relaxed text-foreground/75 mt-1">{role.advice}</p>
+                <p className="text-xs font-semibold text-primary/85">맞춤 행동</p>
+                <p className="text-sm leading-relaxed text-foreground/80 mt-1">{role.advice}</p>
               </div>
             </div>
             {role.interactions?.length > 0 && (
@@ -414,10 +414,10 @@ function TimingSection({ transition, timeline }: { transition: any; timeline: an
       {active ? (
         <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{active.phase} · {active.to} 대운</p><span className="text-xs text-primary">{active.windowStart} ~ {active.windowEnd}</span></div>
-          <p className="text-xs leading-relaxed text-foreground/75 mt-1">{active.summary}</p>
-          <p className="text-xs text-primary/80 mt-2">{active.advice}</p>
+          <p className="text-sm leading-relaxed text-foreground/80 mt-1">{active.summary}</p>
+          <p className="text-sm text-primary/80 mt-2">{active.advice}</p>
         </div>
-      ) : <p className="text-xs text-muted-foreground">{transition?.summary}</p>}
+      ) : <p className="text-sm text-muted-foreground">{transition?.summary}</p>}
 
       {timeline && (
         <>
@@ -425,7 +425,7 @@ function TimingSection({ transition, timeline }: { transition: any; timeline: an
             {timeline.layers?.daeun && <span className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1">대운 {timeline.layers.daeun.label} · {timeline.layers.daeun.score}</span>}
             <span className="rounded-md border border-blue-500/20 bg-blue-500/5 px-2 py-1">세운 {timeline.layers?.seun?.label} · {timeline.layers?.seun?.score}</span>
           </div>
-          <p className="text-sm leading-relaxed text-foreground/80 mt-3">{timeline.summary}</p>
+          <p className="text-base leading-relaxed text-foreground/85 mt-3">{timeline.summary}</p>
           <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 mt-4">
             {timeline.months?.map((month: any) => (
               <div key={month.month} className={cn("rounded-md border p-2 min-w-0", timeline.bestMonths?.includes(month.month) ? "border-emerald-500/30 bg-emerald-500/5" : timeline.cautionMonths?.includes(month.month) ? "border-rose-500/25 bg-rose-500/5" : "border-foreground/10") }>
@@ -533,7 +533,7 @@ function BirthTimeCandidatesSection({ result }: { result: any }) {
   return (
     <section className="py-5">
       <SectionTitle icon={Clock3} title="출생시간 미상 · 12시주 비교" />
-      <p className="text-sm leading-relaxed text-foreground/75">{analysis?.summary}</p>
+      <p className="text-base leading-relaxed text-foreground/80">{analysis?.summary}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
         <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3"><p className="text-xs font-semibold text-emerald-700">시간과 무관하게 유지</p><Evidence items={analysis?.stableFacts} /></div>
         <div className="rounded-md border border-amber-500/20 bg-amber-500/5 p-3"><p className="text-xs font-semibold text-amber-700">시간에 따라 변동</p><Evidence items={analysis?.variableFacts} /></div>
@@ -589,7 +589,7 @@ export default function AdvancedSajuAnalysis({ result }: { result: any }) {
       <div className="py-5 border-b border-primary/15">
         <div className="flex items-center gap-2">
           <Activity className="w-5 h-5 text-primary" />
-          <h2 className="font-serif text-xl font-semibold">정밀 명리 분석</h2>
+          <h2 className="font-serif text-2xl font-semibold">정밀 명리 분석</h2>
         </div>
       </div>
       <CalculationBasisSection basis={result.calculationBasis} />
