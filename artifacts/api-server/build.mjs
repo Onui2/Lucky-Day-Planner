@@ -69,7 +69,7 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
-    loader: { ".ttf": "base64", ".otf": "base64" },
+    loader: { ".ttf": "file", ".otf": "file" },
   };
 
   await esbuild({
@@ -97,7 +97,7 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
-    loader: { ".ttf": "base64", ".otf": "base64" },
+    loader: { ".ttf": "file", ".otf": "file" },
   });
 
   // 한글 폰트를 서버 번들/베르셀 번들 옆에 복사

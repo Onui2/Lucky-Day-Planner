@@ -24,6 +24,13 @@ export interface UserProfile {
   birthHour: number;
   birthMinute?: number;
   calendarType: "solar" | "lunar";
+  isLeapMonth?: boolean;
+  birthPlace?: string;
+  timeZone?: string;
+  longitude?: number;
+  latitude?: number;
+  applyTrueSolarTime?: boolean;
+  dayBoundary?: "midnight" | "late-zi";
   dayMasterElement?: string;
   dayMasterStem?: string;
   dayMasterBranch?: string;
@@ -58,6 +65,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseNumber(value: unknown, fallback?: number) {
+  if (value === null || value === undefined || typeof value === "boolean") {
+    return fallback;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return fallback;
+  }
+
   const number = Number(value);
   if (Number.isFinite(number)) {
     return number;
@@ -96,6 +110,13 @@ function normalizeProfile(value: unknown): UserProfile | null {
     birthHour,
     birthMinute: parseNumber(value.birthMinute),
     calendarType,
+    isLeapMonth: value.isLeapMonth === true,
+    birthPlace: typeof value.birthPlace === "string" ? value.birthPlace : undefined,
+    timeZone: typeof value.timeZone === "string" ? value.timeZone : undefined,
+    longitude: parseNumber(value.longitude),
+    latitude: parseNumber(value.latitude),
+    applyTrueSolarTime: value.applyTrueSolarTime === true,
+    dayBoundary: value.dayBoundary === "late-zi" ? "late-zi" : "midnight",
     dayMasterElement:
       typeof value.dayMasterElement === "string" ? value.dayMasterElement : undefined,
     dayMasterStem:
@@ -169,6 +190,13 @@ async function fetchProfilePillars(p: UserProfile): Promise<Partial<UserProfile>
       birthMinute: p.birthMinute ?? 0,
       gender: p.gender,
       calendarType: p.calendarType,
+      isLeapMonth: p.isLeapMonth ?? false,
+      birthPlace: p.birthPlace,
+      timeZone: p.timeZone,
+      longitude: p.longitude,
+      latitude: p.latitude,
+      applyTrueSolarTime: p.applyTrueSolarTime ?? false,
+      dayBoundary: p.dayBoundary ?? "midnight",
     }),
   });
 
@@ -248,40 +276,67 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setProfileReady(false);
 
       const localProfile = readLocalProfile(user.id);
+      if (localProfile && !cancelled) {
+        setProfileState(localProfile);
+        setProfileReady(true);
+      }
 
       try {
         const remoteProfile = await fetchRemoteProfile();
         const baseProfile = remoteProfile ?? localProfile;
 
         if (!baseProfile) {
-          if (!cancelled) setProfileState(null);
+          if (!cancelled) {
+            setProfileState(null);
+            setProfileReady(true);
+          }
           return;
         }
 
-        const resolvedProfile = await resolveProfile(baseProfile);
-        writeLocalProfile(user.id, resolvedProfile);
-
-        if (!remoteProfile || needsPillarMigration(remoteProfile)) {
-          void saveRemoteProfile(resolvedProfile).catch(() => {});
-        }
-
+        writeLocalProfile(user.id, baseProfile);
         if (!cancelled) {
-          setProfileState(resolvedProfile);
+          setProfileState(baseProfile);
+          setProfileReady(true);
         }
+
+        if (!needsPillarMigration(baseProfile)) {
+          if (!remoteProfile) {
+            void saveRemoteProfile(baseProfile).catch(() => {});
+          }
+          return;
+        }
+
+        void resolveProfile(baseProfile).then((resolvedProfile) => {
+          writeLocalProfile(user.id, resolvedProfile);
+
+          if (!remoteProfile || needsPillarMigration(remoteProfile)) {
+            void saveRemoteProfile(resolvedProfile).catch(() => {});
+          }
+
+          if (!cancelled) {
+            setProfileState(resolvedProfile);
+          }
+        });
       } catch {
         if (!localProfile) {
-          if (!cancelled) setProfileState(null);
+          if (!cancelled) {
+            setProfileState(null);
+            setProfileReady(true);
+          }
           return;
         }
 
-        const resolvedProfile = await resolveProfile(localProfile);
-        writeLocalProfile(user.id, resolvedProfile);
-        if (!cancelled) {
-          setProfileState(resolvedProfile);
-        }
-      } finally {
         if (!cancelled) {
           setProfileReady(true);
+        }
+
+        if (needsPillarMigration(localProfile)) {
+          void resolveProfile(localProfile).then((resolvedProfile) => {
+            writeLocalProfile(user.id, resolvedProfile);
+            if (!cancelled) {
+              setProfileState(resolvedProfile);
+            }
+          });
         }
       }
     })();

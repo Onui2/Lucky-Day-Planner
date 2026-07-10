@@ -99,7 +99,7 @@ export default function ResetPasswordPage() {
       <div
         className="fixed inset-0 z-[-1] opacity-40 mix-blend-screen pointer-events-none"
         style={{
-          backgroundImage: `url(${import.meta.env.BASE_URL.replace(/\/+$/, "")}/images/mystical-bg.png)`,
+          backgroundImage: `url(${import.meta.env.BASE_URL.replace(/\/+$/, "")}/images/mystical-bg.webp)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

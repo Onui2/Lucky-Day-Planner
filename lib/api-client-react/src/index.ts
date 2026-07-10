@@ -597,6 +597,7 @@ export interface AdminUsersResponse {
 
 const ADMIN_USERS_KEY = ["admin", "users"] as const;
 const ADMIN_STATS_KEY = ["admin", "stats"] as const;
+const ADMIN_AI_LOGS_KEY = ["admin", "ai-question-logs"] as const;
 
 export interface AdminStatsCountSummary {
   totalUsers: number;
@@ -657,6 +658,29 @@ export function useGetAdminStats() {
     queryKey: ADMIN_STATS_KEY,
     queryFn: () => customFetch<AdminStatsResponse>("/api/admin/stats"),
     staleTime: 15_000,
+  });
+}
+
+export function useGetAdminAiQuestionLogs(
+  page = 1,
+  filter = "all",
+  search = "",
+) {
+  const params = new URLSearchParams({
+    page: String(page),
+    filter,
+  });
+  if (search.trim()) {
+    params.set("search", search.trim());
+  }
+
+  return useQuery<AdminAiQuestionLogsResponse>({
+    queryKey: [...ADMIN_AI_LOGS_KEY, page, filter, search],
+    queryFn: () =>
+      customFetch<AdminAiQuestionLogsResponse>(
+        `/api/admin/ai/questions?${params}`,
+      ),
+    staleTime: 10_000,
   });
 }
 
@@ -851,6 +875,14 @@ export function useYearFortune() {
       birthDay: number;
       birthHour?: number;
       birthMinute?: number;
+      calendarType?: "solar" | "lunar";
+      isLeapMonth?: boolean;
+      birthPlace?: string;
+      timeZone?: string;
+      longitude?: number;
+      latitude?: number;
+      applyTrueSolarTime?: boolean;
+      dayBoundary?: "midnight" | "late-zi";
       targetYear?: number;
     }) =>
       customFetch<YearFortuneData>("/api/year-fortune", {
@@ -1078,6 +1110,9 @@ export interface AiQuestionItem {
   answer: string;
   createdAt: string;
   birthInfo?: MonetizationBirthInfo | null;
+  blockedByGuard?: boolean;
+  riskLevel?: "none" | "low" | "medium" | "high" | string;
+  riskReasons?: string[] | null;
 }
 
 export interface AiQuestionsResponse {
@@ -1097,6 +1132,32 @@ export const AI_QUESTIONS_QUERY_KEY = ["ai", "questions"] as const;
 export interface AiQuestionHistoryTurn {
   question: string;
   answer: string;
+}
+
+export interface AdminAiQuestionLog {
+  id: number;
+  userId: string;
+  userEmail: string | null;
+  userFirstName: string | null;
+  userLastName: string | null;
+  subscriptionPlanCode: string | null;
+  monthlyBucket: string;
+  question: string;
+  answer: string;
+  birthInfo?: MonetizationBirthInfo | null;
+  blockedByGuard: boolean;
+  riskLevel: "none" | "low" | "medium" | "high" | string;
+  riskReasons?: string[] | null;
+  conversationHistory?: AiQuestionHistoryTurn[] | null;
+  promptGuardVersion?: string | null;
+  createdAt: string;
+}
+
+export interface AdminAiQuestionLogsResponse {
+  logs: AdminAiQuestionLog[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export function useGetMyOrders(enabled = true) {
@@ -1262,6 +1323,14 @@ export function useLoveFortune() {
       birthDay: number;
       birthHour?: number;
       birthMinute?: number;
+      calendarType?: "solar" | "lunar";
+      isLeapMonth?: boolean;
+      birthPlace?: string;
+      timeZone?: string;
+      longitude?: number;
+      latitude?: number;
+      applyTrueSolarTime?: boolean;
+      dayBoundary?: "midnight" | "late-zi";
       gender: string;
       status: string;
       targetYear?: number;
@@ -1270,6 +1339,14 @@ export function useLoveFortune() {
       partnerDay?: number;
       partnerHour?: number;
       partnerMinute?: number;
+      partnerCalendarType?: "solar" | "lunar";
+      partnerIsLeapMonth?: boolean;
+      partnerBirthPlace?: string;
+      partnerTimeZone?: string;
+      partnerLongitude?: number;
+      partnerLatitude?: number;
+      partnerApplyTrueSolarTime?: boolean;
+      partnerDayBoundary?: "midnight" | "late-zi";
       partnerGender?: string;
     }) =>
       customFetch<LoveFortuneResult>("/api/love-fortune", {

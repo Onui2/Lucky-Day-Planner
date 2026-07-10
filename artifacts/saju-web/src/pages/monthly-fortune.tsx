@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
+import { profileBirthPayload } from "@/lib/birth-precision";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
 const ELEM_BG:   Record<string,string>  = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
@@ -47,9 +48,7 @@ async function fetchMonthly(
   return customFetch<MonthlyData>("/api/saju/monthly", {
     method: "POST",
     body: JSON.stringify({
-      birthYear: profile.birthYear, birthMonth: profile.birthMonth,
-      birthDay: profile.birthDay, birthHour: profile.birthHour,
-      gender: profile.gender, calendarType: profile.calendarType,
+      ...profileBirthPayload(profile),
       targetYear: year, targetMonth: month,
     }),
   });
@@ -69,7 +68,7 @@ function ScoreBar({ score, color }: { score: number; color: string }) {
 }
 
 function scoreLabel(s: number) {
-  if (s >= 85) return '매우 좋음'; if (s >= 70) return '좋음';
+  if (s >= 85) return '강함'; if (s >= 70) return '양호';
   if (s >= 55) return '보통'; if (s >= 40) return '주의'; return '어려움';
 }
 function scoreColor(s: number) {
@@ -134,7 +133,7 @@ export default function MonthlyFortunePage() {
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['monthly', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.gender, year, month],
+    queryKey: ['monthly', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.birthHour, profile?.birthMinute, profile?.gender, profile?.calendarType, profile?.isLeapMonth, profile?.timeZone, profile?.longitude, profile?.applyTrueSolarTime, profile?.dayBoundary, year, month],
     queryFn: () => fetchMonthly(profile, year, month),
     enabled: !!profile,
   });

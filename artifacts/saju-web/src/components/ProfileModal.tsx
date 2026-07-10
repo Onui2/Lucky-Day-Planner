@@ -7,6 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUser, type UserProfile } from "@/contexts/UserContext";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Loader2, UserCircle2, Trash2, Sparkles } from "lucide-react";
+import BirthPrecisionFields from "@/components/BirthPrecisionFields";
+import {
+  DEFAULT_BIRTH_PRECISION,
+  precisionFromProfile,
+  precisionToPayload,
+  type BirthPrecisionValues,
+} from "@/lib/birth-precision";
 import {
   clampBirthDayValue,
   getBirthDateError,
@@ -72,7 +79,9 @@ export default function ProfileModal({ open, onClose }: Props) {
     birthMonth: "",
     birthDay: "",
     birthHour: -1,
+    birthMinute: "",
     calendarType: "solar" as "solar" | "lunar",
+    precision: { ...DEFAULT_BIRTH_PRECISION } as BirthPrecisionValues,
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -90,7 +99,9 @@ export default function ProfileModal({ open, onClose }: Props) {
           birthMonth: String(profile.birthMonth),
           birthDay: String(profile.birthDay),
           birthHour: profile.birthHour,
+          birthMinute: profile.birthHour >= 0 ? String(profile.birthMinute ?? 0) : "",
           calendarType: profile.calendarType,
+          precision: precisionFromProfile(profile),
         });
       } else {
         // 프로필 없을 때: 회원가입 이름 자동 입력
@@ -125,7 +136,9 @@ export default function ProfileModal({ open, onClose }: Props) {
       birthMonth: month,
       birthDay: day,
       birthHour: form.birthHour,
+      birthMinute: form.birthHour >= 0 ? Math.max(0, Math.min(59, Number(form.birthMinute) || 0)) : 0,
       calendarType: form.calendarType,
+      ...precisionToPayload(form.precision),
     };
     await setProfile(p);
     setSuccess(true);
@@ -156,7 +169,7 @@ export default function ProfileModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md bg-background/95 backdrop-blur-xl border-primary/30 text-foreground">
+      <DialogContent className="w-[calc(100vw-24px)] max-w-3xl max-h-[calc(100dvh-24px)] overflow-y-auto bg-background/95 backdrop-blur-xl border-primary/30 text-foreground p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-2xl font-serif text-gradient-gold flex items-center gap-2">
             <UserCircle2 className="w-6 h-6 text-primary" />
@@ -167,7 +180,7 @@ export default function ProfileModal({ open, onClose }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5 mt-2">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {/* 이름 */}
           <div className="space-y-1.5">
             <Label className="text-sm text-muted-foreground">이름 (선택)</Label>
@@ -235,17 +248,37 @@ export default function ProfileModal({ open, onClose }: Props) {
           {/* 출생 시간 */}
           <div className="space-y-1.5">
             <Label className="text-sm text-muted-foreground">출생 시간 (선택)</Label>
-            <Select value={String(form.birthHour)} onValueChange={v => setForm(f => ({ ...f, birthHour: Number(v) }))}>
-              <SelectTrigger className="bg-input/40 border-primary/20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {HOURS.map(h => (
-                  <SelectItem key={h.value} value={String(h.value)}>{h.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
+              <Select value={String(form.birthHour)} onValueChange={v => setForm(f => ({ ...f, birthHour: Number(v), birthMinute: Number(v) < 0 ? "" : f.birthMinute }))}>
+                <SelectTrigger className="bg-input/40 border-primary/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HOURS.map(h => (
+                    <SelectItem key={h.value} value={String(h.value)}>{h.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                min={0}
+                max={59}
+                inputMode="numeric"
+                value={form.birthMinute}
+                disabled={form.birthHour < 0}
+                onChange={(event) => setForm((current) => ({ ...current, birthMinute: event.target.value.replace(/\D/g, "").slice(0, 2) }))}
+                placeholder="분"
+                className="bg-input/40 border-primary/20"
+              />
+            </div>
           </div>
+
+          <BirthPrecisionFields
+            values={form.precision}
+            calendarType={form.calendarType}
+            onChange={(precision) => setForm((current) => ({ ...current, precision }))}
+            compact
+          />
 
           {error && <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">{error}</p>}
 

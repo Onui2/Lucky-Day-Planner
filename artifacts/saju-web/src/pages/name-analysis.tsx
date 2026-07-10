@@ -226,13 +226,13 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
             <div className="glass-panel border border-primary/20 rounded-2xl p-5 bg-primary/3">
               <h3 className="text-sm font-semibold text-primary mb-4 flex items-center gap-2">
                 <Gem className="w-4 h-4" />
-                내 일간 <span className={`${SAJU_ELEM_COLOR[dm]}`}>{profile.dayMasterStem}({SAJU_ELEM_KOR[dm]})</span> 기반 행운 정보
+                내 일간 <span className={`${SAJU_ELEM_COLOR[dm]}`}>{profile.dayMasterStem}({SAJU_ELEM_KOR[dm]})</span> 기반 보완 정보
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* 행운의 숫자 */}
+                {/* 참고 숫자 */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <Hash className="w-3.5 h-3.5 text-primary" /> 행운의 숫자
+                    <Hash className="w-3.5 h-3.5 text-primary" /> 참고 숫자
                   </div>
                   <div className="flex gap-2">
                     {lnums.map((n, i) => (
@@ -242,10 +242,10 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
                   <p className="text-[11px] text-muted-foreground">{lucky.elementDesc.split('—')[0].trim()}</p>
                 </div>
 
-                {/* 행운의 색상 */}
+                {/* 보완 색상 */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <Palette className="w-3.5 h-3.5 text-primary" /> 행운·주의 색상
+                    <Palette className="w-3.5 h-3.5 text-primary" /> 보완·주의 색상
                   </div>
                   <div className="space-y-1">
                     <div className="flex flex-wrap gap-1">
@@ -273,10 +273,10 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
                   </div>
                 </div>
 
-                {/* 행운의 물건 */}
+                {/* 보완 물건 */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <Gem className="w-3.5 h-3.5 text-primary" /> 행운의 물건
+                    <Gem className="w-3.5 h-3.5 text-primary" /> 보완 물건
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {litems.map((item, i) => (
@@ -285,10 +285,10 @@ function ResultSection({ data, profile }: { data: NameAnalysisData; profile: Pro
                   </div>
                 </div>
 
-                {/* 행운의 음식 */}
+                {/* 보완 음식 */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <Utensils className="w-3.5 h-3.5 text-primary" /> 행운의 음식
+                    <Utensils className="w-3.5 h-3.5 text-primary" /> 보완 음식
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {lfood.map((f, i) => (

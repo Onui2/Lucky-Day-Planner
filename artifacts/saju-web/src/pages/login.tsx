@@ -23,15 +23,15 @@ import {
 import { buildAuthHref, sanitizeReturnTo } from "@/lib/auth-redirect";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
+const SAVED_EMAIL_KEY = "myunghae_saved_email";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
   const returnTo = sanitizeReturnTo(params.get("returnTo"));
-  const { isAuthenticated, isLoading, refreshUser } = useAuth();
+  const { isAuthenticated, isLoading, refreshUser, setAuthenticatedUser } = useAuth();
 
-  const SAVED_EMAIL_KEY = "myunghae_saved_email";
   const [email, setEmail] = useState(() => {
     try {
       return localStorage.getItem(SAVED_EMAIL_KEY) ?? "";
@@ -91,9 +91,10 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
+      const trimmedEmail = email.trim();
       if (rememberMe) {
         try {
-          localStorage.setItem(SAVED_EMAIL_KEY, email.trim());
+          localStorage.setItem(SAVED_EMAIL_KEY, trimmedEmail);
         } catch {}
       } else {
         try {
@@ -101,8 +102,12 @@ export default function LoginPage() {
         } catch {}
       }
 
-      await loginWithPassword({ email: email.trim(), password });
-      await refreshUser();
+      const user = await loginWithPassword({ email: trimmedEmail, password });
+      if (user) {
+        setAuthenticatedUser(user);
+      } else {
+        await refreshUser();
+      }
       navigate(returnTo);
     } catch (loginError) {
       setError(
@@ -115,8 +120,8 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading) return null;
-
+  // 인증 확인(/api/auth/user)이 끝나기 전에도 폼을 바로 그린다.
+  // 이미 로그인된 경우는 위 useEffect가 확인 즉시 리다이렉트한다.
   const localLoginUnavailable = setupStatus?.localPasswordAuthEnabled === false;
 
   return (
@@ -124,7 +129,7 @@ export default function LoginPage() {
       <div
         className="fixed inset-0 z-[-1] opacity-40 mix-blend-screen pointer-events-none"
         style={{
-          backgroundImage: `url(${BASE}/images/mystical-bg.png)`,
+          backgroundImage: `url(${BASE}/images/mystical-bg.webp)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -169,20 +174,25 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">
+              <label
+                htmlFor="login-email"
+                className="text-sm font-medium text-foreground/80"
+              >
                 이메일
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
+                  id="login-email"
+                  name="username"
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="example@email.com"
                   className="pl-10 h-11 bg-background/40 border-primary/20 focus:border-primary/50"
-                  autoComplete="email"
+                  autoComplete="username"
                   autoFocus
                   disabled={submitting}
                 />
@@ -190,12 +200,17 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">
+              <label
+                htmlFor="login-password"
+                className="text-sm font-medium text-foreground/80"
+              >
                 비밀번호
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
+                  id="login-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -247,7 +262,7 @@ export default function LoginPage() {
                   {rememberMe && <Check className="h-3.5 w-3.5 text-primary" />}
                 </span>
                 <span className="whitespace-nowrap text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                  로그인 정보 저장
+                  아이디 저장
                 </span>
               </label>
               <Link

@@ -466,11 +466,24 @@ export function ensureDatabaseSchema(): Promise<void> {
             answer text NOT NULL,
             birth_info jsonb,
             saju_result jsonb,
+            blocked_by_guard boolean NOT NULL DEFAULT false,
+            risk_level varchar(20) NOT NULL DEFAULT 'none',
+            risk_reasons jsonb,
+            conversation_history jsonb,
+            request_metadata jsonb,
+            prompt_guard_version varchar(40),
             created_at timestamptz NOT NULL DEFAULT now()
           )
         `);
+        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS blocked_by_guard boolean NOT NULL DEFAULT false`);
+        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS risk_level varchar(20) NOT NULL DEFAULT 'none'`);
+        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS risk_reasons jsonb`);
+        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS conversation_history jsonb`);
+        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS request_metadata jsonb`);
+        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS prompt_guard_version varchar(40)`);
         await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_user_bucket_idx ON ai_questions (user_id, monthly_bucket)`);
         await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_user_created_idx ON ai_questions (user_id, created_at DESC)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_guard_created_idx ON ai_questions (blocked_by_guard, created_at DESC)`);
 
         databaseReady = true;
         lastDatabaseError = null;

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { flushSync } from "react-dom";
 import { Link, useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import {
@@ -52,6 +51,13 @@ const ELEM_COLOR: Record<string, string> = {
   금: "text-gray-700",
   수: "text-blue-600",
 };
+
+const footerLinks = [
+  { href: "/terms", label: "이용약관" },
+  { href: "/privacy", label: "개인정보처리방침" },
+  { href: "/refund-policy", label: "환불 및 취소 정책" },
+  { href: "/inquiries", label: "문의하기" },
+];
 
 function UnreadBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -199,20 +205,23 @@ export function Layout({ children }: LayoutProps) {
       ]
     : [];
 
+  const publicExtraServices = [
+    {
+      href: "/sinsal-guide",
+      label: "신살 안내",
+      icon: Star,
+      desc: "도화·역마·천을귀인 등 23종 해설",
+    },
+    {
+      href: "/glossary",
+      label: "사주 용어 사전",
+      icon: BookOpen,
+      desc: "천간·지지·십신 등 용어 77가지",
+    },
+  ];
+
   const adminExtraServices = isAdmin
     ? [
-        {
-          href: "/sinsal-guide",
-          label: "신살 안내",
-          icon: Star,
-          desc: "도화·역마·천을귀인 등 해설",
-        },
-        {
-          href: "/glossary",
-          label: "사주 용어 사전",
-          icon: BookOpen,
-          desc: "천간·지지·십신 용어 정리",
-        },
         {
           href: "/saju-tables",
           label: "이론 조견표",
@@ -232,6 +241,7 @@ export function Layout({ children }: LayoutProps) {
     ...(memberExtraServices.length > 0
       ? [{ key: "member", label: "회원 전용", items: memberExtraServices }]
       : []),
+    { key: "reference", label: "사주 자료실", items: publicExtraServices },
     ...(adminExtraServices.length > 0
       ? [{ key: "admin", label: "관리자 전용", items: adminExtraServices }]
       : []),
@@ -416,15 +426,8 @@ export function Layout({ children }: LayoutProps) {
                     )}
                   />
                 </button>
-                <AnimatePresence>
-                  {servicesOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 6, scale: 0.97 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full mt-2 right-0 w-56 max-h-[min(32rem,calc(100vh-7rem))] overflow-y-auto overscroll-contain glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50"
-                    >
+                {servicesOpen && (
+                  <div className="absolute top-full mt-2 right-0 w-56 max-h-[min(32rem,calc(100vh-7rem))] overflow-y-auto overscroll-contain glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150">
                       {extraServiceGroups.map((group) => (
                         <div key={group.key} className="px-1">
                           <div className="px-2 pt-1 pb-1.5 text-[10px] font-semibold tracking-[0.18em] text-primary/60 uppercase">
@@ -466,9 +469,8 @@ export function Layout({ children }: LayoutProps) {
                           )}
                         </div>
                       ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                  </div>
+                )}
               </div>
             )}
 
@@ -527,15 +529,8 @@ export function Layout({ children }: LayoutProps) {
                       )}
                     />
                   </button>
-                  <AnimatePresence>
-                    {userMenuOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 6, scale: 0.97 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute top-full mt-2 right-0 w-52 glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50"
-                      >
+                  {userMenuOpen && (
+                    <div className="absolute top-full mt-2 right-0 w-52 glass-panel border border-primary/20 rounded-2xl p-2 shadow-xl z-50 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150">
                         <Link
                           href="/account"
                           onClick={handleMenuNavigation("/account", () =>
@@ -567,9 +562,8 @@ export function Layout({ children }: LayoutProps) {
                           <LogOut className="w-4 h-4" />
                           로그아웃
                         </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button
@@ -617,27 +611,16 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      <AnimatePresence>
-        {mobileMenuOpen && (
+      {mobileMenuOpen && (
           <div className="fixed inset-0 z-40 md:hidden">
-            <motion.button
+            <button
               type="button"
               aria-label="메뉴 닫기"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="absolute inset-x-0 top-16 bottom-0 bg-background/75 backdrop-blur-sm"
+              className="absolute inset-x-0 top-16 bottom-0 bg-background/75 backdrop-blur-sm animate-in fade-in-0 duration-150"
               onClick={closeMobile}
             />
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
-              className="absolute inset-x-0 top-16 max-h-[calc(100dvh-4rem)] border-t border-primary/10 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain"
-            >
-              <div className="container mx-auto px-4 py-3 pb-4 flex flex-col gap-1">
+            <div className="absolute inset-x-0 top-16 bottom-0 border-t border-primary/10 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain animate-in fade-in-0 slide-in-from-top-2 duration-200">
+              <div className="container mx-auto min-h-full px-4 py-3 pb-24 flex flex-col gap-1">
                 {navItems.map((item) => renderMobileNavLink(item, closeMobile))}
 
                 {extraServiceGroups.length > 0 && (
@@ -675,23 +658,15 @@ export function Layout({ children }: LayoutProps) {
                             />
                           </button>
 
-                          <AnimatePresence initial={false}>
-                            {isOpen && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.18 }}
-                                className="overflow-hidden"
-                              >
+                          {isOpen && (
+                            <div className="overflow-hidden animate-in fade-in-0 slide-in-from-top-1 duration-150">
                                 <div className="px-2 pb-2 flex flex-col gap-1">
                                   {group.items.map((s) =>
                                     renderMobileNavLink(s, closeMobile),
                                   )}
                                 </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -776,14 +751,12 @@ export function Layout({ children }: LayoutProps) {
                     </button>
                   ))}
               </div>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
 
       {/* 공지사항 배너 */}
-      <AnimatePresence>
-        {visibleAnnouncements.slice(0, 2).map((a) => {
+      {visibleAnnouncements.slice(0, 2).map((a) => {
           const typeStyle =
             a.type === "warning"
               ? "bg-amber-500/15 border-amber-500/40 text-amber-700"
@@ -791,12 +764,9 @@ export function Layout({ children }: LayoutProps) {
                 ? "bg-primary/15 border-primary/40 text-primary-foreground"
                 : "bg-sky-500/10 border-sky-500/30 text-sky-700";
           return (
-            <motion.div
+            <div
               key={a.id}
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className={`border-b px-4 py-2.5 text-sm flex items-center gap-3 ${typeStyle}`}
+              className={`border-b px-4 py-2.5 text-sm flex items-center gap-3 animate-in fade-in-0 slide-in-from-top-1 duration-150 ${typeStyle}`}
             >
               <Bell className="w-3.5 h-3.5 shrink-0 opacity-80" />
               {a.isPinned && <span className="text-xs font-bold opacity-70">[공지]</span>}
@@ -807,20 +777,38 @@ export function Layout({ children }: LayoutProps) {
               >
                 <X className="w-3.5 h-3.5" />
               </button>
-            </motion.div>
+            </div>
           );
         })}
-      </AnimatePresence>
 
       <main className="flex-1 container mx-auto px-4 py-8 md:py-12">
         {children}
       </main>
 
-      <footer className="border-t border-primary/10 py-5 text-center text-muted-foreground/60 text-sm mt-auto glass-panel rounded-t-3xl">
-        <p className="font-serif tracking-widest">
-          © {new Date().getFullYear()} 명해원(命海苑). 운명의 바다, 지혜가
-          모이는 곳.
-        </p>
+      <footer className="border-t border-primary/10 px-4 py-6 text-center text-sm text-muted-foreground/60 mt-auto glass-panel rounded-t-3xl">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground/75">
+            {footerLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="transition-colors hover:text-primary"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+          <p className="font-serif tracking-widest">
+            Copyright © {new Date().getFullYear()} 명해원(命海苑). All rights reserved.
+          </p>
+          <p className="mt-1 text-xs tracking-[0.2em]">
+            운명의 바다, 지혜가 모이는 곳.
+          </p>
+          <p className="mx-auto mt-3 max-w-3xl text-xs leading-6 text-muted-foreground/55">
+            명해원의 사주 분석 결과는 참고용 콘텐츠이며, 의료·법률·투자·진로·결혼 등
+            중요한 의사결정을 대신하지 않습니다.
+          </p>
+        </div>
       </footer>
 
       {isAuthenticated && (
@@ -830,21 +818,15 @@ export function Layout({ children }: LayoutProps) {
         />
       )}
 
-      <AnimatePresence>
-        {showScrollTop && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
+      {showScrollTop && (
+          <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full bg-primary/90 hover:bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center transition-colors"
+            className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full bg-primary/90 hover:bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center transition-colors animate-in fade-in-0 zoom-in-95 duration-200"
             aria-label="맨 위로"
           >
             <ChevronUp className="w-5 h-5" />
-          </motion.button>
+          </button>
         )}
-      </AnimatePresence>
     </div>
   );
 }

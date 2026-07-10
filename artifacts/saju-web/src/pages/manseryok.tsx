@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useGetManseryokMonth } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
+import { AdminPersonLookup, type AdminLookupTarget } from "@/components/AdminPersonLookup";
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem, ImageDown, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
@@ -67,9 +68,11 @@ function calcDayScore(
   const relation = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
 
   if (!relation) {
-    let base = 5;
-    if (dayData?.luckyDay)        base = 7;
-    if (dayData?.inauspiciousDay) base = 3;
+    // 비개인화(프로필 없음) 기본 점수. 사주 기둥 점수 재조정과 같은 결로
+    // 바닥을 올리고(흉4·중립6) 길일은 8로 유지 → 100점 환산 시 중심 ~65.
+    let base = 6;
+    if (dayData?.luckyDay)        base = 8;
+    if (dayData?.inauspiciousDay) base = 4;
     return base;
   }
 
@@ -233,6 +236,22 @@ function getSubScores(base: number, elem: string) {
     건강: Math.min(10, Math.max(1, base + (b.건강 ?? 0))),
     직업: Math.min(10, Math.max(1, base + (b.직업 ?? 0))),
   };
+}
+
+// 10점 종합 점수 + 분야별(재물·애정·건강·직업) 편차를 합쳐 1~100 종합 점수로 환산한다.
+// 색/라벨(대길·길·평…)과 정합하면서도 같은 밴드 안에서 날마다 값이 세밀하게 갈린다.
+function calcDayScore100(base: number, elem: string): number {
+  const s = getSubScores(base, elem);
+  const mean = (s.재물 + s.애정 + s.건강 + s.직업) / 4;
+  return Math.min(100, Math.max(1, Math.round(mean * 10)));
+}
+
+function score100TextColor(score100: number): string {
+  if (score100 >= 85) return "text-amber-600";
+  if (score100 >= 65) return "text-emerald-600";
+  if (score100 >= 45) return "text-slate-600";
+  if (score100 >= 25) return "text-orange-600";
+  return "text-rose-600";
 }
 
 const STEM_DESC: Record<string, string> = {
@@ -485,8 +504,43 @@ export default function ManseryokPage() {
   const [currentDate, setCurrentDate] = useState(TODAY_DATE);
   const [selected, setSelected] = useState<SelectedDay | null>(null);
   const { user } = useAuth();
-  const { profile, profileReady, hasCachedProfile } = useResolvedProfile();
-  const canAccessFutureDates = user?.role === "admin" || user?.role === "superadmin";
+  const { profile: resolvedProfile, profileReady, hasCachedProfile } = useResolvedProfile();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const canAccessFutureDates = isAdmin;
+
+  // 관리자 전용: 다른 사람 사주를 조회하면 그 프로필로 만세력을 렌더한다.
+  const [adminTarget, setAdminTarget] = useState<AdminLookupTarget | null>(null);
+  const [adminLookupOpen, setAdminLookupOpen] = useState(false);
+  const activeAdminTarget = isAdmin ? adminTarget : null;
+  const profile = activeAdminTarget ? activeAdminTarget.profile : resolvedProfile;
+
+  // 달력 이미지 저장(관리자 전용). 매 렌더마다 재생성돼 현재 연/월을 그대로 읽는다.
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [savingImage, setSavingImage] = useState(false);
+  const saveCalendarImage = async () => {
+    if (!calendarRef.current || savingImage) return;
+    setSavingImage(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(calendarRef.current, {
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        // 앱 전역 스타일시트(크로스오리진 웹폰트) 임베드 시 SecurityError가 나고
+        // 캡처가 느려진다. 스크린샷은 브라우저 폰트로 충분하므로 폰트 임베드를 건너뛴다.
+        skipFonts: true,
+      });
+      const link = document.createElement("a");
+      const who = activeAdminTarget?.profile?.name || (activeAdminTarget ? "person" : "my");
+      link.download = `manseryok-${who}-${yearStr}-${monthStr}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("만세력 이미지 저장 실패:", err);
+    } finally {
+      setSavingImage(false);
+    }
+  };
 
   const yearStr = format(currentDate, "yyyy");
   const monthStr = format(currentDate, "MM");
@@ -528,12 +582,14 @@ export default function ManseryokPage() {
         ].join(":")
       : "no-profile"
   ), [profile]);
+  const shouldLoadManseryok = Boolean(activeAdminTarget) || profileReady || Boolean(profile);
 
   const { data, isLoading, error } = useGetManseryokMonth(
     { year: yearStr, month: monthStr, ...personalizationParams },
     {
       query: {
         queryKey: ["/api/manseryok/month", { year: yearStr, month: monthStr, personalizationKey }, accessScope],
+        enabled: shouldLoadManseryok,
       },
     },
   );
@@ -547,7 +603,7 @@ export default function ManseryokPage() {
 
   // 오늘 날짜 자동 선택 (데이터·프로필 로드 후, 현재 달일 때)
   useEffect(() => {
-    if (!data?.days || !isCurrentMonth || !profileReady) return;
+    if (!data?.days || !isCurrentMonth) return;
     const todayNum = today.getDate();
     // 아무것도 선택 안 됐거나, 오늘이 이미 선택돼 있으면 갱신 (다른 날 선택 시엔 덮어쓰지 않음)
     if (selected && selected.dayNum !== todayNum) return;
@@ -561,7 +617,6 @@ export default function ManseryokPage() {
     data,
     isCurrentMonth,
     monthStr,
-    profileReady,
     selected?.dayNum,
     yearStr,
     myBranch,
@@ -570,14 +625,14 @@ export default function ManseryokPage() {
     relationContext,
   ]);
 
+  // 미래 '월'을 보고 있던 일반 회원이 접근을 잃으면 선택을 초기화한다.
+  // (현재 달의 미래 날짜 선택은 허용하므로 날짜 단위로는 막지 않는다.)
   useEffect(() => {
     if (!selected || canAccessFutureDates) return;
-
-    const selectedDate = `${yearStr}-${monthStr}-${String(selected.dayNum).padStart(2, "0")}`;
-    if (selectedDate > TODAY) {
+    if (currentMonthKey > TODAY_MONTH) {
       setSelected(null);
     }
-  }, [canAccessFutureDates, monthStr, selected, yearStr]);
+  }, [canAccessFutureDates, currentMonthKey]);
 
   const nextMonth = () => {
     const next = addMonths(currentDate, 1);
@@ -596,27 +651,32 @@ export default function ManseryokPage() {
 
   const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
 
-  const dayScores = useMemo(() => {
-    if (!data) return {};
+  const { dayScores, dayScores100 } = useMemo(() => {
     const map: Record<number, number> = {};
+    const map100: Record<number, number> = {};
+    if (!data) return { dayScores: map, dayScores100: map100 };
     days.forEach(dayNum => {
       const dayStr = dayNum.toString().padStart(2, "0");
       const fullDate = `${yearStr}-${monthStr}-${dayStr}`;
       const dayData = data.days.find((d: any) => d.solar === fullDate);
-      if (dayData) map[dayNum] = calcDayScore(dayData, myElem, myStem, myBranch, relationContext);
+      if (dayData) {
+        const base = calcDayScore(dayData, myElem, myStem, myBranch, relationContext);
+        map[dayNum] = base;
+        map100[dayNum] = calcDayScore100(base, dayData.dayElement);
+      }
     });
-    return map;
+    return { dayScores: map, dayScores100: map100 };
   }, [data, monthStr, myBranch, myElem, myStem, relationContext, yearStr]);
 
-  const scoreValues = Object.values(dayScores);
-  const avgScore = scoreValues.length > 0
-    ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length * 10) / 10
+  const score100Values = Object.values(dayScores100);
+  const avgScore = score100Values.length > 0
+    ? Math.round(score100Values.reduce((a, b) => a + b, 0) / score100Values.length)
     : null;
-  const bestDay = scoreValues.length > 0
-    ? Object.entries(dayScores).reduce((a, b) => Number(a[1]) >= Number(b[1]) ? a : b)
+  const bestDay = score100Values.length > 0
+    ? Object.entries(dayScores100).reduce((a, b) => Number(a[1]) >= Number(b[1]) ? a : b)
     : null;
-  const worstDay = scoreValues.length > 0
-    ? Object.entries(dayScores).reduce((a, b) => Number(a[1]) <= Number(b[1]) ? a : b)
+  const worstDay = score100Values.length > 0
+    ? Object.entries(dayScores100).reduce((a, b) => Number(a[1]) <= Number(b[1]) ? a : b)
     : null;
 
   function handleDayClick(dayNum: number, dayData: any) {
@@ -662,26 +722,83 @@ export default function ManseryokPage() {
           <div className="glass-panel rounded-xl border border-primary/15 p-3 text-center">
             <p className="text-xs text-muted-foreground mb-1">이달 평균 운세</p>
             <p className="text-2xl font-bold text-primary">{avgScore}</p>
-            <p className="text-xs text-muted-foreground">/ 10점</p>
+            <p className="text-xs text-muted-foreground">/ 100점</p>
           </div>
           {bestDay && (
             <div className="glass-panel rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-3 text-center">
               <p className="text-xs text-yellow-600/70 mb-1 flex items-center justify-center gap-1"><Star className="w-3 h-3" />최고의 날</p>
               <p className="text-lg font-bold text-yellow-700">{monthStr}월 {bestDay[0]}일</p>
-              <p className="text-xs text-yellow-600/70">{scoreLabel(Number(bestDay[1]))} ({bestDay[1]}점)</p>
+              <p className="text-xs text-yellow-600/70">{scoreLabel(Number(bestDay[1]) / 10)} ({bestDay[1]}점)</p>
             </div>
           )}
           {worstDay && (
             <div className="glass-panel rounded-xl border border-slate-400/20 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1"><TrendingDown className="w-3 h-3" />주의의 날</p>
               <p className="text-lg font-bold text-muted-foreground">{monthStr}월 {worstDay[0]}일</p>
-              <p className="text-xs text-muted-foreground">{scoreLabel(Number(worstDay[1]))} ({worstDay[1]}점)</p>
+              <p className="text-xs text-muted-foreground">{scoreLabel(Number(worstDay[1]) / 10)} ({worstDay[1]}점)</p>
             </div>
           )}
         </div>
       )}
 
-      <Card className="glass-panel border-primary/20 p-4 md:p-6">
+      {/* 관리자 전용 액션 */}
+      {isAdmin && (
+        <div className="relative mb-3">
+          <div className="flex justify-end items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAdminLookupOpen((open) => !open)}
+              title="다른 사람 만세력 조회"
+              aria-label="다른 사람 만세력 조회"
+              className={cn(
+                "h-9 w-9 rounded-full border shadow-sm transition-all flex items-center justify-center",
+                adminLookupOpen || activeAdminTarget
+                  ? "border-amber-500/50 bg-amber-500/15 text-amber-700"
+                  : "border-primary/25 bg-background/80 text-primary hover:bg-primary/10",
+              )}
+            >
+              <ShieldCheck className="w-4 h-4" />
+            </button>
+
+            {data && (
+              <Button variant="outline" size="sm" onClick={saveCalendarImage} disabled={savingImage} className="gap-1.5">
+                {savingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
+                달력 이미지 저장
+              </Button>
+            )}
+          </div>
+
+          <AnimatePresence>
+            {adminLookupOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                transition={{ duration: 0.18 }}
+                className="absolute right-0 top-12 z-50 w-[min(760px,calc(100vw-2rem))] max-h-[calc(100vh-7rem)] overflow-y-auto"
+              >
+                <button
+                  type="button"
+                  onClick={() => setAdminLookupOpen(false)}
+                  title="닫기"
+                  aria-label="닫기"
+                  className="absolute right-3 top-3 z-10 h-8 w-8 rounded-full border border-amber-500/25 bg-white/85 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground"
+                >
+                  <X className="mx-auto h-4 w-4" />
+                </button>
+                <AdminPersonLookup
+                  active={activeAdminTarget}
+                  onLoad={(target) => { setAdminTarget(target); setSelected(null); }}
+                  onClear={() => { setAdminTarget(null); setSelected(null); }}
+                  className="mb-0 !bg-white shadow-2xl"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      <Card ref={calendarRef} className="glass-panel border-primary/20 p-4 md:p-6">
         {/* 월 이동 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <Button variant="outline" size="icon" onClick={prevMonth} className="rounded-full">
@@ -689,6 +806,9 @@ export default function ManseryokPage() {
           </Button>
 
           <div className="text-center">
+            {activeAdminTarget && (
+              <p className="text-xs text-amber-700 font-medium mb-1">{activeAdminTarget.label}</p>
+            )}
             <h2 className="text-2xl md:text-3xl font-serif font-bold text-foreground">
               {yearStr}년 {monthStr}월
             </h2>
@@ -719,7 +839,7 @@ export default function ManseryokPage() {
         </div>
 
         {!canAccessFutureDates && (
-          <p className="mb-4 text-center text-xs text-muted-foreground">일반 회원은 오늘 이후 날짜와 다음 달 만세력을 볼 수 없습니다.</p>
+          <p className="mb-4 text-center text-xs text-muted-foreground">일반 회원은 다음 달 이후 만세력을 볼 수 없습니다.</p>
         )}
 
         {isLoading ? (
@@ -738,7 +858,7 @@ export default function ManseryokPage() {
             key={yearStr + monthStr}
           >
             {/* 요일 헤더 */}
-            <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2">
+            <div className="grid grid-cols-7 gap-1.5 md:gap-2 mb-2">
               {weekDays.map((day, i) => (
                 <div key={day} className={cn(
                   "text-center font-medium pb-2 border-b border-border/50 text-sm",
@@ -750,9 +870,9 @@ export default function ManseryokPage() {
             </div>
 
             {/* 날짜 그리드 */}
-            <div className="grid grid-cols-7 gap-1 md:gap-2">
+            <div className="grid grid-cols-7 gap-1.5 md:gap-2">
               {blanks.map(blank => (
-                <div key={`blank-${blank}`} className="min-h-[80px] md:min-h-[96px]" />
+                <div key={`blank-${blank}`} className="min-h-[94px] md:min-h-[112px]" />
               ))}
 
               {days.map(dayNum => {
@@ -762,9 +882,11 @@ export default function ManseryokPage() {
                 const dayOfWeek = (firstDayOfMonth + dayNum - 1) % 7;
                 const dateColor = dayOfWeek === 0 ? "text-rose-600" : dayOfWeek === 6 ? "text-blue-600" : "text-slate-900";
                 const isTodayDate = fullDate === TODAY;
-                const isBlockedFutureDate = !canAccessFutureDates && fullDate > TODAY;
+                // 일반 회원도 현재 달은 미래 날짜까지 전부 조회 가능. 미래 '월'만 관리자 전용.
+                const isBlockedFutureDate = !canAccessFutureDates && currentMonthKey > TODAY_MONTH;
                 const rel = getDayRelation(dayData, myElem, myStem, myBranch, relationContext);
                 const score = dayData ? dayScores[dayNum] : null;
+                const score100 = (dayData && score != null) ? calcDayScore100(score, dayData.dayElement) : null;
                 const badges = getDayBadges(dayData, score, rel, isPersonalized);
                 const isSelected = selected?.dayNum === dayNum;
                 const canSelectDay = Boolean(dayData) && !isBlockedFutureDate;
@@ -778,7 +900,7 @@ export default function ManseryokPage() {
                     }}
                     disabled={!canSelectDay}
                     className={cn(
-                      "min-h-[80px] md:min-h-[96px] p-1 md:p-1.5 rounded-xl border flex flex-col transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
+                      "min-h-[88px] md:min-h-[112px] p-1.5 rounded-xl border flex flex-col gap-1 md:gap-0 transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
                       canSelectDay
                         ? "cursor-pointer hover:-translate-y-[1px] hover:shadow-md"
                         : isBlockedFutureDate
@@ -793,7 +915,7 @@ export default function ManseryokPage() {
                   >
                     {dayData ? (
                       <>
-                        {/* 날짜 + 점수 점 */}
+                        {/* 날짜 */}
                         <div className="flex justify-between items-start mb-0.5">
                           <span className={cn(
                             "text-xs md:text-sm font-semibold leading-none",
@@ -802,13 +924,10 @@ export default function ManseryokPage() {
                           )}>
                             {dayNum}
                           </span>
-                          {score != null && (
-                            <div className={cn("w-1.5 h-1.5 rounded-full mt-0.5", scoreDotColor(score))} />
-                          )}
                         </div>
 
-                        {/* 음력 */}
-                        <span className="text-[8px] md:text-[9px] text-slate-500 leading-none mb-0.5">
+                        {/* 음력 — 모바일에선 숨김(탭하면 상세에 표시) */}
+                        <span className="hidden md:inline text-[9px] text-slate-500 leading-none mb-0.5">
                           {dayData.lunar}
                         </span>
 
@@ -820,6 +939,17 @@ export default function ManseryokPage() {
                           {toGanziHanja(dayData.dayHeavenlyStem, dayData.dayEarthlyBranch)}
                         </div>
 
+                        {score100 != null && (
+                          <div className="mt-1 flex w-full items-baseline justify-center gap-0.5 rounded-md bg-white/65 px-0.5 py-0.5 shadow-sm tabular-nums sm:px-1">
+                            <span className={cn("text-sm sm:text-base md:text-xl font-black leading-none", score100TextColor(score100))}>
+                              {score100}
+                            </span>
+                            <span className="hidden text-[9px] font-semibold leading-none text-slate-500 sm:inline md:text-[10px]">
+                              점
+                            </span>
+                          </div>
+                        )}
+
                         {/* 절기 */}
                         {dayData.solarTerm && (
                           <div className="text-[8px] md:text-[9px] text-emerald-600 font-semibold leading-none mt-0.5 text-center">
@@ -828,14 +958,15 @@ export default function ManseryokPage() {
                         )}
 
                         {/* 운세 레이블 + 관계 심볼 */}
-                        <div className="flex items-center justify-between mt-auto pt-0.5">
+                        <div className="flex items-center justify-between gap-0.5 mt-auto pt-0.5">
+                          {/* 운세 레이블 — 모바일에선 숨김(점수 색상이 같은 정보 전달) */}
                           {score != null && (
-                            <span className={cn("inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] md:text-[9px] font-bold leading-none", scoreBadgeClass(score))}>
+                            <span className={cn("hidden md:inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-bold leading-none whitespace-nowrap shrink-0", scoreBadgeClass(score))}>
                               {scoreLabel(score)}
                             </span>
                           )}
                           {rel && (
-                            <span className={cn("text-[9px] md:text-[10px] font-bold ml-auto opacity-90", rel.colorClass)} title={rel.fortune}>
+                            <span className={cn("text-[9px] md:text-[10px] font-bold ml-auto shrink-0 opacity-90", rel.colorClass)} title={rel.fortune}>
                               {rel.emoji}
                             </span>
                           )}
@@ -944,9 +1075,9 @@ export default function ManseryokPage() {
                 </div>
                 <div className="text-right shrink-0 ml-3">
                   <p className="text-3xl font-bold text-foreground leading-none">
-                    {selected.score}<span className="text-base text-muted-foreground">/10</span>
+                    {calcDayScore100(selected.score, selected.dayData.dayElement)}<span className="text-base text-muted-foreground">/100</span>
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">운세 점수</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">종합 점수</p>
                   <p className={cn("text-sm font-bold mt-0.5", scoreTextColor(selected.score))}>
                     {label}
                   </p>
@@ -1105,12 +1236,12 @@ export default function ManseryokPage() {
                   <div className="rounded-xl bg-primary/5 border border-primary/20 px-4 py-3 space-y-3">
                     <p className="text-[10px] font-semibold text-primary flex items-center gap-1">
                       <Gem className="w-3 h-3" />
-                      {profile.name ? `${profile.name}님` : "내"} 일간 <span className={SAJU_ELEM_COLOR_MAP[dm]}>{profile.dayMasterStem}({SAJU_ELEM_KOR[dm]})</span> 기반 행운
+                      {profile.name ? `${profile.name}님` : "내"} 일간 <span className={SAJU_ELEM_COLOR_MAP[dm]}>{profile.dayMasterStem}({SAJU_ELEM_KOR[dm]})</span> 기반 보완 정보
                     </p>
                     <div className="grid grid-cols-2 gap-3">
-                      {/* 행운의 숫자 */}
+                      {/* 참고 숫자 */}
                       <div>
-                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> 행운의 숫자</p>
+                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> 참고 숫자</p>
                         <div className="flex gap-1.5">
                           {lnums.map((n, i) => (
                             <span key={i} className="w-7 h-7 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-xs font-bold text-primary">{n}</span>
@@ -1128,7 +1259,7 @@ export default function ManseryokPage() {
                       </div>
                       {/* 색상 */}
                       <div className="col-span-2">
-                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Palette className="w-2.5 h-2.5" /> 행운·주의 색상</p>
+                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Palette className="w-2.5 h-2.5" /> 보완·주의 색상</p>
                         <div className="flex flex-wrap gap-1">
                           {lcolors.map((c, i) => (
                             <span key={i} className={cn("px-1.5 py-0.5 rounded-full border text-[10px] font-medium", SAJU_ELEM_BG[dm], SAJU_ELEM_COLOR_MAP[dm])}>✓ {c}</span>
@@ -1138,9 +1269,9 @@ export default function ManseryokPage() {
                           ))}
                         </div>
                       </div>
-                      {/* 행운의 물건 */}
+                      {/* 보완 물건 */}
                       <div className="col-span-2">
-                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Gem className="w-2.5 h-2.5" /> 행운의 물건</p>
+                        <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-0.5"><Gem className="w-2.5 h-2.5" /> 보완 물건</p>
                         <div className="flex flex-wrap gap-1">
                           {litems.map((item, i) => (
                             <span key={i} className="px-1.5 py-0.5 rounded-full border border-primary/25 bg-card/60 text-[10px] text-foreground/80">{item}</span>

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { aiQuestionsTable, db } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { aiQuestionsTable, db, usersTable } from "@workspace/db";
+import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
 import { buildSajuQuestionAnswer } from "../lib/ai-assistant.js";
 import {
   getActiveSubscription,
@@ -11,6 +11,10 @@ import {
 } from "../lib/commerce.js";
 import { requireDatabase } from "../lib/database-guard.js";
 import { isPrivilegedRole } from "../lib/date-access.js";
+import {
+  assessPromptInjection,
+  buildPromptGuardAnswer,
+} from "../lib/prompt-injection-guard.js";
 import { buildSajuResult } from "../lib/saju-result.js";
 
 const router = Router();
@@ -22,6 +26,40 @@ function requireAuth(req: Request, res: Response): req is Request & { user: Expr
   }
 
   return true;
+}
+
+function requireAdmin(
+  req: Request,
+  res: Response,
+): req is Request & { user: NonNullable<Request["user"]> } {
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ error: "로그인이 필요합니다." });
+    return false;
+  }
+
+  const role = req.user.role;
+  if (role !== "admin" && role !== "superadmin") {
+    res.status(403).json({ error: "관리자 권한이 필요합니다." });
+    return false;
+  }
+
+  return true;
+}
+
+function getRequestMetadata(req: Request) {
+  const userAgent = req.get("user-agent")?.slice(0, 300) ?? null;
+  const referer = req.get("referer")?.slice(0, 300) ?? null;
+
+  return {
+    userAgent,
+    referer,
+  };
+}
+
+function getRemainingAfterQuestion(usage: Awaited<ReturnType<typeof getUsageSummary>>) {
+  return usage.unlimited
+    ? null
+    : Math.max(0, (usage.limit ?? 0) - usage.used - 1);
 }
 
 async function getUsageSummary(userId: string, role?: string | null) {
@@ -73,6 +111,104 @@ function parseConversationHistory(raw: unknown) {
     .slice(-6);
 }
 
+router.get("/admin/ai/questions", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  if (!(await requireDatabase(res))) return;
+
+  const page = Math.max(1, parseInt(String(req.query.page) || "1", 10));
+  const limit = 20;
+  const offset = (page - 1) * limit;
+  const filter =
+    typeof req.query.filter === "string" ? req.query.filter : "all";
+  const search =
+    typeof req.query.search === "string" ? req.query.search.trim() : "";
+
+  const filters: SQL[] = [];
+  if (filter === "blocked") {
+    filters.push(eq(aiQuestionsTable.blockedByGuard, true));
+  } else if (filter === "suspicious") {
+    const suspiciousRiskCondition = or(
+      eq(aiQuestionsTable.riskLevel, "low"),
+      eq(aiQuestionsTable.riskLevel, "medium"),
+      eq(aiQuestionsTable.riskLevel, "high"),
+    );
+    const suspiciousCondition = suspiciousRiskCondition
+      ? and(eq(aiQuestionsTable.blockedByGuard, false), suspiciousRiskCondition)
+      : undefined;
+    if (suspiciousCondition) {
+      filters.push(suspiciousCondition);
+    }
+  } else if (filter === "answered") {
+    const answeredCondition = and(
+      eq(aiQuestionsTable.blockedByGuard, false),
+      eq(aiQuestionsTable.riskLevel, "none"),
+    );
+    if (answeredCondition) {
+      filters.push(answeredCondition);
+    }
+  }
+
+  if (search) {
+    const keyword = `%${search}%`;
+    const searchCondition = or(
+      ilike(aiQuestionsTable.question, keyword),
+      ilike(aiQuestionsTable.answer, keyword),
+      ilike(usersTable.email, keyword),
+      ilike(usersTable.firstName, keyword),
+      ilike(usersTable.lastName, keyword),
+    );
+    if (searchCondition) {
+      filters.push(searchCondition);
+    }
+  }
+
+  const condition = filters.length > 0 ? and(...filters) : undefined;
+
+  try {
+    const rows = await db
+      .select({
+        id: aiQuestionsTable.id,
+        userId: aiQuestionsTable.userId,
+        userEmail: usersTable.email,
+        userFirstName: usersTable.firstName,
+        userLastName: usersTable.lastName,
+        subscriptionPlanCode: aiQuestionsTable.subscriptionPlanCode,
+        monthlyBucket: aiQuestionsTable.monthlyBucket,
+        question: aiQuestionsTable.question,
+        answer: aiQuestionsTable.answer,
+        birthInfo: aiQuestionsTable.birthInfo,
+        blockedByGuard: aiQuestionsTable.blockedByGuard,
+        riskLevel: aiQuestionsTable.riskLevel,
+        riskReasons: aiQuestionsTable.riskReasons,
+        conversationHistory: aiQuestionsTable.conversationHistory,
+        promptGuardVersion: aiQuestionsTable.promptGuardVersion,
+        createdAt: aiQuestionsTable.createdAt,
+      })
+      .from(aiQuestionsTable)
+      .leftJoin(usersTable, eq(aiQuestionsTable.userId, usersTable.id))
+      .where(condition)
+      .orderBy(desc(aiQuestionsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(aiQuestionsTable)
+      .leftJoin(usersTable, eq(aiQuestionsTable.userId, usersTable.id))
+      .where(condition);
+
+    res.json({
+      logs: rows,
+      total: Number(total),
+      page,
+      limit,
+    });
+  } catch (error) {
+    console.error("admin ai question log list error:", error);
+    res.status(500).json({ error: "AI 채팅 로그를 불러오지 못했습니다." });
+  }
+});
+
 router.get("/ai/questions", async (req, res) => {
   if (!requireAuth(req, res)) return;
   if (!(await requireDatabase(res))) return;
@@ -86,6 +222,9 @@ router.get("/ai/questions", async (req, res) => {
         answer: aiQuestionsTable.answer,
         createdAt: aiQuestionsTable.createdAt,
         birthInfo: aiQuestionsTable.birthInfo,
+        blockedByGuard: aiQuestionsTable.blockedByGuard,
+        riskLevel: aiQuestionsTable.riskLevel,
+        riskReasons: aiQuestionsTable.riskReasons,
       })
       .from(aiQuestionsTable)
       .where(eq(aiQuestionsTable.userId, req.user.id))
@@ -132,6 +271,38 @@ router.post("/ai/questions", async (req, res) => {
       return;
     }
 
+    const promptAssessment = assessPromptInjection(question);
+    if (promptAssessment.blocked) {
+      const answer = buildPromptGuardAnswer(promptAssessment);
+      const [saved] = await db
+        .insert(aiQuestionsTable)
+        .values({
+          userId: req.user.id,
+          subscriptionPlanCode: usage.planCode,
+          monthlyBucket: usage.monthlyBucket,
+          question,
+          answer,
+          birthInfo,
+          blockedByGuard: true,
+          riskLevel: promptAssessment.riskLevel,
+          riskReasons: promptAssessment.reasons,
+          conversationHistory: history,
+          requestMetadata: getRequestMetadata(req),
+          promptGuardVersion: promptAssessment.guardVersion,
+        })
+        .returning();
+
+      res.json({
+        question: saved,
+        limit: usage.limit,
+        used: usage.used + 1,
+        remaining: getRemainingAfterQuestion(usage),
+        planCode: usage.planCode,
+        unlimited: usage.unlimited,
+      });
+      return;
+    }
+
     const sajuResult = buildSajuResult({
       birthYear: birthInfo.year,
       birthMonth: birthInfo.month,
@@ -157,18 +328,20 @@ router.post("/ai/questions", async (req, res) => {
         answer,
         birthInfo,
         sajuResult,
+        blockedByGuard: false,
+        riskLevel: promptAssessment.riskLevel,
+        riskReasons: promptAssessment.reasons,
+        conversationHistory: history,
+        requestMetadata: getRequestMetadata(req),
+        promptGuardVersion: promptAssessment.guardVersion,
       })
       .returning();
-
-    const remaining = usage.unlimited
-      ? null
-      : Math.max(0, (usage.limit ?? 0) - usage.used - 1);
 
     res.json({
       question: saved,
       limit: usage.limit,
       used: usage.used + 1,
-      remaining,
+      remaining: getRemainingAfterQuestion(usage),
       planCode: usage.planCode,
       unlimited: usage.unlimited,
     });

@@ -305,6 +305,28 @@ components:
           type: string
           enum: [solar, lunar]
           description: Whether birth date is in solar or lunar calendar
+        isLeapMonth:
+          type: boolean
+          description: Whether a lunar birth date uses the intercalary month
+        birthPlace:
+          type: string
+          description: Human-readable birthplace label
+        timeZone:
+          type: string
+          description: IANA timezone used for historical civil-time conversion
+        longitude:
+          type: number
+          description: Birthplace longitude in degrees east
+        latitude:
+          type: number
+          description: Birthplace latitude in degrees north
+        applyTrueSolarTime:
+          type: boolean
+          description: Apply longitude, historical DST, and equation-of-time correction
+        dayBoundary:
+          type: string
+          enum: [midnight, late-zi]
+          description: Day-pillar boundary rule for the late Zi hour
       required:
         - birthYear
         - birthMonth
@@ -380,6 +402,21 @@ components:
           type: string
         calendarType:
           type: string
+        isLeapMonth:
+          type: boolean
+        birthPlace:
+          type: string
+        timeZone:
+          type: string
+        longitude:
+          type: number
+        latitude:
+          type: number
+          nullable: true
+        applyTrueSolarTime:
+          type: boolean
+        dayBoundary:
+          type: string
       required:
         - year
         - month
@@ -388,11 +425,115 @@ components:
         - gender
         - calendarType
 
+    SajuShadowReading:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Balanced section title for difficult patterns and cautions
+        summary:
+          type: string
+          description: Concise summary of negative patterns when strengths are overused
+        pitfalls:
+          type: array
+          items:
+            type: string
+          description: Specific caution points and repeated failure patterns
+        advice:
+          type: string
+          description: Practical balancing advice
+      required:
+        - title
+        - summary
+        - pitfalls
+        - advice
+
+    SajuSpecialSummaryBranchInfo:
+      type: object
+      properties:
+        branches:
+          type: array
+          items:
+            type: string
+          description: Korean branch letters
+        branchesHanja:
+          type: array
+          items:
+            type: string
+          description: Hanja branch letters
+        label:
+          type: string
+          description: Compact hanja branch label
+        foundIn:
+          type: array
+          items:
+            type: string
+          description: Pillar branches where the target appears
+      required:
+        - branches
+        - branchesHanja
+        - label
+        - foundIn
+
+    SajuSpecialSummary:
+      type: object
+      properties:
+        elementLine:
+          type: string
+          description: Compact five-element count line
+        detailLine:
+          type: string
+          description: Compact gongmang, cheoneul guin, and month command line
+        gongmang:
+          type: object
+          properties:
+            year:
+              $ref: "#/components/schemas/SajuSpecialSummaryBranchInfo"
+            day:
+              $ref: "#/components/schemas/SajuSpecialSummaryBranchInfo"
+          required:
+            - year
+            - day
+        cheoneulGuin:
+          $ref: "#/components/schemas/SajuSpecialSummaryBranchInfo"
+        monthCommand:
+          type: object
+          properties:
+            stem:
+              type: string
+            stemHanja:
+              type: string
+            branch:
+              type: string
+            branchHanja:
+              type: string
+            elapsedDays:
+              type: integer
+            label:
+              type: string
+          required:
+            - stem
+            - stemHanja
+            - branch
+            - branchHanja
+            - elapsedDays
+            - label
+      required:
+        - elementLine
+        - detailLine
+        - gongmang
+        - cheoneulGuin
+        - monthCommand
+
     SajuResult:
       type: object
       properties:
         birthInfo:
           $ref: "#/components/schemas/SajuBirthInfo"
+        calculationBasis:
+          type: object
+          additionalProperties: true
+          description: Calendar conversion, historical time-zone, true-solar-time, and day-boundary calculation evidence
         yearPillar:
           $ref: "#/components/schemas/SajuPillar"
         monthPillar:
@@ -403,6 +544,8 @@ components:
           $ref: "#/components/schemas/SajuPillar"
         elementBalance:
           $ref: "#/components/schemas/ElementCount"
+        specialSummary:
+          $ref: "#/components/schemas/SajuSpecialSummary"
         dominantElement:
           type: string
           description: The strongest element in the chart
@@ -418,6 +561,8 @@ components:
         fortune:
           type: string
           description: Overall fortune description
+        shadowReading:
+          $ref: "#/components/schemas/SajuShadowReading"
         career:
           type: string
           description: Career fortune
@@ -444,16 +589,48 @@ components:
         lunarBirthDate:
           type: string
           description: Lunar calendar date if input was solar
+        hiddenStemAnalysis:
+          type: object
+          additionalProperties: true
+          description: Weighted hidden stems, rooting, penetration, and day-master strength evidence
+        multiYongsinAnalysis:
+          type: object
+          additionalProperties: true
+          description: Cross-check of eokbu, johu, tonggwan, byeongyak, and simple balance useful-god methods
+        stemTransformationAnalysis:
+          type: object
+          additionalProperties: true
+          description: Heavenly-stem combination and transformation prerequisites
+        familyRoleAnalysis:
+          type: object
+          additionalProperties: true
+          description: Role-specific six-relatives and palace analysis
+        daeunTransitionAnalysis:
+          type: object
+          additionalProperties: true
+          description: Exact ten-year-luck transition dates and transition windows
+        integratedLuckTimeline:
+          type: object
+          additionalProperties: true
+          description: Layered ten-year, annual, monthly, daily, and hourly timing
+        birthTimeCandidateAnalysis:
+          description: Twelve-hour candidate comparison when birth time is unknown
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
       required:
         - yearPillar
         - monthPillar
         - dayPillar
         - elementBalance
+        - specialSummary
         - dominantElement
         - lackingElement
         - dayMasterElement
         - personality
         - fortune
+        - shadowReading
         - career
         - love
         - health

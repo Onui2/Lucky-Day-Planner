@@ -34,6 +34,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asNumber(value: unknown, fallback?: number): number | undefined {
+  if (value === null || value === undefined || typeof value === "boolean") {
+    return fallback;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return fallback;
+  }
   const number = Number(value);
   if (Number.isFinite(number)) {
     return number;
@@ -81,6 +87,13 @@ function normalizeProfile(value: unknown): StoredUserProfile | null {
     birthHour,
     birthMinute: asNumber(value.birthMinute),
     calendarType,
+    isLeapMonth: value.isLeapMonth === true,
+    birthPlace: asString(value.birthPlace),
+    timeZone: asString(value.timeZone),
+    longitude: asNumber(value.longitude),
+    latitude: asNumber(value.latitude),
+    applyTrueSolarTime: value.applyTrueSolarTime === true,
+    dayBoundary: value.dayBoundary === "late-zi" ? "late-zi" : "midnight",
     dayMasterElement: asString(value.dayMasterElement),
     dayMasterStem: asString(value.dayMasterStem),
     dayMasterBranch: asString(value.dayMasterBranch),

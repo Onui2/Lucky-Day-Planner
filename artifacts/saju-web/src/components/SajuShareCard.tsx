@@ -38,6 +38,17 @@ function elemColor(elem: string) {
   return ELEM_HEX[elem?.toLowerCase()] ?? "#d4af37";
 }
 
+function compactShadowReading(shadow: unknown) {
+  if (!shadow || typeof shadow !== "object") return "";
+  const value = shadow as Record<string, unknown>;
+  const summary = typeof value.summary === "string" ? value.summary.replace(/\s+/g, " ").trim() : "";
+  const firstPitfall = Array.isArray(value.pitfalls)
+    ? value.pitfalls.find((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : "";
+  const text = [summary, firstPitfall ? `주의: ${firstPitfall.trim()}` : ""].filter(Boolean).join(" ");
+  return text.length > 90 ? `${text.slice(0, 87)}...` : text;
+}
+
 interface Props {
   result: Record<string, any>;
 }
@@ -72,10 +83,29 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
   const fortuneShort = fortune.length > 90
     ? fortune.slice(0, 87) + "…"
     : fortune;
+  const shadowShort = compactShadowReading(result.shadowReading);
 
   const elBalance = (result.elementBalance ?? {}) as Record<string, number>;
+  const specialSummary = (result.specialSummary ?? {}) as Record<string, any>;
+  const gongmangDay = specialSummary.gongmang?.day as Record<string, any> | undefined;
+  const cheoneulGuin = specialSummary.cheoneulGuin as Record<string, any> | undefined;
+  const monthCommand = specialSummary.monthCommand as Record<string, any> | undefined;
+  const fmtBranchInfo = (b?: Record<string, any>) =>
+    b?.label
+      ? `${b.label}(${(Array.isArray(b.branches) ? b.branches : []).join("·")})`
+      : "-";
+  const foundInLabel = (b?: Record<string, any>) =>
+    Array.isArray(b?.foundIn) && b.foundIn.length > 0
+      ? `${b.foundIn.join("·")}에 있음`
+      : "사주에 없음";
   const elems = ["목", "화", "토", "금", "수"];
-  const maxEl = Math.max(...elems.map((e) => elBalance[e] ?? 0), 1);
+  // elementBalance는 영문 키(wood/fire/earth/metal/water)로 내려온다.
+  // 한글 키로 조회하면 전부 undefined→0이 되므로 매핑해서 읽는다.
+  const KOR_TO_ENG: Record<string, string> = {
+    목: "wood", 화: "fire", 토: "earth", 금: "metal", 수: "water",
+  };
+  const elVal = (e: string) => elBalance[KOR_TO_ENG[e]] ?? elBalance[e] ?? 0;
+  const maxEl = Math.max(...elems.map(elVal), 1);
 
   const pillars = [
     { label: "년주", p: yearP },
@@ -208,6 +238,78 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
             );
           })}
         </div>
+        {(gongmangDay || cheoneulGuin || monthCommand) && (
+          <div
+            style={{
+              marginTop: 14,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 12,
+              background: "rgba(255,255,255,0.035)",
+              display: "flex",
+              textAlign: "center",
+            }}
+          >
+            {[
+              {
+                label: "공망 空亡",
+                value: fmtBranchInfo(gongmangDay),
+                sub: foundInLabel(gongmangDay),
+                subColor:
+                  Array.isArray(gongmangDay?.foundIn) && gongmangDay.foundIn.length > 0
+                    ? "#f87171"
+                    : MUTED,
+              },
+              {
+                label: "천을귀인 天乙貴人",
+                value: fmtBranchInfo(cheoneulGuin),
+                sub: foundInLabel(cheoneulGuin),
+                subColor:
+                  Array.isArray(cheoneulGuin?.foundIn) && cheoneulGuin.foundIn.length > 0
+                    ? GOLD
+                    : MUTED,
+              },
+              {
+                label: "월령 月令",
+                value: monthCommand?.label
+                  ? `${monthCommand.label}(${monthCommand.stem ?? ""})`
+                  : "-",
+                sub: monthCommand?.branch
+                  ? `${monthCommand.branch}월 ${monthCommand.elapsedDays}일차`
+                  : "",
+                subColor: MUTED,
+              },
+            ].map((cell, i) => (
+              <div
+                key={cell.label}
+                style={{
+                  flex: 1,
+                  padding: "10px 8px",
+                  borderLeft: i > 0 ? `1px solid ${BORDER}` : "none",
+                }}
+              >
+                <div style={{ fontSize: 10, color: GOLD, letterSpacing: "0.08em", marginBottom: 5 }}>
+                  {cell.label}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "'Noto Serif KR', 'Noto Sans KR', serif",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: TEXT,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {cell.value}
+                </div>
+                {cell.sub && (
+                  <div style={{ fontSize: 10, color: cell.subColor, marginTop: 4 }}>
+                    {cell.sub}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── 핵심 정보 ── */}
@@ -310,7 +412,7 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {elems.map((e) => {
-            const val = elBalance[e] ?? 0;
+            const val = elVal(e);
             const pct = Math.round((val / (maxEl + 1)) * 100);
             return (
               <div key={e} style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -363,6 +465,22 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
           >
             {fortuneShort}
           </div>
+          {shadowShort && (
+            <div
+              style={{
+                marginTop: 10,
+                background: "rgba(248,113,113,0.08)",
+                border: "1px solid rgba(248,113,113,0.22)",
+                borderRadius: 12,
+                padding: "12px 14px",
+                fontSize: 12.5,
+                lineHeight: 1.75,
+                color: "#fecaca",
+              }}
+            >
+              {shadowShort}
+            </div>
+          )}
         </div>
       )}
 

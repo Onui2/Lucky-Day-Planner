@@ -6,7 +6,9 @@ import { clearSession, getSessionId } from "../lib/auth.js";
 import { requireDatabase } from "../lib/database-guard.js";
 
 const router = Router();
-const BCRYPT_ROUNDS = 12;
+// auth.ts의 로그인 해시 비용과 동일하게 유지한다. 더 높은 값으로 저장하면
+// bcryptjs(순수 JS)라 로그인 검증이 수백 ms씩 느려진다.
+const BCRYPT_ROUNDS = 10;
 
 function requireAuth(
   req: Request,

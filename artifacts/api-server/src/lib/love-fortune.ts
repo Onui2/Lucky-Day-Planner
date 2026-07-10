@@ -108,17 +108,57 @@ const SOLO_LOVE_TEXT: Record<string, Record<string, string>> = {
 const SOLO_TIPS: Record<string, string[]> = {
   목: ['새로운 취미나 모임에 적극 참여하세요', '자연스러운 자신의 따뜻함을 표현하세요', '억지로 서두르지 말고 관계가 자라도록 여유를 주세요'],
   화: ['사교 모임, 행사, 파티에 참가 횟수를 늘려보세요', '열정을 솔직하게 드러내면 매력이 배가됩니다', '인연을 만나면 먼저 연락하는 적극성을 발휘하세요'],
-  토: ['지인 소개나 직장 내 네트워크를 활용하세요', '꾸준하고 성실한 모습이 최고의 매력 포인트입니다', '너무 신중하게 분석하기보다 첫인상을 믿어보세요'],
+  토: ['지인 소개나 직장 내 네트워크를 활용하세요', '꾸준하고 성실한 모습이 신뢰를 만듭니다', '너무 신중하게 분석하기보다 첫인상도 참고해보세요'],
   금: ['취미 동호회나 목표가 같은 그룹에 참여하세요', '진심이 담긴 작은 배려가 마음을 움직입니다', '완벽을 추구하기보다 있는 그대로 자신을 보여주세요'],
   수: ['온라인·SNS 활동을 늘리고 자신의 관심사를 공유하세요', '지적 대화가 시작되면 깊이 있게 이어나가세요', '감정을 좀 더 솔직하게 표현하는 연습을 해보세요'],
 };
+
+type LoveScoreBand = 'high' | 'good' | 'steady' | 'caution';
+
+function getLoveScoreBand(score: number): LoveScoreBand {
+  if (score >= 85) return 'high';
+  if (score >= 72) return 'good';
+  if (score >= 58) return 'steady';
+  return 'caution';
+}
+
+function getLoveGrade(score: number): string {
+  if (score >= 85) return '인연운 강함';
+  if (score >= 72) return '인연운 양호';
+  if (score >= 58) return '인연운 보통';
+  return '천천히 볼 해';
+}
+
+function buildSoloLoveText(params: {
+  myElem: string;
+  gender: 'male' | 'female';
+  loveElem: string;
+  loveRole: string;
+  score: number;
+}): string {
+  const band = getLoveScoreBand(params.score);
+  const genderLabel = params.gender === 'male' ? '남성' : '여성';
+  const opening: Record<LoveScoreBand, string> = {
+    high: '올해는 만남과 대화의 흐름이 비교적 열려 있습니다.',
+    good: '올해는 인연을 만들어갈 여지가 있습니다.',
+    steady: '올해는 급격한 변화보다 천천히 관계를 살피는 흐름입니다.',
+    caution: '올해는 새 인연보다 자기 회복과 기준 정리가 먼저입니다.',
+  };
+  const closing: Record<LoveScoreBand, string> = {
+    high: '다만 빠른 확신보다 생활 리듬, 가치관, 책임감을 함께 확인해야 오래 갑니다.',
+    good: '소개나 모임은 가볍게 열어두되, 상대의 말보다 반복되는 행동을 보세요.',
+    steady: '관계가 늦게 움직여도 조급하게 결론 내리지 않는 편이 좋습니다.',
+    caution: '무리해서 관계를 시작하기보다 내가 원하는 관계의 기준을 분명히 하는 시간이 필요합니다.',
+  };
+  return `${params.myElem} 일간 ${genderLabel}에게 ${params.loveRole}인 ${params.loveElem} 기운은 인연을 살피는 기준점입니다. ${opening[band]} ${closing[band]}`;
+}
 
 // 연애중 궁합 관계
 const COMPAT_DESC: Record<Rel, { score: number; grade: string; summary: string; strengths: string[]; challenges: string[]; advice: string }> = {
   generated: {
     score: 90,
-    grade: '천생연분 💛',
-    summary: '상대가 나를 생(生)해주는 이상적인 관계입니다. 상대방에게서 끊임없이 영감과 힘을 받으며, 함께 있을수록 성장하는 특별한 인연입니다.',
+    grade: '상호 보완형',
+    summary: '상대가 나를 생(生)해주는 관계입니다. 힘을 받기 쉬운 구조지만, 상대의 배려를 당연하게 여기면 균형이 무너질 수 있습니다.',
     strengths: ['서로에게 긍정적 에너지를 주고받음', '어려울 때 상대가 든든한 버팀목이 됨', '함께하면 자연스럽게 발전하는 관계'],
     challenges: ['상대의 헌신을 당연히 여기지 않도록 주의', '받는 것에만 익숙해지지 않고 주는 연습 필요'],
     advice: '상대의 지지와 사랑에 진심 어린 감사를 표현하세요. 이 관계는 진심으로 아끼면 더욱 깊어집니다.',
@@ -133,7 +173,7 @@ const COMPAT_DESC: Record<Rel, { score: number; grade: string; summary: string; 
   },
   same: {
     score: 72,
-    grade: '동류의 인연 🔄',
+    grade: '동류형 관계',
     summary: '같은 오행끼리의 관계입니다. 서로를 잘 이해하고 공감하지만, 경쟁심이나 비슷한 단점이 부딪힐 수 있습니다.',
     strengths: ['서로의 감정과 생각을 빠르게 이해', '공통 관심사가 많아 대화가 풍성함', '서로의 가치관이 비슷해 갈등이 적음'],
     challenges: ['비슷한 약점으로 서로 자극될 수 있음', '경쟁심이나 자존심 충돌 가능성'],
@@ -141,7 +181,7 @@ const COMPAT_DESC: Record<Rel, { score: number; grade: string; summary: string; 
   },
   dominates: {
     score: 65,
-    grade: '긴장의 인연 ⚡',
+    grade: '긴장 조율형',
     summary: '내가 상대를 극(剋)하는 강한 관계입니다. 내 에너지가 강하게 작용하여 상대를 이끌거나 압도할 수 있습니다.',
     strengths: ['관계에서 주도권을 자연스럽게 가짐', '상대방을 보호하고 싶은 마음이 강해짐', '강한 끌림과 열정이 생기는 관계'],
     challenges: ['상대가 위축되거나 눌릴 수 있음', '강압적이 되지 않도록 의식적 노력 필요'],
@@ -149,7 +189,7 @@ const COMPAT_DESC: Record<Rel, { score: number; grade: string; summary: string; 
   },
   dominated: {
     score: 60,
-    grade: '도전의 인연 🌊',
+    grade: '성장 과제형',
     summary: '상대가 나를 극(剋)하는 도전적인 관계입니다. 강한 끌림이 있지만, 때로 상대방에게 압도당하는 느낌이 들 수 있습니다.',
     strengths: ['서로에 대한 강렬한 끌림', '상대가 나를 성장시키는 자극제 역할', '열정적이고 강렬한 관계'],
     challenges: ['상대에게 지나치게 의존하거나 맞추려는 경향', '자기 자신을 잃지 않도록 주의'],
@@ -225,11 +265,9 @@ export function getLoveFortune(
     const totalScore = calcSoloLoveScore(monthScores.map(m => m.score));
     const topMonths = [...monthScores].sort((a, b) => b.score - a.score).slice(0, 3);
     const grade =
-      totalScore >= 85 ? '대길 ★★★' :
-      totalScore >= 72 ? '길 ★★' :
-      totalScore >= 60 ? '보통 ★' : '인내의 해';
+      getLoveGrade(totalScore);
 
-    const loveText = SOLO_LOVE_TEXT[myElem]?.[gender] ?? '올해는 인연의 기운이 흐르는 특별한 시기입니다. 자신을 사랑하고 삶을 즐기는 모습이 가장 큰 매력이 됩니다.';
+    const loveText = buildSoloLoveText({ myElem, gender, loveElem, loveRole, score: totalScore });
     const tips = SOLO_TIPS[myElem] ?? ['자신을 표현하는 데 더 적극적으로 임해보세요', '새로운 공간과 사람에게 마음을 열어보세요', '인연은 준비된 자에게 찾아옵니다'];
 
     return {
@@ -245,7 +283,7 @@ export function getLoveFortune(
       allMonthScores: monthScores.map(({ month, score }) => ({ month, score })),
       partnerTraits: loveElemInfo.partnerTraits,
       meetWhere: loveElemInfo.meetWhere,
-      soloAdvice: `올해 ${loveRole}인 ${loveElemInfo.name} 기운이 강한 달에 인연이 찾아올 가능성이 높습니다. ${topMonths.map(m => `${m.month}월`).join(', ')}을 주목하세요.`,
+      soloAdvice: `${topMonths.map(m => `${m.month}월`).join(', ')}에는 대화, 소개, 만남의 흐름이 상대적으로 살아납니다. 인연을 단정하기보다 반복되는 태도와 생활 리듬을 함께 확인하세요.`,
       tips,
     };
   }
@@ -272,7 +310,7 @@ export function getLoveFortune(
   else if (yearRelToMe === 'dominated') yearBonus = -5;
 
   const finalScore = Math.min(98, Math.max(30, compat.score + yearBonus));
-  const grade = finalScore >= 88 ? '천생연분 💛' : finalScore >= 78 ? '좋은 인연 💚' : finalScore >= 65 ? '보통 인연 💙' : '노력이 필요한 인연 ❤️';
+  const grade = finalScore >= 88 ? '보완 흐름 강함' : finalScore >= 78 ? '관계 흐름 양호' : finalScore >= 65 ? '조율 가능한 관계' : '주의 깊은 조율 필요';
 
   const loveText = `${myElem}(${myStem}) 일간과 ${partElem}(${partStem}) 일간의 만남입니다. ${compat.summary}`;
 

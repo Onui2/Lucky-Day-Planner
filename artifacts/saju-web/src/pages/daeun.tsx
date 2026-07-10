@@ -9,6 +9,7 @@ import { Loader2, Sparkles, ChevronDown, ChevronUp, Star, TrendingUp, Calendar }
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
+import { profileBirthPayload } from "@/lib/birth-precision";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
 const ELEM_BG: Record<string,string>    = { 목:'bg-green-400/15', 화:'bg-rose-400/15', 토:'bg-amber-400/15', 금:'bg-slate-400/15', 수:'bg-blue-400/15' };
@@ -27,6 +28,19 @@ interface DaeunPeriod {
   stem: string; branch: string;
   stemElement: string; branchElement: string;
   fortune: string;
+  score?: number;
+  level?: string;
+  stemTenGod?: string;
+  branchTenGod?: string;
+  themes?: string[];
+  summary?: string;
+  advice?: string;
+  interactions?: Array<{
+    type: string;
+    target: string;
+    positive: boolean;
+    description: string;
+  }>;
 }
 interface DaeunData {
   isForward: boolean; startAge: number; periods: DaeunPeriod[];
@@ -37,16 +51,17 @@ async function fetchDaeun(p: ReturnType<typeof useUser>['profile']): Promise<Dae
   if (!p) throw new Error("프로필 없음");
   const data = await customFetch<Record<string,unknown>>("/api/saju/calculate", {
     method: "POST",
-    body: JSON.stringify({
-      birthYear: p.birthYear, birthMonth: p.birthMonth, birthDay: p.birthDay,
-      birthHour: p.birthHour >= 0 ? p.birthHour : -1,
-      gender: p.gender, calendarType: p.calendarType,
-    }),
+    body: JSON.stringify(profileBirthPayload(p)),
   });
+  const periods = (data.daeun as any).periods as DaeunPeriod[];
+  const periodAnalysis = ((data.luckFlowAnalysis as any)?.periods ?? []) as DaeunPeriod[];
   return {
     isForward: (data.daeun as any).isForward,
     startAge:  (data.daeun as any).startAge,
-    periods:   (data.daeun as any).periods,
+    periods: periods.map((period) => ({
+      ...period,
+      ...periodAnalysis.find((item) => item.idx === period.idx),
+    })),
     dayPillar: data.dayPillar as any,
   };
 }
@@ -78,8 +93,8 @@ function PeriodCard({ period, isActive, expanded, onToggle }: {
       className={cn("rounded-2xl border p-4 cursor-pointer transition-all duration-200", bg, border, isActive && "shadow-lg shadow-primary/10")}
       onClick={onToggle}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {isActive && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-medium">현재 대운</span>}
           <div className="text-center">
             <div className={cn("text-xl font-serif font-bold tracking-wider", stemColor)}>
@@ -92,7 +107,7 @@ function PeriodCard({ period, isActive, expanded, onToggle }: {
             <div className="text-xs text-muted-foreground">{period.startYear}년 ~ {period.endYear}년</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:justify-end">
           <div className="flex gap-1.5">
             <span className={cn("text-xs px-2 py-0.5 rounded-full border", ELEM_COLOR[period.stemElement], ELEM_BG[period.stemElement], ELEM_BORDER[period.stemElement])}>
               {period.stemElement}
@@ -115,8 +130,40 @@ function PeriodCard({ period, isActive, expanded, onToggle }: {
             className="overflow-hidden"
           >
             <div className="mt-4 pt-4 border-t border-foreground/10">
-              <p className="text-sm text-foreground/80 leading-relaxed">{period.fortune}</p>
-              <div className="mt-3 flex gap-2 text-xs text-muted-foreground">
+              {(period.score != null || period.stemTenGod) && (
+                <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                  {period.score != null && (
+                    <span className="text-xs font-semibold text-primary bg-primary/10 border border-primary/25 rounded-full px-2 py-0.5">
+                      {period.level} · {period.score}점
+                    </span>
+                  )}
+                  {period.stemTenGod && <span className={cn("text-xs border border-foreground/10 rounded-full px-2 py-0.5", TENGOD_COLOR[period.stemTenGod])}>천간 {period.stemTenGod}</span>}
+                  {period.branchTenGod && <span className={cn("text-xs border border-foreground/10 rounded-full px-2 py-0.5", TENGOD_COLOR[period.branchTenGod])}>지지 {period.branchTenGod}</span>}
+                  {period.themes?.map((theme) => <span key={theme} className="text-xs text-muted-foreground bg-foreground/5 rounded-full px-2 py-0.5">{theme}</span>)}
+                </div>
+              )}
+              <p className="text-sm text-foreground/80 leading-relaxed">{period.summary ?? period.fortune}</p>
+              {period.interactions && period.interactions.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                  {period.interactions.slice(0, 4).map((interaction, index) => (
+                    <div key={`${interaction.type}-${interaction.target}-${index}`} className={cn(
+                      "rounded-lg border px-3 py-2 text-xs leading-relaxed",
+                      interaction.positive
+                        ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-800"
+                        : "border-rose-500/20 bg-rose-500/5 text-rose-800",
+                    )}>
+                      <div className="font-semibold mb-0.5">{interaction.type} · {interaction.target}</div>
+                      {interaction.description}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {period.advice && (
+                <div className="mt-3 rounded-lg border border-primary/15 bg-background/50 px-3 py-2 text-xs text-primary/85 leading-relaxed">
+                  {period.advice}
+                </div>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <span>천간 오행: <span className={cn("font-medium", ELEM_COLOR[period.stemElement])}>{period.stemElement}</span></span>
                 <span>·</span>
                 <span>지지 오행: <span className={cn("font-medium", ELEM_COLOR[period.branchElement])}>{period.branchElement}</span></span>
@@ -135,7 +182,7 @@ export default function DaeunPage() {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['daeun', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.gender],
+    queryKey: ['daeun', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.birthHour, profile?.birthMinute, profile?.gender, profile?.calendarType, profile?.isLeapMonth, profile?.timeZone, profile?.longitude, profile?.applyTrueSolarTime, profile?.dayBoundary],
     queryFn: () => fetchDaeun(profile),
     enabled: !!profile,
   });

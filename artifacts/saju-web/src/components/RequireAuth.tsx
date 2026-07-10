@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { Lock, LogIn } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -21,12 +20,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     const registerHref = buildAuthHref("/register");
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-col items-center justify-center min-h-[60vh] px-4"
-      >
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
         <div className="glass-panel border border-primary/25 rounded-3xl p-10 text-center max-w-sm w-full shadow-xl">
           <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto mb-5">
             <Lock className="w-7 h-7 text-primary/70" />
@@ -51,7 +45,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
             </Link>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 

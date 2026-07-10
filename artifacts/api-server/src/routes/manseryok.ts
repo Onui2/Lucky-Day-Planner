@@ -8,8 +8,6 @@ import {
   toRelationProfile,
 } from "../lib/manseryok-personalization.js";
 import {
-  filterDaysUpToTodayInSeoul,
-  isCurrentMonthInSeoul,
   isFutureDateInSeoul,
   isFutureMonthInSeoul,
   isPrivilegedRole,
@@ -145,13 +143,12 @@ router.get("/manseryok/month", async (req, res) => {
     }
     
     const relationProfile = await resolveRelationProfile(req);
-    let days = getManseryokMonth(year, month).map((dayData) => ({
+    // 일반 회원도 현재(및 과거) 달은 전체 날짜를 조회할 수 있다.
+    // 미래 '월'은 위에서 403으로 이미 차단되므로 여기서 날짜를 자르지 않는다.
+    const days = getManseryokMonth(year, month).map((dayData) => ({
       ...dayData,
       personalized: personalizeManseryokDay(dayData, relationProfile),
     }));
-    if (!canAccessFutureDates && isCurrentMonthInSeoul(year, month)) {
-      days = filterDaysUpToTodayInSeoul(days);
-    }
 
     const { yearGanzi, monthGanzi, yearZodiac } = getMonthYearGanzi(year, month);
     

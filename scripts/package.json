@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "node --import tsx ./src/hello.ts",
     "watchdog": "node --import tsx ./src/watchdog.ts",
+    "perf": "node --import tsx ./src/perf.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

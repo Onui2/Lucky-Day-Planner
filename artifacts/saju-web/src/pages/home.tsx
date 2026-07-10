@@ -13,6 +13,17 @@ import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 
 type InquiryType = "general" | "saju" | "gungap";
 
+const PREVIEW_FEATURES = [
+  { href: "/daeun", title: "대운 계산기", desc: "10년 단위 인생의 큰 흐름을 타임라인으로", icon: TrendingUp, iconClass: "bg-teal-400/15 border-teal-400/30 text-teal-600" },
+  { href: "/monthly-fortune", title: "월운 분석", desc: "이달의 재물·직업·애정·건강 흐름", icon: CalendarDays, iconClass: "bg-purple-400/15 border-purple-400/30 text-purple-600" },
+  { href: "/year-fortune", title: "연간 운세", desc: "올 한 해를 분기·월별로 상세 분석", icon: CalendarDays, iconClass: "bg-blue-500/15 border-blue-500/30 text-blue-600" },
+  { href: "/lucky-calendar", title: "길일 달력", desc: "이사·개업·결혼에 맞는 최적의 날", icon: Calendar, iconClass: "bg-emerald-400/15 border-emerald-400/30 text-emerald-600" },
+  { href: "/zodiac", title: "띠별 운세", desc: "12지신의 오늘 운세를 순위별로", icon: Orbit, iconClass: "bg-amber-500/15 border-amber-500/30 text-amber-600" },
+  { href: "/dream", title: "꿈 해몽", desc: "꿈 속 키워드로 오늘의 길흉 풀이", icon: MoonStar, iconClass: "bg-indigo-500/15 border-indigo-500/30 text-indigo-600" },
+  { href: "/name-analysis", title: "이름 풀이", desc: "수리사주와 오행으로 이름 운세 분석", icon: Type, iconClass: "bg-violet-500/15 border-violet-500/30 text-violet-600" },
+  { href: "/love-fortune", title: "연애운", desc: "인연 만날 흐름과 오행 궁합 점수", icon: Heart, iconClass: "bg-rose-500/15 border-rose-500/30 text-rose-400" },
+] as const;
+
 export default function Home() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState<InquiryType>("general");
@@ -27,8 +38,7 @@ export default function Home() {
     {
       query: {
         queryKey: ["/api/fortune/daily", { date: todayDate }, "home-dashboard"],
-        staleTime: 60_000,
-        refetchInterval: 300_000,
+        staleTime: 5 * 60_000,
         enabled: true,
       },
     },
@@ -94,10 +104,10 @@ export default function Home() {
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-primary">당신의 운명을 비추는 빛</span>
         </div>
-        <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 text-gradient-gold drop-shadow-2xl">
+        <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif font-bold mb-6 text-gradient-gold drop-shadow-2xl break-keep">
           하늘의 뜻을 읽어<br className="hidden md:block" /> 내일을 준비하다
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground leading-relaxed font-light">
+        <p className="text-lg md:text-xl text-muted-foreground leading-relaxed font-light break-keep">
           정통 명리학을 바탕으로 당신의 사주팔자와 오늘의 운세, <br className="hidden md:block" />
           그리고 인생의 흐름을 정확하게 짚어드립니다.
         </p>
@@ -375,6 +385,38 @@ export default function Home() {
 
       </motion.div>
 
+      {/* 전체 기능 미리보기 (비로그인 방문자용 — 발견성) */}
+      {!isAuthenticated && (
+        <motion.div
+          className="w-full max-w-5xl mt-16"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.6, ease: "easeOut" }}
+        >
+          <div className="text-center mb-8">
+            <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">all features</p>
+            <h2 className="font-serif text-3xl font-bold text-foreground mb-2">명해원의 모든 분석</h2>
+            <p className="text-muted-foreground text-sm">로그인하면 아래 분석을 모두 이용할 수 있습니다</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+            {PREVIEW_FEATURES.map((f) => (
+              <Link key={f.href} href={f.href} className="block group h-full">
+                <div className="h-full flex items-start gap-3 rounded-2xl border border-foreground/10 bg-card/30 backdrop-blur-xl p-4 transition-all duration-300 hover:bg-card/50 hover:border-primary/30 hover:-translate-y-0.5">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${f.iconClass}`}>
+                    <f.icon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-sm text-foreground truncate">{f.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">{f.desc}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {isAuthenticated && (
         <motion.div
           className="w-full max-w-5xl mt-16"
@@ -525,6 +567,59 @@ export default function Home() {
         </motion.div>
       )}
 
+      {/* 사주 자료실 (전체 공개) */}
+      <motion.div
+        className="w-full max-w-5xl mt-16"
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
+      >
+        <div className="text-center mb-8">
+          <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">reference</p>
+          <h2 className="font-serif text-3xl font-bold text-foreground mb-2">사주 자료실</h2>
+          <p className="text-muted-foreground text-sm">사주를 더 깊이 이해하고 싶다면 — 누구나 볼 수 있는 무료 해설</p>
+        </div>
+
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          variants={container}
+          initial="hidden"
+          animate="show"
+        >
+          <motion.div variants={item}>
+            <Link href="/sinsal-guide" className="block group h-full">
+              <div className="h-full rounded-3xl border border-amber-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(251,191,36,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full blur-3xl group-hover:bg-amber-400/20 transition-colors" />
+                <div className="w-14 h-14 rounded-2xl bg-amber-400/20 flex items-center justify-center mb-6 border border-amber-400/30 group-hover:scale-110 transition-transform">
+                  <Star className="w-7 h-7 text-amber-600" />
+                </div>
+                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">신살(神殺) 안내</h3>
+                <p className="text-muted-foreground mb-8">천을귀인·도화살·역마살·12신살·백호살·괴강살 등 23종 신살의 의미, 긍정적 활용법, 주의사항을 상세히 해설합니다.</p>
+                <div className="flex items-center text-amber-600 font-medium group-hover:gap-3 transition-all gap-2">
+                  알아보기 <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+
+          <motion.div variants={item}>
+            <Link href="/glossary" className="block group h-full">
+              <div className="h-full rounded-3xl border border-sky-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(56,189,248,0.15)] hover:-translate-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-3xl group-hover:bg-sky-400/20 transition-colors" />
+                <div className="w-14 h-14 rounded-2xl bg-sky-400/20 flex items-center justify-center mb-6 border border-sky-400/30 group-hover:scale-110 transition-transform">
+                  <BookOpen className="w-7 h-7 text-sky-600" />
+                </div>
+                <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">사주 용어 사전</h3>
+                <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국·합충형 등 사주 핵심 용어 77가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
+                <div className="flex items-center text-sky-600 font-medium group-hover:gap-3 transition-all gap-2">
+                  찾아보기 <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        </motion.div>
+      </motion.div>
+
       {isAdmin && (
         <motion.div
           className="w-full max-w-5xl mt-16"
@@ -539,43 +634,11 @@ export default function Home() {
           </div>
 
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
             variants={container}
             initial="hidden"
             animate="show"
           >
-            <motion.div variants={item}>
-              <Link href="/sinsal-guide" className="block group h-full">
-                <div className="h-full rounded-3xl border border-amber-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(251,191,36,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full blur-3xl group-hover:bg-amber-400/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-amber-400/20 flex items-center justify-center mb-6 border border-amber-400/30 group-hover:scale-110 transition-transform">
-                    <Star className="w-7 h-7 text-amber-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">신살(神殺) 안내</h3>
-                  <p className="text-muted-foreground mb-8">천을귀인·도화살·역마살·화개살·양인살·겁살·삼재 등 7종 신살의 의미, 긍정적 활용법, 주의사항을 상세히 해설합니다.</p>
-                  <div className="flex items-center text-amber-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    알아보기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-
-            <motion.div variants={item}>
-              <Link href="/glossary" className="block group h-full">
-                <div className="h-full rounded-3xl border border-sky-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(56,189,248,0.15)] hover:-translate-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-3xl group-hover:bg-sky-400/20 transition-colors" />
-                  <div className="w-14 h-14 rounded-2xl bg-sky-400/20 flex items-center justify-center mb-6 border border-sky-400/30 group-hover:scale-110 transition-transform">
-                    <BookOpen className="w-7 h-7 text-sky-600" />
-                  </div>
-                  <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">사주 용어 사전</h3>
-                  <p className="text-muted-foreground mb-8">천간·지지·오행·십신·격국 등 사주 핵심 용어 47가지를 카테고리별로 쉽고 정확하게 정리했습니다.</p>
-                  <div className="flex items-center text-sky-600 font-medium group-hover:gap-3 transition-all gap-2">
-                    찾아보기 <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-
             <motion.div variants={item}>
               <Link href="/saju-tables" className="block group h-full">
                 <div className="h-full rounded-3xl border border-orange-400/20 bg-card/40 backdrop-blur-xl p-8 transition-all duration-500 hover:bg-card/60 hover:shadow-[0_0_40px_rgba(251,146,60,0.15)] hover:-translate-y-2 relative overflow-hidden">

@@ -24,8 +24,16 @@ import {
   type SessionData,
 } from "../lib/auth.js";
 
-const BCRYPT_ROUNDS = 12;
+// bcrypt 작업 계수. 10은 OWASP 권장 하한이며 cost 12(~285ms) 대비 ~4배 빠름(~72ms).
+// 로그인 UX와 보안의 균형. 기존 cost 12 해시는 로그인 성공 시 자동 재해싱된다.
+const BCRYPT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1시간
+
+// bcrypt 해시 문자열 "$2a$<cost>$..."에서 작업 계수(cost)를 파싱한다. 실패 시 0.
+function bcryptCost(hash: string): number {
+  const cost = Number(hash.split("$")[2]);
+  return Number.isFinite(cost) ? cost : 0;
+}
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 
@@ -103,6 +111,14 @@ function hasConfiguredPrivilegedEmails(): boolean {
   );
 }
 
+function isProductionLike(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+}
+
+function isAdminBootstrapAllowed(): boolean {
+  return !isProductionLike();
+}
+
 async function requireLocalAuthDatabaseReady(res: Response): Promise<boolean> {
   if (await requireDatabase(res)) {
     return true;
@@ -126,6 +142,10 @@ function resolveRole(email: string | null | undefined, fallback = "user"): strin
 
 async function needsAdminBootstrap(): Promise<boolean> {
   if (!(await isDatabaseAvailable())) {
+    return false;
+  }
+
+  if (!isAdminBootstrapAllowed()) {
     return false;
   }
 
@@ -213,6 +233,18 @@ router.get("/auth/csrf", (req: Request, res: Response) => {
 
 router.get("/auth/setup-status", async (_req: Request, res: Response) => {
   const databaseAvailable = await isDatabaseAvailable();
+
+  if (isProductionLike()) {
+    res.json({
+      canSelfBootstrapAdmin: false,
+      hasConfiguredPrivilegedEmails: false,
+      databaseConfigured: true,
+      localPasswordAuthEnabled: true,
+      oidcEnabled: isOidcEnabled(),
+    });
+    return;
+  }
+
   res.json({
     canSelfBootstrapAdmin: await needsAdminBootstrap(),
     hasConfiguredPrivilegedEmails: hasConfiguredPrivilegedEmails(),
@@ -478,16 +510,33 @@ router.post("/auth/login-local", async (req: Request, res: Response) => {
     return;
   }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
+  // 비밀번호 검증(bcrypt, ~수십~수백 ms)과 역할 해석을 병렬로 처리해
+  // 역할 조회(needsAdminBootstrap 등)의 지연을 bcrypt 시간 뒤로 숨긴다.
+  const passwordHash = user.passwordHash;
+  const [valid, role] = await Promise.all([
+    bcrypt.compare(password, passwordHash),
+    resolveAssignableRole(normalizedEmail, user.role ?? "user"),
+  ]);
+
   if (!valid) {
     res.status(401).json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
     return;
   }
 
-  const role = await resolveAssignableRole(normalizedEmail, user.role ?? "user");
-
   if (role !== user.role) {
     await db.update(usersTable).set({ role }).where(eq(usersTable.id, user.id));
+  }
+
+  // 기존에 더 높은 작업 계수(cost)로 저장된 해시는 로그인 성공 시 백그라운드에서
+  // 현재 계수로 재해싱해 다음 로그인부터 빨라지게 한다(응답을 막지 않음).
+  // bcrypt 해시 형식 "$2a$<cost>$..."에서 cost를 직접 파싱한다.
+  if (bcryptCost(passwordHash) > BCRYPT_ROUNDS) {
+    void bcrypt
+      .hash(password, BCRYPT_ROUNDS)
+      .then((rehashed) =>
+        db.update(usersTable).set({ passwordHash: rehashed }).where(eq(usersTable.id, user.id)),
+      )
+      .catch((error) => console.error("[auth] password rehash failed:", error));
   }
 
   const sessionData: SessionData = {

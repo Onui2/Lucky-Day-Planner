@@ -15,7 +15,9 @@ import { useUser } from "@/contexts/UserContext";
 import { useLoveFortune, type LoveFortuneResult } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
+import RelationshipTimingPanel from "@/components/RelationshipTimingPanel";
 import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
+import { precisionFromProfile, precisionToPayload, type BirthPrecisionValues } from "@/lib/birth-precision";
 import {
   clampBirthDayValue,
   getBirthDateError,
@@ -50,8 +52,8 @@ function loveScoreColor(s: number) {
   return "text-rose-600";
 }
 function loveScoreLabel(s: number) {
-  if (s >= 85) return "매우 좋음";
-  if (s >= 72) return "좋음";
+  if (s >= 85) return "강함";
+  if (s >= 72) return "양호";
   if (s >= 58) return "보통";
   return "주의";
 }
@@ -139,13 +141,13 @@ function SoloResult({ data }: { data: LoveFortuneResult }) {
             <MonthBar key={month} month={month} score={score} isTop={topSet.has(month)} />
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-3 text-center">금색 막대 — 인연이 찾아오는 황금 달</p>
+        <p className="text-xs text-muted-foreground mt-3 text-center">금색 막대 — 인연 흐름이 상대적으로 강한 달</p>
       </div>
 
-      {/* 베스트 달 */}
+      {/* 흐름이 강한 달 */}
       {data.luckyMonths && data.luckyMonths.length > 0 && (
         <div className="rounded-3xl border border-primary/20 bg-card/30 backdrop-blur-xl p-6 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground mb-2">💛 인연이 찾아오는 베스트 달</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">인연 흐름이 강한 달</h3>
           {data.luckyMonths.map((m, i) => (
             <div key={m.month} className="flex items-center gap-4 rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
               <div
@@ -317,12 +319,22 @@ function SoloTab() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const matchesProfile = Boolean(
+      profile &&
+      Number(myBirth.year) === profile.birthYear &&
+      Number(myBirth.month) === profile.birthMonth &&
+      Number(myBirth.day) === profile.birthDay &&
+      normalizeBirthHour(myBirth.hour) === profile.birthHour,
+    );
     mutate(
       {
         birthYear: Number(myBirth.year), birthMonth: Number(myBirth.month),
         birthDay: Number(myBirth.day), birthHour: normalizeBirthHour(myBirth.hour),
         birthMinute: myBirth.hour === -1 ? 0 : parseBirthMinute(myBirth.minute),
         gender, status: "solo", targetYear: CURRENT_YEAR,
+        ...(matchesProfile && profile
+          ? { calendarType: profile.calendarType, ...precisionToPayload(precisionFromProfile(profile)) }
+          : { calendarType: "solar" as const }),
       },
       { onSuccess: (data) => setResult(data) }
     );
@@ -376,9 +388,12 @@ function SoloTab() {
 interface PersonForm {
   birthYear: string; birthMonth: string; birthDay: string;
   birthHour: number; birthMinute: string; gender: "male" | "female"; name: string;
+  calendarType: "solar" | "lunar";
+  precision: BirthPrecisionValues;
 }
 const defaultPerson = (g: "male" | "female"): PersonForm => ({
   birthYear: "", birthMonth: "", birthDay: "", birthHour: -1, birthMinute: "", gender: g, name: "",
+  calendarType: "solar", precision: precisionFromProfile(),
 });
 
 async function fetchGungap(p1: PersonForm, p2: PersonForm) {
@@ -386,6 +401,8 @@ async function fetchGungap(p1: PersonForm, p2: PersonForm) {
   const toPayload = (p: PersonForm) => ({
     year: parseInt(p.birthYear), month: parseInt(p.birthMonth),
     day: parseInt(p.birthDay), hour: p.birthHour, minute: parseBirthMinute(p.birthMinute), gender: p.gender,
+    calendarType: p.calendarType,
+    ...precisionToPayload(p.precision),
   });
   const res = await fetch(`${base}/api/gungap/compare`, {
     method: "POST",
@@ -437,6 +454,8 @@ function GungapTab() {
       birthYear: String(profile.birthYear), birthMonth: String(profile.birthMonth),
       birthDay: String(profile.birthDay), birthHour: normalizeBirthHour(profile.birthHour),
       birthMinute: profile.birthHour >= 0 ? formatBirthMinute(profile.birthMinute) : "",
+      calendarType: profile.calendarType,
+      precision: precisionFromProfile(profile),
     });
     setP1FromProfile(true);
   }
@@ -529,6 +548,34 @@ function GungapTab() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">달력 기준</label>
+                    <div className="grid grid-cols-2 rounded-lg border border-primary/20 overflow-hidden">
+                      {([['solar', '양력'], ['lunar', '음력']] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setState((prev) => ({ ...prev, calendarType: value, precision: { ...prev.precision, isLeapMonth: value === 'lunar' ? prev.precision.isLeapMonth : false } }))}
+                          className={cn(
+                            "h-9 text-xs font-medium transition-colors",
+                            state.calendarType === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {state.calendarType === "lunar" && (
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                        <input
+                          type="checkbox"
+                          checked={state.precision.isLeapMonth}
+                          onChange={(event) => setState((prev) => ({ ...prev, precision: { ...prev.precision, isLeapMonth: event.target.checked } }))}
+                        />
+                        윤달
+                      </label>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
@@ -631,7 +678,7 @@ function GungapTab() {
             />
           </div>
           <div className="flex justify-between w-full max-w-sm text-xs text-muted-foreground mb-6">
-            <span>어려운 궁합</span><span>천생연분</span>
+            <span>조율 필요</span><span>보완 강함</span>
           </div>
           <p className="text-base text-foreground/85 text-center max-w-lg leading-relaxed">{result.advice}</p>
         </CardContent>
@@ -696,6 +743,14 @@ function GungapTab() {
             </CardContent>
           </Card>
         </motion.div>
+      )}
+
+      {result.timing && (
+        <RelationshipTimingPanel
+          timing={result.timing}
+          person1Name={p1.name || "첫 번째"}
+          person2Name={p2.name || "두 번째"}
+        />
       )}
 
       {(result.p1Strengths?.length > 0 || result.p2Strengths?.length > 0) && (

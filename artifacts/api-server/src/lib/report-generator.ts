@@ -49,11 +49,6 @@ function getFontCandidates(fileName: string) {
 }
 
 async function getFontBuffer(name: FontName): Promise<Buffer> {
-  // esbuild base64 loader로 번들에 임베드된 경우 (Vercel 최우선)
-  const embedded = await loadEmbeddedFont(name);
-  if (embedded) {
-    return Buffer.from(embedded, "base64");
-  }
   const fileName = FONT_FILES[name];
   // 로컬 개발: import.meta.url 기준
   try {
@@ -157,6 +152,120 @@ function pillarCardHtml(label: string, value: string) {
   `;
 }
 
+function formatShadowReading(result: Record<string, any>) {
+  const shadow = result.shadowReading;
+  if (!shadow || typeof shadow !== "object") {
+    return "";
+  }
+
+  const summary = typeof shadow.summary === "string" ? shadow.summary.trim() : "";
+  const pitfalls: string[] = Array.isArray(shadow.pitfalls)
+    ? shadow.pitfalls
+        .filter((item: unknown): item is string => typeof item === "string" && item.trim().length > 0)
+        .slice(0, 4)
+    : [];
+  const advice = typeof shadow.advice === "string" ? shadow.advice.trim() : "";
+
+  return [summary, ...pitfalls.map((item) => `주의: ${item}`), advice]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function formatAuxiliaryAnalysis(result: Record<string, any>) {
+  const analysis = result.auxiliaryAnalysis;
+  if (!analysis) return "";
+  const nayin = Array.isArray(analysis.nayinPillars)
+    ? analysis.nayinPillars.map((item: any) => `${item.pillar} ${item.ganzi}는 ${item.name}(${item.hanja})`).join(" · ")
+    : "";
+  const palaces = [analysis.taewon, analysis.minggung, analysis.shingung]
+    .filter(Boolean)
+    .map((item: any) => `${item.name} ${item.stemHanja}${item.branchHanja}(${item.tenGod}·${item.unseong}): ${item.advice}`)
+    .join(" ");
+  const missing = analysis.requiresBirthTime ? "출생시간 미입력으로 명궁·신궁은 제외했습니다." : "";
+  return [nayin, palaces, missing].filter(Boolean).join(" ");
+}
+
+function formatLuckFlowAnalysis(result: Record<string, any>) {
+  const flow = result.luckFlowAnalysis;
+  if (!flow) return "";
+  const current = Array.isArray(flow.periods)
+    ? flow.periods.find((item: any) => item.idx === flow.currentDaeunIndex)
+    : null;
+  const years = Array.isArray(flow.annual)
+    ? flow.annual.slice(0, 5).map((item: any) => `${item.year}년 ${item.level} ${item.score}점(${item.headline})`).join(" · ")
+    : "";
+  return [
+    current ? `현재 ${current.stem}${current.branch} 대운: ${current.summary} ${current.advice}` : "",
+    years ? `향후 5년: ${years}` : "",
+  ].filter(Boolean).join(" ");
+}
+
+function formatCalculationBasis(result: Record<string, any>) {
+  const basis = result.calculationBasis;
+  if (!basis) return "";
+  return [
+    basis.summary,
+    Number.isFinite(basis.totalCorrectionMinutes) ? `출생시각 총 보정 ${basis.totalCorrectionMinutes}분.` : "",
+    Array.isArray(basis.warnings) ? basis.warnings.join(" ") : "",
+  ].filter(Boolean).join(" ");
+}
+
+function formatHiddenStemAnalysis(result: Record<string, any>) {
+  const analysis = result.hiddenStemAnalysis;
+  if (!analysis) return "";
+  const roots = Array.isArray(analysis.visibleStems)
+    ? analysis.visibleStems.map((item: any) => item.summary).filter(Boolean).join(" ")
+    : "";
+  return [analysis.dayMaster?.summary, roots, analysis.method ? `산출: ${analysis.method}.` : ""].filter(Boolean).join(" ");
+}
+
+function formatMultiYongsinAnalysis(result: Record<string, any>) {
+  const analysis = result.multiYongsinAnalysis;
+  if (!analysis) return "";
+  const methods = Array.isArray(analysis.methods)
+    ? analysis.methods.map((item: any) => `${item.name}: ${item.summary}`).join(" ")
+    : "";
+  return [
+    analysis.summary,
+    methods,
+    analysis.specialPattern?.summary ? `특수격 검토: ${analysis.specialPattern.summary}` : "",
+    analysis.method ? `교차검증: ${analysis.method}.` : "",
+  ].filter(Boolean).join(" ");
+}
+
+function formatTransformationAnalysis(result: Record<string, any>) {
+  const analysis = result.stemTransformationAnalysis;
+  if (!analysis) return "";
+  const items = Array.isArray(analysis.items)
+    ? analysis.items.map((item: any) => `${item.pair} ${item.status}: ${item.summary}`).join(" ")
+    : "";
+  return [analysis.summary, items, analysis.method ? `판정: ${analysis.method}.` : ""].filter(Boolean).join(" ");
+}
+
+function formatFamilyRoleAnalysis(result: Record<string, any>) {
+  const analysis = result.familyRoleAnalysis;
+  if (!analysis) return "";
+  const roles = Array.isArray(analysis.roles)
+    ? analysis.roles.map((item: any) => `${item.name}(${item.level} ${item.score}점): ${item.summary} ${item.advice}`).join(" ")
+    : "";
+  return [analysis.summary, roles, analysis.method ? `해석 기준: ${analysis.method}.` : ""].filter(Boolean).join(" ");
+}
+
+function formatTransitionTimeline(result: Record<string, any>) {
+  const transition = result.daeunTransitionAnalysis;
+  const active = transition?.active
+    ? `${transition.active.summary} ${transition.active.advice}`
+    : transition?.summary ?? "";
+  const months = Array.isArray(result.integratedLuckTimeline?.months)
+    ? [...result.integratedLuckTimeline.months]
+        .sort((left: any, right: any) => right.score - left.score)
+        .slice(0, 4)
+        .map((item: any) => `${item.month}월 ${item.level} ${item.score}점: ${item.summary}`)
+        .join(" ")
+    : "";
+  return [active, months].filter(Boolean).join(" ");
+}
+
 export function buildSajuReportHtml(title: string, result: Record<string, any>) {
   const birthInfo = result.birthInfo ?? {};
   const summary = [
@@ -170,6 +279,38 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
       title: "핵심 요약",
       body: result.fortune ?? "현재 흐름은 균형과 속도 조절이 핵심입니다.",
       accent: "#caa75d",
+    },
+    {
+      title: "계산 기준과 출생시각 보정",
+      body: formatCalculationBasis(result) || "기본 표준시와 자정 일주 기준으로 계산했습니다.",
+      accent: "#71614d",
+    },
+    {
+      title: "지장간 세력·통근·투출",
+      body: formatHiddenStemAnalysis(result) || "지장간 가중 세력 데이터가 준비되지 않았습니다.",
+      accent: "#526f62",
+    },
+    {
+      title: "다중 용신 교차검증",
+      body: formatMultiYongsinAnalysis(result) || "다중 용신 교차검증 데이터가 준비되지 않았습니다.",
+      accent: "#7b6742",
+    },
+    {
+      title: "천간합과 합화 조건",
+      body: formatTransformationAnalysis(result) || "천간합은 발견되지 않았거나 합화 조건이 성립하지 않았습니다.",
+      accent: "#636d8b",
+    },
+    {
+      title: "육친·궁성 분석",
+      body: formatFamilyRoleAnalysis(result) || "육친·궁성 데이터가 준비되지 않았습니다.",
+      accent: "#8a5964",
+    },
+    {
+      title: "그림자와 주의점",
+      body:
+        formatShadowReading(result) ||
+        "좋은 기운도 과하면 부담이 됩니다. 강점이 과해질 때 생기는 반복 실수를 함께 살피는 편이 좋습니다.",
+      accent: "#9a4f4f",
     },
     {
       title: "성격 분석",
@@ -192,11 +333,22 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
       accent: "#6f92a6",
     },
     {
-      title: "대운과 조언",
+      title: "대운·세운 종합 흐름",
       body:
-        result.yongsin?.advice ??
-        "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요.",
+        formatLuckFlowAnalysis(result) ||
+        (result.yongsin?.advice ??
+          "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요."),
       accent: "#5b5368",
+    },
+    {
+      title: "교운기와 월별 통합 흐름",
+      body: formatTransitionTimeline(result) || "현재 확인할 교운기·월별 통합 데이터가 없습니다.",
+      accent: "#4f6b77",
+    },
+    {
+      title: "납음오행·태원·명궁·신궁",
+      body: formatAuxiliaryAnalysis(result) || "보조 분석 데이터가 준비되지 않았습니다.",
+      accent: "#58727a",
     },
   ];
 
@@ -250,6 +402,7 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
 export function buildSajuReportPreview(result: Record<string, any>) {
   const parts = [
     result.fortune,
+    result.shadowReading?.summary,
     result.personality,
     result.career,
   ]
@@ -326,6 +479,44 @@ export async function generateSajuReportPdf(title: string, result: Record<string
       accent: "#caa75d",
     },
     {
+      title: "계산 기준과 보정",
+      hanja: "計算基準",
+      body: formatCalculationBasis(result) || "기본 표준시와 자정 일주 기준으로 계산했습니다.",
+      accent: "#71614d",
+    },
+    {
+      title: "지장간 세력과 통근",
+      hanja: "地藏干通根",
+      body: formatHiddenStemAnalysis(result) || "지장간 가중 세력 데이터가 준비되지 않았습니다.",
+      accent: "#526f62",
+    },
+    {
+      title: "다중 용신 교차검증",
+      hanja: "用神交叉",
+      body: formatMultiYongsinAnalysis(result) || "다중 용신 교차검증 데이터가 준비되지 않았습니다.",
+      accent: "#7b6742",
+    },
+    {
+      title: "천간합과 합화",
+      hanja: "天干合化",
+      body: formatTransformationAnalysis(result) || "천간합은 발견되지 않았거나 합화 조건이 성립하지 않았습니다.",
+      accent: "#636d8b",
+    },
+    {
+      title: "육친과 궁성",
+      hanja: "六親宮星",
+      body: formatFamilyRoleAnalysis(result) || "육친·궁성 데이터가 준비되지 않았습니다.",
+      accent: "#8a5964",
+    },
+    {
+      title: "그림자와 주의점",
+      hanja: "陰影",
+      body:
+        formatShadowReading(result) ||
+        "좋은 기운도 과하면 부담이 됩니다. 강점이 과해질 때 생기는 반복 실수를 함께 살피는 편이 좋습니다.",
+      accent: "#9a4f4f",
+    },
+    {
       title: "성격 분석",
       hanja: "性格",
       body: result.personality ?? "성격 분석 데이터가 준비되지 않았습니다.",
@@ -350,13 +541,34 @@ export async function generateSajuReportPdf(title: string, result: Record<string
       accent: "#6f92a6",
     },
     {
+      title: "대운·세운 종합 흐름",
+      hanja: "大運歲運",
+      body:
+        formatLuckFlowAnalysis(result) ||
+        (result.yongsin?.advice ??
+          "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요."),
+      accent: "#6d657d",
+    },
+    {
+      title: "교운기와 통합 시기",
+      hanja: "交運期",
+      body: formatTransitionTimeline(result) || "현재 확인할 교운기·월별 통합 데이터가 없습니다.",
+      accent: "#4f6b77",
+    },
+    {
       title: "조심해야 할 시기와 행동",
       hanja: "助言",
       body:
-        result.yongsin?.advice ??
         result.samjae?.advice ??
+        result.yongsin?.advice ??
         "중요한 결정은 한 번 더 확인하고, 감정이 급해질 때는 속도를 늦추는 편이 좋습니다.",
       accent: "#5b5368",
+    },
+    {
+      title: "납음오행과 삼원",
+      hanja: "納音三元",
+      body: formatAuxiliaryAnalysis(result) || "보조 분석 데이터가 준비되지 않았습니다.",
+      accent: "#58727a",
     },
   ];
 
