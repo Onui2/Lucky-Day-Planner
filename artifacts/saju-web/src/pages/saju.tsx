@@ -191,12 +191,15 @@ const SECTIONS = [
   { key: "saju",        label: "사주팔자",   icon: "☯️" },
   { key: "singang",     label: "신강/신약",   icon: "⚖️" },
   { key: "yongsin",     label: "용신 분석",   icon: "🔮" },
+  { key: "johu",        label: "조후",        icon: "🌡️" },
   { key: "geokguk",     label: "격국",        icon: "🏛️" },
+  { key: "tenGodSummary", label: "십성 분포", icon: "📊" },
   { key: "tenGods",     label: "십신·12운성", icon: "🎯" },
   { key: "shinsal",     label: "신살",        icon: "✨" },
   { key: "hapChung",    label: "합충형",      icon: "⚡" },
   { key: "daeun",       label: "대운",        icon: "🌊" },
   { key: "seun",        label: "년운",        icon: "📅" },
+  { key: "transitShinsal", label: "운 신살", icon: "🔔" },
   { key: "samjae",      label: "삼재 체크",   icon: "🛡️" },
   { key: "yongsinItem", label: "용신 아이템", icon: "💎" },
   { key: "careful",     label: "조심할 것들", icon: "⚠️" },
@@ -211,12 +214,15 @@ const DEFAULT_VISIBLE_SECTIONS: Record<SectionKey, boolean> = {
   saju: true,
   singang: true,
   yongsin: true,
+  johu: true,
   geokguk: true,
+  tenGodSummary: true,
   tenGods: true,
   shinsal: true,
   hapChung: true,
   daeun: true,
   seun: true,
+  transitShinsal: true,
   samjae: true,
   yongsinItem: true,
   careful: true,
@@ -228,6 +234,8 @@ const COMPACT_SECTION_KEYS: SectionKey[] = [
   "saju",
   "singang",
   "yongsin",
+  "johu",
+  "tenGodSummary",
   "hapChung",
   "samjae",
   "daymaster",
@@ -671,6 +679,26 @@ export default function SajuPage() {
       }
     }
 
+    if (sections.johu && result.johuAnalysis) {
+      sharedSectionCount += 1;
+      lines.push(
+        "",
+        "[조후]",
+        `  ${result.johuAnalysis.temperature} / ${result.johuAnalysis.moisture} (${result.johuAnalysis.status})`,
+      );
+      if (result.johuAnalysis.summary) lines.push(`  ${shareSummary(result.johuAnalysis.summary, 56)}`);
+      if (result.johuAnalysis.advice) lines.push(`  조언: ${shareSummary(result.johuAnalysis.advice, 44)}`);
+    }
+
+    if (sections.tenGodSummary && result.tenGodDistribution) {
+      sharedSectionCount += 1;
+      const detailLine = result.tenGodDistribution.details
+        ?.map((d: any) => `${d.label.replace(/\(.+\)/, "")}:${d.level}`)
+        .join(", ");
+      lines.push("", "[십성 분포]", `  ${shareSummary(result.tenGodDistribution.summary, 56)}`);
+      if (detailLine) lines.push(`  분포: ${fitShareText(detailLine, 64)}`);
+    }
+
     if (sections.daymaster && (result.personality || result.fortune || result.love || result.health)) {
       sharedSectionCount += 1;
       lines.push("", "[일간 성향]");
@@ -703,6 +731,15 @@ export default function SajuPage() {
           lines.push(`  다음 삼재: ${result.samjae.nextSamjae}`);
         }
       }
+    }
+
+    if (sections.transitShinsal && result.shinsalTransitActivations?.length) {
+      sharedSectionCount += 1;
+      lines.push("", "[운 신살 발동]");
+      result.shinsalTransitActivations.slice(0, 4).forEach((item: any) => {
+        const when = item.year ? `${item.year}년` : item.period;
+        lines.push(`  ${item.scope} ${when}: ${item.name} - ${shareSummary(item.impact, 36)}`);
+      });
     }
 
     if (sharedSectionCount === 0) {
@@ -848,6 +885,24 @@ export default function SajuPage() {
     if (r.yongsin.luckyColors?.length) lines.push(`  보완 색상: ${r.yongsin.luckyColors.join(', ')}`);
     }
 
+    if (r.johuAnalysis) {
+      lines.push('');
+      lines.push(`【 조후 】`);
+      lines.push(`  ${r.johuAnalysis.temperature} / ${r.johuAnalysis.moisture} (${r.johuAnalysis.status})`);
+      if (r.johuAnalysis.summary) lines.push(`  ${shareSummary(r.johuAnalysis.summary, 56)}`);
+      if (r.johuAnalysis.advice)  lines.push(`  💡 ${shareSummary(r.johuAnalysis.advice, 44)}`);
+    }
+
+    if (r.tenGodDistribution) {
+      lines.push('');
+      lines.push(`【 십성 분포 】`);
+      lines.push(`  ${shareSummary(r.tenGodDistribution.summary, 56)}`);
+      const detailLine = r.tenGodDistribution.details
+        ?.map((d: any) => `${d.label.replace(/\(.+\)/, "")}:${d.level}`)
+        .join(', ');
+      if (detailLine) lines.push(`  분포: ${fitShareText(detailLine, 64)}`);
+    }
+
     if (r.personality || r.fortune) {
       lines.push('');
       lines.push(`【 일간 심층 분석 】`);
@@ -875,6 +930,15 @@ export default function SajuPage() {
         lines.push(`  ✅ 현재 삼재 해당 없음`);
         if (r.samjae.nextSamjae)  lines.push(`  다음 삼재: ${r.samjae.nextSamjae}년`);
       }
+    }
+
+    if (r.shinsalTransitActivations?.length) {
+      lines.push('');
+      lines.push(`【 운 신살 발동 】`);
+      r.shinsalTransitActivations.slice(0, 4).forEach((item: any) => {
+        const when = item.year ? `${item.year}년` : item.period;
+        lines.push(`  ${item.scope} ${when}: ${item.name} - ${shareSummary(item.impact, 36)}`);
+      });
     }
 
     lines.push('');
@@ -1606,6 +1670,69 @@ export default function SajuPage() {
             </motion.div>
           )}
 
+          {/* ── 조후 (調候) ── */}
+          {visibleSections.johu && r.johuAnalysis && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.065 }}>
+              <SectionHeader icon="🌡️" title="조후 분석 (調候)" />
+              <Card className="glass-panel border-primary/30">
+                <CardContent className="pt-6 space-y-5">
+                  <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5">
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col items-center justify-center text-center">
+                      <div className={`px-3 py-1 rounded-full text-xs font-semibold border mb-3 ${
+                        r.johuAnalysis.status === '균형'
+                          ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'
+                          : r.johuAnalysis.status === '주의'
+                            ? 'bg-amber-500/15 text-amber-700 border-amber-500/30'
+                            : 'bg-orange-500/15 text-orange-700 border-orange-500/30'
+                      }`}>
+                        {r.johuAnalysis.status}
+                      </div>
+                      <div className="text-3xl font-serif font-bold text-primary mb-1">{r.johuAnalysis.temperature}</div>
+                      <div className="text-sm text-muted-foreground">습도: {r.johuAnalysis.moisture}</div>
+                      <div className="mt-3 text-xs text-muted-foreground">월지 {r.johuAnalysis.monthBranch} 기준</div>
+                    </div>
+                    <div className="space-y-4">
+                      <p className="text-foreground/90 leading-relaxed">{r.johuAnalysis.summary}</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {[
+                          { label: '열기', value: r.johuAnalysis.hotScore, tone: 'bg-red-500/10 text-red-700 border-red-500/25' },
+                          { label: '냉기', value: r.johuAnalysis.coldScore, tone: 'bg-blue-500/10 text-blue-700 border-blue-500/25' },
+                          { label: '건조', value: r.johuAnalysis.dryScore, tone: 'bg-amber-500/10 text-amber-700 border-amber-500/25' },
+                          { label: '습기', value: r.johuAnalysis.dampScore, tone: 'bg-cyan-500/10 text-cyan-700 border-cyan-500/25' },
+                        ].map((item) => (
+                          <div key={item.label} className={`rounded-lg border px-3 py-2 ${item.tone}`}>
+                            <div className="text-[11px] opacity-70">{item.label}</div>
+                            <div className="text-lg font-semibold">{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                        <div className="text-sm font-medium text-primary mb-1.5">조후 보완</div>
+                        <p className="text-sm text-foreground/80 leading-relaxed">{r.johuAnalysis.advice}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {(r.johuAnalysis.needElements?.length ? r.johuAnalysis.needElements : ['균형 유지']).map((elem: string) => (
+                            <span key={elem} className={`px-2.5 py-1 rounded-full text-xs border ${ELEM_BG[elem] ?? 'bg-primary/15 text-primary border-primary/25'}`}>
+                              {elem}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {r.johuAnalysis.cautions?.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {r.johuAnalysis.cautions.map((caution: string, idx: number) => (
+                            <span key={idx} className="px-3 py-1 rounded-full bg-destructive/10 text-destructive text-xs border border-destructive/20">
+                              {caution}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* ── 격국 (格局) ── */}
           {visibleSections.geokguk && r.geokguk && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.07 }}>
@@ -1641,14 +1768,108 @@ export default function SajuPage() {
                       }`}>
                         월령 십신: {r.geokguk.tenGod}
                       </div>
+                      {r.geokguk.statusLabel && (
+                        <div className={`mt-2 px-3 py-1 rounded-full text-xs font-semibold border text-center ${
+                          r.geokguk.status === '성격'
+                            ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'
+                            : r.geokguk.status === '파격'
+                              ? 'bg-red-500/15 text-red-700 border-red-500/30'
+                              : r.geokguk.status === '혼잡'
+                                ? 'bg-orange-500/15 text-orange-700 border-orange-500/30'
+                                : 'bg-primary/15 text-primary border-primary/25'
+                        }`}>
+                          {r.geokguk.statusLabel}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 space-y-4">
                       <p className="text-foreground/90 leading-relaxed">{r.geokguk.description}</p>
+                      {r.geokguk.statusDescription && (
+                        <div className="p-4 rounded-xl bg-muted/20 border border-primary/10">
+                          <div className="text-sm font-medium text-foreground/80 mb-1.5">성패 판단</div>
+                          <p className="text-sm text-foreground/70 leading-relaxed">{r.geokguk.statusDescription}</p>
+                        </div>
+                      )}
+                      {(r.geokguk.successFactors?.length > 0 || r.geokguk.riskFactors?.length > 0) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                            <div className="text-xs font-semibold text-emerald-700 mb-2">살아나는 요소</div>
+                            <div className="space-y-1.5">
+                              {(r.geokguk.successFactors?.length ? r.geokguk.successFactors : ['뚜렷한 보조 요소는 약합니다.']).map((factor: string, idx: number) => (
+                                <p key={idx} className="text-xs text-foreground/70 leading-relaxed">• {factor}</p>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3">
+                            <div className="text-xs font-semibold text-orange-700 mb-2">흔드는 요소</div>
+                            <div className="space-y-1.5">
+                              {(r.geokguk.riskFactors?.length ? r.geokguk.riskFactors : ['큰 파격 요소는 약합니다.']).map((factor: string, idx: number) => (
+                                <p key={idx} className="text-xs text-foreground/70 leading-relaxed">• {factor}</p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                         <div className="text-sm font-medium text-primary mb-1.5">✅ 격국 조언 & 적합 분야</div>
                         <p className="text-sm text-foreground/80">{r.geokguk.advice}</p>
                       </div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* ── 십성 분포 ── */}
+          {visibleSections.tenGodSummary && r.tenGodDistribution && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.075 }}>
+              <SectionHeader icon="📊" title="십성 분포 분석 (十神)" />
+              <Card className="glass-panel border-primary/30">
+                <CardContent className="pt-6 space-y-5">
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">가장 강한 흐름</div>
+                        <div className="text-xl font-serif font-bold text-primary">{r.tenGodDistribution.dominantLabel}</div>
+                      </div>
+                      <p className="text-sm text-foreground/75 leading-relaxed md:max-w-2xl">{r.tenGodDistribution.summary}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                    {r.tenGodDistribution.details?.map((detail: any) => {
+                      const levelClass =
+                        detail.level === '과다' ? 'bg-red-500/15 text-red-700 border-red-500/30'
+                        : detail.level === '충분' ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'
+                        : detail.level === '약함' ? 'bg-amber-500/15 text-amber-700 border-amber-500/30'
+                        : 'bg-blue-500/15 text-blue-700 border-blue-500/30';
+                      return (
+                        <div key={detail.key} className="rounded-xl border border-primary/15 bg-background/40 p-3 min-h-[220px] flex flex-col">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <div className="font-serif font-bold text-sm text-foreground">{detail.label}</div>
+                              <div className="text-[11px] text-muted-foreground">{detail.domain}</div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${levelClass}`}>
+                              {detail.level}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-semibold text-primary mb-2">{Number(detail.score).toFixed(1)}</div>
+                          <p className="text-xs text-foreground/70 leading-relaxed flex-1">{detail.interpretation}</p>
+                          <div className="mt-3 flex flex-wrap gap-1">
+                            {detail.gods?.map((god: any) => (
+                              <span key={god.name} className="px-1.5 py-0.5 rounded bg-muted/30 text-[10px] text-muted-foreground border border-muted/30">
+                                {god.name} {Number(god.count).toFixed(1)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
+                    <div className="text-sm font-medium text-accent mb-1.5">분포 조언</div>
+                    <p className="text-sm text-foreground/80 leading-relaxed">{r.tenGodDistribution.advice}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -1962,6 +2183,56 @@ export default function SajuPage() {
                       );
                     })}
                   </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* ── 대운·세운 신살 발동 ── */}
+          {visibleSections.transitShinsal && r.shinsalTransitActivations && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.125 }}>
+              <SectionHeader icon="🔔" title="대운·세운 신살 발동" />
+              <Card className="glass-panel border-primary/30">
+                <CardContent className="pt-6">
+                  {(r.shinsalTransitActivations as any[]).length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground/60">
+                      <div className="text-3xl mb-2">🔕</div>
+                      <p>현재 대운과 가까운 세운에서 강하게 발동되는 주요 신살은 적습니다.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(r.shinsalTransitActivations as any[]).map((item: any, idx: number) => {
+                        const categoryClass =
+                          item.category === '길신' ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'
+                          : item.category === '흉살' ? 'bg-red-500/15 text-red-700 border-red-500/30'
+                          : 'bg-primary/15 text-primary border-primary/25';
+                        return (
+                          <div key={`${item.scope}-${item.year ?? item.period}-${item.name}-${idx}`} className="rounded-xl border border-primary/15 bg-background/40 p-4">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-serif font-bold text-base text-foreground">{item.name}</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${categoryClass}`}>
+                                    {item.category}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {item.scope} · {item.year ? `${item.year}년` : item.period} {item.age ? `· ${item.age}세` : ''} · {item.pillar}
+                                </div>
+                              </div>
+                              <span className="px-2 py-0.5 rounded bg-muted/30 text-[11px] text-muted-foreground border border-muted/30 shrink-0">
+                                발동
+                              </span>
+                            </div>
+                            <p className="text-sm text-foreground/75 leading-relaxed mb-2">{item.impact}</p>
+                            <div className="text-xs text-primary/80 bg-primary/5 rounded-lg px-2.5 py-1.5 border border-primary/15">
+                              {item.advice}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

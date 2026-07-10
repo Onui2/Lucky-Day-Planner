@@ -11,6 +11,7 @@ import {
   getHapChung,
   getHealthText,
   getHourPillar,
+  getJohuAnalysis,
   getLoveText,
   getLuckyColors,
   getLuckyDirections,
@@ -25,7 +26,9 @@ import {
   getSeun,
   getShadowReading,
   getShinsal,
+  getShinsalTransitActivations,
   getSinGangYak,
+  getTenGodDistribution,
   getYearPillar,
   getYongsin,
   getYongsinItems,
@@ -98,6 +101,34 @@ export function buildSajuResult(input: SajuBirthInput) {
   const { dominant, lacking } = getElementStats(elementBalance);
   const dayElement = dayPillar.stemElement;
   const yongsin = getYongsin(elementBalance, dayElement);
+  const daeun = getDaeun(year, month, day, input.gender, yearPillar, monthPillar, hour, minute);
+  const seun = getSeun(year, 30);
+  const sinGangYak = getSinGangYak(yearPillar, monthPillar, dayPillar, hourPillar);
+  const geokguk = getGeokguk(
+    dayPillar.stem,
+    { branch: dayPillar.branch },
+    elementBalance,
+    [yearPillar, monthPillar, dayPillar, hourPillar],
+  );
+  const shinsal = getShinsal(yearPillar, monthPillar, dayPillar, hourPillar, dayPillar.stem, input.gender);
+  const tenGodDistribution = getTenGodDistribution(
+    dayPillar.stem,
+    yearPillar,
+    monthPillar,
+    dayPillar,
+    hourPillar,
+  );
+  const johuAnalysis = getJohuAnalysis(monthPillar, dayPillar, elementBalance);
+  const shinsalTransitActivations = getShinsalTransitActivations(
+    year,
+    yearPillar,
+    monthPillar,
+    dayPillar,
+    hourPillar,
+    dayPillar.stem,
+    daeun,
+    seun,
+  );
 
   return {
     birthInfo: {
@@ -173,10 +204,11 @@ export function buildSajuResult(input: SajuBirthInput) {
     luckyColors: getLuckyColors(dayElement, dayPillar.stem),
     luckyDirections: getLuckyDirections(dayElement, dayPillar.stem),
     zodiac: yearPillar.zodiac,
-    daeun: getDaeun(year, month, day, input.gender, yearPillar, monthPillar, hour, minute),
-    seun: getSeun(year, 30),
+    daeun,
+    seun,
     yongsin,
-    sinGangYak: getSinGangYak(yearPillar, monthPillar, dayPillar, hourPillar),
+    sinGangYak,
+    johuAnalysis,
     carefulThings: getCarefulThings(dayPillar, monthPillar, yearPillar, elementBalance),
     samjae: getSamjae(yearPillar.branchIndex, new Date().getFullYear()),
     yongsinItems: getYongsinItems(yongsin.yongsin),
@@ -220,8 +252,10 @@ export function buildSajuResult(input: SajuBirthInput) {
       yongsin.geesin,
       elementBalance,
     ),
-    geokguk: getGeokguk(dayPillar.stem, { branch: dayPillar.branch }, elementBalance),
-    shinsal: getShinsal(yearPillar, monthPillar, dayPillar, hourPillar, dayPillar.stem, input.gender),
+    geokguk,
+    shinsal,
+    tenGodDistribution,
+    shinsalTransitActivations,
     hapChung: getHapChung(yearPillar, monthPillar, dayPillar, hourPillar),
     pillarTenGods: getPillarTenGods(
       dayPillar.stem,

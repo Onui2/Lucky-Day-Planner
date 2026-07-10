@@ -1322,6 +1322,136 @@ export function getSinGangYak(
   };
 }
 
+// ──────────── 조후 (調候) ────────────
+export function getJohuAnalysis(
+  monthPillar: ReturnType<typeof getMonthPillar>,
+  dayPillar: ReturnType<typeof getDayPillar>,
+  elementCount: { wood: number; fire: number; earth: number; metal: number; water: number },
+) {
+  const monthBranch = monthPillar.branchIndex;
+  const hotScore =
+    elementCount.fire * 2 +
+    elementCount.wood +
+    ([5, 6, 7].includes(monthBranch) ? 3 : [2, 3, 4].includes(monthBranch) ? 1 : 0);
+  const coldScore =
+    elementCount.water * 2 +
+    elementCount.metal +
+    ([11, 0, 1].includes(monthBranch) ? 3 : [8, 9, 10].includes(monthBranch) ? 1 : 0);
+  const dryScore =
+    elementCount.fire +
+    elementCount.earth * 1.5 +
+    ([5, 6, 7, 10].includes(monthBranch) ? 2 : 0);
+  const dampScore =
+    elementCount.water +
+    elementCount.earth * 0.5 +
+    ([11, 0, 1, 4].includes(monthBranch) ? 2 : 0);
+
+  const temperature = hotScore - coldScore >= 3 ? '조열'
+    : coldScore - hotScore >= 3 ? '한습'
+    : hotScore > coldScore ? '온조'
+    : coldScore > hotScore ? '냉습'
+    : '중화';
+  const moisture = dryScore - dampScore >= 2.5 ? '건조'
+    : dampScore - dryScore >= 2.5 ? '습함'
+    : '보통';
+
+  const needElements = new Set<string>();
+  if (temperature === '조열' || temperature === '온조' || moisture === '건조') needElements.add('수');
+  if (temperature === '한습' || temperature === '냉습' || moisture === '습함') needElements.add('화');
+  if (elementCount.wood === 0) needElements.add('목');
+  if (elementCount.metal === 0) needElements.add('금');
+  if (elementCount.earth === 0) needElements.add('토');
+
+  const seasonText = [2, 3, 4].includes(monthBranch) ? '봄생이라 목(木)의 성장성이 바탕입니다.'
+    : [5, 6, 7].includes(monthBranch) ? '여름생이라 화(火)의 열기가 바탕입니다.'
+    : [8, 9, 10].includes(monthBranch) ? '가을생이라 금(金)의 수렴성이 바탕입니다.'
+    : '겨울생이라 수(水)의 차고 깊은 기운이 바탕입니다.';
+
+  const status = temperature === '중화' && moisture === '보통' ? '균형'
+    : needElements.size >= 2 ? '보완 필요'
+    : '주의';
+  const summary = `${seasonText} 현재 조후는 ${temperature}${moisture !== '보통' ? `·${moisture}` : ''} 쪽으로 기울어 있습니다.`;
+  const advice = needElements.has('수') && needElements.has('화')
+    ? '수와 화를 동시에 쓰기보다 생활에서는 수면·수분으로 과열을 내리고, 중요한 실행은 햇빛·운동으로 화기를 살리는 식의 시간 분리가 좋습니다.'
+    : needElements.has('수')
+      ? '수(水) 보완이 우선입니다. 충분한 수면, 물 가까운 환경, 차분한 공부·기획 시간이 과열을 식힙니다.'
+      : needElements.has('화')
+        ? '화(火) 보완이 우선입니다. 햇빛, 운동, 발표, 따뜻한 음식처럼 몸을 데우고 밖으로 표현하는 습관이 좋습니다.'
+        : '큰 한난조습 치우침은 약합니다. 계절 리듬을 지키고 오행 부족분만 생활에서 가볍게 보완하면 됩니다.';
+
+  return {
+    status,
+    temperature,
+    moisture,
+    hotScore: Math.round(hotScore * 10) / 10,
+    coldScore: Math.round(coldScore * 10) / 10,
+    dryScore: Math.round(dryScore * 10) / 10,
+    dampScore: Math.round(dampScore * 10) / 10,
+    needElements: Array.from(needElements),
+    monthBranch: monthPillar.branch,
+    dayMaster: `${dayPillar.stem}${dayPillar.branch}`,
+    summary,
+    advice,
+    cautions: [
+      temperature === '조열' ? '성급함·과열·염증성 피로를 조심하세요.' : '',
+      temperature === '한습' ? '무기력·냉증·결정 지연을 조심하세요.' : '',
+      moisture === '건조' ? '관계와 감정 표현이 메마르지 않게 수분과 휴식을 챙기세요.' : '',
+      moisture === '습함' ? '생각이 무겁게 고이지 않도록 움직임과 햇빛을 늘리세요.' : '',
+    ].filter(Boolean),
+  };
+}
+
+// ──────────── 십성 과다/부족 분석 ────────────
+export function getTenGodDistribution(
+  dayStem: string,
+  yearPillar: ReturnType<typeof getYearPillar>,
+  monthPillar: ReturnType<typeof getYearPillar>,
+  dayPillar: ReturnType<typeof getYearPillar>,
+  hourPillar: ReturnType<typeof getYearPillar> | null,
+) {
+  const { counts, groups, sources } = collectTenGodCounts(dayStem, [yearPillar, monthPillar, dayPillar, hourPillar]);
+  const groupEntries = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+  const dominant = groupEntries[0]?.[0] ?? '비겁';
+  const lacking = [...groupEntries].reverse().filter(([, value]) => value <= 0.5).map(([name]) => name);
+  const weak = lacking.length > 0 ? lacking : [...groupEntries].reverse().slice(0, 1).map(([name]) => name);
+
+  const details = Object.entries(TEN_GOD_GROUP_INFO).map(([key, info]) => {
+    const score = groups[key] ?? 0;
+    const level = score >= 3 ? '과다'
+      : score >= 1.5 ? '충분'
+      : score >= 0.5 ? '약함'
+      : '부족';
+    const interpretation = level === '과다' ? info.excess
+      : level === '부족' || level === '약함' ? info.lack
+      : `${info.domain} 영역이 적당히 살아 있어 과하지도 비지도 않은 편입니다.`;
+    return {
+      key,
+      label: info.label,
+      domain: info.domain,
+      score,
+      level,
+      interpretation,
+      advice: info.advice,
+      gods: TEN_GOD_GROUPS[key].map((god) => ({ name: god, count: counts[god], info: TEN_GOD_INFO[god] })),
+    };
+  });
+
+  const dominantInfo = TEN_GOD_GROUP_INFO[dominant];
+  const weakLabels = weak.map((key) => TEN_GOD_GROUP_INFO[key]?.label ?? key).join('·');
+
+  return {
+    counts,
+    groups,
+    dominant,
+    dominantLabel: dominantInfo?.label ?? dominant,
+    lacking: weak,
+    summary: `${dominantInfo?.label ?? dominant} 기운이 가장 강하고, ${weakLabels} 쪽은 보완이 필요합니다.`,
+    advice: `${dominantInfo?.advice ?? '강한 십성의 장점을 살리세요'} 부족한 십성은 직업·관계·생활 습관으로 보완하는 것이 좋습니다.`,
+    details,
+    sources,
+  };
+}
+
 // ──────────── 조심해야 할 것들 ────────────
 export function getCarefulThings(
   dayPillar: ReturnType<typeof getDayPillar>,
@@ -2047,6 +2177,67 @@ export const TEN_GOD_INFO: Record<TenGodName, { hanja: string; element: string; 
   '정인': { hanja:'正印', element:'', brief:'학문·명예·어머니', longer:'나를 생하는 오행·다른 음양. 학문·자격·귀인의 도움. 어머니·스승 역할. 인성이 강하면 의존적.' },
 };
 
+const JIJANGGAN: Record<string, {stem:string; element:string}[]> = {
+  '자': [{stem:'임',element:'수'},{stem:'계',element:'수'}],
+  '축': [{stem:'계',element:'수'},{stem:'신',element:'금'},{stem:'기',element:'토'}],
+  '인': [{stem:'무',element:'토'},{stem:'병',element:'화'},{stem:'갑',element:'목'}],
+  '묘': [{stem:'갑',element:'목'},{stem:'을',element:'목'}],
+  '진': [{stem:'을',element:'목'},{stem:'계',element:'수'},{stem:'무',element:'토'}],
+  '사': [{stem:'무',element:'토'},{stem:'경',element:'금'},{stem:'병',element:'화'}],
+  '오': [{stem:'병',element:'화'},{stem:'기',element:'토'},{stem:'정',element:'화'}],
+  '미': [{stem:'정',element:'화'},{stem:'을',element:'목'},{stem:'기',element:'토'}],
+  '신': [{stem:'무',element:'토'},{stem:'임',element:'수'},{stem:'경',element:'금'}],
+  '유': [{stem:'경',element:'금'},{stem:'신',element:'금'}],
+  '술': [{stem:'신',element:'금'},{stem:'정',element:'화'},{stem:'무',element:'토'}],
+  '해': [{stem:'무',element:'토'},{stem:'갑',element:'목'},{stem:'임',element:'수'}],
+};
+
+const TEN_GOD_GROUPS: Record<string, TenGodName[]> = {
+  비겁: ['비견', '겁재'],
+  식상: ['식신', '상관'],
+  재성: ['정재', '편재'],
+  관성: ['정관', '편관'],
+  인성: ['정인', '편인'],
+};
+
+const TEN_GOD_GROUP_INFO: Record<string, { label: string; domain: string; excess: string; lack: string; advice: string }> = {
+  비겁: {
+    label: '비겁(比劫)',
+    domain: '자아·독립·동료·경쟁',
+    excess: '자기주장과 경쟁심이 강해 재물 분산, 동업 갈등, 고집으로 나타나기 쉽습니다.',
+    lack: '자기 힘으로 버티는 기운이 약해 결단이 늦고 주변 분위기에 휘둘리기 쉽습니다.',
+    advice: '역할·지분·돈 문제를 문서로 분명히 하고, 혼자 감당할 일과 함께할 일을 나누세요.',
+  },
+  식상: {
+    label: '식상(食傷)',
+    domain: '표현·재능·말·생산성',
+    excess: '말과 표현이 앞서 관성과 충돌하기 쉽고, 규칙보다 자유를 택하려는 힘이 강합니다.',
+    lack: '생각은 있어도 표현·홍보·실행으로 꺼내는 힘이 부족해 성과가 묻히기 쉽습니다.',
+    advice: '글쓰기, 발표, 콘텐츠, 결과물 정리를 습관화하면 운이 밖으로 드러납니다.',
+  },
+  재성: {
+    label: '재성(財星)',
+    domain: '돈·현실감·거래·배우자 인연',
+    excess: '돈과 성과 압박이 커져 무리한 투자, 소비, 관계 계산으로 흐르기 쉽습니다.',
+    lack: '현실 감각과 현금흐름 관리가 약해 좋은 아이디어가 돈으로 연결되기 어렵습니다.',
+    advice: '수입·지출·계약 조건을 숫자로 관리하고, 큰돈은 검토 시간을 둔 뒤 움직이세요.',
+  },
+  관성: {
+    label: '관성(官星)',
+    domain: '직장·규칙·명예·책임',
+    excess: '책임과 압박이 과해 불안, 눈치, 권위와의 마찰 또는 건강 스트레스로 나타납니다.',
+    lack: '규칙·직함·책임 구조가 약해 자유롭지만 지속성과 사회적 인정이 흔들릴 수 있습니다.',
+    advice: '규칙을 적으로 보지 말고, 자격·직함·절차를 내 보호막으로 쓰세요.',
+  },
+  인성: {
+    label: '인성(印星)',
+    domain: '공부·문서·보호·귀인',
+    excess: '생각과 준비가 많아 실행이 늦어지고, 의존성이나 명분 싸움으로 흐르기 쉽습니다.',
+    lack: '보호막과 문서운이 약해 계약·학습·자격에서 기본기를 더 챙겨야 합니다.',
+    advice: '배운 것을 현실 결과물로 바꾸고, 중요한 결정은 자료와 문서 근거를 남기세요.',
+  },
+};
+
 // ──────────── 격국 (格局) ────────────
 // 월지 정기(正氣) 지장간
 const MONTH_JEONGGI: Record<string, string> = {
@@ -2060,16 +2251,59 @@ export interface GeokgukResult {
   description: string;
   advice: string;
   power: '강' | '중' | '약';
+  status: '성격' | '보통' | '혼잡' | '파격';
+  statusLabel: string;
+  statusDescription: string;
+  successFactors: string[];
+  riskFactors: string[];
+}
+
+function collectTenGodCounts(
+  dayStem: string,
+  pillars: Array<ReturnType<typeof getYearPillar> | null>,
+) {
+  const counts = Object.fromEntries(
+    (Object.keys(TEN_GOD_INFO) as TenGodName[]).map((name) => [name, 0]),
+  ) as Record<TenGodName, number>;
+  const sources: Array<{ pillar: string; layer: string; stem: string; god: TenGodName }> = [];
+  const labels = ['년주', '월주', '일주', '시주'];
+
+  pillars.forEach((pillar, index) => {
+    if (!pillar) return;
+    const stemGod = getTenGod(dayStem, pillar.stem);
+    counts[stemGod] += 1;
+    sources.push({ pillar: labels[index] ?? `${index + 1}주`, layer: '천간', stem: pillar.stem, god: stemGod });
+
+    for (const hidden of JIJANGGAN[pillar.branch] ?? []) {
+      const hiddenGod = getTenGod(dayStem, hidden.stem);
+      counts[hiddenGod] += 0.5;
+      sources.push({ pillar: labels[index] ?? `${index + 1}주`, layer: '지장간', stem: hidden.stem, god: hiddenGod });
+    }
+  });
+
+  const groups = Object.fromEntries(
+    Object.entries(TEN_GOD_GROUPS).map(([group, gods]) => [
+      group,
+      gods.reduce((sum, god) => sum + counts[god], 0),
+    ]),
+  ) as Record<string, number>;
+
+  return { counts, groups, sources };
 }
 
 export function getGeokguk(
   dayStem: string,
   monthPillar: { branch: string },
-  elementBalance: { wood: number; fire: number; earth: number; metal: number; water: number }
+  elementBalance: { wood: number; fire: number; earth: number; metal: number; water: number },
+  allPillars?: Array<ReturnType<typeof getYearPillar> | null>,
 ): GeokgukResult {
   const jeonggi = MONTH_JEONGGI[monthPillar.branch];
   if (!jeonggi) return {
-    name: '미정', tenGod: '비견', power: '중',
+    name: '미정', tenGod: '비견', power: '중', status: '보통',
+    statusLabel: '판단 보류',
+    statusDescription: '월지 정기를 확인하기 어려워 격국 성패를 판단하지 않았습니다.',
+    successFactors: [],
+    riskFactors: ['월지 정기 확인 필요'],
     description: '격국을 판단하기 어렵습니다.', advice: '전문 역술인 상담을 권장합니다.'
   };
 
@@ -2121,10 +2355,71 @@ export function getGeokguk(
     '겁재': '경쟁이 있는 분야에서 오히려 강해집니다. 투기·도박·단기 이익 추구는 조심해야 합니다.',
   };
 
+  const tenGodCounts = allPillars ? collectTenGodCounts(dayStem, allPillars) : null;
+  const group = (name: string) => tenGodCounts?.groups[name] ?? 0;
+  const successFactors: string[] = [];
+  const riskFactors: string[] = [];
+
+  const addSupport = (label: string, value: number, reason: string) => {
+    if (value >= 1.5) successFactors.push(reason);
+  };
+  const addRisk = (label: string, value: number, reason: string) => {
+    if (value >= 2) riskFactors.push(reason);
+  };
+
+  if (tg === '정관' || tg === '편관') {
+    addSupport('인성', group('인성'), '인성이 관성을 받아 주어 책임·직위·자격으로 성패가 살아납니다.');
+    addSupport('재성', group('재성'), '재성이 관성을 생해 현실 성과와 사회적 역할이 연결됩니다.');
+    addRisk('식상', group('식상'), '식상이 강하면 관성을 치는 구조라 말·자유성·규정 충돌이 격을 흔듭니다.');
+  } else if (tg === '정재' || tg === '편재') {
+    addSupport('식상', group('식상'), '식상이 재성을 생해 재능과 생산성이 돈으로 이어집니다.');
+    addSupport('관성', group('관성'), '관성이 있으면 재물이 책임·직위·신뢰로 정리됩니다.');
+    addRisk('비겁', group('비겁'), '비겁이 강하면 재물을 나누거나 빼앗기는 흐름이 생깁니다.');
+  } else if (tg === '정인' || tg === '편인') {
+    addSupport('관성', group('관성'), '관성이 인성을 생해 자격·문서·명예가 안정됩니다.');
+    addSupport('비겁', group('비겁'), '비겁이 있으면 배운 것을 자기 힘으로 밀고 갈 수 있습니다.');
+    addRisk('재성', group('재성'), '재성이 강하면 인성을 깨뜨려 공부·보호·문서운이 흔들립니다.');
+  } else if (tg === '식신' || tg === '상관') {
+    addSupport('재성', group('재성'), '재성이 있으면 표현과 재능이 실제 돈·성과로 연결됩니다.');
+    addSupport('비겁', group('비겁'), '비겁이 있으면 생산할 체력과 자기 추진력이 받쳐 줍니다.');
+    addRisk('인성', group('인성'), '인성이 강하면 생각과 보호가 식상을 눌러 실행이 늦어집니다.');
+  } else {
+    addSupport('식상', group('식상'), '식상이 있으면 강한 자아를 결과물과 표현으로 배출할 수 있습니다.');
+    addSupport('관성', group('관성'), '관성이 있으면 경쟁심이 규율과 책임으로 정리됩니다.');
+    addRisk('재성', group('재성'), '재성이 강한 비겁격에서는 돈과 경쟁이 함께 커져 들어와도 흩어지기 쉽습니다.');
+  }
+
+  if (power === '강') successFactors.push('일간이 강해 격국의 역할을 감당할 체력이 있습니다.');
+  if (power === '약') riskFactors.push('일간이 약해 격국의 요구를 감당하려면 인성·비겁 보완이 필요합니다.');
+  if (successFactors.length === 0) successFactors.push('월령이 분명해 삶의 주제가 한 방향으로 잡힙니다.');
+
+  const status: GeokgukResult['status'] =
+    riskFactors.length >= 2 && successFactors.length <= 1 ? '파격'
+    : riskFactors.length >= 2 ? '혼잡'
+    : successFactors.length >= 2 ? '성격'
+    : '보통';
+  const statusLabel = {
+    성격: '성격(成格) — 격이 살아남',
+    보통: '보통 — 격은 있으나 보완 필요',
+    혼잡: '혼잡 — 장점과 방해가 함께 큼',
+    파격: '파격(破格) — 격이 흔들림',
+  }[status];
+  const statusDescription = {
+    성격: '월령의 격이 다른 요소의 도움을 받아 사회적 역할로 잘 드러나는 편입니다.',
+    보통: '격의 방향은 보이지만 보조 오행과 생활 선택에 따라 체감 차이가 큽니다.',
+    혼잡: '성공 요소와 방해 요소가 함께 있어 환경 선택, 직업 구조, 관계 관리가 중요합니다.',
+    파격: '격을 흔드는 요소가 강하므로 무리한 정면 승부보다 보완 오행과 안정 장치를 먼저 세워야 합니다.',
+  }[status];
+
   return {
     name: nameMap[tg] ?? `${tg}격`,
     tenGod: tg,
     power,
+    status,
+    statusLabel,
+    statusDescription,
+    successFactors,
+    riskFactors,
     description: descs[tg] ?? '개성 있는 격국입니다.',
     advice: advices[tg] ?? '자신의 강점을 파악하고 적합한 분야를 찾으세요.',
   };
@@ -2193,6 +2488,18 @@ const YANGIN: Record<string, number> = {
 const HONGYEOM: Record<string, number> = {
   '갑':6, '을':6, '병':2, '정':7, '무':4, '기':4, '경':10, '신':9, '임':0, '계':8
 };
+const HAKDANG: Record<string, number> = {
+  '갑':11, '을':6, '병':2, '정':9, '무':2, '기':9, '경':5, '신':0, '임':8, '계':3
+};
+const MUNGOK: Record<string, number> = {
+  '갑':11, '을':0, '병':2, '정':3, '무':2, '기':3, '경':5, '신':6, '임':8, '계':9
+};
+const GEUMYEO: Record<string, number> = {
+  '갑':4, '을':5, '병':7, '정':8, '무':7, '기':8, '경':10, '신':11, '임':1, '계':2
+};
+const AMROK: Record<string, number> = {
+  '갑':11, '을':10, '병':8, '정':7, '무':8, '기':7, '경':5, '신':4, '임':2, '계':1
+};
 // 천덕귀인: 월지 기준. 일부는 천간, 일부는 지지로 찾는다.
 const CHEONDEOK: Record<number, SinsalTarget> = {
   2: { kind: 'stem', index: 3 },   // 寅月 丁
@@ -2219,6 +2526,14 @@ const GOEGANG_GANZI = [
 const GWIMUN_PAIRS = [
   [0, 9], [1, 6], [2, 7], [3, 8], [4, 11], [5, 10],
 ] as const;
+const WONJIN_PAIRS = [
+  [0, 7], [1, 6], [2, 9], [3, 8], [4, 11], [5, 10],
+] as const;
+const CHEONRA_JIMANG_PAIRS = [
+  [10, 11], [4, 5],
+] as const;
+const HYEONCHIM_STEMS = [0, 7]; // 甲·辛
+const HYEONCHIM_BRANCHES = [3, 6, 8]; // 卯·午·申
 const GOSIN_GWASUK_BY_GROUP = [
   { gosin: 2, gwasuk: 10 }, // 亥子丑
   { gosin: 5, gwasuk: 1 },  // 寅卯辰
@@ -2255,6 +2570,16 @@ export function getShinsal(
     const targetSet = new Set(targets);
     const found: string[] = [];
     allPillarsFull.forEach((p, i) => {
+      if (p && targetSet.has(p.branchIndex)) found.push(pillarNames[i]);
+    });
+    return found;
+  }
+
+  function findBranchTargetsAt(targets: number[], pillarIndexes: number[]): string[] {
+    const targetSet = new Set(targets);
+    const found: string[] = [];
+    pillarIndexes.forEach((i) => {
+      const p = allPillarsFull[i];
       if (p && targetSet.has(p.branchIndex)) found.push(pillarNames[i]);
     });
     return found;
@@ -2388,6 +2713,14 @@ export function getShinsal(
   // 문창귀인 (일간 기준)
   const munchangTarget = MUNCHANG[dayStem];
   const munchangFound = munchangTarget !== undefined ? findBranchTargets([munchangTarget]) : [];
+  const hakdangTarget = HAKDANG[dayStem];
+  const hakdangFound = hakdangTarget !== undefined ? findBranchTargets([hakdangTarget]) : [];
+  const mungokTarget = MUNGOK[dayStem];
+  const mungokFound = mungokTarget !== undefined ? findBranchTargets([mungokTarget]) : [];
+  const geumyeoTarget = GEUMYEO[dayStem];
+  const geumyeoFound = geumyeoTarget !== undefined ? findBranchTargets([geumyeoTarget]) : [];
+  const amrokTarget = AMROK[dayStem];
+  const amrokFound = amrokTarget !== undefined ? findBranchTargets([amrokTarget]) : [];
 
   // 양인살 (일간 기준, 양간만)
   const yanginTarget = YANGIN[dayStem];
@@ -2395,6 +2728,8 @@ export function getShinsal(
 
   const hongyeomTarget = HONGYEOM[dayStem];
   const hongyeomFound = hongyeomTarget !== undefined ? findBranchTargets([hongyeomTarget]) : [];
+  const cheonuiTarget = (monthPillar.branchIndex + 11) % 12;
+  const cheonuiFound = findBranchTargetsAt([cheonuiTarget], [2, 3]);
   const cheondeokTarget = CHEONDEOK[monthPillar.branchIndex];
   const cheondeokFound = cheondeokTarget ? findTarget(cheondeokTarget) : [];
   const woldeokStem = WOLDEOK_STEM_BY_GROUP[getSamhapGroup(monthPillar.branchIndex)];
@@ -2402,6 +2737,18 @@ export function getShinsal(
   const baekhoFound = findGanziTargets(BAEKHO_GANZI);
   const goegangFound = findGanziTargets(GOEGANG_GANZI);
   const gwimunFound = findBranchPairs(GWIMUN_PAIRS);
+  const wonjinFound = findBranchPairs(WONJIN_PAIRS);
+  const cheonraJimangFound = findBranchPairs(CHEONRA_JIMANG_PAIRS);
+  const hyeonchimFound = unique([
+    ...findStemTargets(HYEONCHIM_STEMS),
+    ...findBranchTargets(HYEONCHIM_BRANCHES),
+  ]);
+
+  const geupgakTargets = [2, 3, 4].includes(monthPillar.branchIndex) ? [11, 0]
+    : [5, 6, 7].includes(monthPillar.branchIndex) ? [3, 7]
+    : [8, 9, 10].includes(monthPillar.branchIndex) ? [2, 10]
+    : [1, 4];
+  const geupgakFound = findBranchTargetsAt(geupgakTargets, [2, 3]);
 
   const yearSeasonGroup =
     [11, 0, 1].includes(yearPillar.branchIndex) ? 0 :
@@ -2433,6 +2780,51 @@ export function getShinsal(
       absentText: '문창이 직접 드러나지는 않지만 반복 학습과 기록 습관으로 문서운을 보완할 수 있습니다.',
       foundAdvice: '배운 내용을 말이나 글로 남기면 운이 더 선명해집니다.',
       absentAdvice: '중요한 시험·계약은 초안과 검토 시간을 따로 두는 편이 좋습니다.',
+    }),
+    item({
+      name: '학당귀인', hanja: '學堂貴人', icon: '🎓', category: '길신',
+      foundIn: hakdangFound,
+      basis: `일간 ${dayStem} 기준 장생지 → ${hakdangTarget !== undefined ? branchLabel(hakdangTarget) : '해당 없음'}`,
+      foundText: '배움의 공간과 인연이 깊습니다. 공부, 자격증, 교육, 강의, 멘토링처럼 지식을 쌓고 전하는 흐름이 좋습니다.',
+      absentText: '학당귀인이 직접 드러나진 않습니다. 타고난 학문복보다 환경 설계와 반복 학습이 더 중요합니다.',
+      foundAdvice: '자격 과정, 커리큘럼 있는 공부, 가르치는 역할을 잡으면 운이 살아납니다.',
+      absentAdvice: '혼자 감으로 공부하기보다 교재·강의·일정표를 만들어 학습운을 보완하세요.',
+    }),
+    item({
+      name: '문곡귀인', hanja: '文曲貴人', icon: '✍️', category: '길신',
+      foundIn: mungokFound,
+      basis: `일간 ${dayStem} 기준 → ${mungokTarget !== undefined ? branchLabel(mungokTarget) : '해당 없음'}`,
+      foundText: '문장력, 기억력, 예능적 감각이 살아납니다. 글·기획·디자인·음악·말재주처럼 감각을 구조화하는 능력이 강합니다.',
+      absentText: '문곡의 예술적 보조성은 약합니다. 표현 재능을 믿기보다 연습량과 피드백으로 끌어올리는 쪽이 맞습니다.',
+      foundAdvice: '기록물, 포트폴리오, 발표 자료처럼 보이는 산출물을 꾸준히 쌓으세요.',
+      absentAdvice: '좋은 표현을 모방하고 수정하는 루틴을 만들면 문곡 부족이 보완됩니다.',
+    }),
+    item({
+      name: '금여록', hanja: '金輿祿', icon: '💎', category: '길신',
+      foundIn: geumyeoFound,
+      basis: `일간 ${dayStem} 기준 → ${geumyeoTarget !== undefined ? branchLabel(geumyeoTarget) : '해당 없음'}`,
+      foundText: '품격, 재물 안정, 배우자복을 돕는 길신입니다. 좋은 물건·좋은 사람·안정적 생활 기반과 인연이 생기기 쉽습니다.',
+      absentText: '금여의 품격·재물 보조가 직접 드러나진 않습니다. 생활 안정은 계획과 관리로 만드는 구조입니다.',
+      foundAdvice: '품질 높은 일, 신뢰 있는 관계, 장기 자산 관리에 힘을 쓰면 금여가 길하게 작동합니다.',
+      absentAdvice: '소비보다 자산화, 감정보다 기준 있는 배우자·동업자 선택이 중요합니다.',
+    }),
+    item({
+      name: '암록', hanja: '暗祿', icon: '🪙', category: '길신',
+      foundIn: amrokFound,
+      basis: `일간 ${dayStem} 기준 건록 합지 → ${amrokTarget !== undefined ? branchLabel(amrokTarget) : '해당 없음'}`,
+      foundText: '숨어 있는 녹봉의 기운입니다. 막힐 때 뜻밖의 수입, 도움, 소개, 숨은 기회가 들어오기 쉽습니다.',
+      absentText: '숨은 재물·뜻밖의 후원은 강하지 않습니다. 예상 가능한 수입 구조를 탄탄히 만드는 편이 좋습니다.',
+      foundAdvice: '작은 인연과 부업성 기회를 가볍게 넘기지 말고 기록해 두세요.',
+      absentAdvice: '비상금, 보험, 고정 수입처럼 보이는 안전망을 먼저 세우세요.',
+    }),
+    item({
+      name: '천의성', hanja: '天醫星', icon: '🩺', category: '길신',
+      foundIn: cheonuiFound,
+      basis: `월지 ${branchLabel(monthPillar.branchIndex)} 기준 바로 앞 지지 → ${branchLabel(cheonuiTarget)}를 일지·시지에서 확인`,
+      foundText: '치유, 건강관리, 상담, 봉사와 인연이 있습니다. 사람을 살피고 회복시키는 역할에서 재능이 드러납니다.',
+      absentText: '천의성의 의료·치유성이 직접 드러나진 않습니다. 건강운은 생활 습관과 조후 균형을 더 중점으로 봅니다.',
+      foundAdvice: '의료·상담·돌봄·운동·영양처럼 회복을 돕는 분야를 잘 활용하세요.',
+      absentAdvice: '정기검진과 생활 리듬 관리로 건강 변수를 선제적으로 줄이세요.',
     }),
     branchSinsal({
       name: '겁살', hanja: '劫殺', icon: '⚡', category: '흉살',
@@ -2576,6 +2968,42 @@ export function getShinsal(
       absentAdvice: '직감보다 자료와 확인 절차를 기반으로 움직이면 장점이 살아납니다.',
     }),
     item({
+      name: '원진살', hanja: '怨嗔殺', icon: '🪞', category: '흉살',
+      foundIn: wonjinFound,
+      basis: '지지 조합 기준 → 子未·丑午·寅酉·卯申·辰亥·巳戌',
+      foundText: '가깝지만 불편한 감정, 이유 없는 서운함, 관계 속 예민함이 생기기 쉽습니다. 예술·종교·상담 감수성으로도 바뀔 수 있습니다.',
+      absentText: '원진 특유의 해소 어려운 감정 마찰은 약합니다. 관계 갈등은 다른 합충과 십성으로 더 봐야 합니다.',
+      foundAdvice: '가까운 사람일수록 추측하지 말고 말로 확인하세요. 감정 기록이 도움이 됩니다.',
+      absentAdvice: '관계가 편하더라도 감정 표현을 미루지 않으면 작은 오해를 줄입니다.',
+    }),
+    item({
+      name: '천라지망', hanja: '天羅地網', icon: '🕸️', category: '흉살',
+      foundIn: cheonraJimangFound,
+      basis: '지지 조합 기준 → 戌亥(천라)·辰巳(지망)',
+      foundText: '그물에 걸린 듯 활동 반경이 좁아지거나 일이 묶이는 느낌이 생길 수 있습니다. 반대로 사법·규정·치유·철학 분야에는 깊이가 됩니다.',
+      absentText: '천라지망의 묶임은 원국에 직접 강하지 않습니다. 이동과 확장 판단은 역마·지살·충을 함께 봅니다.',
+      foundAdvice: '막힘이 느껴질수록 절차, 법, 자격, 전문성 안에서 길을 찾으세요.',
+      absentAdvice: '불필요하게 자신을 제한하지 말고, 움직일 수 있는 기회는 넓게 잡으세요.',
+    }),
+    item({
+      name: '급각살', hanja: '急脚殺', icon: '🦴', category: '흉살',
+      foundIn: geupgakFound,
+      basis: `월지 계절 기준 → ${formatBranches(geupgakTargets)}를 일지·시지에서 확인`,
+      foundText: '급하게 움직이다 다리·관절·허리·낙상 이슈가 생기기 쉬운 살입니다. 바쁘게 이동할수록 안전 루틴이 중요합니다.',
+      absentText: '급각의 직접 신호는 약합니다. 다만 운동·이동 중 사고는 역마, 충, 백호와 함께 봐야 합니다.',
+      foundAdvice: '운전, 계단, 등산, 과격한 운동 전후로 몸을 풀고 서두르는 습관을 줄이세요.',
+      absentAdvice: '안전운이 자동으로 좋은 뜻은 아니니 기본 체력과 자세 관리는 유지하세요.',
+    }),
+    item({
+      name: '현침살', hanja: '懸針殺', icon: '🪡', category: '반길반흉',
+      foundIn: hyeonchimFound,
+      basis: '천간 甲·辛, 지지 卯·午·申 기준',
+      foundText: '바늘처럼 예리한 관찰력, 말, 손기술이 살아납니다. 의료·침술·디자인·수리·분석에는 장점이나 말이 날카로워질 수 있습니다.',
+      absentText: '현침의 예리한 절단감은 약합니다. 부드러운 조율과 넓은 관점으로 풀리는 구조입니다.',
+      foundAdvice: '정밀함은 기술로 쓰고, 비판은 바로 던지기보다 한 번 다듬어 말하세요.',
+      absentAdvice: '정밀함이 필요한 일은 체크리스트와 도구로 보완하면 좋습니다.',
+    }),
+    item({
       name: '고신·과숙살', hanja: '孤神寡宿', icon: '🌑', category: '흉살',
       foundIn: lonelyFound,
       basis: `연지 ${branchLabel(yearPillar.branchIndex)} 기준 → 고신 ${branchLabel(lonelyTargets.gosin)}·과숙 ${branchLabel(lonelyTargets.gwasuk)}`,
@@ -2612,6 +3040,163 @@ export function getShinsal(
       absentAdvice: '공망 부담이 적으니 가진 기둥의 장점을 실질 행동으로 밀어붙이세요.',
     }),
   ];
+}
+
+export interface ShinsalTransitActivation {
+  scope: '대운' | '세운' | '향후세운';
+  year?: number;
+  age?: number;
+  period?: string;
+  pillar: string;
+  name: string;
+  category: string;
+  impact: string;
+  advice: string;
+}
+
+export function getShinsalTransitActivations(
+  birthYear: number,
+  yearPillar: ReturnType<typeof getYearPillar>,
+  monthPillar: ReturnType<typeof getMonthPillar>,
+  dayPillar: ReturnType<typeof getDayPillar>,
+  hourPillar: ReturnType<typeof getHourPillar> | null,
+  dayStem: string,
+  daeun: ReturnType<typeof getDaeun>,
+  seun: ReturnType<typeof getSeun>,
+): ShinsalTransitActivation[] {
+  const branchLabel = (idx: number) => `${EARTHLY_BRANCHES[idx]}(${EARTHLY_BRANCHES_HANJA[idx]})`;
+  const currentYear = new Date().getFullYear();
+  const currentAge = currentYear - birthYear;
+  const currentDaeun = daeun.periods.find((p) => currentAge >= p.startAge && currentAge <= p.endAge);
+  const currentSeun = seun.find((s) => s.isCurrent);
+  const nextSeun = seun.filter((s) => s.year > currentYear).slice(0, 3);
+  const natalBranches = [yearPillar, monthPillar, dayPillar, hourPillar]
+    .filter(Boolean)
+    .map((p) => p!.branchIndex);
+
+  function samhapTargets(results: number[]): number[] {
+    const targets: number[] = [];
+    const baseIdxYear = getSamhapGroup(yearPillar.branchIndex);
+    const baseIdxDay = getSamhapGroup(dayPillar.branchIndex);
+    if (baseIdxYear >= 0) targets.push(results[baseIdxYear]);
+    if (baseIdxDay >= 0) targets.push(results[baseIdxDay]);
+    return Array.from(new Set(targets));
+  }
+
+  const branchTargets: Array<{ name: string; category: string; targets: number[]; impact: string; advice: string }> = [
+    { name: '겁살', category: '흉살', targets: samhapTargets(GEOPSAL_RESULT), impact: '외부 변수와 손실 이슈가 강해질 수 있습니다.', advice: '큰돈, 보증, 비공식 거래를 줄이세요.' },
+    { name: '재살(수옥살)', category: '흉살', targets: samhapTargets(JAESAL_RESULT), impact: '관재·계약·규정 문제가 운에서 부각됩니다.', advice: '서류, 세금, 법규, 교통 규칙을 보수적으로 지키세요.' },
+    { name: '도화살', category: '반길반흉', targets: samhapTargets(DOHWA_RESULT), impact: '인기·매력·노출 운이 강해집니다.', advice: '홍보와 창작에는 좋지만 관계 구설은 관리하세요.' },
+    { name: '역마살', category: '동살', targets: samhapTargets(YEOKMA_RESULT), impact: '이동·이직·출장·확장 이슈가 켜집니다.', advice: '움직임을 계획화하고 안전·일정 여유를 두세요.' },
+    { name: '화개살', category: '예술살', targets: samhapTargets(HWAGAE_RESULT), impact: '고독·몰입·예술·종교성이 강해집니다.', advice: '혼자 깊어지는 시간을 생산적 결과물로 바꾸세요.' },
+    { name: '장성살', category: '강맹살', targets: samhapTargets(JANGSEONG_RESULT), impact: '리더십과 책임 자리가 커집니다.', advice: '권위보다 책임을 먼저 보여 주세요.' },
+    { name: '반안살', category: '길신', targets: samhapTargets(BANAN_RESULT), impact: '승진·인정·윗사람 도움 운이 들어옵니다.', advice: '공식 성과와 자격을 챙기세요.' },
+    { name: '육해살', category: '흉살', targets: samhapTargets(YUKHAE_RESULT), impact: '지연·방해·건강 관리 이슈가 생길 수 있습니다.', advice: '일정과 체력에 여유분을 두세요.' },
+    { name: '천을귀인', category: '길신', targets: CHEONEUL[dayStem] ?? [], impact: '귀인·조력자·제도적 도움 운이 살아납니다.', advice: '도움받을 통로를 먼저 열어 두세요.' },
+    { name: '문창귀인', category: '길신', targets: MUNCHANG[dayStem] !== undefined ? [MUNCHANG[dayStem]] : [], impact: '시험·문서·글쓰기 운이 살아납니다.', advice: '자격, 계약, 기록물을 정리하세요.' },
+    { name: '학당귀인', category: '길신', targets: HAKDANG[dayStem] !== undefined ? [HAKDANG[dayStem]] : [], impact: '공부·강의·교육 인연이 강해집니다.', advice: '배우거나 가르치는 일을 잡으세요.' },
+    { name: '금여록', category: '길신', targets: GEUMYEO[dayStem] !== undefined ? [GEUMYEO[dayStem]] : [], impact: '재물 안정·품격·배우자운 보조가 들어옵니다.', advice: '자산 관리와 관계 선택을 신중히 하세요.' },
+    { name: '암록', category: '길신', targets: AMROK[dayStem] !== undefined ? [AMROK[dayStem]] : [], impact: '숨은 수입·뜻밖의 후원이 생기기 쉽습니다.', advice: '작은 소개와 부업성 기회를 기록하세요.' },
+  ];
+
+  const pairTargets: Array<{ name: string; category: string; pairs: ReadonlyArray<readonly [number, number]>; impact: string; advice: string }> = [
+    { name: '원진살', category: '흉살', pairs: WONJIN_PAIRS, impact: '관계 속 서운함과 예민함이 운에서 켜집니다.', advice: '가까운 사람일수록 감정을 확인하고 넘기세요.' },
+    { name: '귀문관살', category: '흉살', pairs: GWIMUN_PAIRS, impact: '직관과 예민함, 몰입이 강해집니다.', advice: '수면과 멘탈 루틴을 우선하세요.' },
+    { name: '천라지망', category: '흉살', pairs: CHEONRA_JIMANG_PAIRS, impact: '일이 묶이거나 활동 반경이 좁아지는 느낌이 생길 수 있습니다.', advice: '절차·법·자격 안에서 풀어가세요.' },
+  ];
+
+  const geupgakTargets = [2, 3, 4].includes(monthPillar.branchIndex) ? [11, 0]
+    : [5, 6, 7].includes(monthPillar.branchIndex) ? [3, 7]
+    : [8, 9, 10].includes(monthPillar.branchIndex) ? [2, 10]
+    : [1, 4];
+
+  function makePillar(stem: string, branch: string) {
+    return {
+      stem,
+      branch,
+      stemIndex: HEAVENLY_STEMS.indexOf(stem),
+      branchIndex: EARTHLY_BRANCHES.indexOf(branch),
+    };
+  }
+
+  const transits: Array<{ scope: ShinsalTransitActivation['scope']; year?: number; age?: number; period?: string; stem: string; branch: string; stemIndex: number; branchIndex: number }> = [];
+  if (currentDaeun) {
+    transits.push({
+      scope: '대운',
+      period: `${currentDaeun.startAge}~${currentDaeun.endAge}세`,
+      ...makePillar(currentDaeun.stem, currentDaeun.branch),
+    });
+  }
+  if (currentSeun) {
+    transits.push({
+      scope: '세운',
+      year: currentSeun.year,
+      age: currentSeun.age,
+      ...makePillar(currentSeun.stem, currentSeun.branch),
+    });
+  }
+  nextSeun.forEach((s) => {
+    transits.push({
+      scope: '향후세운',
+      year: s.year,
+      age: s.age,
+      ...makePillar(s.stem, s.branch),
+    });
+  });
+
+  const activations: ShinsalTransitActivation[] = [];
+  function addActivation(
+    transit: (typeof transits)[number],
+    pillar: string,
+    name: string,
+    category: string,
+    impact: string,
+    advice: string,
+  ) {
+    activations.push({
+      scope: transit.scope,
+      year: transit.year,
+      age: transit.age,
+      period: transit.period,
+      pillar,
+      name,
+      category,
+      impact,
+      advice,
+    });
+  }
+
+  for (const transit of transits) {
+    const pillar = `${transit.stem}${transit.branch}(${HEAVENLY_STEMS_HANJA[transit.stemIndex] ?? ''}${EARTHLY_BRANCHES_HANJA[transit.branchIndex] ?? ''})`;
+    branchTargets.forEach((target) => {
+      if (target.targets.includes(transit.branchIndex)) {
+        addActivation(transit, pillar, target.name, target.category, `${branchLabel(transit.branchIndex)} 운이 들어와 ${target.impact}`, target.advice);
+      }
+    });
+    pairTargets.forEach((target) => {
+      const matched = target.pairs.some(([a, b]) =>
+        (transit.branchIndex === a && natalBranches.includes(b)) ||
+        (transit.branchIndex === b && natalBranches.includes(a)),
+      );
+      if (matched) {
+        addActivation(transit, pillar, target.name, target.category, `${branchLabel(transit.branchIndex)} 운이 원국 지지와 만나 ${target.impact}`, target.advice);
+      }
+    });
+    if (geupgakTargets.includes(transit.branchIndex)) {
+      addActivation(transit, pillar, '급각살', '흉살', `${branchLabel(transit.branchIndex)} 운이 월지 계절 기준 급각살을 자극합니다.`, '이동, 운전, 계단, 관절·허리 사용을 조심하세요.');
+    }
+    if (HYEONCHIM_STEMS.includes(transit.stemIndex) || HYEONCHIM_BRANCHES.includes(transit.branchIndex)) {
+      addActivation(transit, pillar, '현침살', '반길반흉', '현침 글자가 운에서 들어와 말·손기술·정밀함이 예민해집니다.', '비판은 다듬고, 정밀 작업에는 집중력을 활용하세요.');
+    }
+  }
+
+  const seen = new Set<string>();
+  return activations.filter((item) => {
+    const key = `${item.scope}-${item.year ?? item.period}-${item.name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 18);
 }
 
 // ──────────── 합충형파해 (合冲刑破害) ────────────
@@ -2857,22 +3442,6 @@ export function getPillarTenGods(
     const unseong = getUnseong(dayStem, p.branchIndex);
     return { stemGod, branchHidden, unseong };
   }
-
-  // 지장간 (일간 기준, 지지에 숨은 천간들)
-  const JIJANGGAN: Record<string, {stem:string; element:string}[]> = {
-    '자': [{stem:'임',element:'수'},{stem:'계',element:'수'}],
-    '축': [{stem:'계',element:'수'},{stem:'신',element:'금'},{stem:'기',element:'토'}],
-    '인': [{stem:'무',element:'토'},{stem:'병',element:'화'},{stem:'갑',element:'목'}],
-    '묘': [{stem:'갑',element:'목'},{stem:'을',element:'목'}],
-    '진': [{stem:'을',element:'목'},{stem:'계',element:'수'},{stem:'무',element:'토'}],
-    '사': [{stem:'무',element:'토'},{stem:'경',element:'금'},{stem:'병',element:'화'}],
-    '오': [{stem:'병',element:'화'},{stem:'기',element:'토'},{stem:'정',element:'화'}],
-    '미': [{stem:'정',element:'화'},{stem:'을',element:'목'},{stem:'기',element:'토'}],
-    '신': [{stem:'무',element:'토'},{stem:'임',element:'수'},{stem:'경',element:'금'}],
-    '유': [{stem:'경',element:'금'},{stem:'신',element:'금'}],
-    '술': [{stem:'신',element:'금'},{stem:'정',element:'화'},{stem:'무',element:'토'}],
-    '해': [{stem:'무',element:'토'},{stem:'갑',element:'목'},{stem:'임',element:'수'}],
-  };
 
   return {
     year:  calcPillar(yearPillar),
