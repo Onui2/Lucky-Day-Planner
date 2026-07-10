@@ -11,6 +11,11 @@ function parseNumber(value: unknown, fallback = -1): number {
   return Number.isFinite(num) ? num : fallback;
 }
 
+function parseOptionalNumber(value: unknown): number | undefined {
+  const number = parseNumber(value, Number.NaN);
+  return Number.isFinite(number) ? number : undefined;
+}
+
 function normalizeGender(value: unknown): UserProfile["gender"] {
   return value === "female" ? "female" : "male";
 }
@@ -45,8 +50,8 @@ export function sajuResultToProfile(result?: Record<string, unknown> | null): Us
     isLeapMonth: birthInfo.isLeapMonth === true,
     birthPlace: typeof birthInfo.birthPlace === "string" ? birthInfo.birthPlace : undefined,
     timeZone: typeof birthInfo.timeZone === "string" ? birthInfo.timeZone : undefined,
-    longitude: parseNumber(birthInfo.longitude, Number.NaN),
-    latitude: parseNumber(birthInfo.latitude, Number.NaN),
+    longitude: parseOptionalNumber(birthInfo.longitude),
+    latitude: parseOptionalNumber(birthInfo.latitude),
     applyTrueSolarTime: birthInfo.applyTrueSolarTime === true,
     dayBoundary: birthInfo.dayBoundary === "late-zi" ? "late-zi" : "midnight",
     dayMasterElement:

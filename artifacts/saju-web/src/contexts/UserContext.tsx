@@ -65,6 +65,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseNumber(value: unknown, fallback?: number) {
+  if (value === null || value === undefined || typeof value === "boolean") {
+    return fallback;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return fallback;
+  }
+
   const number = Number(value);
   if (Number.isFinite(number)) {
     return number;
