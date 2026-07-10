@@ -64,6 +64,14 @@ function dayScoreColor(score: number): { text: string; ring: string; label: stri
   return               { text: 'text-rose-600',    ring: 'border-rose-400/60',    label: '불리'     };
 }
 
+function luckFlowTone(score: number): { text: string; border: string; bg: string; bar: string } {
+  if (score >= 75) return { text: 'text-emerald-700', border: 'border-emerald-500/35', bg: 'bg-emerald-500/5', bar: 'bg-emerald-500' };
+  if (score >= 60) return { text: 'text-blue-700', border: 'border-blue-500/30', bg: 'bg-blue-500/5', bar: 'bg-blue-500' };
+  if (score >= 45) return { text: 'text-amber-700', border: 'border-amber-500/30', bg: 'bg-amber-500/5', bar: 'bg-amber-500' };
+  if (score >= 30) return { text: 'text-orange-700', border: 'border-orange-500/30', bg: 'bg-orange-500/5', bar: 'bg-orange-500' };
+  return { text: 'text-rose-700', border: 'border-rose-500/30', bg: 'bg-rose-500/5', bar: 'bg-rose-500' };
+}
+
 // ─── 지장간 (支藏干) ─────────────────────────────────────
 const JIJANGGAN: Record<string, { stem: string; element: string }[]> = {
   '자': [{ stem:'임', element:'수' }, { stem:'계', element:'수' }],
@@ -189,6 +197,7 @@ interface InputForm {
 // 섹션 키
 const SECTIONS = [
   { key: "saju",        label: "사주팔자",   icon: "☯️" },
+  { key: "auxiliary",   label: "납음·삼원",   icon: "🧭" },
   { key: "singang",     label: "신강/신약",   icon: "⚖️" },
   { key: "yongsin",     label: "용신 분석",   icon: "🔮" },
   { key: "johu",        label: "조후",        icon: "🌡️" },
@@ -199,6 +208,7 @@ const SECTIONS = [
   { key: "hapChung",    label: "합충형",      icon: "⚡" },
   { key: "daeun",       label: "대운",        icon: "🌊" },
   { key: "seun",        label: "년운",        icon: "📅" },
+  { key: "annualFlow",  label: "10년 흐름",   icon: "📈" },
   { key: "transitShinsal", label: "운 신살", icon: "🔔" },
   { key: "samjae",      label: "삼재 체크",   icon: "🛡️" },
   { key: "yongsinItem", label: "용신 아이템", icon: "💎" },
@@ -212,6 +222,7 @@ type ShareMode = "text" | "link";
 
 const DEFAULT_VISIBLE_SECTIONS: Record<SectionKey, boolean> = {
   saju: true,
+  auxiliary: true,
   singang: true,
   yongsin: true,
   johu: true,
@@ -222,6 +233,7 @@ const DEFAULT_VISIBLE_SECTIONS: Record<SectionKey, boolean> = {
   hapChung: true,
   daeun: true,
   seun: true,
+  annualFlow: true,
   transitShinsal: true,
   samjae: true,
   yongsinItem: true,
@@ -344,6 +356,7 @@ export default function SajuPage() {
   );
   const [shareMode, setShareMode] = useState<ShareMode>("text");
   const [copied, setCopied] = useState(false);
+  const [expandedFlowYear, setExpandedFlowYear] = useState<number | null>(() => new Date().getFullYear());
 
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveLabel, setSaveLabel] = useState("");
@@ -649,6 +662,24 @@ export default function SajuPage() {
       }
     }
 
+    if (sections.auxiliary && result.auxiliaryAnalysis) {
+      sharedSectionCount += 1;
+      lines.push("", "[납음오행·태원·명궁·신궁]");
+      result.auxiliaryAnalysis.nayinPillars?.forEach((item: any) => {
+        lines.push(`  ${item.pillar} ${item.ganzi}: ${item.name}(${item.hanja}) · ${item.element}`);
+      });
+      [
+        result.auxiliaryAnalysis.taewon,
+        result.auxiliaryAnalysis.minggung,
+        result.auxiliaryAnalysis.shingung,
+      ].filter(Boolean).forEach((item: any) => {
+        lines.push(`  ${item.name} ${item.stemHanja}${item.branchHanja}(${item.stem}${item.branch}) · ${item.tenGod} · ${item.unseong}`);
+      });
+      if (result.auxiliaryAnalysis.requiresBirthTime) {
+        lines.push("  명궁·신궁: 출생시간 입력 시 계산");
+      }
+    }
+
     if (sections.singang && result.sinGangYak) {
       sharedSectionCount += 1;
       lines.push(
@@ -739,6 +770,14 @@ export default function SajuPage() {
       result.shinsalTransitActivations.slice(0, 4).forEach((item: any) => {
         const when = item.year ? `${item.year}년` : item.period;
         lines.push(`  ${item.scope} ${when}: ${item.name} - ${shareSummary(item.impact, 36)}`);
+      });
+    }
+
+    if (sections.annualFlow && result.luckFlowAnalysis?.annual?.length) {
+      sharedSectionCount += 1;
+      lines.push("", `[향후 10년 종합 흐름 ${result.luckFlowAnalysis.startYear}~${result.luckFlowAnalysis.endYear}]`);
+      result.luckFlowAnalysis.annual.slice(0, 5).forEach((item: any) => {
+        lines.push(`  ${item.year} ${item.stem}${item.branch} · ${item.level} ${item.score}점 · ${item.headline}`);
       });
     }
 
@@ -1588,6 +1627,86 @@ export default function SajuPage() {
             );
           })()}
 
+          {/* ── 납음오행·태원·명궁·신궁 ── */}
+          {visibleSections.auxiliary && r.auxiliaryAnalysis && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.03 }}>
+              <SectionHeader icon="🧭" title="납음오행 · 태원 · 명궁 · 신궁" />
+              <Card className="glass-panel border-primary/30">
+                <CardContent className="pt-6 space-y-6">
+                  <div>
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div>
+                        <h3 className="font-serif font-semibold text-foreground">사주 네 기둥의 납음오행 (納音五行)</h3>
+                        <p className="text-xs text-muted-foreground mt-1">정오행 위에 더하는 물상 해석이며, 기둥마다 담당하는 삶의 영역이 다릅니다.</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground border border-primary/15 rounded-full px-2.5 py-1 shrink-0">보조 지표</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {r.auxiliaryAnalysis.nayinPillars?.map((item: any) => (
+                        <div key={item.pillar} className="rounded-xl border border-primary/15 bg-background/45 p-4">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div>
+                              <div className="text-xs text-muted-foreground">{item.pillar} · {item.ganzi}</div>
+                              <div className="font-serif text-lg font-bold text-foreground mt-0.5">{item.name} <span className="text-sm font-medium text-muted-foreground">{item.hanja}</span></div>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-full border text-xs font-semibold ${ELEM_COLOR[item.element] ?? 'border-primary/20 text-primary bg-primary/5'}`}>
+                              {item.element} 오행
+                            </span>
+                          </div>
+                          <p className="text-sm text-foreground/75 leading-relaxed">{item.reading}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-primary/15 pt-5">
+                    <h3 className="font-serif font-semibold text-foreground mb-1">삼원 보조 분석</h3>
+                    <p className="text-xs text-muted-foreground mb-3">태원은 타고난 바탕, 명궁은 삶의 중심축, 신궁은 현실 행동 방식을 보완해서 봅니다.</p>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                      {[
+                        r.auxiliaryAnalysis.taewon,
+                        r.auxiliaryAnalysis.minggung,
+                        r.auxiliaryAnalysis.shingung,
+                      ].filter(Boolean).map((item: any) => (
+                        <div key={item.key} className="rounded-xl border border-primary/20 bg-primary/5 p-4 min-w-0">
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <div>
+                              <div className="text-xs text-muted-foreground">{item.name} ({item.hanja})</div>
+                              <div className="font-serif text-2xl font-bold text-primary mt-0.5">{item.stemHanja}{item.branchHanja}</div>
+                              <div className="text-xs text-muted-foreground">{item.stem}{item.branch} · {item.nayin.name}</div>
+                            </div>
+                            <div className="text-right text-xs space-y-1">
+                              <div className="rounded-full border border-primary/20 bg-background/60 px-2 py-0.5">{item.tenGod}</div>
+                              <div className="rounded-full border border-primary/20 bg-background/60 px-2 py-0.5">{item.unseong}</div>
+                            </div>
+                          </div>
+                          <p className="text-sm text-foreground/75 leading-relaxed">{item.summary}</p>
+                          <div className="mt-3 rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-xs text-primary/85 leading-relaxed">
+                            {item.advice}
+                          </div>
+                          <p className="mt-2 text-[10px] text-muted-foreground/70 leading-relaxed">산식: {item.basis}</p>
+                        </div>
+                      ))}
+                      {r.auxiliaryAnalysis.requiresBirthTime && (
+                        <div className="lg:col-span-2 rounded-xl border border-dashed border-primary/25 bg-muted/10 p-5 flex items-center gap-3">
+                          <Info className="w-5 h-5 text-primary shrink-0" />
+                          <div>
+                            <div className="text-sm font-medium text-foreground">명궁·신궁 계산에는 출생시간이 필요합니다.</div>
+                            <p className="text-xs text-muted-foreground mt-1">시간을 입력해 다시 분석하면 내적 지향과 후천적 행동 흐름까지 표시됩니다.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground/70 border-t border-primary/10 pt-3 leading-relaxed">
+                    {r.auxiliaryAnalysis.methodNote}
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* ── 신강/신약 ── */}
           {visibleSections.singang && r.sinGangYak && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }}>
@@ -2134,20 +2253,41 @@ export default function SajuPage() {
                   <div className="space-y-3">
                     {r.daeun.periods?.map((p: any) => {
                       const isNow = typeof currentAge === 'number' && currentAge >= p.startAge && currentAge <= p.endAge;
+                      const flow = r.luckFlowAnalysis?.periods?.find((item: any) => item.idx === p.idx);
                       return (
-                        <div key={p.idx} className={`relative flex gap-4 p-4 rounded-xl border transition-all ${isNow ? 'border-primary/60 bg-primary/10 shadow-lg shadow-primary/10' : 'border-primary/15 bg-primary/3 hover:border-primary/30'}`}>
+                        <div key={p.idx} className={`relative flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all ${isNow ? 'border-primary/60 bg-primary/10 shadow-lg shadow-primary/10' : 'border-primary/15 bg-primary/3 hover:border-primary/30'}`}>
                           {isNow && <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary animate-pulse" />}
-                          <div className="flex-shrink-0 w-20 text-center">
+                          <div className="flex-shrink-0 sm:w-24 text-left sm:text-center">
                             <div className="text-xs text-muted-foreground">{p.startYear}~{p.endYear}</div>
                             <div className="text-lg font-bold text-foreground/60">{p.startAge}~{p.endAge}세</div>
                             {isNow && <div className="text-xs text-primary font-medium mt-0.5">◀ 현재</div>}
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 shrink-0">
                             <div className={`w-12 h-12 rounded-full flex flex-col items-center justify-center border-2 text-lg font-serif font-bold ${ELEM_COLOR[p.stemElement]}`}>{toStemHanja(p.stem)}</div>
                             <div className={`w-12 h-12 rounded-full flex flex-col items-center justify-center border-2 text-lg font-serif font-bold ${ELEM_COLOR[p.branchElement]}`}>{toBranchHanja(p.branch)}</div>
                           </div>
-                          <div className="flex-1 flex items-center">
-                            <p className="text-sm text-foreground/75">{p.fortune}</p>
+                          <div className="flex-1 min-w-0 space-y-2">
+                            {flow && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-xs font-semibold text-primary border border-primary/25 bg-primary/10 rounded-full px-2 py-0.5">{flow.level} · {flow.score}점</span>
+                                <span className="text-xs text-muted-foreground border border-primary/15 rounded-full px-2 py-0.5">천간 {flow.stemTenGod}</span>
+                                <span className="text-xs text-muted-foreground border border-primary/15 rounded-full px-2 py-0.5">지지 {flow.branchTenGod}</span>
+                                {flow.themes?.map((theme: string) => (
+                                  <span key={theme} className="text-xs text-muted-foreground bg-muted/25 rounded-full px-2 py-0.5">{theme}</span>
+                                ))}
+                              </div>
+                            )}
+                            <p className="text-sm text-foreground/75 leading-relaxed">{flow?.summary ?? p.fortune}</p>
+                            {flow?.interactions?.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {flow.interactions.slice(0, 3).map((interaction: any, idx: number) => (
+                                  <span key={`${interaction.type}-${interaction.target}-${idx}`} className={`text-[11px] rounded-full border px-2 py-0.5 ${interaction.positive ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700' : 'border-rose-500/25 bg-rose-500/10 text-rose-700'}`}>
+                                    {interaction.type} · {interaction.target}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {flow?.advice && <p className="text-xs text-primary/80 leading-relaxed">{flow.advice}</p>}
                           </div>
                         </div>
                       );
@@ -2187,6 +2327,116 @@ export default function SajuPage() {
               </Card>
             </motion.div>
           )}
+
+          {/* ── 대운×세운 향후 10년 종합 ── */}
+          {visibleSections.annualFlow && r.luckFlowAnalysis?.annual?.length > 0 && (() => {
+            const annual = r.luckFlowAnalysis.annual as any[];
+            const strongest = [...annual].sort((a, b) => b.score - a.score)[0];
+            const careful = [...annual].sort((a, b) => a.score - b.score)[0];
+            return (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.123 }}>
+                <SectionHeader icon="📈" title={`향후 10년 종합 흐름 (${r.luckFlowAnalysis.startYear}~${r.luckFlowAnalysis.endYear})`} />
+                <Card className="glass-panel border-primary/30">
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 min-w-0">
+                        <div className="text-xs text-muted-foreground">현재 대운</div>
+                        <div className="font-serif text-lg font-bold text-primary mt-1">
+                          {r.luckFlowAnalysis.currentDaeunIndex
+                            ? `${r.luckFlowAnalysis.currentDaeunIndex}번째 대운`
+                            : '대운 전환 구간'}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3 min-w-0">
+                        <div className="text-xs text-muted-foreground">기회가 큰 해</div>
+                        <div className="font-serif text-lg font-bold text-emerald-700 mt-1">{strongest.year}년 · {strongest.score}점</div>
+                        <p className="text-xs text-foreground/65 mt-1 line-clamp-2">{strongest.headline}</p>
+                      </div>
+                      <div className="rounded-xl border border-orange-500/25 bg-orange-500/5 px-4 py-3 min-w-0">
+                        <div className="text-xs text-muted-foreground">상대적으로 조정할 해</div>
+                        <div className="font-serif text-lg font-bold text-orange-700 mt-1">{careful.year}년 · {careful.score}점</div>
+                        <p className="text-xs text-foreground/65 mt-1 line-clamp-2">{careful.headline}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {annual.map((item: any) => {
+                        const open = expandedFlowYear === item.year;
+                        const tone = luckFlowTone(item.score);
+                        return (
+                          <div key={item.year} className={`rounded-xl border overflow-hidden ${tone.border} ${tone.bg}`}>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedFlowYear(open ? null : item.year)}
+                              className="w-full min-h-20 px-4 py-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-left"
+                              aria-expanded={open}
+                            >
+                              <div className="w-14 text-center shrink-0">
+                                <div className="font-bold text-foreground">{item.year}</div>
+                                <div className="text-[11px] text-muted-foreground">{item.age}세</div>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                  <span className="font-serif font-bold text-foreground">{toStemHanja(item.stem)}{toBranchHanja(item.branch)}</span>
+                                  <span className={`text-xs font-semibold ${tone.text}`}>{item.level}</span>
+                                  {item.daeunLabel && <span className="text-[11px] text-muted-foreground">{item.daeunLabel} 대운</span>}
+                                </div>
+                                <p className="text-sm text-foreground/75 truncate">{item.headline}</p>
+                                <div className="h-1.5 rounded-full bg-foreground/10 mt-2 overflow-hidden max-w-md">
+                                  <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${item.score}%` }} />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`text-sm font-bold ${tone.text}`}>{item.score}</span>
+                                <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
+                              </div>
+                            </button>
+                            <AnimatePresence initial={false}>
+                              {open && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="border-t border-current/10 px-4 py-4 sm:pl-[5.25rem] space-y-3">
+                                    <div className="flex flex-wrap gap-1.5">
+                                      <span className="text-xs border border-primary/20 bg-background/50 rounded-full px-2 py-0.5">천간 {item.stemTenGod}</span>
+                                      <span className="text-xs border border-primary/20 bg-background/50 rounded-full px-2 py-0.5">지지 {item.branchTenGod}</span>
+                                      {item.themes?.map((theme: string) => (
+                                        <span key={theme} className="text-xs bg-muted/30 rounded-full px-2 py-0.5">{theme}</span>
+                                      ))}
+                                    </div>
+                                    <p className="text-sm text-foreground/80 leading-relaxed">{item.summary}</p>
+                                    {item.interactions?.length > 0 && (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        {item.interactions.map((interaction: any, idx: number) => (
+                                          <div key={`${interaction.type}-${interaction.target}-${idx}`} className={`rounded-lg border px-3 py-2 text-xs leading-relaxed ${interaction.positive ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-800' : 'border-rose-500/20 bg-rose-500/5 text-rose-800'}`}>
+                                            <div className="font-semibold mb-0.5">{interaction.type} · {interaction.target}</div>
+                                            {interaction.description}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div className="rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-xs text-primary/85 leading-relaxed">
+                                      {item.advice}
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <p className="mt-4 text-[11px] text-muted-foreground/70 leading-relaxed">{r.luckFlowAnalysis.methodNote}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })()}
 
           {/* ── 대운·세운 신살 발동 ── */}
           {visibleSections.transitShinsal && r.shinsalTransitActivations && (

@@ -1,5 +1,6 @@
 import {
   countElements,
+  getAuxiliaryAnalysis,
   getCarefulThings,
   getCareerText,
   getDaeun,
@@ -16,6 +17,7 @@ import {
   getLuckyColors,
   getLuckyDirections,
   getLuckyNumbers,
+  getLuckFlowAnalysis,
   getMonthPillar,
   getPersonality,
   getPillarScore,
@@ -129,6 +131,22 @@ export function buildSajuResult(input: SajuBirthInput) {
     daeun,
     seun,
   );
+  const auxiliaryAnalysis = getAuxiliaryAnalysis(
+    yearPillar,
+    monthPillar,
+    dayPillar,
+    hourPillar,
+  );
+  const luckFlowAnalysis = getLuckFlowAnalysis(
+    year,
+    dayPillar.stem,
+    yearPillar,
+    monthPillar,
+    dayPillar,
+    hourPillar,
+    daeun,
+    yongsin,
+  );
 
   return {
     birthInfo: {
@@ -209,6 +227,8 @@ export function buildSajuResult(input: SajuBirthInput) {
     yongsin,
     sinGangYak,
     johuAnalysis,
+    auxiliaryAnalysis,
+    luckFlowAnalysis,
     carefulThings: getCarefulThings(dayPillar, monthPillar, yearPillar, elementBalance),
     samjae: getSamjae(yearPillar.branchIndex, new Date().getFullYear()),
     yongsinItems: getYongsinItems(yongsin.yongsin),

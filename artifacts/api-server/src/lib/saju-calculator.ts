@@ -795,6 +795,252 @@ export function getGanziIdx(stemIdx: number, branchIdx: number): number {
 
 type SajuCorePillar = ReturnType<typeof getYearPillar>;
 
+// ──────────── 납음오행 (納音五行) ────────────
+export interface NayinInfo {
+  name: string;
+  hanja: string;
+  element: string;
+  image: string;
+}
+
+const NAYIN_TABLE: readonly NayinInfo[] = [
+  { name: '해중금', hanja: '海中金', element: '금', image: '깊은 물속 금처럼 재능이 겉보다 늦게 드러나며, 안전한 기반을 얻을수록 가치가 선명해집니다.' },
+  { name: '노중화', hanja: '爐中火', element: '화', image: '화로 안의 불처럼 집중력과 열기가 강합니다. 분명한 목표가 있을 때 오래 타오르는 힘을 냅니다.' },
+  { name: '대림목', hanja: '大林木', element: '목', image: '큰 숲의 나무처럼 성장 폭이 크고 여러 사람을 품습니다. 혼자보다 조직과 환경 속에서 영향력이 커집니다.' },
+  { name: '노방토', hanja: '路傍土', element: '토', image: '길가의 흙처럼 사람과 기회를 이어 줍니다. 다양한 경험을 쌓아야 자기 쓸모와 방향이 또렷해집니다.' },
+  { name: '검봉금', hanja: '劍鋒金', element: '금', image: '칼날의 금처럼 판단과 결단이 빠릅니다. 날카로움을 전문성으로 쓰면 강점이 되고, 말로 쓰면 마찰이 됩니다.' },
+  { name: '산두화', hanja: '山頭火', element: '화', image: '산 위의 불빛처럼 멀리 드러나는 존재감이 있습니다. 명분과 방향이 분명할수록 사람을 모으는 힘이 생깁니다.' },
+  { name: '간하수', hanja: '澗下水', element: '수', image: '골짜기를 흐르는 물처럼 섬세하고 유연합니다. 작은 흐름을 꾸준히 이어 큰 결과로 만드는 타입입니다.' },
+  { name: '성두토', hanja: '城頭土', element: '토', image: '성벽의 흙처럼 기준과 방어력이 강합니다. 책임질 영역이 생길 때 안정감과 관리 능력이 빛납니다.' },
+  { name: '백랍금', hanja: '白蠟金', element: '금', image: '정련 중인 금처럼 다듬을수록 빛납니다. 초반 완성도보다 반복 학습과 피드백이 성취를 키웁니다.' },
+  { name: '양류목', hanja: '楊柳木', element: '목', image: '버드나무처럼 부드럽고 적응력이 좋습니다. 관계 감각이 뛰어나지만 자기 기준을 잃지 않는 것이 중요합니다.' },
+  { name: '천중수', hanja: '泉中水', element: '수', image: '샘물처럼 안에서 지식과 감각이 솟습니다. 조용히 축적한 것을 밖으로 나눌 때 운이 활발해집니다.' },
+  { name: '옥상토', hanja: '屋上土', element: '토', image: '지붕의 흙처럼 보호하고 마무리하는 힘이 있습니다. 가정·조직·프로젝트의 구조를 완성하는 역할에 강합니다.' },
+  { name: '벽력화', hanja: '霹靂火', element: '화', image: '번개 불처럼 변화가 빠르고 돌파력이 큽니다. 순간 추진력을 계획과 연결하면 큰 전환을 만들 수 있습니다.' },
+  { name: '송백목', hanja: '松柏木', element: '목', image: '소나무와 잣나무처럼 원칙과 지속력이 강합니다. 느려도 흔들리지 않는 축적이 신뢰와 성과를 만듭니다.' },
+  { name: '장류수', hanja: '長流水', element: '수', image: '긴 강물처럼 흐름을 읽고 멀리 갑니다. 단기 승부보다 장기 기획·연결·이동에서 장점이 살아납니다.' },
+  { name: '사중금', hanja: '沙中金', element: '금', image: '모래 속 금처럼 가능성이 환경에 묻혀 있습니다. 좋은 스승과 기준을 만나면 숨은 실력이 빠르게 드러납니다.' },
+  { name: '산하화', hanja: '山下火', element: '화', image: '산 아래 불처럼 생활 가까이 온기를 전합니다. 실용적인 표현과 꾸준한 관계 관리가 평판을 키웁니다.' },
+  { name: '평지목', hanja: '平地木', element: '목', image: '들판의 나무처럼 현실적인 성장력이 있습니다. 기반을 넓게 잡고 반복 가능한 일을 만들 때 안정적으로 커집니다.' },
+  { name: '벽상토', hanja: '壁上土', element: '토', image: '벽의 흙처럼 경계와 질서를 세웁니다. 규칙·문서·관리 체계를 만들 때 보호력과 실무력이 강해집니다.' },
+  { name: '금박금', hanja: '金箔金', element: '금', image: '금박처럼 섬세한 완성도와 감각이 돋보입니다. 겉모양만 좇지 않고 내용까지 채울 때 평가가 오래갑니다.' },
+  { name: '복등화', hanja: '覆燈火', element: '화', image: '등잔불처럼 가까운 곳을 정확히 밝힙니다. 연구·교육·상담처럼 한 사람에게 깊이 닿는 일에 강합니다.' },
+  { name: '천하수', hanja: '天河水', element: '수', image: '하늘의 강물처럼 시야와 상상력이 큽니다. 큰 생각을 일정과 결과물로 내려놓는 과정이 성패를 가릅니다.' },
+  { name: '대역토', hanja: '大驛土', element: '토', image: '큰 역참의 땅처럼 이동과 교류의 기반이 됩니다. 사람·정보·자원을 연결하고 운영하는 역할에 적합합니다.' },
+  { name: '차천금', hanja: '釵釧金', element: '금', image: '비녀와 팔찌의 금처럼 품질과 세련미가 강점입니다. 관계와 결과물의 디테일을 다듬을수록 가치가 높아집니다.' },
+  { name: '상자목', hanja: '桑柘木', element: '목', image: '뽕나무처럼 생활을 먹여 살리는 생산력이 있습니다. 실용 기술과 꾸준한 돌봄이 재물과 신뢰로 이어집니다.' },
+  { name: '대계수', hanja: '大溪水', element: '수', image: '큰 계곡물처럼 추진과 변화의 폭이 큽니다. 막히면 방향을 바꾸되 최종 목적지는 놓치지 않아야 합니다.' },
+  { name: '사중토', hanja: '沙中土', element: '토', image: '모래 속 흙처럼 유연한 현실 감각이 있습니다. 흩어진 자원과 경험을 하나의 기반으로 묶는 힘이 중요합니다.' },
+  { name: '천상화', hanja: '天上火', element: '화', image: '태양처럼 넓게 비추는 공개성과 추진력이 있습니다. 영향력이 커질수록 과열보다 책임 있는 표현이 필요합니다.' },
+  { name: '석류목', hanja: '石榴木', element: '목', image: '석류나무처럼 단단한 껍질 안에 많은 결실을 품습니다. 전문성을 깊게 파고 결과를 다양하게 확장하는 힘이 있습니다.' },
+  { name: '대해수', hanja: '大海水', element: '수', image: '큰 바다처럼 포용력과 잠재력이 큽니다. 경계를 정하고 방향을 세워야 넓은 가능성이 실제 성취로 모입니다.' },
+];
+
+export function getNayin(stemIndex: number, branchIndex: number): NayinInfo {
+  const ganziIndex = getGanziIdx(stemIndex, branchIndex);
+  return NAYIN_TABLE[Math.floor(ganziIndex / 2)] ?? NAYIN_TABLE[0];
+}
+
+export interface NayinPillarReading extends NayinInfo {
+  pillar: '년주' | '월주' | '일주' | '시주';
+  ganzi: string;
+  reading: string;
+}
+
+export interface AuxiliaryPalaceReading {
+  key: 'taewon' | 'minggung' | 'shingung';
+  name: '태원' | '명궁' | '신궁';
+  hanja: '胎元' | '命宮' | '身宮';
+  stem: string;
+  branch: string;
+  stemHanja: string;
+  branchHanja: string;
+  stemElement: string;
+  branchElement: string;
+  tenGod: TenGodName;
+  unseong: UnseongStage;
+  nayin: NayinInfo;
+  summary: string;
+  advice: string;
+  basis: string;
+}
+
+export interface AuxiliaryAnalysis {
+  nayinPillars: NayinPillarReading[];
+  taewon: AuxiliaryPalaceReading;
+  minggung: AuxiliaryPalaceReading | null;
+  shingung: AuxiliaryPalaceReading | null;
+  requiresBirthTime: boolean;
+  methodNote: string;
+}
+
+const NAYIN_PILLAR_CONTEXT: Record<NayinPillarReading['pillar'], string> = {
+  년주: '년주의 납음은 집안에서 물려받은 분위기와 초년의 적응 방식을 비춥니다.',
+  월주: '월주의 납음은 부모·사회 환경과 직업에서 능력을 펼치는 방식을 비춥니다.',
+  일주: '일주의 납음은 자신이 중요하게 여기는 내적 기준과 가까운 관계의 결을 비춥니다.',
+  시주: '시주의 납음은 장기 목표, 자녀·후배와의 관계, 말년의 관심사를 비춥니다.',
+};
+
+const AUXILIARY_BRANCH_READING: Record<string, string> = {
+  자: '정보를 깊이 모으고 다음 수를 준비하는 힘',
+  축: '서두르지 않고 자원과 실력을 축적하는 힘',
+  인: '새 길을 열고 먼저 움직이는 개척력',
+  묘: '관계의 결을 읽고 조화롭게 확장하는 감각',
+  진: '서로 다른 자원을 묶어 전환점을 만드는 힘',
+  사: '상황을 빠르게 읽고 표현과 전략으로 풀어내는 힘',
+  오: '사람 앞에 서서 에너지를 확산하는 추진력',
+  미: '생활과 관계를 세심하게 돌보며 기반을 완성하는 힘',
+  신: '기술과 변화에 민첩하게 대응하는 실무 감각',
+  유: '기준을 세우고 결과물의 완성도를 높이는 힘',
+  술: '원칙과 책임을 지키며 마지막까지 버티는 힘',
+  해: '보이지 않는 흐름을 읽고 배움과 상상으로 넓히는 힘',
+};
+
+const AUXILIARY_TEN_GOD_ADVICE: Record<TenGodName, string> = {
+  비견: '독립성은 살리되 역할과 책임 범위를 먼저 합의하세요.',
+  겁재: '사람을 움직이는 힘은 크지만 돈·지분·약속은 문서로 남기세요.',
+  식신: '꾸준히 만든 결과물을 공개하면 복과 기회가 자연스럽게 연결됩니다.',
+  상관: '날카로운 표현을 개선안과 작품으로 바꾸면 재능이 더 높게 평가됩니다.',
+  편재: '기회를 넓게 보되 현금흐름과 손실 한도를 먼저 정하세요.',
+  정재: '반복 가능한 수입 구조와 생활 루틴을 만들수록 안정감이 커집니다.',
+  편관: '압박을 혼자 견디기보다 규칙·운동·전문가 도움으로 관리하세요.',
+  정관: '자격과 책임을 차근차근 쌓으면 평판과 직위가 함께 올라갑니다.',
+  편인: '독특한 통찰을 현실에서 검증하고, 배운 내용을 결과물로 정리하세요.',
+  정인: '자료·자격·스승의 도움을 활용하되 실행 시점을 계속 미루지 마세요.',
+};
+
+function getYearBasedPalaceStemIndex(yearStemIndex: number, branchIndex: number): number {
+  const offsetFromIn = (branchIndex - 2 + 12) % 12;
+  return (yearStemIndex * 2 + 2 + offsetFromIn) % 10;
+}
+
+function makeAuxiliaryPalace(
+  key: AuxiliaryPalaceReading['key'],
+  stemIndex: number,
+  branchIndex: number,
+  dayStem: string,
+  basis: string,
+): AuxiliaryPalaceReading {
+  const names = {
+    taewon: { name: '태원' as const, hanja: '胎元' as const },
+    minggung: { name: '명궁' as const, hanja: '命宮' as const },
+    shingung: { name: '신궁' as const, hanja: '身宮' as const },
+  }[key];
+  const stem = HEAVENLY_STEMS[stemIndex];
+  const branch = EARTHLY_BRANCHES[branchIndex];
+  const tenGod = getTenGod(dayStem, stem);
+  const unseong = getUnseong(dayStem, branchIndex);
+  const nayin = getNayin(stemIndex, branchIndex);
+  const branchReading = AUXILIARY_BRANCH_READING[branch];
+  const summary = key === 'taewon'
+    ? `태원은 태어나기 전부터 이어진 선천적 바탕과 초기 적응 습관을 봅니다. ${branch}(${EARTHLY_BRANCHES_HANJA[branchIndex]})의 ${branchReading}이 기본 리듬이고, ${tenGod}의 방식으로 자원을 받아들입니다. ${unseong.stage}의 생명력 위에 ${nayin.name}의 물상인 “${nayin.image}”가 더해집니다.`
+    : key === 'minggung'
+      ? `명궁은 여러 선택 앞에서 끝내 돌아오는 삶의 중심 기준을 봅니다. ${branch}(${EARTHLY_BRANCHES_HANJA[branchIndex]})가 주는 ${branchReading}이 내적 지향을 만들고, 일간과 맺은 ${tenGod} 관계가 목표를 고르는 방식을 보여 줍니다. 12운성 ${unseong.stage}와 납음 ${nayin.name}은 그 기준이 강해지는 장면을 보완합니다.`
+      : `신궁은 생각이 실제 일·관계·생활 습관으로 드러나는 후천적 방식을 봅니다. 행동에서는 ${branch}(${EARTHLY_BRANCHES_HANJA[branchIndex]})의 ${branchReading}이 먼저 나타나며, ${tenGod}의 역할을 맡을 때 실행력이 살아납니다. ${unseong.stage}의 속도와 ${nayin.name}의 물상을 함께 보면 지속 가능한 행동 방식을 잡을 수 있습니다.`;
+  const roleAdvice = key === 'taewon'
+    ? '익숙한 성장 환경에서 생긴 자동 반응을 살피고, 생활 리듬부터 안정시키세요.'
+    : key === 'minggung'
+      ? '중요한 선택은 남의 기대보다 오래 지킬 수 있는 자기 기준과 맞는지 확인하세요.'
+      : '계획을 말로만 두지 말고 일정·역할·반복 행동으로 구체화하세요.';
+
+  return {
+    key,
+    name: names.name,
+    hanja: names.hanja,
+    stem,
+    branch,
+    stemHanja: HEAVENLY_STEMS_HANJA[stemIndex],
+    branchHanja: EARTHLY_BRANCHES_HANJA[branchIndex],
+    stemElement: STEM_ELEMENTS[stemIndex],
+    branchElement: BRANCH_ELEMENTS[branchIndex],
+    tenGod,
+    unseong: unseong.stage,
+    nayin,
+    summary,
+    advice: `${roleAdvice} ${AUXILIARY_TEN_GOD_ADVICE[tenGod]}`,
+    basis,
+  };
+}
+
+export function getAuxiliaryAnalysis(
+  yearPillar: SajuCorePillar,
+  monthPillar: SajuCorePillar,
+  dayPillar: SajuCorePillar,
+  hourPillar: SajuCorePillar | null,
+): AuxiliaryAnalysis {
+  const sourcePillars: Array<{ name: NayinPillarReading['pillar']; pillar: SajuCorePillar | null }> = [
+    { name: '년주', pillar: yearPillar },
+    { name: '월주', pillar: monthPillar },
+    { name: '일주', pillar: dayPillar },
+    { name: '시주', pillar: hourPillar },
+  ];
+  const nayinPillars = sourcePillars.flatMap(({ name, pillar }) => {
+    if (!pillar) return [];
+    const nayin = getNayin(pillar.stemIndex, pillar.branchIndex);
+    return [{
+      ...nayin,
+      pillar: name,
+      ganzi: `${pillar.stem}${pillar.branch}`,
+      reading: `${NAYIN_PILLAR_CONTEXT[name]} ${nayin.image}`,
+    }];
+  });
+
+  const taewonStemIndex = (monthPillar.stemIndex + 1) % 10;
+  const taewonBranchIndex = (monthPillar.branchIndex + 3) % 12;
+  const taewon = makeAuxiliaryPalace(
+    'taewon',
+    taewonStemIndex,
+    taewonBranchIndex,
+    dayPillar.stem,
+    `월주 ${monthPillar.stem}${monthPillar.branch}에서 천간 1위·지지 3위 순행`,
+  );
+
+  if (!hourPillar) {
+    return {
+      nayinPillars,
+      taewon,
+      minggung: null,
+      shingung: null,
+      requiresBirthTime: true,
+      methodNote: '태원은 월주 순행법, 명궁·신궁은 월지·시지 지장법을 사용합니다. 명궁·신궁은 출생시간이 있어야 계산됩니다.',
+    };
+  }
+
+  const monthNumber = ((monthPillar.branchIndex - 2 + 12) % 12) + 1;
+  const hourNumber = ((hourPillar.branchIndex - 2 + 12) % 12) + 1;
+  let minggungNumber = 26 - (monthNumber + hourNumber);
+  while (minggungNumber > 12) minggungNumber -= 12;
+  while (minggungNumber < 1) minggungNumber += 12;
+  const minggungBranchIndex = (minggungNumber + 1) % 12;
+  const minggungStemIndex = getYearBasedPalaceStemIndex(yearPillar.stemIndex, minggungBranchIndex);
+
+  const shingungMonthPosition = (monthNumber - 1) % 12;
+  const stepsFromHourToYou = (9 - hourPillar.branchIndex + 12) % 12;
+  const shingungBranchIndex = (shingungMonthPosition - stepsFromHourToYou + 12) % 12;
+  const shingungStemIndex = getYearBasedPalaceStemIndex(yearPillar.stemIndex, shingungBranchIndex);
+
+  return {
+    nayinPillars,
+    taewon,
+    minggung: makeAuxiliaryPalace(
+      'minggung',
+      minggungStemIndex,
+      minggungBranchIndex,
+      dayPillar.stem,
+      `월지수 ${monthNumber} + 시지수 ${hourNumber}, 26 감산 지장법·년상기월법`,
+    ),
+    shingung: makeAuxiliaryPalace(
+      'shingung',
+      shingungStemIndex,
+      shingungBranchIndex,
+      dayPillar.stem,
+      '자상기정월 순행 후 생시에서 유(酉)까지 역산·년상기월법',
+    ),
+    requiresBirthTime: false,
+    methodNote: '태원·명궁·신궁은 보조 해석입니다. 월주 순행법과 월지·시지 지장법을 적용했으며, 학파별 중기·진태양시 보정에 따라 결과가 달라질 수 있습니다.',
+  };
+}
+
 export interface SajuSpecialSummaryBranchInfo {
   branches: string[];
   branchesHanja: string[];
@@ -1236,6 +1482,380 @@ function getSeunFortune(branch: string, stemElem: string): string {
     '해': '휴식과 준비의 해. 내면을 충전하고 계획을 세우세요.',
   };
   return softenInterpretationText(byBranch[branch] || '변화와 성장의 해입니다.');
+}
+
+// ──────────── 대운·세운 종합 흐름 ────────────
+export interface LuckFlowInteraction {
+  type: '천간합' | '천간충' | '지지육합' | '지지충' | '지지형' | '지지자형' | '지지파' | '지지해';
+  target: '연주' | '월주' | '일주' | '시주' | '대운';
+  targetDomain: string;
+  positive: boolean;
+  score: number;
+  description: string;
+}
+
+export interface DaeunPeriodAnalysis {
+  idx: number;
+  startAge: number;
+  endAge: number;
+  startYear: number;
+  endYear: number;
+  stem: string;
+  branch: string;
+  score: number;
+  level: string;
+  stemTenGod: TenGodName;
+  branchTenGod: TenGodName;
+  themes: string[];
+  interactions: LuckFlowInteraction[];
+  summary: string;
+  advice: string;
+}
+
+export interface AnnualLuckFlow {
+  year: number;
+  age: number;
+  stem: string;
+  branch: string;
+  stemElement: string;
+  branchElement: string;
+  daeunIndex: number | null;
+  daeunLabel: string | null;
+  score: number;
+  level: string;
+  headline: string;
+  stemTenGod: TenGodName;
+  branchTenGod: TenGodName;
+  themes: string[];
+  interactions: LuckFlowInteraction[];
+  summary: string;
+  advice: string;
+}
+
+export interface LuckFlowAnalysis {
+  startYear: number;
+  endYear: number;
+  currentDaeunIndex: number | null;
+  periods: DaeunPeriodAnalysis[];
+  annual: AnnualLuckFlow[];
+  methodNote: string;
+}
+
+type LuckFlowPillar = Pick<SajuCorePillar, 'stem' | 'branch' | 'stemIndex' | 'branchIndex' | 'stemElement' | 'branchElement'>;
+type LuckFlowDaeun = {
+  periods: Array<{
+    idx: number;
+    startAge: number;
+    endAge: number;
+    startYear: number;
+    endYear: number;
+    stem: string;
+    branch: string;
+    stemElement: string;
+    branchElement: string;
+  }>;
+};
+
+const LUCK_TARGET_DOMAINS: Record<LuckFlowInteraction['target'], string> = {
+  연주: '집안·초년·사회 기반',
+  월주: '직업·조직·부모 형제',
+  일주: '자기 중심·배우자·가까운 관계',
+  시주: '자녀·후배·장기 목표·말년',
+  대운: '현재 10년 환경',
+};
+
+const LUCK_TEN_GOD_THEME: Record<TenGodName, string> = {
+  비견: '자립·동료',
+  겁재: '경쟁·협업',
+  식신: '생산·창작',
+  상관: '표현·변화',
+  편재: '사업·기회',
+  정재: '재정·생활',
+  편관: '도전·압박',
+  정관: '직장·책임',
+  편인: '통찰·전환',
+  정인: '학습·문서',
+};
+
+const LUCK_TEN_GOD_ADVICE: Record<TenGodName, string> = {
+  비견: '주도권은 잡되 혼자 결정하지 말고 역할을 분명히 나누세요.',
+  겁재: '동업·경쟁·금전 거래에서 조건과 책임을 문서로 남기세요.',
+  식신: '꾸준히 만든 결과물을 공개하고 생활 리듬을 안정적으로 유지하세요.',
+  상관: '비판보다 대안을 먼저 제시하고 재능을 작품·성과로 증명하세요.',
+  편재: '기회를 넓게 보되 손실 한도와 현금흐름을 먼저 확인하세요.',
+  정재: '수입·지출·계약을 숫자로 관리하며 반복 가능한 기반을 만드세요.',
+  편관: '압박을 정면 돌파하기 전에 일정·안전·건강 관리 장치를 마련하세요.',
+  정관: '절차와 책임을 지키고 자격·직함·공식 성과를 챙기세요.',
+  편인: '직감은 자료로 검증하고 고립되지 않도록 중간 결과를 공유하세요.',
+  정인: '배움과 문서 준비를 실제 지원·시험·계약 행동으로 연결하세요.',
+};
+
+const LUCK_BRANCH_MAIN_STEM: Record<number, string> = {
+  0: '계', 1: '기', 2: '갑', 3: '을', 4: '무', 5: '병',
+  6: '정', 7: '기', 8: '경', 9: '신', 10: '무', 11: '임',
+};
+
+function normalizePair(a: number, b: number): string {
+  return a < b ? `${a}-${b}` : `${b}-${a}`;
+}
+
+function collectLuckInteractions(
+  transit: LuckFlowPillar,
+  targets: Array<{ name: LuckFlowInteraction['target']; pillar: LuckFlowPillar | null }>,
+): LuckFlowInteraction[] {
+  const stemHap: Record<string, { name: string; result: string }> = {
+    '0-5': { name: '갑기합(甲己合)', result: '토' },
+    '1-6': { name: '을경합(乙庚合)', result: '금' },
+    '2-7': { name: '병신합(丙辛合)', result: '수' },
+    '3-8': { name: '정임합(丁壬合)', result: '목' },
+    '4-9': { name: '무계합(戊癸合)', result: '화' },
+  };
+  const stemChung: Record<string, string> = {
+    '0-6': '갑경충(甲庚冲)', '1-7': '을신충(乙辛冲)',
+    '2-8': '병임충(丙壬冲)', '3-9': '정계충(丁癸冲)',
+  };
+  const branchHap: Record<string, { name: string; result: string }> = {
+    '0-1': { name: '자축합(子丑合)', result: '토' },
+    '2-11': { name: '인해합(寅亥合)', result: '목' },
+    '3-10': { name: '묘술합(卯戌合)', result: '화' },
+    '4-9': { name: '진유합(辰酉合)', result: '금' },
+    '5-8': { name: '사신합(巳申合)', result: '수' },
+    '6-7': { name: '오미합(午未合)', result: '토' },
+  };
+  const branchChung: Record<string, string> = {
+    '0-6': '자오충(子午冲)', '1-7': '축미충(丑未冲)',
+    '2-8': '인신충(寅申冲)', '3-9': '묘유충(卯酉冲)',
+    '4-10': '진술충(辰戌冲)', '5-11': '사해충(巳亥冲)',
+  };
+  const branchHyeong: Record<string, string> = {
+    '0-3': '자묘형(子卯刑)',
+    '1-7': '축미형(丑未刑)', '1-10': '축술형(丑戌刑)', '7-10': '미술형(未戌刑)',
+    '2-5': '인사형(寅巳刑)', '2-8': '인신형(寅申刑)', '5-8': '사신형(巳申刑)',
+  };
+  const branchPa: Record<string, string> = {
+    '0-9': '자유파(子酉破)', '1-4': '축진파(丑辰破)', '2-11': '인해파(寅亥破)',
+    '3-6': '묘오파(卯午破)', '5-8': '사신파(巳申破)', '7-10': '미술파(未戌破)',
+  };
+  const branchHae: Record<string, string> = {
+    '0-7': '자미해(子未害)', '1-6': '축오해(丑午害)', '2-5': '인사해(寅巳害)',
+    '3-4': '묘진해(卯辰害)', '8-11': '신해해(申亥害)', '9-10': '유술해(酉戌害)',
+  };
+  const selfHyeong = new Set([4, 6, 9, 11]);
+  const interactions: LuckFlowInteraction[] = [];
+
+  const add = (
+    type: LuckFlowInteraction['type'],
+    target: LuckFlowInteraction['target'],
+    positive: boolean,
+    score: number,
+    description: string,
+  ) => interactions.push({
+    type,
+    target,
+    targetDomain: LUCK_TARGET_DOMAINS[target],
+    positive,
+    score,
+    description,
+  });
+
+  for (const { name: target, pillar } of targets) {
+    if (!pillar) continue;
+    const stemKey = normalizePair(transit.stemIndex, pillar.stemIndex);
+    const branchKey = normalizePair(transit.branchIndex, pillar.branchIndex);
+    const hap = stemHap[stemKey];
+    if (hap) add('천간합', target, true, 5, `${hap.name}으로 ${target}의 ${LUCK_TARGET_DOMAINS[target]} 흐름이 ${hap.result} 기운으로 묶입니다.`);
+    const chung = stemChung[stemKey];
+    if (chung) add('천간충', target, false, -6, `${chung}이 ${target}에 걸려 계획·판단 방식의 조정이 필요합니다.`);
+    const yukHap = branchHap[branchKey];
+    if (yukHap) add('지지육합', target, true, 7, `${yukHap.name}으로 ${target}의 ${LUCK_TARGET_DOMAINS[target]} 영역에 협력과 연결이 생깁니다.`);
+    const yukChung = branchChung[branchKey];
+    if (yukChung) add('지지충', target, false, -9, `${yukChung}이 ${target}를 흔들어 ${LUCK_TARGET_DOMAINS[target]} 영역의 이동·교체 가능성이 커집니다.`);
+    const hyeong = branchHyeong[branchKey];
+    if (hyeong) add('지지형', target, false, -6, `${hyeong}이 ${target}에 작용해 반복 갈등과 무리한 추진을 조심해야 합니다.`);
+    if (transit.branchIndex === pillar.branchIndex && selfHyeong.has(transit.branchIndex)) {
+      add('지지자형', target, false, -5, `${transit.branch}${pillar.branch} 자형이 ${target}에 겹쳐 같은 고민이나 행동을 반복하기 쉽습니다.`);
+    }
+    const pa = branchPa[branchKey];
+    if (pa) add('지지파', target, false, -4, `${pa}가 ${target}의 기존 약속·구조를 느슨하게 만들 수 있습니다.`);
+    const hae = branchHae[branchKey];
+    if (hae) add('지지해', target, false, -4, `${hae}가 ${target}에 걸려 겉으로 드러나지 않는 서운함과 지연을 관리해야 합니다.`);
+  }
+
+  return interactions;
+}
+
+function getLuckElementScore(
+  element: string,
+  yongsin: { yongsin: string; heegsin: string; geesin: string },
+): number {
+  if (element === yongsin.yongsin) return 10;
+  if (element === yongsin.heegsin) return 6;
+  if (element === yongsin.geesin) return -8;
+  return 0;
+}
+
+function clampLuckScore(score: number): number {
+  return Math.max(15, Math.min(90, Math.round(score)));
+}
+
+function getLuckLevel(score: number): string {
+  if (score >= 75) return '기회 확장';
+  if (score >= 60) return '상승';
+  if (score >= 45) return '균형';
+  if (score >= 30) return '조정';
+  return '신중';
+}
+
+function getElementFitText(
+  stemElement: string,
+  branchElement: string,
+  yongsin: { yongsin: string; heegsin: string; geesin: string },
+): string {
+  const elements = new Set([stemElement, branchElement]);
+  if (elements.has(yongsin.yongsin) && elements.has(yongsin.heegsin)) {
+    return `용신 ${yongsin.yongsin}과 희신 ${yongsin.heegsin}이 함께 들어와 부족한 기운을 채웁니다.`;
+  }
+  if (elements.has(yongsin.yongsin)) return `용신 ${yongsin.yongsin}이 들어와 균형 회복과 기회 포착에 힘을 보탭니다.`;
+  if (elements.has(yongsin.heegsin)) return `희신 ${yongsin.heegsin}이 들어와 주변 도움과 실행 여건을 부드럽게 만듭니다.`;
+  if (elements.has(yongsin.geesin)) return `기신 ${yongsin.geesin}이 강해져 과욕과 익숙한 패턴의 반복을 조절해야 합니다.`;
+  return '용희기신 어느 한쪽으로 크게 치우치지 않아 선택과 실행이 결과를 좌우합니다.';
+}
+
+function summarizeLuckInteractions(interactions: LuckFlowInteraction[]): string {
+  if (interactions.length === 0) return '원국과 직접 부딪히는 큰 합충형파해는 적어 계획한 흐름을 유지하기 좋습니다.';
+  const positive = interactions.filter((item) => item.positive);
+  const negative = interactions.filter((item) => !item.positive);
+  if (positive.length > 0 && negative.length > 0) {
+    return `${positive[0].description} 동시에 ${negative[0].description}`;
+  }
+  if (positive.length > 0) return positive[0].description;
+  return negative[0].description;
+}
+
+function getLuckHeadline(level: string, theme: string, year: number): string {
+  const action: Record<string, string> = {
+    '기회 확장': '크게 펼칠', 상승: '성과로 연결할', 균형: '안정적으로 다질',
+    조정: '우선순위를 다시 잡을', 신중: '기반을 지키며 준비할',
+  };
+  return `${theme} 중심으로 ${action[level] ?? '점검할'} ${year}년`;
+}
+
+export function getLuckFlowAnalysis(
+  birthYear: number,
+  dayStem: string,
+  yearPillar: SajuCorePillar,
+  monthPillar: SajuCorePillar,
+  dayPillar: SajuCorePillar,
+  hourPillar: SajuCorePillar | null,
+  daeun: LuckFlowDaeun,
+  yongsin: { yongsin: string; heegsin: string; geesin: string },
+  startYear = new Date().getFullYear(),
+  yearCount = 10,
+): LuckFlowAnalysis {
+  const natalTargets: Array<{ name: LuckFlowInteraction['target']; pillar: LuckFlowPillar | null }> = [
+    { name: '연주', pillar: yearPillar },
+    { name: '월주', pillar: monthPillar },
+    { name: '일주', pillar: dayPillar },
+    { name: '시주', pillar: hourPillar },
+  ];
+
+  const periods = daeun.periods.map((period): DaeunPeriodAnalysis => {
+    const transit = {
+      ...period,
+      stemIndex: HEAVENLY_STEMS.indexOf(period.stem),
+      branchIndex: EARTHLY_BRANCHES.indexOf(period.branch),
+    };
+    const stemTenGod = getTenGod(dayStem, period.stem);
+    const branchTenGod = getTenGod(dayStem, LUCK_BRANCH_MAIN_STEM[transit.branchIndex]);
+    const interactions = collectLuckInteractions(transit, natalTargets);
+    const score = clampLuckScore(
+      50 +
+      getLuckElementScore(period.stemElement, yongsin) +
+      getLuckElementScore(period.branchElement, yongsin) +
+      interactions.reduce((sum, item) => sum + item.score, 0),
+    );
+    const level = getLuckLevel(score);
+    const themes = [...new Set([LUCK_TEN_GOD_THEME[stemTenGod], LUCK_TEN_GOD_THEME[branchTenGod]])];
+    return {
+      ...period,
+      score,
+      level,
+      stemTenGod,
+      branchTenGod,
+      themes,
+      interactions,
+      summary: `${period.startAge}~${period.endAge}세 ${period.stem}${period.branch} 대운은 천간 ${stemTenGod}, 지지 본기 ${branchTenGod}의 주제가 중심입니다. ${getElementFitText(period.stemElement, period.branchElement, yongsin)} ${summarizeLuckInteractions(interactions)}`,
+      advice: `${LUCK_TEN_GOD_ADVICE[stemTenGod]} ${interactions.find((item) => !item.positive)?.targetDomain ? `${interactions.find((item) => !item.positive)!.targetDomain} 영역은 변화를 한 번에 키우지 마세요.` : '10년 목표를 해마다 확인하며 속도를 조절하세요.'}`,
+    };
+  });
+
+  const annual = Array.from({ length: Math.max(1, Math.min(yearCount, 20)) }, (_, offset): AnnualLuckFlow => {
+    const year = startYear + offset;
+    const age = year - birthYear;
+    const yearTransit = getYearPillar(year);
+    const period = periods.find((item) => age >= item.startAge && age <= item.endAge) ?? null;
+    const stemTenGod = getTenGod(dayStem, yearTransit.stem);
+    const branchTenGod = getTenGod(dayStem, LUCK_BRANCH_MAIN_STEM[yearTransit.branchIndex]);
+    const natalInteractions = collectLuckInteractions(yearTransit, natalTargets);
+    const daeunInteractions = period
+      ? collectLuckInteractions(yearTransit, [{
+          name: '대운',
+          pillar: {
+            stem: period.stem,
+            branch: period.branch,
+            stemIndex: HEAVENLY_STEMS.indexOf(period.stem),
+            branchIndex: EARTHLY_BRANCHES.indexOf(period.branch),
+            stemElement: STEM_ELEMENTS[HEAVENLY_STEMS.indexOf(period.stem)],
+            branchElement: BRANCH_ELEMENTS[EARTHLY_BRANCHES.indexOf(period.branch)],
+          },
+        }])
+      : [];
+    const interactions = [...natalInteractions, ...daeunInteractions];
+    const periodCarry = period ? (period.score - 50) * 0.35 : 0;
+    const score = clampLuckScore(
+      50 +
+      getLuckElementScore(yearTransit.stemElement, yongsin) +
+      getLuckElementScore(yearTransit.branchElement, yongsin) +
+      periodCarry +
+      interactions.reduce((sum, item) => sum + item.score, 0),
+    );
+    const level = getLuckLevel(score);
+    const themes = [...new Set([LUCK_TEN_GOD_THEME[stemTenGod], LUCK_TEN_GOD_THEME[branchTenGod]])];
+    const periodText = period
+      ? `${period.stem}${period.branch} 대운의 ${period.level} 흐름 안에서 작동합니다.`
+      : '첫 대운 전후의 전환 구간이라 원국의 기본 기운을 우선 봅니다.';
+
+    return {
+      year,
+      age,
+      stem: yearTransit.stem,
+      branch: yearTransit.branch,
+      stemElement: yearTransit.stemElement,
+      branchElement: yearTransit.branchElement,
+      daeunIndex: period?.idx ?? null,
+      daeunLabel: period ? `${period.stem}${period.branch}` : null,
+      score,
+      level,
+      headline: getLuckHeadline(level, themes[0], year),
+      stemTenGod,
+      branchTenGod,
+      themes,
+      interactions,
+      summary: `${year}년 ${yearTransit.stem}${yearTransit.branch} 세운은 천간 ${stemTenGod}, 지지 본기 ${branchTenGod}의 해입니다. ${periodText} ${getElementFitText(yearTransit.stemElement, yearTransit.branchElement, yongsin)} ${summarizeLuckInteractions(interactions)}`,
+      advice: `${LUCK_TEN_GOD_ADVICE[stemTenGod]} ${interactions.find((item) => !item.positive)?.targetDomain ? `특히 ${interactions.find((item) => !item.positive)!.targetDomain} 영역은 일정과 선택지를 여유 있게 두세요.` : '좋은 흐름도 한 번에 확대하지 말고 분기마다 결과를 확인하세요.'}`,
+    };
+  });
+
+  const currentAge = startYear - birthYear;
+  const currentDaeunIndex = periods.find((item) => currentAge >= item.startAge && currentAge <= item.endAge)?.idx ?? null;
+  return {
+    startYear,
+    endYear: startYear + annual.length - 1,
+    currentDaeunIndex,
+    periods,
+    annual,
+    methodNote: '용신·희신·기신, 대운, 세운 십신과 원국·대운의 천간합충 및 지지 육합·충·형·자형·파·해를 함께 반영한 참고 흐름입니다.',
+  };
 }
 
 // ──────────── 용신 (用神) ────────────

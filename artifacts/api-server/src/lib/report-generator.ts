@@ -171,6 +171,35 @@ function formatShadowReading(result: Record<string, any>) {
     .join(" ");
 }
 
+function formatAuxiliaryAnalysis(result: Record<string, any>) {
+  const analysis = result.auxiliaryAnalysis;
+  if (!analysis) return "";
+  const nayin = Array.isArray(analysis.nayinPillars)
+    ? analysis.nayinPillars.map((item: any) => `${item.pillar} ${item.ganzi}는 ${item.name}(${item.hanja})`).join(" · ")
+    : "";
+  const palaces = [analysis.taewon, analysis.minggung, analysis.shingung]
+    .filter(Boolean)
+    .map((item: any) => `${item.name} ${item.stemHanja}${item.branchHanja}(${item.tenGod}·${item.unseong}): ${item.advice}`)
+    .join(" ");
+  const missing = analysis.requiresBirthTime ? "출생시간 미입력으로 명궁·신궁은 제외했습니다." : "";
+  return [nayin, palaces, missing].filter(Boolean).join(" ");
+}
+
+function formatLuckFlowAnalysis(result: Record<string, any>) {
+  const flow = result.luckFlowAnalysis;
+  if (!flow) return "";
+  const current = Array.isArray(flow.periods)
+    ? flow.periods.find((item: any) => item.idx === flow.currentDaeunIndex)
+    : null;
+  const years = Array.isArray(flow.annual)
+    ? flow.annual.slice(0, 5).map((item: any) => `${item.year}년 ${item.level} ${item.score}점(${item.headline})`).join(" · ")
+    : "";
+  return [
+    current ? `현재 ${current.stem}${current.branch} 대운: ${current.summary} ${current.advice}` : "",
+    years ? `향후 5년: ${years}` : "",
+  ].filter(Boolean).join(" ");
+}
+
 export function buildSajuReportHtml(title: string, result: Record<string, any>) {
   const birthInfo = result.birthInfo ?? {};
   const summary = [
@@ -213,11 +242,17 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
       accent: "#6f92a6",
     },
     {
-      title: "대운과 조언",
+      title: "대운·세운 종합 흐름",
       body:
-        result.yongsin?.advice ??
-        "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요.",
+        formatLuckFlowAnalysis(result) ||
+        (result.yongsin?.advice ??
+          "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요."),
       accent: "#5b5368",
+    },
+    {
+      title: "납음오행·태원·명궁·신궁",
+      body: formatAuxiliaryAnalysis(result) || "보조 분석 데이터가 준비되지 않았습니다.",
+      accent: "#58727a",
     },
   ];
 
@@ -380,13 +415,28 @@ export async function generateSajuReportPdf(title: string, result: Record<string
       accent: "#6f92a6",
     },
     {
+      title: "대운·세운 종합 흐름",
+      hanja: "大運歲運",
+      body:
+        formatLuckFlowAnalysis(result) ||
+        (result.yongsin?.advice ??
+          "조급하게 결론을 내리기보다 현재 강한 기운과 부족한 기운을 함께 보며 움직이세요."),
+      accent: "#6d657d",
+    },
+    {
       title: "조심해야 할 시기와 행동",
       hanja: "助言",
       body:
-        result.yongsin?.advice ??
         result.samjae?.advice ??
+        result.yongsin?.advice ??
         "중요한 결정은 한 번 더 확인하고, 감정이 급해질 때는 속도를 늦추는 편이 좋습니다.",
       accent: "#5b5368",
+    },
+    {
+      title: "납음오행과 삼원",
+      hanja: "納音三元",
+      body: formatAuxiliaryAnalysis(result) || "보조 분석 데이터가 준비되지 않았습니다.",
+      accent: "#58727a",
     },
   ];
 

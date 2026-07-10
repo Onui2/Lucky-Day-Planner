@@ -37,6 +37,31 @@ function buildSajuContext(result: Record<string, any>): string {
         .join(" → ")
     : "";
 
+  const detailedDaeun = Array.isArray(result.luckFlowAnalysis?.periods)
+    ? result.luckFlowAnalysis.periods
+        .filter((p: any) => p.idx === result.luckFlowAnalysis.currentDaeunIndex)
+        .map((p: any) => `${p.stem}${p.branch} ${p.level} ${p.score}점: ${oneLine(p.summary).slice(0, 220)}`)
+        .join("\n")
+    : "";
+
+  const annualFlow = Array.isArray(result.luckFlowAnalysis?.annual)
+    ? result.luckFlowAnalysis.annual
+        .slice(0, 5)
+        .map((p: any) => `${p.year}년 ${p.stem}${p.branch} ${p.level} ${p.score}점: ${oneLine(p.headline)}`)
+        .join("\n")
+    : "";
+
+  const auxiliary = result.auxiliaryAnalysis
+    ? [
+        ...(Array.isArray(result.auxiliaryAnalysis.nayinPillars)
+          ? result.auxiliaryAnalysis.nayinPillars.map((p: any) => `${p.pillar} ${p.ganzi} ${p.name}(${p.hanja})`)
+          : []),
+        ...[result.auxiliaryAnalysis.taewon, result.auxiliaryAnalysis.minggung, result.auxiliaryAnalysis.shingung]
+          .filter(Boolean)
+          .map((p: any) => `${p.name} ${p.stem}${p.branch}·${p.tenGod}·${p.unseong}`),
+      ].join("\n")
+    : "";
+
   const lines = [
     birth ? `## 기본 정보\n${birth}` : "",
     pillars ? `## 사주팔자\n${pillars}` : "",
@@ -44,8 +69,11 @@ function buildSajuContext(result: Record<string, any>): string {
     result.dayMasterElement ? `## 일간 오행: ${result.dayMasterElement}` : "",
     result.sinGangYak?.type ? `## 신강/신약: ${result.sinGangYak.type}` : "",
     result.yongsin?.yongsin ? `## 용신: ${result.yongsin.yongsin}` : "",
-    result.samjae?.isSamjae ? `## 삼재: ${result.samjae.advice ?? "해당"}` : "",
+    result.samjae?.inSamjae ? `## 삼재: ${result.samjae.advice ?? "해당"}` : "",
     daeun ? `## 대운 흐름\n${daeun}` : "",
+    detailedDaeun ? `## 현재 대운 종합\n${detailedDaeun}` : "",
+    annualFlow ? `## 향후 5년 종합 흐름\n${annualFlow}` : "",
+    auxiliary ? `## 납음·태원·명궁·신궁\n${auxiliary}` : "",
     result.personality ? `## 성격/기질\n${oneLine(result.personality).slice(0, 200)}` : "",
     result.fortune ? `## 종합 운세\n${oneLine(result.fortune).slice(0, 200)}` : "",
     result.shadowReading?.summary

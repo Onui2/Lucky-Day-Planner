@@ -216,7 +216,7 @@ export function Layout({ children }: LayoutProps) {
       href: "/glossary",
       label: "사주 용어 사전",
       icon: BookOpen,
-      desc: "천간·지지·십신 등 용어 61가지",
+      desc: "천간·지지·십신 등 용어 65가지",
     },
   ];
 
