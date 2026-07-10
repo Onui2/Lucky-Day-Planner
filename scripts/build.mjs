@@ -71,10 +71,24 @@ const env = {
   PATH: `${nodeBinDir}${path.delimiter}${process.env.PATH ?? ""}`,
 };
 
-const result = spawnSync("corepack", ["pnpm", "run", "build:workspace"], {
+const buildCommand = process.platform === "win32"
+  ? {
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", "corepack", "pnpm", "run", "build:workspace"],
+    }
+  : {
+      command: "corepack",
+      args: ["pnpm", "run", "build:workspace"],
+    };
+
+const result = spawnSync(buildCommand.command, buildCommand.args, {
   cwd: process.cwd(),
   env,
   stdio: "inherit",
 });
+
+if (result.error) {
+  console.error(result.error.message);
+}
 
 process.exit(result.status ?? 1);

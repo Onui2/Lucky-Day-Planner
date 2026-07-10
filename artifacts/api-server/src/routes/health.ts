@@ -6,6 +6,10 @@ import { getCheckoutMode } from "../lib/commerce.js";
 
 const router = Router();
 
+function isProductionLike(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+}
+
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
   res.json(data);
@@ -13,6 +17,14 @@ router.get("/healthz", (_req, res) => {
 
 router.get("/healthz/details", async (_req, res) => {
   const databaseConfigured = await isDatabaseAvailable();
+
+  if (isProductionLike()) {
+    res.json({
+      status: "ok",
+    });
+    return;
+  }
+
   const paymentMode = getCheckoutMode();
 
   res.json({

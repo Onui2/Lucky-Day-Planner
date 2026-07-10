@@ -72,6 +72,25 @@ const allowedCorsOrigins = collectCorsOrigins();
 
 const app = express();
 
+function isProductionLike(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+}
+
+function getErrorStatus(error: unknown): number {
+  if (!error || typeof error !== "object") {
+    return 500;
+  }
+
+  const status = "status" in error ? Number((error as { status?: unknown }).status) : NaN;
+  const statusCode =
+    "statusCode" in error ? Number((error as { statusCode?: unknown }).statusCode) : NaN;
+  const candidate = Number.isInteger(status) ? status : statusCode;
+
+  return Number.isInteger(candidate) && candidate >= 400 && candidate < 600
+    ? candidate
+    : 500;
+}
+
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use((_req, res, next) => {
@@ -200,6 +219,8 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
       ? error.message
       : "서버 오류가 발생했습니다.";
 
+  const statusCode = getErrorStatus(error);
+
   console.error("[api]", error);
 
   if (message.includes("DATABASE_URL must be set")) {
@@ -216,7 +237,16 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
     return;
   }
 
-  res.status(500).json({ error: message });
+  if (isProductionLike()) {
+    res.status(statusCode).json({
+      error: statusCode >= 500 ? "Internal server error." : "Bad request.",
+    });
+    return;
+  }
+
+  res.status(statusCode).json({ error: message });
+  return;
+
 });
 
 export default app;

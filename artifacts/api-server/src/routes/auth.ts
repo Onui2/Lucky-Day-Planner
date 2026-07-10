@@ -111,6 +111,14 @@ function hasConfiguredPrivilegedEmails(): boolean {
   );
 }
 
+function isProductionLike(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+}
+
+function isAdminBootstrapAllowed(): boolean {
+  return !isProductionLike();
+}
+
 async function requireLocalAuthDatabaseReady(res: Response): Promise<boolean> {
   if (await requireDatabase(res)) {
     return true;
@@ -134,6 +142,10 @@ function resolveRole(email: string | null | undefined, fallback = "user"): strin
 
 async function needsAdminBootstrap(): Promise<boolean> {
   if (!(await isDatabaseAvailable())) {
+    return false;
+  }
+
+  if (!isAdminBootstrapAllowed()) {
     return false;
   }
 
@@ -221,6 +233,18 @@ router.get("/auth/csrf", (req: Request, res: Response) => {
 
 router.get("/auth/setup-status", async (_req: Request, res: Response) => {
   const databaseAvailable = await isDatabaseAvailable();
+
+  if (isProductionLike()) {
+    res.json({
+      canSelfBootstrapAdmin: false,
+      hasConfiguredPrivilegedEmails: false,
+      databaseConfigured: true,
+      localPasswordAuthEnabled: true,
+      oidcEnabled: isOidcEnabled(),
+    });
+    return;
+  }
+
   res.json({
     canSelfBootstrapAdmin: await needsAdminBootstrap(),
     hasConfiguredPrivilegedEmails: hasConfiguredPrivilegedEmails(),
