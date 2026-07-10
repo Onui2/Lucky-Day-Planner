@@ -38,6 +38,8 @@ import {
 import {
   resolveBirthInput,
   type BirthCalculationOptions,
+  type DayBoundaryRule,
+  type ResolvedBirthDateTime,
 } from "./birth-resolution.js";
 import {
   getBirthTimeCandidateAnalysis,
@@ -91,6 +93,83 @@ function makePillarResponse(
     zodiac: pillar.zodiac,
     stemIndex: pillar.stemIndex,
     branchIndex: pillar.branchIndex,
+  };
+}
+
+type PillarResponse = ReturnType<typeof makePillarResponse>;
+
+const COMPARISON_PILLARS = [
+  ["year", "년주"],
+  ["month", "월주"],
+  ["day", "일주"],
+  ["hour", "시주"],
+] as const;
+
+function addComparisonDays(value: Pick<ResolvedBirthDateTime, "year" | "month" | "day">, amount: number) {
+  const date = new Date(Date.UTC(value.year, value.month - 1, value.day + amount));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function buildPillarSnapshot(value: ResolvedBirthDateTime, dayBoundary: DayBoundaryRule) {
+  const sajuYearNum = getSajuYear(value.year, value.month, value.day, value.hour, value.minute);
+  const yearPillar = getYearPillar(sajuYearNum);
+  const monthPillar = getMonthPillar(value.year, value.month, value.day, value.hour, value.minute);
+  const dayPillarDate = value.hour >= 0 && dayBoundary === "late-zi" && value.hour === 23
+    ? addComparisonDays(value, 1)
+    : { year: value.year, month: value.month, day: value.day };
+  const dayPillar = getDayPillar(dayPillarDate.year, dayPillarDate.month, dayPillarDate.day);
+  const hourPillar = value.hour >= 0 ? getHourPillar(dayPillar.stemIndex, value.hour) : null;
+
+  return {
+    dateTime: value,
+    dayPillarDate,
+    year: makePillarResponse(yearPillar),
+    month: makePillarResponse(monthPillar),
+    day: makePillarResponse(dayPillar),
+    hour: makePillarResponse(hourPillar),
+  };
+}
+
+function hasPillarChanged(before: PillarResponse, after: PillarResponse) {
+  return before.heavenlyStem !== after.heavenlyStem || before.earthlyBranch !== after.earthlyBranch;
+}
+
+function buildPillarComparison(calculationBasis: ReturnType<typeof resolveBirthInput>) {
+  const before = buildPillarSnapshot(calculationBasis.solarDate, "midnight");
+  const after = buildPillarSnapshot(calculationBasis.adjusted, calculationBasis.dayBoundary);
+  const changedPillars = COMPARISON_PILLARS
+    .filter(([key]) => hasPillarChanged(before[key], after[key]))
+    .map(([key, label]) => ({
+      key,
+      label,
+      before: `${before[key].heavenlyStem}${before[key].earthlyBranch}`,
+      after: `${after[key].heavenlyStem}${after[key].earthlyBranch}`,
+    }));
+
+  return {
+    beforeLabel: "보정 전(양력 민간시·자정 경계)",
+    afterLabel: "보정 후(선택 보정 적용)",
+    before,
+    after,
+    changedPillars,
+    summary: changedPillars.length > 0
+      ? `${changedPillars.map((item) => item.label).join("·")}가 보정 기준에 따라 달라졌습니다.`
+      : "진태양시·야자시 기준을 적용해도 네 기둥은 동일합니다.",
+    notes: [
+      calculationBasis.lunarConverted
+        ? `음력${calculationBasis.original.isLeapMonth ? " 윤달" : ""}을 양력 ${calculationBasis.solarDate.year}.${calculationBasis.solarDate.month}.${calculationBasis.solarDate.day}로 변환`
+        : "양력 입력값 기준",
+      calculationBasis.appliedTrueSolarTime
+        ? `진태양시 보정 ${calculationBasis.totalCorrectionMinutes > 0 ? "+" : ""}${calculationBasis.totalCorrectionMinutes}분 적용`
+        : "진태양시 보정 미적용",
+      calculationBasis.dayShiftedByLateZi
+        ? "야자시 기준으로 일주를 다음 날로 계산"
+        : calculationBasis.dayBoundary === "late-zi" ? "야자시 기준 선택, 일주 변경 없음" : "자정 기준 일주 계산",
+    ],
   };
 }
 
@@ -217,6 +296,10 @@ export function buildSajuResult(input: SajuBirthInput) {
         isLeapMonth: calculationBasis.original.isLeapMonth,
       })
     : null;
+  const calculationBasisWithComparison = {
+    ...calculationBasis,
+    pillarComparison: buildPillarComparison(calculationBasis),
+  };
 
   return {
     birthInfo: {
@@ -235,7 +318,7 @@ export function buildSajuResult(input: SajuBirthInput) {
       applyTrueSolarTime: calculationBasis.appliedTrueSolarTime,
       dayBoundary: calculationBasis.dayBoundary,
     },
-    calculationBasis,
+    calculationBasis: calculationBasisWithComparison,
     yearPillar: makePillarResponse(yearPillar),
     monthPillar: makePillarResponse(monthPillar),
     dayPillar: makePillarResponse(dayPillar),

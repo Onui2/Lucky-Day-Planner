@@ -169,7 +169,7 @@ export default function ProfileModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md bg-background/95 backdrop-blur-xl border-primary/30 text-foreground">
+      <DialogContent className="w-[calc(100vw-24px)] max-w-3xl max-h-[calc(100dvh-24px)] overflow-y-auto bg-background/95 backdrop-blur-xl border-primary/30 text-foreground p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-2xl font-serif text-gradient-gold flex items-center gap-2">
             <UserCircle2 className="w-6 h-6 text-primary" />
@@ -180,7 +180,7 @@ export default function ProfileModal({ open, onClose }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5 mt-2">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {/* 이름 */}
           <div className="space-y-1.5">
             <Label className="text-sm text-muted-foreground">이름 (선택)</Label>

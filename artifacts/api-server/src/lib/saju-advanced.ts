@@ -310,6 +310,8 @@ export interface UsefulGodMethodResult {
   confidence: Confidence;
   summary: string;
   evidence: string[];
+  school: string;
+  alternativeInterpretation: string;
 }
 
 export interface MultiUsefulGodAnalysis {
@@ -323,6 +325,9 @@ export interface MultiUsefulGodAnalysis {
     status: "해당 없음" | "검토 필요";
     summary: string;
     evidence: string[];
+    conditions: Array<{ label: string; passed: boolean; detail: string }>;
+    breakers: string[];
+    alternativeInterpretation: string;
   };
   summary: string;
   confidence: Confidence;
@@ -360,6 +365,8 @@ export function getMultiUsefulGodAnalysis(
         ? `${hidden.dayMaster.type} 일간을 돕는 인성 ${resource}와 비겁 ${dayElement}을 우선합니다.`
         : `중화에 가까워 과소한 ${eokbuUseful.slice(0, 2).join("·")}을 보완합니다.`,
     evidence: hidden.evidence,
+    school: "억부·신강약 중심",
+    alternativeInterpretation: "격국·조후를 더 강하게 보는 해석에서는 첫 용신 순위가 달라질 수 있습니다.",
   }];
 
   const johuElements = johu.needElements.filter((element): element is ElementName => ELEMENTS.includes(element as ElementName));
@@ -371,6 +378,8 @@ export function getMultiUsefulGodAnalysis(
     confidence: johuElements.length > 0 ? "high" : "medium",
     summary: `${johu.temperature}·${johu.moisture} 조후를 기준으로 ${johuElements.join("·") || sortedElements[0]} 기운을 보완합니다.`,
     evidence: [johu.summary, johu.advice],
+    school: "조후·계절 균형 중심",
+    alternativeInterpretation: "한난조습보다 신강약을 우선하는 해석에서는 보조 용신으로만 볼 수 있습니다.",
   });
 
   const strongest = [...ELEMENTS].sort((a, b) => hidden.elementScores[b] - hidden.elementScores[a]);
@@ -397,6 +406,8 @@ export function getMultiUsefulGodAnalysis(
     evidence: controllingPair
       ? [`${controllingPair[0]} ${hidden.elementScores[controllingPair[0]]}점`, `${controllingPair[1]} ${hidden.elementScores[controllingPair[1]]}점`]
       : ["뚜렷한 양강 대치 없음"],
+    school: "통관·상생 흐름 중심",
+    alternativeInterpretation: "충돌 오행이 약하거나 통관 오행이 무근하면 실제 작용은 제한적으로 볼 수 있습니다.",
   });
 
   const excess = strongest[0];
@@ -413,6 +424,8 @@ export function getMultiUsefulGodAnalysis(
       ? `과다한 ${excess}을 병으로 보고 이를 제어하는 ${medicine}을 약으로 봅니다.`
       : `독주하는 오행이 약해 가장 부족한 ${sortedElements[0]}을 생활 보완의 약으로 봅니다.`,
     evidence: [`${excess} ${round(hidden.elementScores[excess], 2)}점`, `오행 평균 ${round(average, 2)}점`],
+    school: "병약·과다오행 제어 중심",
+    alternativeInterpretation: "과다 오행이 월령을 얻어 격을 이루면 병이 아니라 쓰임으로 해석될 수 있습니다.",
   });
 
   const simple = simpleYongsin.yongsin as ElementName;
@@ -424,6 +437,8 @@ export function getMultiUsefulGodAnalysis(
     confidence: "low",
     summary: `단순 오행 개수에서는 ${simple}이 가장 부족해 보완 후보가 됩니다.`,
     evidence: ["천간·지지 표면 오행 개수 기준"],
+    school: "표면 오행 균형",
+    alternativeInterpretation: "지장간·월령 가중치를 반영하지 않는 참고값이라 최종 용신으로 단정하지 않습니다.",
   });
 
   const confidenceWeight: Record<Confidence, number> = { high: 3, medium: 2, low: 1 };
@@ -446,18 +461,59 @@ export function getMultiUsefulGodAnalysis(
   const nonSupportElements = ELEMENTS.filter((element) => element !== dayElement && element !== resource);
   const nonSupportTotal = nonSupportElements.reduce((sum, element) => sum + hidden.elementScores[element], 0);
   const dominantNonSupport = [...nonSupportElements].sort((a, b) => hidden.elementScores[b] - hidden.elementScores[a])[0];
+  const dominantNonSupportShare = round(
+    nonSupportTotal > 0 ? hidden.elementScores[dominantNonSupport] / nonSupportTotal * 100 : 0,
+  );
+  const outputScore = hidden.elementScores[output];
+  const wealthScore = hidden.elementScores[wealth];
+  const officerScore = hidden.elementScores[officer];
+  const pressureOutletScore = outputScore + wealthScore + officerScore;
+  const hasSeasonOrSeat = hidden.dayMaster.deukryeong || hidden.dayMaster.deukji;
+  const jongConditions = [
+    { label: "일간 통근 약함", passed: dayRoot < 0.45, detail: `${round(dayRoot, 2)}점` },
+    { label: "비겁·인성 지원 18% 이하", passed: hidden.dayMaster.strengthPercent <= 18, detail: `${hidden.dayMaster.strengthPercent}%` },
+    { label: "비지원 오행 한쪽 집중", passed: dominantNonSupportShare >= 45, detail: `${dominantNonSupport} ${dominantNonSupportShare}%` },
+    { label: "득령·득지 약함", passed: !hasSeasonOrSeat, detail: `득령 ${hidden.dayMaster.deukryeong ? "있음" : "없음"} · 득지 ${hidden.dayMaster.deukji ? "있음" : "없음"}` },
+  ];
+  const jongBreakers = [
+    ...(dayRoot >= 0.45 ? [`일간 통근 ${round(dayRoot, 2)}점이 남아 종격 파격 가능`] : []),
+    ...(hidden.dayMaster.deukryeong ? ["월령에서 일간 또는 인성 지원이 있어 종격 파격 가능"] : []),
+    ...(hidden.dayMaster.deukji ? ["일지에서 일간 또는 인성 지원이 있어 종격 파격 가능"] : []),
+    ...(dominantNonSupportShare < 45 ? [`비지원 오행 집중도 ${dominantNonSupportShare}%로 한쪽 기세가 부족`] : []),
+  ];
+  const jeonwangConditions = [
+    { label: "비겁·인성 지원 82% 이상", passed: hidden.dayMaster.strengthPercent >= 82, detail: `${hidden.dayMaster.strengthPercent}%` },
+    { label: "월령 또는 일지 지원", passed: hasSeasonOrSeat, detail: `득령 ${hidden.dayMaster.deukryeong ? "있음" : "없음"} · 득지 ${hidden.dayMaster.deukji ? "있음" : "없음"}` },
+    { label: "일간 뿌리 강함", passed: dayRoot >= 2.2, detail: `${round(dayRoot, 2)}점` },
+    { label: "설기·재관 압력 약함", passed: pressureOutletScore <= average * 1.8, detail: `${round(pressureOutletScore, 2)}점` },
+  ];
+  const jeonwangBreakers = [
+    ...(hidden.dayMaster.strengthPercent < 82 ? [`비겁·인성 지원 ${hidden.dayMaster.strengthPercent}%로 전왕격 기준 부족`] : []),
+    ...(!hasSeasonOrSeat ? ["월령·일지 지원이 약해 전왕격 성립 약함"] : []),
+    ...(outputScore > average * 1.2 ? [`식상 ${round(outputScore, 2)}점이 강해 설기 파격 가능`] : []),
+    ...(wealthScore + officerScore > average * 1.4 ? [`재관 압력 ${round(wealthScore + officerScore, 2)}점으로 전왕 흐름 방해`] : []),
+  ];
   let specialPattern: MultiUsefulGodAnalysis["specialPattern"] = {
     type: "일반격",
     status: "해당 없음",
     summary: "일간의 뿌리와 지원이 남아 있어 일반적인 신강약·격국 틀에서 판단합니다.",
     evidence: [`일간 통근 ${round(dayRoot, 2)}점`, `일간 지원 ${hidden.dayMaster.strengthPercent}%`],
+    conditions: [
+      { label: "종격 성립 부족", passed: jongConditions.filter((item) => item.passed).length < 3, detail: `${jongConditions.filter((item) => item.passed).length}/4 통과` },
+      { label: "전왕격 성립 부족", passed: jeonwangConditions.filter((item) => item.passed).length < 3, detail: `${jeonwangConditions.filter((item) => item.passed).length}/4 통과` },
+    ],
+    breakers: [...jongBreakers, ...jeonwangBreakers].slice(0, 4),
+    alternativeInterpretation: "특수격으로 확정할 근거가 약하므로 억부·조후 용신을 우선하되, 운에서 한쪽 기세가 극단화되면 별도 재검토합니다.",
   };
-  if (hidden.dayMaster.strengthPercent <= 18 && dayRoot < 0.45 && hidden.elementScores[dominantNonSupport] / Math.max(nonSupportTotal, 1) >= 0.45) {
+  if (hidden.dayMaster.strengthPercent <= 18 && dayRoot < 0.45 && dominantNonSupportShare >= 45) {
     specialPattern = {
       type: "종격 후보",
       status: "검토 필요",
       summary: `일간의 뿌리가 매우 약하고 ${dominantNonSupport} 기세가 집중돼 종격 가능성을 별도 검토해야 합니다. 자동 확정하지 않습니다.`,
-      evidence: [`일간 지원 ${hidden.dayMaster.strengthPercent}%`, `일간 통근 ${round(dayRoot, 2)}점`, `${dominantNonSupport} 우세`],
+      evidence: [`일간 지원 ${hidden.dayMaster.strengthPercent}%`, `일간 통근 ${round(dayRoot, 2)}점`, `${dominantNonSupport} 집중 ${dominantNonSupportShare}%`],
+      conditions: jongConditions,
+      breakers: jongBreakers,
+      alternativeInterpretation: "득령·득지나 인성 뿌리가 확인되면 종격이 깨지고 약한 일반격으로 해석하는 쪽이 안전합니다.",
     };
   } else if (hidden.dayMaster.strengthPercent >= 82) {
     specialPattern = {
@@ -465,6 +521,9 @@ export function getMultiUsefulGodAnalysis(
       status: "검토 필요",
       summary: "비겁·인성의 지원이 극단적으로 모여 전왕격 가능성을 검토해야 합니다. 운에서 설기 여부까지 확인해야 확정할 수 있습니다.",
       evidence: [`일간 지원 ${hidden.dayMaster.strengthPercent}%`, `득령 ${hidden.dayMaster.deukryeong ? "성립" : "불성립"}`],
+      conditions: jeonwangConditions,
+      breakers: jeonwangBreakers,
+      alternativeInterpretation: "식상·재성·관성이 강하게 투출하거나 운에서 설기가 열리면 전왕격보다 신강 일반격으로 봅니다.",
     };
   }
 

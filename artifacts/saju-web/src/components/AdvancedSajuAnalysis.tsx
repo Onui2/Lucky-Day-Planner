@@ -72,6 +72,16 @@ function Method({ children }: { children?: string }) {
   return <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground border-t border-foreground/8 pt-2">산식: {children}</p>;
 }
 
+function InterpretationNote({ school, alternative }: { school?: string; alternative?: string }) {
+  if (!school && !alternative) return null;
+  return (
+    <div className="mt-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+      {school && <p><span className="font-medium text-foreground/70">적용 관점</span> · {school}</p>}
+      {alternative && <p className={school ? "mt-1" : undefined}><span className="font-medium text-foreground/70">다른 해석 가능성</span> · {alternative}</p>}
+    </div>
+  );
+}
+
 function SectionTitle({ icon: Icon, title, meta }: { icon: React.ElementType; title: string; meta?: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -93,6 +103,59 @@ function ScoreBar({ score }: { score: number }) {
       />
     </div>
   );
+}
+
+function pillarName(pillar: any) {
+  if (!pillar || pillar.heavenlyStem === "?") return "미상";
+  return `${pillar.heavenlyStem}${pillar.earthlyBranch}`;
+}
+
+function PillarComparison({ comparison }: { comparison: any }) {
+  if (!comparison) return null;
+  const rows = [
+    ["year", "년주"],
+    ["month", "월주"],
+    ["day", "일주"],
+    ["hour", "시주"],
+  ] as const;
+
+  return (
+    <div className="mt-4 rounded-md border border-primary/15 bg-primary/[0.03] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold">보정 전후 팔자 비교</p>
+        <span className="text-[11px] text-primary">{comparison.changedPillars?.length ? `${comparison.changedPillars.length}개 변경` : "변경 없음"}</span>
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-foreground/70">{comparison.summary}</p>
+      <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {rows.map(([key, label]) => {
+          const changed = comparison.changedPillars?.some((item: any) => item.key === key);
+          return (
+            <div key={key} className={cn("rounded-md border px-2.5 py-2", changed ? "border-primary/30 bg-background/70" : "border-foreground/10 bg-background/40")}>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-xs font-semibold">{label}</p>
+                {changed && <span className="text-[10px] text-primary">변경</span>}
+              </div>
+              <div className="mt-2 space-y-1 text-[11px]">
+                <p className="flex items-center justify-between gap-2"><span className="text-muted-foreground">전</span><span className="font-serif font-semibold">{pillarName(comparison.before?.[key])}</span></p>
+                <p className="flex items-center justify-between gap-2"><span className="text-muted-foreground">후</span><span className={cn("font-serif font-semibold", changed && "text-primary")}>{pillarName(comparison.after?.[key])}</span></p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Evidence items={comparison.notes} />
+    </div>
+  );
+}
+
+function familyScorePercent(score: number) {
+  return Math.max(8, Math.min(100, Math.round((Number(score) || 0) * 20)));
+}
+
+function familyTone(level?: string) {
+  if (level === "강함") return "border-emerald-500/25 bg-emerald-500/[0.06]";
+  if (level === "약함") return "border-amber-500/25 bg-amber-500/[0.06]";
+  return "border-blue-500/20 bg-blue-500/[0.045]";
 }
 
 function CalculationBasisSection({ basis }: { basis: any }) {
@@ -118,17 +181,22 @@ function CalculationBasisSection({ basis }: { basis: any }) {
         <div className="border-l-2 border-amber-500/30 pl-3">
           <p className="text-xs text-muted-foreground">지역·경계</p>
           <p className="text-sm font-medium mt-1">{basis.birthPlace} · {basis.timeZone}</p>
-          <p className="text-xs text-muted-foreground mt-1">경도 {basis.longitude}° · {basis.dayBoundary === "late-zi" ? "야자시 23:00" : "자정 00:00"}</p>
+          <p className="text-xs text-muted-foreground mt-1">{basis.dayBoundary === "late-zi" ? "야자시 23:00 기준" : "자정 00:00 기준"}</p>
         </div>
       </div>
       {basis.appliedTrueSolarTime && (
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-md bg-foreground/5 px-2 py-2"><p className="text-[11px] text-muted-foreground">경도</p><p className="text-sm font-semibold">{basis.longitudeCorrectionMinutes}분</p></div>
+          <div className="rounded-md bg-foreground/5 px-2 py-2"><p className="text-[11px] text-muted-foreground">지역 보정</p><p className="text-sm font-semibold">{basis.longitudeCorrectionMinutes}분</p></div>
           <div className="rounded-md bg-foreground/5 px-2 py-2"><p className="text-[11px] text-muted-foreground">균시차</p><p className="text-sm font-semibold">{basis.equationOfTimeMinutes}분</p></div>
           <div className="rounded-md bg-foreground/5 px-2 py-2"><p className="text-[11px] text-muted-foreground">DST</p><p className="text-sm font-semibold">{basis.dstMinutes}분</p></div>
         </div>
       )}
+      <PillarComparison comparison={basis.pillarComparison} />
       {basis.warnings?.length > 0 && <Evidence items={basis.warnings} />}
+      <InterpretationNote
+        school="절기 기준 사주 계산에 IANA 시간대, 역사적 DST, 경도·균시차 진태양시, 야자시 기준을 순서대로 적용"
+        alternative="출생지가 대략값이거나 출생시각이 경계 근처면 시주·일주가 바뀔 수 있어 보정 전후 비교를 함께 확인합니다."
+      />
       <Method>{basis.method}</Method>
     </section>
   );
@@ -185,6 +253,10 @@ function HiddenStemSection({ analysis }: { analysis: any }) {
           </div>
         ))}
       </div>
+      <InterpretationNote
+        school="월지·일지·시지·년지 가중치와 지장간 정기/중기/여기, 통근·투출 동시 반영"
+        alternative="학파에 따라 월령 가중치를 더 크게 보거나 투출을 더 엄격히 잡으면 신강약 경계값이 달라질 수 있습니다."
+      />
       <Method>{analysis.method}</Method>
     </section>
   );
@@ -200,6 +272,13 @@ function UsefulGodSection({ analysis, transformations }: { analysis: any; transf
         meta={<div className="flex items-center gap-2"><span className={cn("rounded-md border px-2 py-1 text-sm font-semibold", ELEMENT_TONE[analysis.primary])}>{analysis.primary} 1순위</span><Confidence value={analysis.confidence} /></div>}
       />
       <p className="text-sm leading-relaxed text-foreground/80">{analysis.summary}</p>
+      <div className="mt-3 rounded-md border border-foreground/10 bg-foreground/[0.025] p-3">
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span className="text-muted-foreground">판정 일치도</span>
+          <span className="font-semibold text-foreground">{analysis.agreementScore}%</span>
+        </div>
+        <div className="mt-2"><ScoreBar score={analysis.agreementScore ?? 0} /></div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-4">
         {analysis.methods?.map((method: any) => (
           <div key={method.key} className="rounded-md border border-foreground/10 p-3">
@@ -212,13 +291,29 @@ function UsefulGodSection({ analysis, transformations }: { analysis: any; transf
             </div>
             <p className="text-xs leading-relaxed text-foreground/70 mt-2">{method.summary}</p>
             <Evidence items={method.evidence?.slice(0, 2)} />
+            <InterpretationNote school={method.school} alternative={method.alternativeInterpretation} />
           </div>
         ))}
       </div>
       <div className="mt-3 rounded-md border border-amber-500/20 bg-amber-500/5 p-3">
         <div className="flex items-center justify-between gap-2"><p className="text-sm font-semibold">{analysis.specialPattern?.type}</p><span className="text-xs text-amber-700">{analysis.specialPattern?.status}</span></div>
         <p className="text-xs leading-relaxed text-foreground/75 mt-1">{analysis.specialPattern?.summary}</p>
+        {analysis.specialPattern?.conditions?.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+            {analysis.specialPattern.conditions.map((condition: any) => (
+              <div key={condition.label} className={cn("rounded-md border px-2.5 py-2 text-xs", condition.passed ? "border-emerald-500/25 bg-emerald-500/8 text-emerald-800" : "border-foreground/10 bg-background/50 text-muted-foreground")}>
+                <div className="flex items-center gap-1.5">
+                  {condition.passed ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <Scale className="w-3.5 h-3.5 shrink-0" />}
+                  <span className="font-medium">{condition.label}</span>
+                </div>
+                <p className="mt-1 text-[11px] opacity-80">{condition.detail}</p>
+              </div>
+            ))}
+          </div>
+        )}
         <Evidence items={analysis.specialPattern?.evidence} />
+        <Evidence items={analysis.specialPattern?.breakers} />
+        <InterpretationNote alternative={analysis.specialPattern?.alternativeInterpretation} />
       </div>
       <div className="mt-4 space-y-2">
         {transformations?.items?.length > 0 ? transformations.items.map((item: any) => (
@@ -232,6 +327,10 @@ function UsefulGodSection({ analysis, transformations }: { analysis: any; transf
           </div>
         )) : <p className="text-xs text-muted-foreground rounded-md border border-foreground/10 px-3 py-2">{transformations?.summary}</p>}
       </div>
+      <InterpretationNote
+        school="용신 다중 판정과 월령·통근·방해 오행·충 관계를 함께 보는 합화 성립 조건"
+        alternative="합은 있어도 월령을 얻지 못하거나 방해 오행·충이 강하면 합화가 아닌 관계 신호로만 해석합니다."
+      />
       <Method>{analysis.method}</Method>
     </section>
   );
@@ -242,20 +341,65 @@ function FamilySection({ analysis }: { analysis: any }) {
   return (
     <section className="border-b border-primary/15 py-5">
       <SectionTitle icon={Users} title="육친 · 궁성" />
-      <p className="text-sm text-foreground/75 leading-relaxed">{analysis.summary}</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-4">
+      <div className="rounded-md border border-primary/15 bg-primary/[0.03] p-3">
+        <p className="text-sm text-foreground/80 leading-relaxed">{analysis.summary}</p>
+        <p className="mt-1 text-xs text-muted-foreground">관계별 십신 점수, 어느 궁성에서 나온 판단인지, 합충해 작용을 분리해서 표시합니다.</p>
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-4">
         {analysis.roles?.map((role: any) => (
-          <div key={role.key} className="rounded-md border border-foreground/10 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div><p className="text-sm font-semibold">{role.name}</p><p className="text-[11px] text-muted-foreground">{role.palaces?.join("·")} · {role.relatedGods?.join("·")}</p></div>
-              <div className="text-right"><p className="text-sm font-bold">{role.level}</p><p className="text-[11px] text-muted-foreground">{role.score}</p></div>
+          <div key={role.key} className={cn("rounded-md border p-3", familyTone(role.level))}>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">{role.name}</p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground mt-0.5">{role.domain}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Confidence value={role.confidence} />
+                <span className="rounded-md border border-foreground/10 bg-background/55 px-2 py-1 text-xs font-semibold">{role.level}</span>
+              </div>
             </div>
-            <p className="text-xs leading-relaxed text-foreground/75 mt-2">{role.summary}</p>
-            <p className="text-xs leading-relaxed text-primary/85 mt-2">{role.advice}</p>
-            <Evidence items={role.evidence?.slice(0, 3)} />
+            <div className="mt-3 rounded-md border border-foreground/10 bg-background/45 p-2.5">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-muted-foreground">관계 작용 강도</span>
+                <span className="font-semibold">{role.score}점</span>
+              </div>
+              <div className="mt-2"><ScoreBar score={familyScorePercent(role.score)} /></div>
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <p className="text-muted-foreground">궁성 출처</p>
+                  <p className="font-medium text-foreground/80">{role.palaces?.join(" · ") || "없음"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">십신 출처</p>
+                  <p className="font-medium text-foreground/80">{role.relatedGods?.join(" · ") || "없음"}</p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="rounded-md border border-foreground/10 bg-background/35 p-2.5">
+                <p className="text-[11px] font-semibold text-foreground/70">해석</p>
+                <p className="text-xs leading-relaxed text-foreground/75 mt-1">{role.summary}</p>
+              </div>
+              <div className="rounded-md border border-primary/15 bg-primary/[0.04] p-2.5">
+                <p className="text-[11px] font-semibold text-primary/85">맞춤 행동</p>
+                <p className="text-xs leading-relaxed text-foreground/75 mt-1">{role.advice}</p>
+              </div>
+            </div>
+            {role.interactions?.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {role.interactions.map((item: string) => (
+                  <span key={item} className="rounded-md border border-rose-500/20 bg-rose-500/5 px-2 py-1 text-[11px] text-rose-700">{item}</span>
+                ))}
+              </div>
+            )}
+            <Evidence items={role.evidence?.slice(0, 4)} />
           </div>
         ))}
       </div>
+      <InterpretationNote
+        school="궁성 위치와 십신을 함께 보아 부모·형제·배우자·자녀·직장 관계를 분리"
+        alternative="실제 관계 사건은 대운·세운의 작용과 생활 환경에 따라 다르므로, 강점·갈등·행동 조언을 분리해서 봅니다."
+      />
       <Method>{analysis.method}</Method>
     </section>
   );
@@ -307,6 +451,10 @@ function TimingSection({ transition, timeline }: { transition: any; timeline: an
           </div>
         </>
       )}
+      <InterpretationNote
+        school="대운 방향, 세운 주제, 월운 실행 시기, 일진·시각 후보를 단계별로 중첩"
+        alternative="계약·연애·이동처럼 목적이 다르면 월·일·시의 가중치가 달라져 최상위 날짜가 바뀔 수 있습니다."
+      />
       <Method>{timeline?.method ?? transition?.method}</Method>
     </section>
   );
@@ -426,6 +574,10 @@ function BirthTimeCandidatesSection({ result }: { result: any }) {
           </div>
         ))}
       </div>
+      <InterpretationNote
+        school="12개 시주 후보를 다시 계산하고, 시간과 무관한 해석과 시간에 따라 변하는 해석을 분리"
+        alternative="과거 사건 입력이 적으면 후보 압축은 참고값입니다. 가족 기록·출생증명·큰 사건 연도를 함께 대조해야 정확도가 올라갑니다."
+      />
       <Method>{analysis?.method}</Method>
     </section>
   );
