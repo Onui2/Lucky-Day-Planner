@@ -221,7 +221,7 @@ export function buildSajuResult(input: SajuBirthInput) {
       elementBalance,
     ),
     geokguk: getGeokguk(dayPillar.stem, { branch: dayPillar.branch }, elementBalance),
-    shinsal: getShinsal(yearPillar, monthPillar, dayPillar, hourPillar, dayPillar.stem),
+    shinsal: getShinsal(yearPillar, monthPillar, dayPillar, hourPillar, dayPillar.stem, input.gender),
     hapChung: getHapChung(yearPillar, monthPillar, dayPillar, hourPillar),
     pillarTenGods: getPillarTenGods(
       dayPillar.stem,

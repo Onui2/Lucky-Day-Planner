@@ -1787,6 +1787,11 @@ export default function SajuPage() {
                                 {item.name}
                               </span>
                               <span className="text-xs text-muted-foreground/60">({item.hanja})</span>
+                              {item.category && (
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted/30 text-muted-foreground border border-muted/40">
+                                  {item.category}
+                                </span>
+                              )}
                               {item.found ? (
                                 <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/20 text-primary border border-primary/40">
                                   📍 {item.foundIn?.join('·')}
@@ -1798,6 +1803,11 @@ export default function SajuPage() {
                               )}
                             </div>
                             <p className="text-sm text-foreground/70 leading-relaxed mb-2">{item.description}</p>
+                            {item.basis && (
+                              <p className="text-[11px] text-muted-foreground/65 leading-relaxed mb-2">
+                                기준: {item.basis}
+                              </p>
+                            )}
                             {item.advice && (
                               <div className="text-xs text-primary/80 bg-primary/5 rounded-lg px-2.5 py-1.5 border border-primary/15">
                                 💡 {item.advice}

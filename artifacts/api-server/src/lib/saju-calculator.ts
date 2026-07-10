@@ -2137,9 +2137,15 @@ export interface ShinsalItem {
   found: boolean;
   foundIn?: string[];
   icon: string;
+  category?: string;
+  basis?: string;
   description: string;
   advice?: string;
 }
+
+type SinsalTarget =
+  | { kind: 'branch'; index: number }
+  | { kind: 'stem'; index: number };
 
 // 4지지 그룹 → 신살 지지
 const SAMHAP_GROUPS = [[8,0,4],[2,6,10],[5,9,1],[11,3,7]]; // 申子辰/寅午戌/巳酉丑/亥卯未
@@ -2156,6 +2162,16 @@ const DOHWA_RESULT = [9, 3, 6, 0];
 const YEOKMA_RESULT = [2, 8, 11, 5];
 // 화개살: 申子辰→辰(4), 寅午戌→戌(10), 巳酉丑→丑(1), 亥卯未→未(7)
 const HWAGAE_RESULT = [4, 10, 1, 7];
+// 12신살: 申子辰/寅午戌/巳酉丑/亥卯未 기준
+const GEOPSAL_RESULT = [5, 11, 2, 8];
+const JAESAL_RESULT = [6, 0, 3, 9]; // 수옥살
+const CHEONSAL_RESULT = [7, 1, 4, 10];
+const JISAL_RESULT = [8, 2, 5, 11];
+const WOLSAL_RESULT = [10, 4, 7, 1];
+const MANGSIN_RESULT = [11, 5, 8, 2];
+const JANGSEONG_RESULT = [0, 6, 9, 3];
+const BANAN_RESULT = [1, 7, 10, 4];
+const YUKHAE_RESULT = [3, 9, 0, 6];
 
 // 천을귀인: 일간 → [지지 인덱스 배열]
 const CHEONEUL: Record<string, number[]> = {
@@ -2165,7 +2181,7 @@ const CHEONEUL: Record<string, number[]> = {
   '신': [6, 2],                              // 午·寅
   '임': [5, 3], '계': [5, 3],                // 巳·卯
 };
-// 문창성: 일간 → 지지 인덱스
+// 문창귀인: 일간 → 지지 인덱스
 const MUNCHANG: Record<string, number> = {
   '갑':5, '을':6, '병':8, '정':9, '무':8, '기':9, '경':11, '신':0, '임':2, '계':3
 };
@@ -2173,6 +2189,43 @@ const MUNCHANG: Record<string, number> = {
 const YANGIN: Record<string, number> = {
   '갑':3, '병':6, '무':6, '경':9, '임':0
 };
+// 홍염살: 일간 기준
+const HONGYEOM: Record<string, number> = {
+  '갑':6, '을':6, '병':2, '정':7, '무':4, '기':4, '경':10, '신':9, '임':0, '계':8
+};
+// 천덕귀인: 월지 기준. 일부는 천간, 일부는 지지로 찾는다.
+const CHEONDEOK: Record<number, SinsalTarget> = {
+  2: { kind: 'stem', index: 3 },   // 寅月 丁
+  3: { kind: 'branch', index: 8 }, // 卯月 申
+  4: { kind: 'stem', index: 8 },   // 辰月 壬
+  5: { kind: 'stem', index: 7 },   // 巳月 辛
+  6: { kind: 'branch', index: 11 },// 午月 亥
+  7: { kind: 'stem', index: 0 },   // 未月 甲
+  8: { kind: 'stem', index: 9 },   // 申月 癸
+  9: { kind: 'branch', index: 2 }, // 酉月 寅
+  10:{ kind: 'stem', index: 2 },   // 戌月 丙
+  11:{ kind: 'stem', index: 1 },   // 亥月 乙
+  0: { kind: 'branch', index: 5 }, // 子月 巳
+  1: { kind: 'stem', index: 6 },   // 丑月 庚
+};
+// 월덕귀인: 월지 삼합 기준 → 천간
+const WOLDEOK_STEM_BY_GROUP = [8, 2, 6, 0]; // 壬/丙/庚/甲
+const BAEKHO_GANZI = [
+  [0, 4], [1, 7], [2, 10], [3, 1], [4, 4], [8, 10], [9, 1],
+] as const;
+const GOEGANG_GANZI = [
+  [6, 4], [6, 10], [8, 4], [4, 10],
+] as const;
+const GWIMUN_PAIRS = [
+  [0, 9], [1, 6], [2, 7], [3, 8], [4, 11], [5, 10],
+] as const;
+const GOSIN_GWASUK_BY_GROUP = [
+  { gosin: 2, gwasuk: 10 }, // 亥子丑
+  { gosin: 5, gwasuk: 1 },  // 寅卯辰
+  { gosin: 8, gwasuk: 4 },  // 巳午未
+  { gosin: 11, gwasuk: 7 }, // 申酉戌
+] as const;
+
 // 공망(空亡): 일주 간지 인덱스 기준
 function getGongmangBranches(ganziIdx: number): number[] {
   const cycleStart = Math.floor(ganziIdx / 10) * 10;
@@ -2185,12 +2238,138 @@ export function getShinsal(
   monthPillar: ReturnType<typeof getYearPillar>,
   dayPillar: ReturnType<typeof getYearPillar>,
   hourPillar: ReturnType<typeof getYearPillar> | null,
-  dayStem: string
+  dayStem: string,
+  gender?: 'male' | 'female',
 ): ShinsalItem[] {
-  const BRANCH_NAMES = EARTHLY_BRANCHES;
   const pillarNames = ['연지', '월지', '일지', '시지'];
-  const allPillars = [yearPillar, monthPillar, dayPillar, hourPillar].filter(Boolean) as ReturnType<typeof getYearPillar>[];
+  const stemPillarNames = ['연간', '월간', '일간', '시간'];
+  const ganziPillarNames = ['년주', '월주', '일주', '시주'];
   const allPillarsFull = [yearPillar, monthPillar, dayPillar, hourPillar];
+
+  const branchLabel = (idx: number) => `${EARTHLY_BRANCHES[idx]}(${EARTHLY_BRANCHES_HANJA[idx]})`;
+  const stemLabel = (idx: number) => `${HEAVENLY_STEMS[idx]}(${HEAVENLY_STEMS_HANJA[idx]})`;
+  const formatBranches = (indexes: number[]) => indexes.map(branchLabel).join('·');
+  const unique = <T,>(values: T[]) => Array.from(new Set(values));
+
+  function findBranchTargets(targets: number[]): string[] {
+    const targetSet = new Set(targets);
+    const found: string[] = [];
+    allPillarsFull.forEach((p, i) => {
+      if (p && targetSet.has(p.branchIndex)) found.push(pillarNames[i]);
+    });
+    return found;
+  }
+
+  function findStemTargets(targets: number[]): string[] {
+    const targetSet = new Set(targets);
+    const found: string[] = [];
+    allPillarsFull.forEach((p, i) => {
+      if (p && targetSet.has(p.stemIndex)) found.push(stemPillarNames[i]);
+    });
+    return found;
+  }
+
+  function findTarget(target: SinsalTarget): string[] {
+    return target.kind === 'branch'
+      ? findBranchTargets([target.index])
+      : findStemTargets([target.index]);
+  }
+
+  function targetLabel(target: SinsalTarget): string {
+    return target.kind === 'branch' ? branchLabel(target.index) : stemLabel(target.index);
+  }
+
+  function findGanziTargets(targets: ReadonlyArray<readonly [number, number]>): string[] {
+    const found: string[] = [];
+    allPillarsFull.forEach((p, i) => {
+      if (!p) return;
+      if (targets.some(([stemIdx, branchIdx]) => p.stemIndex === stemIdx && p.branchIndex === branchIdx)) {
+        found.push(ganziPillarNames[i]);
+      }
+    });
+    return found;
+  }
+
+  function formatGanziTargets(targets: ReadonlyArray<readonly [number, number]>): string {
+    return targets
+      .map(([stemIdx, branchIdx]) => `${HEAVENLY_STEMS_HANJA[stemIdx]}${EARTHLY_BRANCHES_HANJA[branchIdx]}`)
+      .join('·');
+  }
+
+  function findBranchPairs(pairs: ReadonlyArray<readonly [number, number]>): string[] {
+    const found: string[] = [];
+    for (let i = 0; i < allPillarsFull.length; i += 1) {
+      const left = allPillarsFull[i];
+      if (!left) continue;
+      for (let j = i + 1; j < allPillarsFull.length; j += 1) {
+        const right = allPillarsFull[j];
+        if (!right) continue;
+        const matched = pairs.some(([a, b]) =>
+          (left.branchIndex === a && right.branchIndex === b) ||
+          (left.branchIndex === b && right.branchIndex === a),
+        );
+        if (matched) found.push(`${pillarNames[i]}·${pillarNames[j]}`);
+      }
+    }
+    return found;
+  }
+
+  function item(params: {
+    name: string;
+    hanja: string;
+    icon: string;
+    category: string;
+    foundIn: string[];
+    basis: string;
+    foundText: string;
+    absentText: string;
+    foundAdvice: string;
+    absentAdvice: string;
+  }): ShinsalItem {
+    const foundIn = unique(params.foundIn);
+    const found = foundIn.length > 0;
+    const location = found ? `${foundIn.join('·')}에서 확인됩니다` : '원국에 직접 드러나지 않습니다';
+    return {
+      name: params.name,
+      hanja: params.hanja,
+      icon: params.icon,
+      category: params.category,
+      found,
+      foundIn,
+      basis: params.basis,
+      description: `${params.name}(${params.hanja})은 ${location}. ${found ? params.foundText : params.absentText}`,
+      advice: found ? params.foundAdvice : params.absentAdvice,
+    };
+  }
+
+  function samhapTargets(results: number[]): number[] {
+    const targets: number[] = [];
+    const baseIdxYear = getSamhapGroup(yearPillar.branchIndex);
+    const baseIdxDay  = getSamhapGroup(dayPillar.branchIndex);
+    if (baseIdxYear >= 0) targets.push(results[baseIdxYear]);
+    if (baseIdxDay >= 0) targets.push(results[baseIdxDay]);
+    return unique(targets);
+  }
+
+  function branchSinsal(params: {
+    name: string;
+    hanja: string;
+    icon: string;
+    category: string;
+    results: number[];
+    foundText: string;
+    absentText: string;
+    foundAdvice: string;
+    absentAdvice: string;
+  }): ShinsalItem {
+    const targets = samhapTargets(params.results);
+    const foundIn = findBranchTargets(targets);
+    return item({
+      ...params,
+      foundIn,
+      basis: `연지 ${branchLabel(yearPillar.branchIndex)}·일지 ${branchLabel(dayPillar.branchIndex)} 삼합 기준 → ${formatBranches(targets)}`,
+    });
+  }
 
   // 일주 간지 인덱스
   const dayGanziIdx = getGanziIdx(dayPillar.stemIndex, dayPillar.branchIndex);
@@ -2202,93 +2381,236 @@ export function getShinsal(
     if (p && gongmangBranches.includes(p.branchIndex)) gongmangFound.push(pillarNames[i]);
   });
 
-  // 도화살·역마살·화개살 (년지·일지 기준)
-  const baseIdxYear = getSamhapGroup(yearPillar.branchIndex);
-  const baseIdxDay  = getSamhapGroup(dayPillar.branchIndex);
-
-  function findShinsal(results: number[]) {
-    const targets = new Set<number>();
-    if (baseIdxYear >= 0) targets.add(results[baseIdxYear]);
-    if (baseIdxDay  >= 0) targets.add(results[baseIdxDay]);
-    const found: string[] = [];
-    allPillarsFull.forEach((p, i) => {
-      if (p && targets.has(p.branchIndex)) found.push(pillarNames[i]);
-    });
-    return found;
-  }
-
-  const dohwaFound  = findShinsal(DOHWA_RESULT);
-  const yeokmaFound = findShinsal(YEOKMA_RESULT);
-  const hwagaeFound = findShinsal(HWAGAE_RESULT);
-
   // 천을귀인 (일간 기준)
   const cheoneulTargets = CHEONEUL[dayStem] ?? [];
-  const cheoneulFound: string[] = [];
-  allPillarsFull.forEach((p, i) => {
-    if (p && cheoneulTargets.includes(p.branchIndex)) cheoneulFound.push(pillarNames[i]);
-  });
+  const cheoneulFound = findBranchTargets(cheoneulTargets);
 
-  // 문창성 (일간 기준)
+  // 문창귀인 (일간 기준)
   const munchangTarget = MUNCHANG[dayStem];
-  const munchangFound: string[] = [];
-  if (munchangTarget !== undefined) {
-    allPillarsFull.forEach((p, i) => {
-      if (p && p.branchIndex === munchangTarget) munchangFound.push(pillarNames[i]);
-    });
-  }
+  const munchangFound = munchangTarget !== undefined ? findBranchTargets([munchangTarget]) : [];
 
   // 양인살 (일간 기준, 양간만)
   const yanginTarget = YANGIN[dayStem];
-  const yanginFound: string[] = [];
-  if (yanginTarget !== undefined) {
-    allPillarsFull.forEach((p, i) => {
-      if (p && p.branchIndex === yanginTarget) yanginFound.push(pillarNames[i]);
-    });
-  }
+  const yanginFound = yanginTarget !== undefined ? findBranchTargets([yanginTarget]) : [];
+
+  const hongyeomTarget = HONGYEOM[dayStem];
+  const hongyeomFound = hongyeomTarget !== undefined ? findBranchTargets([hongyeomTarget]) : [];
+  const cheondeokTarget = CHEONDEOK[monthPillar.branchIndex];
+  const cheondeokFound = cheondeokTarget ? findTarget(cheondeokTarget) : [];
+  const woldeokStem = WOLDEOK_STEM_BY_GROUP[getSamhapGroup(monthPillar.branchIndex)];
+  const woldeokFound = woldeokStem !== undefined ? findStemTargets([woldeokStem]) : [];
+  const baekhoFound = findGanziTargets(BAEKHO_GANZI);
+  const goegangFound = findGanziTargets(GOEGANG_GANZI);
+  const gwimunFound = findBranchPairs(GWIMUN_PAIRS);
+
+  const yearSeasonGroup =
+    [11, 0, 1].includes(yearPillar.branchIndex) ? 0 :
+    [2, 3, 4].includes(yearPillar.branchIndex) ? 1 :
+    [5, 6, 7].includes(yearPillar.branchIndex) ? 2 : 3;
+  const lonelyTargets = GOSIN_GWASUK_BY_GROUP[yearSeasonGroup];
+  const gosinFound = findBranchTargets([lonelyTargets.gosin]);
+  const gwasukFound = findBranchTargets([lonelyTargets.gwasuk]);
+  const lonelyFound = unique([...gosinFound.map((p) => `고신 ${p}`), ...gwasukFound.map((p) => `과숙 ${p}`)]);
+  const lonelyFocus = gender === 'female'
+    ? '여성 사주에서는 과숙 쪽 외로움·배우자 거리감이 더 민감하게 해석됩니다.'
+    : '남성 사주에서는 고신 쪽 독립성·가족 거리감이 더 민감하게 해석됩니다.';
 
   return [
-    {
-      name: '천을귀인', hanja: '天乙貴人', icon: '⭐',
-      found: cheoneulFound.length > 0, foundIn: cheoneulFound,
-      description: '도움과 보호의 의미가 강한 귀인성(貴人星)입니다. 어려운 상황에서 주변의 조언이나 지원을 얻기 쉬운 편으로 봅니다.',
-      advice: cheoneulFound.length > 0 ? '귀인과의 인연을 소중히 여기고, 자신도 다른 이에게 귀인이 되어주세요.' : '대인관계를 넓히면 귀인 인연이 열립니다.',
-    },
-    {
-      name: '문창성', hanja: '文昌星', icon: '📚',
-      found: munchangFound.length > 0, foundIn: munchangFound,
-      description: '학문·글쓰기·창의적 사고를 빛나게 하는 문성(文星). 지식을 다루는 직업에서 두각을 나타내고, 언변과 문재(文才)가 탁월합니다.',
-      advice: munchangFound.length > 0 ? '교육·연구·저술·법조·방송 분야에서 탁월한 능력을 발휘합니다.' : '꾸준한 학습이 재능을 꽃피우는 열쇠입니다.',
-    },
-    {
-      name: '도화살', hanja: '桃花殺', icon: '🌸',
-      found: dohwaFound.length > 0, foundIn: dohwaFound,
-      description: '이성에게 강한 매력을 발산하는 도화(桃花) 기운. 인기·예술 감각·사교성이 탁월하며, 연예·방송·서비스업에서 빛납니다. 단, 이성 관계에서 구설수를 주의해야 합니다.',
-      advice: dohwaFound.length > 0 ? '매력을 긍정적으로 활용하되, 이성 관계는 신중하게 접근하세요.' : '자신의 매력을 자연스럽게 드러내는 연습을 해보세요.',
-    },
-    {
-      name: '역마살', hanja: '驛馬殺', icon: '🐎',
-      found: yeokmaFound.length > 0, foundIn: yeokmaFound,
-      description: '끊임없이 움직이고 이동하는 역마(驛馬) 기운. 여행·무역·이사·출장이 잦고, 한 곳에 정착하기 어려울 수 있습니다. 해외 활동·물류·영업에서 강점을 발휘합니다.',
-      advice: yeokmaFound.length > 0 ? '이동과 변화를 두려워하지 말고, 넓은 세상을 무대로 활용하세요.' : '가끔 새로운 환경에 뛰어드는 도전이 운을 열어줍니다.',
-    },
-    {
-      name: '화개살', hanja: '華蓋殺', icon: '🎭',
-      found: hwagaeFound.length > 0, foundIn: hwagaeFound,
-      description: '예술·종교·철학적 감수성을 높이는 화개(華蓋) 기운. 고독을 즐기며 독창적 세계를 구축합니다. 예술·종교·연구 분야에서 독보적 경지를 이룹니다.',
-      advice: hwagaeFound.length > 0 ? '자신만의 예술·철학적 세계를 발전시키면 독보적 전문가가 됩니다.' : '창의적 취미를 가꾸면 내면이 풍요로워집니다.',
-    },
-    {
-      name: '양인살', hanja: '羊刃殺', icon: '⚔️',
-      found: yanginFound.length > 0, foundIn: yanginFound,
-      description: '강렬한 의지와 저돌적 추진력을 상징하는 양인(羊刃). 군경·의료·스포츠에서 두각을 나타내지만, 과하면 급한 성미와 사고·수술 위험이 따릅니다.',
-      advice: yanginFound.length > 0 ? '강한 의지를 긍정적 방향으로 쏟고, 건강·안전 관리를 철저히 하세요.' : '결단력과 추진력을 기르면 큰 성취를 이룹니다.',
-    },
-    {
-      name: '공망', hanja: '空亡', icon: '🕳️',
-      found: gongmangFound.length > 0, foundIn: gongmangFound,
-      description: `공망(空亡)은 힘이 빠지고 허(虛)하게 작용하는 지지를 의미합니다. 해당 기둥이 나타내는 인연(부모·형제·배우자·자녀 등)에서 결핍이나 이별 경험이 생길 수 있습니다. 공망된 ${gongmangBranches.map(b=>EARTHLY_BRANCHES[b]).join('·')}가 사주 내에 있습니다.`,
-      advice: gongmangFound.length > 0 ? '공망의 영역에서 집착보다 내려놓음과 영적 성장으로 승화하면 오히려 좋은 운이 열립니다.' : '공망의 영향이 없어 해당 기둥이 온전하게 힘을 발휘합니다.',
-    },
+    item({
+      name: '천을귀인', hanja: '天乙貴人', icon: '⭐', category: '길신',
+      foundIn: cheoneulFound,
+      basis: `일간 ${dayStem} 기준 → ${formatBranches(cheoneulTargets)}`,
+      foundText: '위기 때 조언자·후원자·제도적 도움을 만나기 쉬운 구조입니다. 특히 발견된 기둥이 맡는 관계 영역에서 보호성이 살아납니다.',
+      absentText: '타고난 귀인성이 전면에 서기보다, 신뢰와 실력으로 귀인 인연을 직접 만들어가는 구조입니다.',
+      foundAdvice: '부탁할 사람을 미리 쌓고, 도움받은 만큼 돌려주는 방식이 길합니다.',
+      absentAdvice: '인맥보다 전문성·기록·약속 이행을 앞세우면 귀인운이 후천적으로 열립니다.',
+    }),
+    item({
+      name: '문창귀인', hanja: '文昌貴人', icon: '📚', category: '길신',
+      foundIn: munchangFound,
+      basis: `일간 ${dayStem} 기준 → ${munchangTarget !== undefined ? branchLabel(munchangTarget) : '해당 없음'}`,
+      foundText: '학습·문서·언어 감각이 사주 안에서 바로 작동합니다. 시험, 자격, 기획, 글쓰기처럼 정리해서 드러내는 일에 강점이 있습니다.',
+      absentText: '문창이 직접 드러나지는 않지만 반복 학습과 기록 습관으로 문서운을 보완할 수 있습니다.',
+      foundAdvice: '배운 내용을 말이나 글로 남기면 운이 더 선명해집니다.',
+      absentAdvice: '중요한 시험·계약은 초안과 검토 시간을 따로 두는 편이 좋습니다.',
+    }),
+    branchSinsal({
+      name: '겁살', hanja: '劫殺', icon: '⚡', category: '흉살',
+      results: GEOPSAL_RESULT,
+      foundText: '외부 변수로 재물·관계·계획이 갑자기 흔들릴 수 있습니다. 대신 위기 대응력과 승부 근성도 강하게 붙습니다.',
+      absentText: '강탈·급변성은 약한 편입니다. 무리한 승부보다 안정적 축적이 더 잘 맞습니다.',
+      foundAdvice: '투기·보증·비공식 거래를 피하고, 보험·백업·증빙을 준비하세요.',
+      absentAdvice: '큰 리스크를 떠안기보다 느리게 쌓는 전략이 손실을 줄입니다.',
+    }),
+    branchSinsal({
+      name: '재살(수옥살)', hanja: '災殺·囚獄殺', icon: '⛓️', category: '흉살',
+      results: JAESAL_RESULT,
+      foundText: '자유가 묶이는 기운이라 관재·송사·규정 위반·계약 문제에 민감합니다. 권력·통제·법적 구조를 다루는 힘으로 쓰면 강점이 됩니다.',
+      absentText: '수옥살의 직접 압박은 약합니다. 다만 계약과 법적 책임은 기본적으로 꼼꼼히 보는 편이 좋습니다.',
+      foundAdvice: '계약서, 세금, 교통법규, 직장 규정을 보수적으로 지키세요.',
+      absentAdvice: '중요 문서는 구두 약속보다 서면으로 남기면 불필요한 분쟁을 줄입니다.',
+    }),
+    branchSinsal({
+      name: '천살', hanja: '天殺', icon: '🌩️', category: '흉살',
+      results: CHEONSAL_RESULT,
+      foundText: '내 뜻 밖의 일정 변경, 환경 변수, 윗선의 결정에 흔들리기 쉽습니다. 정신성·신앙·큰 그림을 보는 감각도 함께 강해집니다.',
+      absentText: '예측 불가한 외부 충격성은 비교적 약합니다. 계획을 세워 움직일수록 안정됩니다.',
+      foundAdvice: '통제 불가한 일에는 예비 일정과 대안을 두고, 자존심 싸움은 피하세요.',
+      absentAdvice: '계획형 장점을 살려 장기 목표를 세밀하게 쪼개면 좋습니다.',
+    }),
+    branchSinsal({
+      name: '지살', hanja: '地殺', icon: '🧳', category: '동살',
+      results: JISAL_RESULT,
+      foundText: '스스로 움직여 기회를 만드는 이동운입니다. 출장·이사·전직·영업·외부 활동에서 활로가 열립니다.',
+      absentText: '능동적 이동성은 약한 편이라, 한 영역을 오래 파고드는 방식이 더 맞습니다.',
+      foundAdvice: '움직임을 산만하게 쓰지 말고 목표 있는 이동으로 설계하세요.',
+      absentAdvice: '무리한 변화보다 익숙한 기반 안에서 확장하는 전략이 좋습니다.',
+    }),
+    branchSinsal({
+      name: '도화살', hanja: '桃花殺', icon: '🌸', category: '반길반흉',
+      results: DOHWA_RESULT,
+      foundText: '사람의 시선과 호감을 끌어당기는 기운입니다. 예술·홍보·서비스·대중 활동에는 강점이나 관계 구설도 같이 관리해야 합니다.',
+      absentText: '노출형 매력보다 신뢰와 실력으로 호감을 쌓는 흐름입니다.',
+      foundAdvice: '매력은 일과 창작에 쓰고, 사적인 관계에서는 선을 분명히 두세요.',
+      absentAdvice: '표현력·스타일·대화 빈도를 의식적으로 키우면 부족한 도화가 보완됩니다.',
+    }),
+    branchSinsal({
+      name: '월살', hanja: '月殺', icon: '🍂', category: '흉살',
+      results: WOLSAL_RESULT,
+      foundText: '일이 빨리 피어나기보다 한 번 마르고 쉬어가는 흐름입니다. 인내·정리·수행에는 좋지만 확장 속도는 조절해야 합니다.',
+      absentText: '메마름과 정체의 신살 압박은 약합니다. 흐름을 잡으면 추진이 비교적 곧게 나갑니다.',
+      foundAdvice: '무리한 확장보다 체력, 현금흐름, 기본기를 먼저 회복하세요.',
+      absentAdvice: '기회가 왔을 때 지나치게 늦추지 말고 실행력을 붙이세요.',
+    }),
+    branchSinsal({
+      name: '망신살', hanja: '亡身殺', icon: '🎭', category: '흉살',
+      results: MANGSIN_RESULT,
+      foundText: '숨기고 싶은 일이 드러나거나 말실수로 체면이 상하기 쉬운 기운입니다. 반대로 공개 활동·발표·영업에는 존재감이 됩니다.',
+      absentText: '구설과 노출 리스크는 약한 편입니다. 조용히 실속을 챙기는 흐름이 잘 맞습니다.',
+      foundAdvice: '메시지, 게시글, 사적 관계를 투명하게 관리하세요.',
+      absentAdvice: '필요한 순간에는 스스로를 드러내는 연습이 도움이 됩니다.',
+    }),
+    branchSinsal({
+      name: '장성살', hanja: '將星殺', icon: '🎖️', category: '강맹살',
+      results: JANGSEONG_RESULT,
+      foundText: '중심을 잡고 사람을 이끄는 힘이 있습니다. 권위·책임·승진운이 붙지만 독선으로 흐르면 마찰이 커집니다.',
+      absentText: '권위형 리더십보다 협업형·참모형으로 힘이 잘 납니다.',
+      foundAdvice: '지시보다 책임을 먼저 지는 태도가 장성의 힘을 좋게 씁니다.',
+      absentAdvice: '작은 프로젝트부터 맡아 리더십 경험을 쌓으세요.',
+    }),
+    branchSinsal({
+      name: '반안살', hanja: '攀鞍殺', icon: '🐴', category: '길신',
+      results: BANAN_RESULT,
+      foundText: '안장에 올라타는 출세운입니다. 윗사람의 인정, 승진, 명예, 안정적 재물 관리에 유리합니다.',
+      absentText: '후원에 기대는 출세운보다 직접 실력으로 자리 잡는 흐름입니다.',
+      foundAdvice: '상사의 신뢰를 얻는 일, 자격·직함·공식 성과를 챙기세요.',
+      absentAdvice: '성과를 수치와 기록으로 남기면 부족한 반안운을 보완합니다.',
+    }),
+    branchSinsal({
+      name: '역마살', hanja: '驛馬殺', icon: '🐎', category: '동살',
+      results: YEOKMA_RESULT,
+      foundText: '한곳에 머무르기보다 이동·변화·외부 활동에서 운이 살아납니다. 해외, 물류, 영업, 여행, 이직 이슈와 연결됩니다.',
+      absentText: '강한 이동 압박은 약합니다. 정착해서 깊이를 쌓는 방식이 더 안정적입니다.',
+      foundAdvice: '이동을 충동이 아니라 커리어 확장 루트로 설계하세요.',
+      absentAdvice: '필요한 변화만 선별하고, 한 기반을 오래 키우는 편이 좋습니다.',
+    }),
+    branchSinsal({
+      name: '육해살', hanja: '六害殺', icon: '⏳', category: '흉살',
+      results: YUKHAE_RESULT,
+      foundText: '일이 더디고 주변 변수에 발목 잡히기 쉬운 기운입니다. 꼼꼼함과 인내가 쌓이면 오히려 장기전에서 강해집니다.',
+      absentText: '지연·방해의 신살 압박은 약합니다. 결정한 일은 비교적 흐름을 타기 쉽습니다.',
+      foundAdvice: '보증·동업·건강 방치를 피하고, 일정에는 여유분을 두세요.',
+      absentAdvice: '속도를 낼 수 있을 때 주저하지 말고 실행하세요.',
+    }),
+    branchSinsal({
+      name: '화개살', hanja: '華蓋殺', icon: '🎭', category: '예술살',
+      results: HWAGAE_RESULT,
+      foundText: '혼자 몰입하는 예술·연구·철학·종교성이 강합니다. 고독이 약점이 아니라 깊이를 만드는 재료가 됩니다.',
+      absentText: '고독형 몰입보다 관계 속에서 에너지가 살아나는 편입니다.',
+      foundAdvice: '창작, 공부, 신앙, 전문 연구처럼 혼자 깊어지는 시간을 확보하세요.',
+      absentAdvice: '혼자 파고드는 시간과 사람 만나는 시간을 균형 있게 두세요.',
+    }),
+    item({
+      name: '양인살', hanja: '羊刃殺', icon: '⚔️', category: '강맹살',
+      foundIn: yanginFound,
+      basis: `양간 일간 기준 → ${yanginTarget !== undefined ? branchLabel(yanginTarget) : `${dayStem} 일간은 양인 대상 없음`}`,
+      foundText: '의지와 돌파력이 강하고 승부 상황에서 물러서지 않습니다. 과하면 급한 판단, 충돌, 수술·상처 이슈로 나타날 수 있습니다.',
+      absentText: '칼날처럼 밀어붙이는 기운은 약합니다. 무리한 승부보다 균형 잡힌 추진이 맞습니다.',
+      foundAdvice: '운동·훈련·규율로 힘을 쓰고, 분노한 상태에서 결정하지 마세요.',
+      absentAdvice: '결단을 미루기 쉬울 때는 기한과 기준을 먼저 정하세요.',
+    }),
+    item({
+      name: '백호살', hanja: '白虎殺', icon: '🐯', category: '흉살',
+      foundIn: baekhoFound,
+      basis: `간지 기준 → ${formatGanziTargets(BAEKHO_GANZI)}`,
+      foundText: '기운이 거칠고 강해 사고·수술·출혈성 이슈를 조심해야 합니다. 의료·군경·응급·위기관리처럼 강한 현장성에는 힘이 됩니다.',
+      absentText: '백호의 급격한 사고성은 직접 드러나지 않습니다. 안전운이 약하다는 뜻은 아니므로 기본 관리는 유지해야 합니다.',
+      foundAdvice: '운전, 날카로운 도구, 과격한 운동, 건강검진을 특히 챙기세요.',
+      absentAdvice: '위험을 과장하기보다 평소 안전 습관을 유지하면 충분합니다.',
+    }),
+    item({
+      name: '괴강살', hanja: '魁罡殺', icon: '👑', category: '강맹살',
+      foundIn: goegangFound,
+      basis: `간지 기준 → ${formatGanziTargets(GOEGANG_GANZI)}`,
+      foundText: `${goegangFound.includes('일주') ? '일주에 있어 작용이 강합니다.' : '일주 밖에 있어 보조적으로 작동합니다.'} 강한 자존심·통솔력·원칙성이 있고, 크게 올라가거나 크게 부딪히는 진폭이 있습니다.`,
+      absentText: '괴강 특유의 극단적 강맹함은 약합니다. 부드러운 조율형 역량이 더 자연스럽게 나옵니다.',
+      foundAdvice: '강한 판단력은 살리되, 독단으로 보이지 않게 검토자를 두세요.',
+      absentAdvice: '원칙이 필요한 자리에서는 기준을 명확히 세워 카리스마를 보완하세요.',
+    }),
+    item({
+      name: '홍염살', hanja: '紅艶殺', icon: '🌹', category: '반길반흉',
+      foundIn: hongyeomFound,
+      basis: `일간 ${dayStem} 기준 → ${hongyeomTarget !== undefined ? branchLabel(hongyeomTarget) : '해당 없음'}`,
+      foundText: '도화보다 은근한 매력과 분위기가 살아납니다. 호감·예술성·감성 표현은 강점이지만 감정 관계의 선은 중요합니다.',
+      absentText: '은근한 색기보다 담백한 신뢰감으로 사람을 끄는 편입니다.',
+      foundAdvice: '매력을 일, 창작, 이미지 관리로 쓰고 관계는 느리게 확인하세요.',
+      absentAdvice: '표현이 너무 건조해지지 않게 취향과 감정을 적당히 드러내세요.',
+    }),
+    item({
+      name: '귀문관살', hanja: '鬼門關殺', icon: '🔮', category: '흉살',
+      foundIn: gwimunFound,
+      basis: '지지 조합 기준 → 子酉·丑午·寅未·卯申·辰亥·巳戌',
+      foundText: '직관·몰입·예민함이 강합니다. 통찰력으로 쓰면 좋지만 불면, 의심, 강박처럼 신경이 과열될 때 조절이 필요합니다.',
+      absentText: '귀문 특유의 예민한 문은 강하지 않습니다. 판단이 비교적 현실 기준으로 흐르기 쉽습니다.',
+      foundAdvice: '수면, 명상, 기록, 상담처럼 생각을 배출하는 루틴을 두세요.',
+      absentAdvice: '직감보다 자료와 확인 절차를 기반으로 움직이면 장점이 살아납니다.',
+    }),
+    item({
+      name: '고신·과숙살', hanja: '孤神寡宿', icon: '🌑', category: '흉살',
+      foundIn: lonelyFound,
+      basis: `연지 ${branchLabel(yearPillar.branchIndex)} 기준 → 고신 ${branchLabel(lonelyTargets.gosin)}·과숙 ${branchLabel(lonelyTargets.gwasuk)}`,
+      foundText: `혼자 감당하는 힘이 강하고 가족·배우자와 정서적 거리를 느끼기 쉽습니다. ${lonelyFocus}`,
+      absentText: '고독살의 직접 작용은 약합니다. 관계가 끊기는 흐름보다 연결을 유지하는 힘이 더 자연스럽습니다.',
+      foundAdvice: '혼자 버티기보다 감정을 말로 확인하고, 관계 시간을 일정에 넣으세요.',
+      absentAdvice: '사람과의 연결을 당연하게 여기지 말고 꾸준히 관리하세요.',
+    }),
+    item({
+      name: '천덕귀인', hanja: '天德貴人', icon: '🕊️', category: '길신',
+      foundIn: cheondeokFound,
+      basis: `월지 ${branchLabel(monthPillar.branchIndex)} 기준 → ${cheondeokTarget ? targetLabel(cheondeokTarget) : '해당 없음'}`,
+      foundText: '하늘의 덕으로 흉을 누그러뜨리는 보호성이 있습니다. 어려운 일도 큰 화로 번지기 전에 도움이나 완충 장치가 생기기 쉽습니다.',
+      absentText: '천덕의 보호가 전면에 드러나진 않습니다. 선행과 신뢰로 덕을 쌓는 방식이 중요합니다.',
+      foundAdvice: '받은 도움을 베풀고, 공정한 태도를 유지하면 귀인운이 오래 갑니다.',
+      absentAdvice: '규칙을 지키고 평판을 깨끗하게 관리하는 것이 가장 좋은 보완입니다.',
+    }),
+    item({
+      name: '월덕귀인', hanja: '月德貴人', icon: '🌙', category: '길신',
+      foundIn: woldeokFound,
+      basis: `월지 삼합 기준 → ${woldeokStem !== undefined ? stemLabel(woldeokStem) : '해당 없음'}`,
+      foundText: '사람의 덕, 온화함, 완충력이 살아납니다. 가족·동료·주변 사람에게 도움을 받거나 갈등이 부드럽게 풀릴 가능성이 큽니다.',
+      absentText: '월덕의 완충이 강하게 드러나진 않습니다. 인간관계에서 먼저 배려하는 습관이 복을 만듭니다.',
+      foundAdvice: '부드러운 말과 중재 역할을 맡으면 월덕의 힘이 커집니다.',
+      absentAdvice: '갈등 상황에서는 즉답보다 시간을 두고 말하는 편이 좋습니다.',
+    }),
+    item({
+      name: '공망', hanja: '空亡', icon: '🕳️', category: '공망',
+      foundIn: gongmangFound,
+      basis: `일주 ${HEAVENLY_STEMS_HANJA[dayPillar.stemIndex]}${EARTHLY_BRANCHES_HANJA[dayPillar.branchIndex]} 순공 기준 → ${formatBranches(gongmangBranches)}`,
+      foundText: '해당 기둥의 인연과 역할이 허하게 작용하기 쉽습니다. 비어 있는 자리는 집착보다 내려놓음과 정신적 성장으로 풀 때 좋아집니다.',
+      absentText: '일주 기준 공망 지지가 원국에 직접 걸리지 않아 각 기둥의 힘이 비교적 온전하게 드러납니다.',
+      foundAdvice: '공망 자리의 관계·역할은 억지로 붙잡기보다 기대치를 조정하세요.',
+      absentAdvice: '공망 부담이 적으니 가진 기둥의 장점을 실질 행동으로 밀어붙이세요.',
+    }),
   ];
 }
 
