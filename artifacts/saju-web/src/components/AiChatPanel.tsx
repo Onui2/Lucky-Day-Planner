@@ -37,6 +37,7 @@ interface AiChatPanelProps {
   isAdmin?: boolean;
   externalOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  initialQuestion?: string;
 }
 
 const MAX_PROMPT_HISTORY = 6;
@@ -84,6 +85,7 @@ export function AiChatPanel({
   isAdmin = false,
   externalOpen,
   onOpenChange,
+  initialQuestion,
 }: AiChatPanelProps) {
   const { user } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -101,6 +103,8 @@ export function AiChatPanel({
   const [sessions, setSessions] = useState<AiChatSessionRecord[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const pendingInitialQuestionRef = useRef<string | null>(null);
+  const appliedInitialQuestionRef = useRef<string | null>(null);
   const loginHref = buildAuthHref("/login");
   const bottomRef = useRef<HTMLDivElement>(null);
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
@@ -236,6 +240,21 @@ export function AiChatPanel({
   ]);
 
   useEffect(() => {
+    const nextQuestion = initialQuestion?.trim();
+    if (!nextQuestion) {
+      return;
+    }
+
+    if (appliedInitialQuestionRef.current === nextQuestion) {
+      return;
+    }
+
+    appliedInitialQuestionRef.current = nextQuestion;
+    pendingInitialQuestionRef.current = nextQuestion;
+    setOpen(true);
+  }, [initialQuestion]);
+
+  useEffect(() => {
     if (!open || !historyReady || !isAuthenticated || !userId) {
       return;
     }
@@ -321,6 +340,24 @@ export function AiChatPanel({
     questionHistory,
     userId,
   ]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const nextQuestion = pendingInitialQuestionRef.current;
+    if (!nextQuestion) {
+      return;
+    }
+
+    pendingInitialQuestionRef.current = null;
+    setQuestion(nextQuestion);
+    globalThis.requestAnimationFrame(() => {
+      questionInputRef.current?.focus();
+      resizeQuestionInput();
+    });
+  }, [open, historyReady, activeSessionId]);
 
   useEffect(() => {
     if (!open) {

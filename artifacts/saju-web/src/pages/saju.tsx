@@ -341,6 +341,7 @@ const ELEM_BG: Record<string, string> = {
 export default function SajuPage() {
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
+  const initialAiQuestion = searchParams.get("aiPrompt")?.trim() || undefined;
 
   const [inputForm, setInputForm] = useState<InputForm>(() => {
     const y = searchParams.get("y"); const m = searchParams.get("m");
@@ -1475,6 +1476,7 @@ export default function SajuPage() {
             isAdmin={isAdmin}
             externalOpen={floatingPanel === "ai"}
             onOpenChange={handleAiPanelOpenChange}
+            initialQuestion={initialAiQuestion}
           />
           <ReportPurchaseButton
             birthInfo={monetizationBirthInfo}

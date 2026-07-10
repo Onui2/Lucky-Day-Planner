@@ -652,7 +652,21 @@ export default function Home() {
     : `${aiRemainingCount}/${aiLimitCount}회 남음`;
   const aiQuestionsExhausted =
     !hasUnlimitedAiAccess && Boolean(aiQuestionsData) && aiRemainingCount < 1;
+  const buildAiQuestionHref = (question?: string | null) => {
+    const trimmedQuestion = question?.trim();
+
+    if (aiQuestionsExhausted || !trimmedQuestion) {
+      return "/saju";
+    }
+
+    return `/saju?aiPrompt=${encodeURIComponent(trimmedQuestion)}`;
+  };
   const latestRecentActivity = recentActivities[0] ?? null;
+  const recommendedAiPromptHref = buildAiQuestionHref(recommendedAiPrompt);
+  const latestAiQuestionHref = buildAiQuestionHref(latestAiQuestion?.question);
+  const aiEntryHref = latestAiQuestion
+    ? latestAiQuestionHref
+    : recommendedAiPromptHref;
   const sortedBookmarks = [...bookmarks].sort((left, right) => {
     const leftDiff = getDateDiffFromToday(left, todayDate);
     const rightDiff = getDateDiffFromToday(right, todayDate);
@@ -701,7 +715,7 @@ export default function Home() {
       toneClass: "border-amber-500/20 bg-amber-500/10 text-amber-600",
     },
     {
-      href: "/saju",
+      href: aiEntryHref,
       label: "남은 AI 질문",
       value: hasUnlimitedAiAccess ? "무제한" : `${aiRemainingCount}회`,
       description: hasUnlimitedAiAccess ? "운영자 플랜" : `${aiQuestionCount}개 기록`,
@@ -968,7 +982,7 @@ export default function Home() {
         }
       : latestAiQuestion
         ? {
-            href: "/saju",
+            href: latestAiQuestionHref,
             label: "질문 이어가기",
             title: "AI 질문 다시 열기",
             description: "방금 본 해석에서 궁금했던 포인트를 바로 이어서 물어봅니다.",
@@ -1708,10 +1722,10 @@ export default function Home() {
                         </h3>
                       </div>
                       <Link
-                        href="/saju"
+                        href={aiEntryHref}
                         className="text-xs text-primary hover:underline"
                       >
-                        질문하기
+                        {latestAiQuestion ? "이어서 질문" : "질문하기"}
                       </Link>
                     </div>
 
@@ -1785,7 +1799,7 @@ export default function Home() {
                             </span>
                           </div>
                           <Link
-                            href="/saju"
+                            href={recommendedAiPromptHref}
                             className="text-xs text-primary hover:underline shrink-0"
                           >
                             {aiQuestionsExhausted ? "사주 보기" : "질문하러 가기"}
