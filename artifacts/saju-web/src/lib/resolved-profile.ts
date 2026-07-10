@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
+import { useSearch } from "wouter";
 
 import { useAuth } from "@workspace/replit-auth-web";
 import { useUser, type UserProfile } from "@/contexts/UserContext";
+import { parseBirthProfileSearch } from "@/lib/birth-profile-query";
+import { profileBirthPayload } from "@/lib/birth-precision";
 import { getSajuCacheStorageKey, LEGACY_SAJU_CACHE_STORAGE_KEY } from "@/lib/profile-storage";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function parseNumber(value: unknown, fallback = -1): number {
   if (value === null || value === undefined || typeof value === "boolean") return fallback;
@@ -102,10 +107,46 @@ export function readCachedSajuProfile(userId?: string | null): UserProfile | nul
   }
 }
 
+function needsPillarHydration(profile: UserProfile) {
+  return !profile.dayMasterElement
+    || !profile.dayMasterStem
+    || !profile.dayMasterBranch
+    || !profile.yearStem
+    || !profile.yearBranch
+    || !profile.monthStem
+    || !profile.monthBranch
+    || (profile.birthHour >= 0 && (!profile.hourStem || !profile.hourBranch));
+}
+
+async function hydrateProfilePillars(profile: UserProfile): Promise<UserProfile> {
+  if (!needsPillarHydration(profile)) return profile;
+
+  const response = await fetch(`${BASE}/api/saju/calculate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profileBirthPayload(profile)),
+  });
+
+  if (!response.ok) {
+    throw new Error("사주 계산 실패");
+  }
+
+  const data = await response.json();
+  const calculatedProfile = sajuResultToProfile(data);
+  return {
+    ...profile,
+    ...(calculatedProfile ?? {}),
+    name: profile.name ?? calculatedProfile?.name,
+  };
+}
+
 export function useResolvedProfile() {
+  const search = useSearch();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { profile, profileReady } = useUser();
   const [cachedProfile, setCachedProfile] = useState<UserProfile | null>(null);
+  const [hydratedQueryProfile, setHydratedQueryProfile] = useState<UserProfile | null>(null);
+  const queryProfile = parseBirthProfileSearch(search);
 
   useEffect(() => {
     if (authLoading) {
@@ -129,12 +170,44 @@ export function useResolvedProfile() {
     setCachedProfile(readCachedSajuProfile(user.id));
   }, [authLoading, isAuthenticated, profile, profileReady, user?.id]);
 
-  const resolvedProfile = authLoading || !isAuthenticated ? null : profile ?? cachedProfile;
+  useEffect(() => {
+    let cancelled = false;
+
+    if (authLoading || !isAuthenticated || !queryProfile?.profile) {
+      setHydratedQueryProfile(null);
+      return;
+    }
+
+    setHydratedQueryProfile(queryProfile.profile);
+
+    void (async () => {
+      try {
+        const hydrated = await hydrateProfilePillars(queryProfile.profile);
+        if (!cancelled) {
+          setHydratedQueryProfile(hydrated);
+        }
+      } catch {
+        if (!cancelled) {
+          setHydratedQueryProfile(queryProfile.profile);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, isAuthenticated, search]);
+
+  const resolvedProfile = authLoading || !isAuthenticated
+    ? null
+    : hydratedQueryProfile ?? queryProfile?.profile ?? profile ?? cachedProfile;
 
   return {
     profile: resolvedProfile,
+    hasQueryProfile: Boolean(queryProfile?.profile),
+    queryProfileLabel: queryProfile?.label,
     hasSavedProfile: isAuthenticated && Boolean(profile),
-    hasCachedProfile: isAuthenticated && !profile && Boolean(cachedProfile),
+    hasCachedProfile: isAuthenticated && !queryProfile?.profile && !profile && Boolean(cachedProfile),
     profileReady: authLoading ? false : profileReady,
   };
 }

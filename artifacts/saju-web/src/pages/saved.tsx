@@ -5,9 +5,10 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Trash2, Pencil, Check, X, BookMarked, LogIn, ChevronRight } from "lucide-react";
+import { Loader2, Trash2, Pencil, Check, X, BookMarked, LogIn, ChevronRight, Sun, CalendarDays, HeartHandshake } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { buildAuthHref } from "@/lib/auth-redirect";
+import { createBirthProfileSearchParams } from "@/lib/birth-profile-query";
 
 const STEM_HANJA: Record<string, string> = {
   갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸',
@@ -32,6 +33,23 @@ function formatHour(h: number) {
     if (norm >= k && norm < k + 2) return v;
   }
   return `${h}시`;
+}
+
+function buildSavedProfileHref(item: SavedSajuItem, pathname: string) {
+  const params = createBirthProfileSearchParams(item.birthInfo, item.label);
+  return `${pathname}?${params.toString()}`;
+}
+
+function appendSajuAnalysisParams(params: URLSearchParams, item: SavedSajuItem) {
+  const b = item.birthInfo;
+  params.set("min", String(b.minute ?? 0));
+  if (b.isLeapMonth) params.set("leap", "1");
+  if (b.birthPlace) params.set("bp", b.birthPlace);
+  if (b.timeZone) params.set("tz", b.timeZone);
+  if (typeof b.longitude === "number") params.set("lon", String(b.longitude));
+  if (typeof b.latitude === "number") params.set("lat", String(b.latitude));
+  if (b.applyTrueSolarTime) params.set("tst", "1");
+  if (b.dayBoundary) params.set("db", b.dayBoundary);
 }
 
 export default function SavedPage() {
@@ -63,6 +81,7 @@ export default function SavedPage() {
       h: String(b.hour), g: b.gender, c: b.calendarType,
       label: item.label,
     });
+    appendSajuAnalysisParams(params, item);
     navigate(`/saju?${params.toString()}`);
   }
 
@@ -179,9 +198,9 @@ export default function SavedPage() {
                       </div>
 
                       {/* 액션 버튼 */}
-                      <div className="flex gap-2 justify-end">
+                      <div className="border-t border-border/40 pt-3">
                         {isDeleting ? (
-                          <div className="flex items-center gap-2 text-sm">
+                          <div className="flex items-center justify-end gap-2 text-sm">
                             <span className="text-rose-600">정말 삭제할까요?</span>
                             <button
                               onClick={async () => {
@@ -200,24 +219,46 @@ export default function SavedPage() {
                             </button>
                           </div>
                         ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-400/10 gap-1"
-                              onClick={() => setDeletingId(item.id)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              삭제
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="gap-1"
-                              onClick={() => goToAnalyze(item)}
-                            >
-                              분석 보기 <ChevronRight className="w-3.5 h-3.5" />
-                            </Button>
-                          </>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="grid grid-cols-3 gap-1.5 sm:flex-1">
+                              <Link href={buildSavedProfileHref(item, "/daily-fortune")}>
+                                <Button variant="outline" size="sm" className="w-full gap-1 text-xs px-2">
+                                  <Sun className="w-3.5 h-3.5" />
+                                  오늘
+                                </Button>
+                              </Link>
+                              <Link href={buildSavedProfileHref(item, "/lucky-calendar")}>
+                                <Button variant="outline" size="sm" className="w-full gap-1 text-xs px-2">
+                                  <CalendarDays className="w-3.5 h-3.5" />
+                                  길일
+                                </Button>
+                              </Link>
+                              <Link href={buildSavedProfileHref(item, "/gungap")}>
+                                <Button variant="outline" size="sm" className="w-full gap-1 text-xs px-2">
+                                  <HeartHandshake className="w-3.5 h-3.5" />
+                                  궁합
+                                </Button>
+                              </Link>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-rose-600 hover:text-rose-700 hover:bg-rose-400/10 gap-1"
+                                onClick={() => setDeletingId(item.id)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                삭제
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => goToAnalyze(item)}
+                              >
+                                분석 보기 <ChevronRight className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </CardContent>

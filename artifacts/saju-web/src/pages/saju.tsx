@@ -1054,6 +1054,12 @@ export default function SajuPage() {
   const handleSave = async () => {
     if (!r) return;
     const bi = r.birthInfo ?? {};
+    const precision = precisionToPayload(inputForm.precision);
+    const birthMinute = inputForm.birthHour === -1
+      ? 0
+      : Number.isFinite(Number(inputForm.birthMinute))
+        ? Number(inputForm.birthMinute)
+        : 0;
     await saveMut.mutateAsync({
       label: saveLabel.trim() || "내 사주",
       birthInfo: {
@@ -1061,8 +1067,16 @@ export default function SajuPage() {
         month: bi.month ?? parseInt(inputForm.birthMonth),
         day: bi.day ?? parseInt(inputForm.birthDay),
         hour: bi.hour ?? inputForm.birthHour,
+        minute: bi.minute ?? birthMinute,
         gender: bi.gender ?? inputForm.gender,
         calendarType: bi.calendarType ?? inputForm.calendarType,
+        isLeapMonth: bi.isLeapMonth ?? precision.isLeapMonth,
+        birthPlace: bi.birthPlace ?? precision.birthPlace,
+        timeZone: bi.timeZone ?? precision.timeZone,
+        longitude: bi.longitude ?? precision.longitude,
+        latitude: bi.latitude ?? precision.latitude,
+        applyTrueSolarTime: bi.applyTrueSolarTime ?? precision.applyTrueSolarTime,
+        dayBoundary: bi.dayBoundary ?? precision.dayBoundary,
       },
     });
     setJustSaved(true);

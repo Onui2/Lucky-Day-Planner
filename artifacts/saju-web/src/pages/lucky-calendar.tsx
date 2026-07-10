@@ -89,7 +89,7 @@ function getDayOfWeekIndex(year: number, month: number, day: number) {
 export default function LuckyCalendarPage() {
   const rawSearch = useSearch();
   const searchParams = new URLSearchParams(rawSearch);
-  const { profile, hasCachedProfile } = useResolvedProfile();
+  const { profile, hasCachedProfile, hasQueryProfile, queryProfileLabel } = useResolvedProfile();
   const { user } = useAuth();
   const { bookmarks, saveBookmark, removeBookmark, isSaving, isRemoving } = useLuckyDayBookmarks();
   const { isEnabled: isReminderEnabled, toggle: toggleReminder, message: reminderMessage } = useLuckReminders(user?.id);
@@ -268,7 +268,12 @@ export default function LuckyCalendarPage() {
 
       {profile && (
         <>
-          {hasCachedProfile && (
+          {hasQueryProfile && (
+            <div className="glass-panel border border-primary/20 rounded-2xl p-4 text-sm text-primary">
+              {queryProfileLabel ?? profile.name ?? "저장된 사람"} 기준으로 길일을 계산합니다. 기본 프로필은 변경되지 않습니다.
+            </div>
+          )}
+          {!hasQueryProfile && hasCachedProfile && (
             <div className="glass-panel border border-primary/20 rounded-2xl p-4 text-sm text-muted-foreground">
               최근 계산한 사주 기준으로 길일을 보여주고 있습니다. 프로필로 저장하면 다른 메뉴에서도 계속 이어집니다.
             </div>

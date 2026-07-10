@@ -12,8 +12,16 @@ export interface SavedSajuBirthInfo {
   month: number;
   day: number;
   hour: number;
+  minute?: number;
   gender: string;
   calendarType: string;
+  isLeapMonth?: boolean;
+  birthPlace?: string;
+  timeZone?: string;
+  longitude?: number;
+  latitude?: number | null;
+  applyTrueSolarTime?: boolean;
+  dayBoundary?: string;
 }
 
 export interface SavedSajuItem {
@@ -99,7 +107,7 @@ function normalizeSavedSajuItems(
   }
 
   return raw
-    .map((item, index) => {
+    .map((item, index): SavedSajuItem | null => {
       if (!item || typeof item !== "object") {
         return null;
       }
@@ -127,8 +135,27 @@ function normalizeSavedSajuItems(
           month: Number(data.month ?? 0),
           day: Number(data.day ?? 0),
           hour: Number(data.hour ?? -1),
+          minute: Number(data.minute ?? 0),
           gender: String(data.gender ?? "male"),
           calendarType: String(data.calendarType ?? "solar"),
+          isLeapMonth: data.isLeapMonth === true,
+          birthPlace:
+            typeof data.birthPlace === "string" ? data.birthPlace : undefined,
+          timeZone:
+            typeof data.timeZone === "string" ? data.timeZone : undefined,
+          longitude:
+            Number.isFinite(Number(data.longitude))
+              ? Number(data.longitude)
+              : undefined,
+          latitude:
+            data.latitude === null
+              ? null
+              : Number.isFinite(Number(data.latitude))
+                ? Number(data.latitude)
+                : undefined,
+          applyTrueSolarTime: data.applyTrueSolarTime === true,
+          dayBoundary:
+            typeof data.dayBoundary === "string" ? data.dayBoundary : undefined,
         },
         createdAt:
           typeof row.createdAt === "string" && row.createdAt

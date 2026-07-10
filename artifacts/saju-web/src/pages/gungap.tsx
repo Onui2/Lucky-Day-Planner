@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +12,12 @@ import {
   AlertTriangle, Lightbulb, Share2, CheckCheck, MessageCircle,
   Sparkles, ChevronDown, ChevronUp, Users,
 } from "lucide-react";
-import { useUser } from "@/contexts/UserContext";
+import { useUser, type UserProfile } from "@/contexts/UserContext";
 import { useLoveFortune, type LoveFortuneResult } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
 import RelationshipTimingPanel from "@/components/RelationshipTimingPanel";
+import { parseBirthProfileSearch } from "@/lib/birth-profile-query";
 import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
 import { precisionFromProfile, precisionToPayload, type BirthPrecisionValues } from "@/lib/birth-precision";
 import {
@@ -396,6 +398,20 @@ const defaultPerson = (g: "male" | "female"): PersonForm => ({
   calendarType: "solar", precision: precisionFromProfile(),
 });
 
+function profileToPersonForm(profile: UserProfile): PersonForm {
+  return {
+    name: profile.name ?? "",
+    gender: profile.gender,
+    birthYear: String(profile.birthYear),
+    birthMonth: String(profile.birthMonth),
+    birthDay: String(profile.birthDay),
+    birthHour: normalizeBirthHour(profile.birthHour),
+    birthMinute: profile.birthHour >= 0 ? formatBirthMinute(profile.birthMinute) : "",
+    calendarType: profile.calendarType,
+    precision: precisionFromProfile(profile),
+  };
+}
+
 async function fetchGungap(p1: PersonForm, p2: PersonForm) {
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   const toPayload = (p: PersonForm) => ({
@@ -414,6 +430,8 @@ async function fetchGungap(p1: PersonForm, p2: PersonForm) {
 }
 
 function GungapTab() {
+  const search = useSearch();
+  const linkedProfile = parseBirthProfileSearch(search);
   const { profile } = useUser();
   const [p1, setP1] = useState<PersonForm>(defaultPerson("male"));
   const [p2, setP2] = useState<PersonForm>(defaultPerson("female"));
@@ -425,6 +443,15 @@ function GungapTab() {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const p1MaxBirthDay = getBirthDayMax(p1.birthYear, p1.birthMonth);
   const p2MaxBirthDay = getBirthDayMax(p2.birthYear, p2.birthMonth);
+
+  useEffect(() => {
+    const parsed = parseBirthProfileSearch(search);
+    if (!parsed) return;
+
+    setP2(profileToPersonForm(parsed.profile));
+    setResult(null);
+    setError(null);
+  }, [search]);
 
   const updateBirthField = (
     setState: React.Dispatch<React.SetStateAction<PersonForm>>,
@@ -449,14 +476,7 @@ function GungapTab() {
 
   function loadMyProfile() {
     if (!profile) return;
-    setP1({
-      name: profile.name ?? "", gender: profile.gender,
-      birthYear: String(profile.birthYear), birthMonth: String(profile.birthMonth),
-      birthDay: String(profile.birthDay), birthHour: normalizeBirthHour(profile.birthHour),
-      birthMinute: profile.birthHour >= 0 ? formatBirthMinute(profile.birthMinute) : "",
-      calendarType: profile.calendarType,
-      precision: precisionFromProfile(profile),
-    });
+    setP1(profileToPersonForm(profile));
     setP1FromProfile(true);
   }
 
@@ -509,6 +529,11 @@ function GungapTab() {
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <form onSubmit={handleSubmit}>
+          {linkedProfile && (
+            <div className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+              저장된 사람 {linkedProfile.label ?? linkedProfile.profile.name ?? "프로필"}을 두 번째 사람에 채웠습니다.
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {[
               { label: "첫 번째 사람", state: p1, setState: setP1, heartColor: "text-primary", isMe: true },

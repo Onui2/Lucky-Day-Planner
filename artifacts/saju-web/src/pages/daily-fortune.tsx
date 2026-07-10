@@ -226,7 +226,7 @@ export default function DailyFortunePage() {
       },
     },
   );
-  const { profile, profileReady, hasCachedProfile } = useResolvedProfile();
+  const { profile, profileReady, hasCachedProfile, hasQueryProfile, queryProfileLabel } = useResolvedProfile();
 
   useEffect(() => {
     if (!canAccessFutureDates && date > TODAY) {
@@ -306,6 +306,11 @@ export default function DailyFortunePage() {
         />
         {!canAccessFutureDates && (
           <p className="mt-3 text-xs text-muted-foreground">일반 회원은 오늘까지만 조회할 수 있습니다.</p>
+        )}
+        {hasQueryProfile && (
+          <p className="mt-3 text-xs text-primary">
+            {queryProfileLabel ?? profile?.name ?? "저장된 사람"} 기준으로 보고 있습니다. 기본 프로필은 변경되지 않습니다.
+          </p>
         )}
       </div>
 
