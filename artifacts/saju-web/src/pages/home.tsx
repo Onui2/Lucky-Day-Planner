@@ -1558,9 +1558,11 @@ export default function Home() {
                       <div
                         className={`${showMonthlyDetailsMobile ? "block" : "hidden"} space-y-2 lg:block`}
                       >
-                        <p className="rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-foreground/80 leading-relaxed line-clamp-2">
-                          {monthlyFortune.summary}
-                        </p>
+                        <div className="rounded-2xl border border-foreground/10 bg-foreground/5 px-3 py-2.5">
+                          <p className="line-clamp-2 text-sm leading-relaxed text-foreground/80">
+                            {monthlyFortune.summary}
+                          </p>
+                        </div>
                         <div className="grid grid-cols-4 gap-1.5 text-[11px]">
                           <div className="rounded-xl border border-amber-500/15 bg-amber-500/5 px-2 py-2 text-center">
                             <TrendingUp className="w-3.5 h-3.5 mx-auto mb-0.5 text-amber-600" />
