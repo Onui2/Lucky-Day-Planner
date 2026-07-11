@@ -114,10 +114,10 @@ export const SajuShareCard = forwardRef<HTMLDivElement, Props>(function SajuShar
   const maxEl = Math.max(...elems.map(elVal), 1);
 
   const pillars = [
-    { label: "년주", p: yearP },
-    { label: "월주", p: monthP },
-    { label: "일주", p: dayP },
     { label: "시주", p: hourP },
+    { label: "일주", p: dayP },
+    { label: "월주", p: monthP },
+    { label: "년주", p: yearP },
   ];
 
   const hourLabel = hour < 0 ? "시간 미상" : `${hour}시`;

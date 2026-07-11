@@ -82,6 +82,15 @@ function formatPillar(pillar: Record<string, unknown> | null | undefined) {
   return `${pillar.heavenlyStem ?? "?"}${pillar.earthlyBranch ?? "?"}`;
 }
 
+export function getReportPillars(result: Record<string, any>) {
+  return [
+    { label: "시주", hanjaLabel: "時柱", pillar: result.hourPillar },
+    { label: "일주", hanjaLabel: "日柱", pillar: result.dayPillar },
+    { label: "월주", hanjaLabel: "月柱", pillar: result.monthPillar },
+    { label: "년주", hanjaLabel: "年柱", pillar: result.yearPillar },
+  ];
+}
+
 const STEM_HANJA: Record<string, string> = {
   갑: "甲", 을: "乙", 병: "丙", 정: "丁", 무: "戊",
   기: "己", 경: "庚", 신: "辛", 임: "壬", 계: "癸",
@@ -383,10 +392,9 @@ export function buildSajuReportHtml(title: string, result: Record<string, any>) 
         </section>
 
         <section style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
-          ${pillarCardHtml("년주", formatPillar(result.yearPillar))}
-          ${pillarCardHtml("월주", formatPillar(result.monthPillar))}
-          ${pillarCardHtml("일주", formatPillar(result.dayPillar))}
-          ${pillarCardHtml("시주", formatPillar(result.hourPillar))}
+          ${getReportPillars(result)
+            .map((item) => pillarCardHtml(item.label, formatPillar(item.pillar)))
+            .join("")}
         </section>
 
         ${sections.map((section) => sectionHtml(section.title, section.body, section.accent)).join("")}
@@ -464,12 +472,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   const contentTop = 96;
   const contentBottom = pageHeight - 64;
 
-  const pillars = [
-    { label: "년주", hanjaLabel: "年柱", pillar: result.yearPillar },
-    { label: "월주", hanjaLabel: "月柱", pillar: result.monthPillar },
-    { label: "일주", hanjaLabel: "日柱", pillar: result.dayPillar },
-    { label: "시주", hanjaLabel: "時柱", pillar: result.hourPillar },
-  ];
+  const pillars = getReportPillars(result);
 
   const sections = [
     {

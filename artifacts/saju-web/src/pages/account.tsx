@@ -19,6 +19,7 @@ import { useUser } from "@/contexts/UserContext";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import { clearRecentActivities, formatBookmarkDate, getRecentActivities, type RecentActivityItem } from "@/lib/member-insights";
 import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
+import { ShareManagementCard } from "@/components/ShareManagementCard";
 import {
   UserCircle2, KeyRound, Trash2, Loader2,
   CheckCircle2, AlertTriangle, ShieldCheck, Mail,
@@ -371,6 +372,8 @@ export default function AccountPage() {
           </div>
         </div>
       </div>
+
+      <ShareManagementCard />
 
       {/* 탭 */}
       <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-foreground/5 border border-primary/10">

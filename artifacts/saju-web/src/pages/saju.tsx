@@ -14,7 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
 import { ReportPurchaseButton } from "@/components/ReportPurchaseButton";
 import { AiChatPanel } from "@/components/AiChatPanel";
-import { SajuShareCard } from "@/components/SajuShareCard";
+import { SharedSajuView } from "@/components/SharedSajuView";
+import {
+  createShareSnapshot,
+  DEFAULT_SHARE_VISIBILITY,
+  type ShareVisibility,
+} from "@/lib/share-snapshot";
 import BirthPrecisionFields from "@/components/BirthPrecisionFields";
 import AdvancedSajuAnalysis from "@/components/AdvancedSajuAnalysis";
 import {
@@ -418,6 +423,12 @@ export default function SajuPage() {
         : { ...DEFAULT_VISIBLE_SECTIONS }),
   );
   const [shareMode, setShareMode] = useState<ShareMode>("text");
+  const [shareVisibility, setShareVisibility] = useState<ShareVisibility>({
+    ...DEFAULT_SHARE_VISIBILITY,
+  });
+  const [sharingLink, setSharingLink] = useState(false);
+  const [shareError, setShareError] = useState("");
+  const [shareOptionsOpen, setShareOptionsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [expandedFlowYear, setExpandedFlowYear] = useState<number | null>(() => new Date().getFullYear());
 
@@ -440,6 +451,12 @@ export default function SajuPage() {
       });
       const bi = displayResult.birthInfo ?? {};
       const fileName = `명해원_${bi.year ?? ""}${bi.month ?? ""}${bi.day ?? ""}.png`;
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], fileName, { type: "image/png" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: "명해원 사주 공유", files: [file] });
+        return;
+      }
       const link = document.createElement("a");
       link.download = fileName;
       link.href = dataUrl;
@@ -857,51 +874,8 @@ export default function SajuPage() {
     return lines.join("\n");
   }
 
-  const buildShareLink = (
-    result: any,
-    sections: Record<SectionKey, boolean>,
-    compact: boolean,
-  ) => {
-    const bi = result.birthInfo;
-    const url =
-      typeof window !== "undefined"
-        ? new URL(window.location.href)
-        : new URL("https://example.com/saju");
-
-    url.search = "";
-    url.searchParams.set("y", String(bi?.year ?? inputForm.birthYear));
-    url.searchParams.set("m", String(bi?.month ?? inputForm.birthMonth));
-    url.searchParams.set("d", String(bi?.day ?? inputForm.birthDay));
-    url.searchParams.set("h", String(bi?.hour ?? inputForm.birthHour));
-    url.searchParams.set("min", String(bi?.minute ?? inputForm.birthMinute ?? 0));
-    url.searchParams.set("g", String(bi?.gender ?? inputForm.gender));
-    url.searchParams.set("c", String(bi?.calendarType ?? inputForm.calendarType));
-
-    const serializedSections = serializeVisibleSections(sections);
-    if (
-      serializedSections &&
-      serializedSections !== serializeVisibleSections(DEFAULT_VISIBLE_SECTIONS)
-    ) {
-      url.searchParams.set("sections", serializedSections);
-    }
-
-    if (compact) {
-      url.searchParams.set("compact", "1");
-    }
-
-    return url.toString();
-  };
-
-  const handleShare = () => {
-    if (!r) return;
-    const payload =
-      shareMode === "link"
-        ? buildShareLink(r, visibleSections, compactMode)
-        : buildVisibleShareText(r, visibleSections);
-    navigator.clipboard.writeText(payload).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {
+  const copyShareValue = (payload: string) => {
+    return navigator.clipboard.writeText(payload).catch(() => {
       const ta = document.createElement("textarea");
       ta.value = payload;
       ta.style.position = "fixed";
@@ -910,9 +884,45 @@ export default function SajuPage() {
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
+    });
+  };
+
+  const handleShare = async () => {
+    if (!r) return;
+    setShareError("");
+    try {
+      let payload: string;
+      if (shareMode === "link") {
+        if (!isAuthenticated) {
+          setShareError("개인정보를 보호하는 공유 링크는 로그인 후 만들 수 있습니다.");
+          return;
+        }
+        setSharingLink(true);
+        const created = await createShareSnapshot({
+          name: user?.firstName ?? undefined,
+          result: r,
+          visibility: shareVisibility,
+        });
+        payload = new URL(created.path, window.location.origin).toString();
+      } else {
+        payload = buildVisibleShareText(r, visibleSections);
+      }
+      if (navigator.share) {
+        await navigator.share(
+          shareMode === "link"
+            ? { title: "명해원 사주 공유", url: payload }
+            : { title: "명해원 사주 공유", text: payload },
+        );
+      } else {
+        await copyShareValue(payload);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    } catch (error) {
+      setShareError(error instanceof Error ? error.message : "공유 링크 생성에 실패했습니다.");
+    } finally {
+      setSharingLink(false);
+    }
     return;
     const yp = r.yearPillar; const mp = r.monthPillar; const dp = r.dayPillar; const hp = r.hourPillar;
     const STEM_H: Record<string,string> = {갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸'};
@@ -1679,11 +1689,50 @@ export default function SajuPage() {
       ? undefined
       : actionPlanQuestion ?? initialAiQuestion;
 
+  const sharePreviewPayload = displayResult
+    ? {
+        version: 1,
+        visibility: shareVisibility,
+        createdAt: new Date().toISOString(),
+        ...(shareVisibility.name ? { name: user?.firstName ?? undefined } : {}),
+        ...(shareVisibility.birthInfo ? { birthInfo: displayResult.birthInfo } : {}),
+        ...(shareVisibility.pillars
+          ? {
+              pillars: [
+                { label: "시주", value: displayResult.hourPillar },
+                { label: "일주", value: displayResult.dayPillar },
+                { label: "월주", value: displayResult.monthPillar },
+                { label: "년주", value: displayResult.yearPillar },
+              ],
+            }
+          : {}),
+        ...(shareVisibility.elements
+          ? {
+              elements: {
+                ...(displayResult.elementBalance ?? {}),
+                dominant: displayResult.dominantElement,
+                lacking: displayResult.lackingElement,
+              },
+            }
+          : {}),
+        ...(shareVisibility.summary
+          ? {
+              summary: {
+                fortune: displayResult.fortune,
+                personality: displayResult.personality,
+                dayMasterElement: displayResult.dayMasterElement,
+                yongsin: displayResult.yongsin?.yongsin,
+              },
+            }
+          : {}),
+      }
+    : null;
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* 공유 카드 — 화면 밖에 숨겨두고 캡처 시 사용 */}
       <div style={{ position: "fixed", left: -9999, top: 0, zIndex: -1, pointerEvents: "none" }}>
-        <SajuShareCard ref={shareCardRef} result={displayResult} />
+        {sharePreviewPayload && <SharedSajuView ref={shareCardRef} payload={sharePreviewPayload} />}
       </div>
 
       <motion.div key="result" className="saju-analysis-flow" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
@@ -1733,7 +1782,7 @@ export default function SajuPage() {
                 </Button>
               )
             )}
-            <Select value={shareMode} onValueChange={(value) => setShareMode(value as ShareMode)}>
+            <Select value={shareMode} onValueChange={(value) => { setShareMode(value as ShareMode); if (value === "link") setShareOptionsOpen(true); }}>
               <SelectTrigger className="h-9 w-[116px]">
                 <SelectValue />
               </SelectTrigger>
@@ -1742,12 +1791,12 @@ export default function SajuPage() {
                 <SelectItem value="link">링크 공유</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={handleShare} className="gap-2">
-              {copied ? <><CheckCheck className="w-4 h-4 text-green-600" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
+            <Button variant="outline" size="sm" onClick={handleShare} className="gap-2" disabled={sharingLink}>
+              {sharingLink ? <><Loader2 className="w-4 h-4 animate-spin" />링크 생성 중</> : copied ? <><CheckCheck className="w-4 h-4 text-green-600" />복사됨</> : <><Share2 className="w-4 h-4" />결과 공유</>}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleSaveImage} disabled={savingImage} className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => { if (!shareOptionsOpen) { setShareOptionsOpen(true); return; } void handleSaveImage(); }} disabled={savingImage} className="gap-2">
               {savingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
-              이미지 저장
+              {shareOptionsOpen ? "이미지 저장" : "공유 이미지"}
             </Button>
             {showAccountActions && (
               <Button
@@ -1764,6 +1813,42 @@ export default function SajuPage() {
             </Button>
           </div>
         </div>
+
+        {shareOptionsOpen && (
+          <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-sm font-semibold text-foreground">공유 범위 선택</div>
+                <p className="mt-1 text-xs text-muted-foreground">기본값은 개인정보와 원국 비공개입니다. 링크는 30일 후 만료됩니다.</p>
+              </div>
+              <div className="text-xs text-amber-700">저장·전송된 이미지는 회수할 수 없습니다.</div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {([
+                ["name", "이름"],
+                ["birthInfo", "생년월일"],
+                ["pillars", "사주 원국"],
+                ["elements", "오행 점수"],
+                ["summary", "해석 요약"],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex cursor-pointer items-center gap-2 rounded-xl border border-foreground/10 bg-background/60 px-3 py-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={shareVisibility[key]}
+                    onChange={(event) => setShareVisibility((current) => ({ ...current, [key]: event.target.checked }))}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {shareVisibility.pillars && (
+              <p className="mt-2 text-xs text-amber-700">사주 원국은 출생 정보에서 계산된 개인 데이터입니다. 공개 범위를 다시 확인하세요.</p>
+            )}
+            {shareError && <p className="mt-2 text-xs text-rose-700">{shareError}</p>}
+            <button type="button" onClick={() => setShareOptionsOpen(false)} className="mt-3 text-xs text-muted-foreground underline">공유 설정 닫기</button>
+          </div>
+        )}
 
         {/* 플로팅 액션 버튼 — 우하단 고정 */}
         <div className="mb-4 flex items-center justify-end gap-2 sm:fixed sm:bottom-6 sm:right-20 sm:z-40 sm:mb-0 sm:flex-col sm:items-end">

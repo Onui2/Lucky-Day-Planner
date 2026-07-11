@@ -22,6 +22,7 @@ import commerceRouter from "./commerce.js";
 import reportsRouter from "./reports.js";
 import aiRouter from "./ai.js";
 import daeunRouter from "./daeun.js";
+import shareSnapshotsRouter from "./share-snapshots.js";
 
 const router = Router();
 
@@ -48,5 +49,6 @@ router.use(commerceRouter);
 router.use(reportsRouter);
 router.use(aiRouter);
 router.use(daeunRouter);
+router.use(shareSnapshotsRouter);
 
 export default router;

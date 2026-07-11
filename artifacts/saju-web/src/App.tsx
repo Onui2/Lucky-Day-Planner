@@ -39,6 +39,7 @@ const SajuTablesPage = lazy(() => import("@/pages/saju-tables"));
 const DayPillarAnalysisPage = lazy(() => import("@/pages/day-pillar-analysis"));
 const LoveFortunePage = lazy(() => import("@/pages/love-fortune"));
 const LegalPage = lazy(() => import("@/pages/legal"));
+const SharedSajuPage = lazy(() => import("@/pages/shared-saju"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -73,6 +74,7 @@ function Router() {
         <Route path="/reset-password" component={ResetPasswordPage} />
         <Route path="/payments/success" component={PaymentSuccessPage} />
         <Route path="/payments/fail" component={PaymentFailPage} />
+        <Route path="/share/:token" component={SharedSajuPage} />
         <Route>
           <Layout>
             <Switch>

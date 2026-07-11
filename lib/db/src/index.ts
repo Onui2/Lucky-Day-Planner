@@ -440,6 +440,21 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`CREATE INDEX IF NOT EXISTS pdf_reports_snapshot_idx ON pdf_reports (snapshot_id)`);
 
         await client.query(`
+          CREATE TABLE IF NOT EXISTS share_snapshots (
+            id serial PRIMARY KEY,
+            user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token_hash varchar(64) NOT NULL UNIQUE,
+            public_payload jsonb NOT NULL,
+            expires_at timestamptz NOT NULL,
+            deleted_at timestamptz,
+            created_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS share_snapshots_token_hash_uidx ON share_snapshots (token_hash)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS share_snapshots_user_created_idx ON share_snapshots (user_id, created_at DESC)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS share_snapshots_expires_idx ON share_snapshots (expires_at)`);
+
+        await client.query(`
           CREATE TABLE IF NOT EXISTS user_subscriptions (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
