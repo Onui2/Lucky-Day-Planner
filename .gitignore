@@ -49,6 +49,7 @@ Thumbs.db
 .pnpm-store
 .vercel
 /artifacts/saju-web/api/_app.mjs
+/artifacts/saju-web/serve-test.log
 
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
