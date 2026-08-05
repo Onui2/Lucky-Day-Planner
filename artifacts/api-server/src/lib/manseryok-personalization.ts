@@ -23,6 +23,27 @@ export interface PersonalizedDayInfo {
   badges: PersonalizedDayBadges;
 }
 
+export interface PersonalizedFortuneScores {
+  overallScore: number;
+  moneyScore: number;
+  loveScore: number;
+  healthScore: number;
+  careerScore: number;
+}
+
+const ELEMENT_DOMAIN_BOOST: Record<string, {
+  money: number;
+  love: number;
+  health: number;
+  career: number;
+}> = {
+  목: { career: 2, health: 1, love: 0, money: -1 },
+  화: { love: 2, career: 1, health: -1, money: 0 },
+  토: { money: 2, health: 1, career: 0, love: -1 },
+  금: { money: 2, career: 1, health: 0, love: -1 },
+  수: { career: 2, health: 1, money: 0, love: 0 },
+};
+
 const STRONG_POSITIVE_REL_TYPES = new Set([
   "인성",
   "식상",
@@ -140,5 +161,37 @@ export function personalizeManseryokDay(
     label: scoreLabel(score),
     relation,
     badges: getDayBadges(dayData, score, relation),
+  };
+}
+
+export function getPersonalizedFortuneScores(
+  dayData: ManseryokDayData,
+  profile?: StoredUserProfile | RelationProfile | null,
+): PersonalizedFortuneScores | null {
+  const personalized = personalizeManseryokDay(dayData, profile);
+  if (!personalized) {
+    return null;
+  }
+
+  const boost = ELEMENT_DOMAIN_BOOST[dayData.dayElement] ?? {
+    money: 0,
+    love: 0,
+    health: 0,
+    career: 0,
+  };
+  const toScore100 = (adjustment: number) =>
+    Math.min(100, Math.max(10, (personalized.score + adjustment) * 10));
+
+  const moneyScore = toScore100(boost.money);
+  const loveScore = toScore100(boost.love);
+  const healthScore = toScore100(boost.health);
+  const careerScore = toScore100(boost.career);
+
+  return {
+    overallScore: Math.round((moneyScore + loveScore + healthScore + careerScore) / 4),
+    moneyScore,
+    loveScore,
+    healthScore,
+    careerScore,
   };
 }

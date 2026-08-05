@@ -9,6 +9,8 @@ import {
   getGanziIdx
 } from './saju-calculator.js';
 import { getManseryokDay, getMonthYearGanzi } from './manseryok.js';
+import { getPersonalizedFortuneScores } from './manseryok-personalization.js';
+import type { RelationProfile } from './saju-relation.js';
 
 // ─────────────────────────────────────────────
 // 60갑자 종합운 (0=갑자 … 59=계해)
@@ -581,7 +583,12 @@ function getFortuneScore(dayElement: string, stemIdx: number, branchIdx: number,
   return Math.max(28, Math.min(92, Math.round(rawScore)));
 }
 
-export function getDailyFortune(year: number, month: number, day: number): DailyFortuneData {
+export function getDailyFortune(
+  year: number,
+  month: number,
+  day: number,
+  profile?: RelationProfile | null,
+): DailyFortuneData {
   const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
   const dayPillar = getDayPillar(year, month, day);
   const manseryokDay = getManseryokDay(year, month, day);
@@ -592,11 +599,17 @@ export function getDailyFortune(year: number, month: number, day: number): Daily
   const bIdx = dayPillar.branchIndex; // 0-11
   const ganziIdx = getGanziIdx(sIdx, bIdx); // 0-59
 
-  const overallScore  = getFortuneScore(element, sIdx, bIdx, 'overall');
-  const moneyScore    = getFortuneScore(element, sIdx, bIdx, 'money');
-  const loveScore     = getFortuneScore(element, sIdx, bIdx, 'love');
-  const careerScore   = getFortuneScore(element, sIdx, bIdx, 'career');
-  const healthScore   = getFortuneScore(element, sIdx, bIdx, 'health');
+  const personalizedScores = getPersonalizedFortuneScores(manseryokDay, profile);
+  const overallScore =
+    personalizedScores?.overallScore ?? getFortuneScore(element, sIdx, bIdx, 'overall');
+  const moneyScore =
+    personalizedScores?.moneyScore ?? getFortuneScore(element, sIdx, bIdx, 'money');
+  const loveScore =
+    personalizedScores?.loveScore ?? getFortuneScore(element, sIdx, bIdx, 'love');
+  const careerScore =
+    personalizedScores?.careerScore ?? getFortuneScore(element, sIdx, bIdx, 'career');
+  const healthScore =
+    personalizedScores?.healthScore ?? getFortuneScore(element, sIdx, bIdx, 'health');
 
   const luckyHours  = LUCKY_HOURS_BY_BRANCH[dayPillar.branch] || ['09:00-11:00', '15:00-17:00'];
   const directions  = ELEMENT_DIRECTIONS[element] || { lucky: '동쪽', avoid: '서쪽' };

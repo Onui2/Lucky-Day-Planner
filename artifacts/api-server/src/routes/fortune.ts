@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getDailyFortune } from "../lib/fortune.js";
+import type { RelationProfile } from "../lib/saju-relation.js";
 import {
   getSeoulToday,
   isFutureDateInSeoul,
@@ -7,6 +8,29 @@ import {
 } from "../lib/date-access.js";
 
 const router = Router();
+
+function asString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function getProfileFromQuery(query: Record<string, unknown>): RelationProfile | null {
+  const dayMasterElement = asString(query.dayMasterElement);
+  if (!dayMasterElement) {
+    return null;
+  }
+
+  return {
+    dayMasterElement,
+    dayMasterStem: asString(query.dayMasterStem),
+    dayMasterBranch: asString(query.dayMasterBranch),
+    yearStem: asString(query.yearStem),
+    yearBranch: asString(query.yearBranch),
+    monthStem: asString(query.monthStem),
+    monthBranch: asString(query.monthBranch),
+    hourStem: asString(query.hourStem),
+    hourBranch: asString(query.hourBranch),
+  };
+}
 
 router.get("/fortune/daily", (req, res) => {
   try {
@@ -37,7 +61,8 @@ router.get("/fortune/daily", (req, res) => {
       return res.status(403).json({ error: "관리자만 미래 날짜를 조회할 수 있습니다." });
     }
     
-    const fortune = getDailyFortune(year, month, day);
+    const profile = getProfileFromQuery(req.query as Record<string, unknown>);
+    const fortune = getDailyFortune(year, month, day, profile);
     return res.json(fortune);
   } catch (error) {
     console.error("Daily fortune error:", error);

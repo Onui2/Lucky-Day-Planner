@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { useGetDailyFortune } from "@workspace/api-client-react";
+import {
+  useGetDailyFortune,
+  type GetManseryokDateParams,
+} from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -218,15 +221,45 @@ export default function DailyFortunePage() {
   const { user } = useAuth();
   const canAccessFutureDates = user?.role === "admin" || user?.role === "superadmin";
   const accessScope = canAccessFutureDates ? "privileged" : "standard";
+  const { profile, profileReady, hasCachedProfile, hasQueryProfile, queryProfileLabel } = useResolvedProfile();
+  const personalizationParams: Omit<GetManseryokDateParams, "date"> =
+    profile?.dayMasterElement
+      ? {
+          dayMasterElement: profile.dayMasterElement,
+          dayMasterStem: profile.dayMasterStem,
+          dayMasterBranch: profile.dayMasterBranch,
+          yearStem: profile.yearStem,
+          yearBranch: profile.yearBranch,
+          monthStem: profile.monthStem,
+          monthBranch: profile.monthBranch,
+          hourStem: profile.hourStem,
+          hourBranch: profile.hourBranch,
+        }
+      : {};
+  const personalizationKey = profile?.dayMasterElement
+    ? [
+        profile.dayMasterElement,
+        profile.dayMasterStem ?? "",
+        profile.dayMasterBranch ?? "",
+        profile.yearStem ?? "",
+        profile.yearBranch ?? "",
+        profile.monthStem ?? "",
+        profile.monthBranch ?? "",
+        profile.hourStem ?? "",
+        profile.hourBranch ?? "",
+      ].join(":")
+    : "no-profile";
+  const dailyFortuneParams = { date, ...personalizationParams };
   const { data, isLoading, error } = useGetDailyFortune(
-    { date },
+    dailyFortuneParams,
     {
       query: {
-        queryKey: ["/api/fortune/daily", { date }, accessScope],
+        queryKey: ["/api/fortune/daily", { date, personalizationKey }, accessScope],
+        enabled: profileReady || Boolean(profile),
       },
     },
   );
-  const { profile, profileReady, hasCachedProfile, hasQueryProfile, queryProfileLabel } = useResolvedProfile();
+  const isResolvingProfile = !profileReady && !profile;
 
   useEffect(() => {
     if (!canAccessFutureDates && date > TODAY) {
@@ -314,7 +347,7 @@ export default function DailyFortunePage() {
         )}
       </div>
 
-      {isLoading ? (
+      {isResolvingProfile || isLoading ? (
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
           <Loader2 className="w-10 h-10 animate-spin text-primary" />
           <p className="text-muted-foreground">천기의 흐름을 읽는 중입니다...</p>
