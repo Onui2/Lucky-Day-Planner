@@ -5,7 +5,7 @@ import { AdminPersonLookup, type AdminLookupTarget } from "@/components/AdminPer
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem, ImageDown, ShieldCheck, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, UserCircle2, Star, TrendingDown, Hash, Palette, Compass, Gem, ImageDown, ShieldCheck, X, CalendarDays, House, Landmark, Leaf } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { getElementRelation, getProfileRelationContext } from "@/lib/saju-relation";
@@ -18,6 +18,12 @@ import {
 } from "@/lib/sajuLucky";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getMonthKey, getSeoulTodayString } from "@/lib/seoul-date";
+import {
+  getCalendarSpecialCounts,
+  matchesCalendarFilter,
+  normalizeCalendarFilter,
+  type CalendarFilter,
+} from "@/lib/manseryok-calendar";
 
 const STEM_HANJA: Record<string, string> = {
   갑:'甲',을:'乙',병:'丙',정:'丁',무:'戊',기:'己',경:'庚',신:'辛',임:'壬',계:'癸',
@@ -495,6 +501,17 @@ interface SelectedDay {
   rel: ReturnType<typeof getElementRelation> | null;
 }
 
+const CALENDAR_FILTERS: Array<{
+  key: CalendarFilter;
+  label: string;
+  icon: typeof CalendarDays;
+}> = [
+  { key: "all", label: "전체", icon: CalendarDays },
+  { key: "noSon", label: "손없는날", icon: House },
+  { key: "holiday", label: "공휴일", icon: Landmark },
+  { key: "solarTerm", label: "절기", icon: Leaf },
+];
+
 const TODAY = getSeoulTodayString();
 const TODAY_MONTH = TODAY.slice(0, 7);
 const TODAY_DATE = new Date(`${TODAY}T00:00:00`);
@@ -503,6 +520,7 @@ export default function ManseryokPage() {
   const today = TODAY_DATE;
   const [currentDate, setCurrentDate] = useState(TODAY_DATE);
   const [selected, setSelected] = useState<SelectedDay | null>(null);
+  const [calendarFilter, setCalendarFilter] = useState<CalendarFilter>("all");
   const { user } = useAuth();
   const { profile: resolvedProfile, profileReady, hasCachedProfile } = useResolvedProfile();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
@@ -679,6 +697,17 @@ export default function ManseryokPage() {
     ? Object.entries(dayScores100).reduce((a, b) => Number(a[1]) <= Number(b[1]) ? a : b)
     : null;
 
+  const calendarSpecialCounts = useMemo(() => {
+    return getCalendarSpecialCounts(data?.days);
+  }, [data]);
+
+  useEffect(() => {
+    const nextFilter = normalizeCalendarFilter(calendarFilter, calendarSpecialCounts);
+    if (nextFilter === calendarFilter) return;
+    setCalendarFilter(nextFilter);
+    setSelected(null);
+  }, [calendarFilter, calendarSpecialCounts]);
+
   function handleDayClick(dayNum: number, dayData: any) {
     if (!dayData) return;
     if (selected?.dayNum === dayNum) { setSelected(null); return; }
@@ -798,10 +827,10 @@ export default function ManseryokPage() {
         </div>
       )}
 
-      <Card ref={calendarRef} className="glass-panel border-primary/20 p-4 md:p-6">
+      <Card ref={calendarRef} className="glass-panel border-primary/20 p-2 sm:p-4 md:p-6">
         {/* 월 이동 헤더 */}
         <div className="flex items-center justify-between mb-6">
-          <Button variant="outline" size="icon" onClick={prevMonth} className="rounded-full">
+          <Button variant="outline" size="icon" onClick={prevMonth} aria-label="이전 달" className="rounded-full">
             <ChevronLeft className="w-5 h-5" />
           </Button>
 
@@ -832,11 +861,52 @@ export default function ManseryokPage() {
             size="icon"
             onClick={nextMonth}
             disabled={nextMonthDisabled}
+            aria-label="다음 달"
             className="rounded-full"
           >
             <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
+
+        {data && (
+          <div className="mb-5 rounded-2xl border border-violet-200/70 bg-violet-50/45 p-3">
+            <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="생활 달력 날짜 강조">
+              {CALENDAR_FILTERS.map((item) => {
+                const Icon = item.icon;
+                const active = calendarFilter === item.key;
+                const count = calendarSpecialCounts[item.key];
+                const unavailable = item.key !== "all" && count === 0;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    aria-pressed={active}
+                    disabled={unavailable}
+                    onClick={() => {
+                      setCalendarFilter(item.key);
+                      setSelected(null);
+                    }}
+                    className={cn(
+                      "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-45",
+                      active
+                        ? "border-violet-500 bg-violet-600 text-white shadow-sm"
+                        : "border-violet-200 bg-white/80 text-violet-800 hover:bg-violet-100",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {item.label}
+                    <span className={cn("tabular-nums", active ? "text-white/80" : "text-violet-500")}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-violet-700/80 md:text-xs">
+              {data.calendarDataMessage}
+            </p>
+          </div>
+        )}
 
         {!canAccessFutureDates && (
           <p className="mb-4 text-center text-xs text-muted-foreground">일반 회원은 다음 달 이후 만세력을 볼 수 없습니다.</p>
@@ -858,7 +928,7 @@ export default function ManseryokPage() {
             key={yearStr + monthStr}
           >
             {/* 요일 헤더 */}
-            <div className="grid grid-cols-7 gap-1.5 md:gap-2 mb-2">
+            <div className="mb-2 grid grid-cols-7 gap-0.5 sm:gap-1.5 md:gap-2">
               {weekDays.map((day, i) => (
                 <div key={day} className={cn(
                   "text-center font-medium pb-2 border-b border-border/50 text-sm",
@@ -870,9 +940,9 @@ export default function ManseryokPage() {
             </div>
 
             {/* 날짜 그리드 */}
-            <div className="grid grid-cols-7 gap-1.5 md:gap-2">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1.5 md:gap-2">
               {blanks.map(blank => (
-                <div key={`blank-${blank}`} className="min-h-[94px] md:min-h-[112px]" />
+                <div key={`blank-${blank}`} className="min-h-[102px] md:min-h-[124px]" />
               ))}
 
               {days.map(dayNum => {
@@ -880,7 +950,7 @@ export default function ManseryokPage() {
                 const fullDate = `${yearStr}-${monthStr}-${dayStr}`;
                 const dayData = data?.days.find((d: any) => d.solar === fullDate);
                 const dayOfWeek = (firstDayOfMonth + dayNum - 1) % 7;
-                const dateColor = dayOfWeek === 0 ? "text-rose-600" : dayOfWeek === 6 ? "text-blue-600" : "text-slate-900";
+                const dateColor = dayData?.holiday || dayOfWeek === 0 ? "text-rose-600" : dayOfWeek === 6 ? "text-blue-600" : "text-slate-900";
                 const isTodayDate = fullDate === TODAY;
                 // 일반 회원도 현재 달은 미래 날짜까지 전부 조회 가능. 미래 '월'만 관리자 전용.
                 const isBlockedFutureDate = !canAccessFutureDates && currentMonthKey > TODAY_MONTH;
@@ -890,6 +960,7 @@ export default function ManseryokPage() {
                 const badges = getDayBadges(dayData, score, rel, isPersonalized);
                 const isSelected = selected?.dayNum === dayNum;
                 const canSelectDay = Boolean(dayData) && !isBlockedFutureDate;
+                const matchesActiveFilter = matchesCalendarFilter(dayData, calendarFilter);
 
                 return (
                   <button
@@ -899,14 +970,17 @@ export default function ManseryokPage() {
                       handleDayClick(dayNum, dayData);
                     }}
                     disabled={!canSelectDay}
+                    aria-pressed={isSelected}
                     className={cn(
-                      "min-h-[88px] md:min-h-[112px] p-1.5 rounded-xl border flex flex-col gap-1 md:gap-0 transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
+                      "min-h-[102px] rounded-xl border p-1 sm:p-1.5 md:min-h-[124px] flex flex-col gap-1 md:gap-0 transition-all text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)]",
                       canSelectDay
                         ? "cursor-pointer hover:-translate-y-[1px] hover:shadow-md"
                         : isBlockedFutureDate
                         ? "cursor-not-allowed opacity-55 border-slate-200 bg-slate-50"
                         : "cursor-default opacity-0",
                       isSelected && "ring-2 ring-emerald-500/65",
+                      dayData?.noSonDay && !isSelected && "ring-1 ring-violet-400/60",
+                      calendarFilter !== "all" && !matchesActiveFilter && !isSelected && "opacity-35 grayscale-[0.25]",
                       isTodayDate ? "border-amber-400 bg-amber-50 shadow-[0_0_0_1px_rgba(245,158,11,0.14)]"
                         : canSelectDay && score != null ? scoreCardClass(score)
                         : canSelectDay ? "border-slate-200 bg-white hover:border-slate-300"
@@ -926,9 +1000,12 @@ export default function ManseryokPage() {
                           </span>
                         </div>
 
-                        {/* 음력 — 모바일에선 숨김(탭하면 상세에 표시) */}
-                        <span className="hidden md:inline text-[9px] text-slate-500 leading-none mb-0.5">
-                          {dayData.lunar}
+                        {/* 음력 — 날짜 카드에서 작게 상시 표시 */}
+                        <span
+                          className="mb-0.5 block w-full whitespace-nowrap text-center text-[9px] font-medium leading-none tracking-tight text-slate-500 md:text-[10px]"
+                          title={`음력 ${dayData.lunar}`}
+                        >
+                          음 {dayData.lunar}
                         </span>
 
                         {/* 한자 간지 */}
@@ -952,8 +1029,26 @@ export default function ManseryokPage() {
 
                         {/* 절기 */}
                         {dayData.solarTerm && (
-                          <div className="text-[8px] md:text-[9px] text-emerald-600 font-semibold leading-none mt-0.5 text-center">
+                          <div className="mt-0.5 text-center text-[9px] font-semibold leading-none text-emerald-600 md:text-[10px]">
                             {dayData.solarTerm}
+                          </div>
+                        )}
+
+                        {(dayData.noSonDay || dayData.holiday) && (
+                          <div className="mt-0.5 flex w-full flex-wrap justify-center gap-0.5">
+                            {dayData.noSonDay && (
+                              <span className="rounded-full border border-violet-300 bg-violet-100 px-1 py-0.5 text-[9px] font-bold leading-none text-violet-700 md:text-[10px]">
+                                손없음
+                              </span>
+                            )}
+                            {dayData.holiday && (
+                              <span
+                                title={dayData.holiday}
+                                className="max-w-full truncate rounded-full border border-rose-300 bg-rose-100 px-1 py-0.5 text-[9px] font-bold leading-none text-rose-700 md:text-[10px]"
+                              >
+                                {dayData.holiday}
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -1007,6 +1102,8 @@ export default function ManseryokPage() {
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-500" />평</div>
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" />주의</div>
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" />흉</div>
+              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-violet-500" />손없는날</div>
+              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-rose-300" />공휴일</div>
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" />{isPersonalized ? "개인 길일" : "길일"}</div>
               <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-destructive" />{isPersonalized ? "개인 흉일" : "흉일"}</div>
               {isPersonalized && <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-400" />개인 주의일</div>}
@@ -1064,6 +1161,9 @@ export default function ManseryokPage() {
                     {selected.dayData.solarTerm && (
                       <span className="ml-2 text-emerald-600 font-semibold">{selected.dayData.solarTerm}</span>
                     )}
+                    {selected.dayData.holiday && (
+                      <span className="ml-2 font-semibold text-rose-600">{selected.dayData.holiday}</span>
+                    )}
                   </p>
                   <h3 className="font-serif text-2xl font-bold text-foreground leading-tight">
                     {toGanziHanja(selected.dayData.dayHeavenlyStem, selected.dayData.dayEarthlyBranch)}일
@@ -1094,9 +1194,34 @@ export default function ManseryokPage() {
                 />
               </div>
 
+              {(selected.dayData.noSonDay || selected.dayData.holiday) && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {selected.dayData.noSonDay && (
+                    <div className="rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2.5 text-violet-900">
+                      <div className="flex items-center gap-2 text-sm font-bold">
+                        <House className="h-4 w-4" />손없는날
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-violet-700">
+                        음력 {selected.dayData.lunarLeap ? "윤" : ""}{selected.dayData.lunarMonth}월 {selected.dayData.lunarDay}일. 민속에서 이사·개업처럼 방향을 타는 일을 잡기 좋다고 보는 날입니다.
+                      </p>
+                    </div>
+                  )}
+                  {selected.dayData.holiday && (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50/90 px-3 py-2.5 text-rose-900">
+                      <div className="flex items-center gap-2 text-sm font-bold">
+                        <Landmark className="h-4 w-4" />{selected.dayData.holiday}
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-rose-700">
+                        공공기관 휴일 정보. 일정·계약 전 실제 영업 여부도 함께 확인하세요.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── 음력·길흉일·관계 ── */}
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <div className="flex gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <div className="flex flex-wrap gap-3">
                   {badges.lucky && <span className="text-primary font-medium">✦ {isPersonalized ? "개인 길일" : "길일"}</span>}
                   {badges.inauspicious && <span className="text-destructive font-medium">✦ {isPersonalized ? "개인 흉일" : "흉일"}</span>}
                   {badges.caution && <span className="text-orange-700 font-semibold">✦ 개인 주의일</span>}
@@ -1111,6 +1236,9 @@ export default function ManseryokPage() {
                   </div>
                 )}
               </div>
+              <p className="text-[10px] leading-relaxed text-muted-foreground">
+                {data?.calendarDataMessage} · 손없는날은 전통 민속 참고 정보이며 개인 길흉 점수와 별도입니다.
+              </p>
 
               {/* ── 운세 해설 (왜 이런 점수인가) ── */}
               <div className="rounded-xl bg-white/65 px-4 py-3 border border-white/70 space-y-2 shadow-sm">
