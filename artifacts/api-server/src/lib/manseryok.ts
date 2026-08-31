@@ -7,34 +7,19 @@ import {
 } from './saju-calculator.js';
 import { solarToLunar, formatLunar } from './lunar-calendar.js';
 
-// Korean solar terms (절기) with accurate approximate solar dates per year
-// Each entry: [name, approximate month, day range start, day range end]
-// The actual dates shift by 1 day each year due to leap years
-const SOLAR_TERMS_DATA: Array<{ name: string; month: number; days: number[] }> = [
-  { name: '소한', month: 1, days: [5, 6, 7] },
-  { name: '대한', month: 1, days: [19, 20, 21] },
-  { name: '입춘', month: 2, days: [3, 4, 5] },
-  { name: '우수', month: 2, days: [18, 19, 20] },
-  { name: '경칩', month: 3, days: [5, 6, 7] },
-  { name: '춘분', month: 3, days: [20, 21, 22] },
-  { name: '청명', month: 4, days: [4, 5, 6] },
-  { name: '곡우', month: 4, days: [19, 20, 21] },
-  { name: '입하', month: 5, days: [5, 6, 7] },
-  { name: '소만', month: 5, days: [20, 21, 22] },
-  { name: '망종', month: 6, days: [5, 6, 7] },
-  { name: '하지', month: 6, days: [20, 21, 22] },
-  { name: '소서', month: 7, days: [6, 7, 8] },
-  { name: '대서', month: 7, days: [22, 23, 24] },
-  { name: '입추', month: 8, days: [6, 7, 8] },
-  { name: '처서', month: 8, days: [22, 23, 24] },
-  { name: '백로', month: 9, days: [7, 8, 9] },
-  { name: '추분', month: 9, days: [22, 23, 24] },
-  { name: '한로', month: 10, days: [7, 8, 9] },
-  { name: '상강', month: 10, days: [22, 23, 24] },
-  { name: '입동', month: 11, days: [6, 7, 8] },
-  { name: '소설', month: 11, days: [21, 22, 23] },
-  { name: '대설', month: 12, days: [6, 7, 8] },
-  { name: '동지', month: 12, days: [21, 22, 23] },
+const SOLAR_TERMS_DATA: Array<{ name: string; month: number }> = [
+  { name: '소한', month: 1 }, { name: '대한', month: 1 },
+  { name: '입춘', month: 2 }, { name: '우수', month: 2 },
+  { name: '경칩', month: 3 }, { name: '춘분', month: 3 },
+  { name: '청명', month: 4 }, { name: '곡우', month: 4 },
+  { name: '입하', month: 5 }, { name: '소만', month: 5 },
+  { name: '망종', month: 6 }, { name: '하지', month: 6 },
+  { name: '소서', month: 7 }, { name: '대서', month: 7 },
+  { name: '입추', month: 8 }, { name: '처서', month: 8 },
+  { name: '백로', month: 9 }, { name: '추분', month: 9 },
+  { name: '한로', month: 10 }, { name: '상강', month: 10 },
+  { name: '입동', month: 11 }, { name: '소설', month: 11 },
+  { name: '대설', month: 12 }, { name: '동지', month: 12 },
 ];
 
 // More precise solar term dates for specific years (year -> { termName -> day })
@@ -61,19 +46,19 @@ function getSolarTerm(year: number, month: number, day: number): string | undefi
     return undefined;
   }
 
-  // Fallback for years without precise data
-  for (const term of SOLAR_TERMS_DATA) {
-    if (term.month === month && term.days.includes(day)) {
-      return term.name;
-    }
-  }
+  // Unknown years are left blank instead of marking every possible date as a term.
+  // KASI enrichment supplies authoritative dates when configured.
   return undefined;
 }
 
 export interface ManseryokDayData {
   solar: string;
   lunar: string;
+  lunarMonth: number;
+  lunarDay: number;
   lunarLeap: boolean;
+  noSonDay: boolean;
+  holiday?: string;
   dayGanzi: string;
   dayHeavenlyStem: string;
   dayEarthlyBranch: string;
@@ -90,6 +75,14 @@ export interface ManseryokDayData {
 const LUCKY_BRANCH_INDICES = new Set([2, 5, 8, 11]); // 인, 사, 신, 해
 // 자(0), 묘(3), 오(6), 유(9) are traditionally more cautious days
 const INAUSPICIOUS_BRANCH_INDICES = new Set([0, 3, 6, 9]); // 자, 묘, 오, 유
+
+/**
+ * 손없는날: 음력 날짜의 끝수가 9 또는 0인 날.
+ * 전통 민속 기준이며 개인 사주 길흉 점수와는 별개로 표시한다.
+ */
+export function isNoSonDay(lunarDay: number): boolean {
+  return lunarDay > 0 && (lunarDay % 10 === 9 || lunarDay % 10 === 0);
+}
 
 export function getManseryokDay(year: number, month: number, day: number): ManseryokDayData {
   const dayPillar = getDayPillar(year, month, day);
@@ -112,7 +105,10 @@ export function getManseryokDay(year: number, month: number, day: number): Manse
   return {
     solar: `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`,
     lunar: lunarStr,
+    lunarMonth: lunarDate.lunarMonth,
+    lunarDay: lunarDate.lunarDay,
     lunarLeap: lunarDate.isLeap,
+    noSonDay: isNoSonDay(lunarDate.lunarDay),
     dayGanzi: `${dayPillar.stem}${dayPillar.branch}`,
     dayHeavenlyStem: dayPillar.stem,
     dayEarthlyBranch: dayPillar.branch,

@@ -223,7 +223,11 @@ export const GetManseryokDateResponse = zod.object({
   "day": zod.object({
   "solar": zod.string().describe('Solar date (YYYY-MM-DD)'),
   "lunar": zod.string().describe('Lunar date (MM-DD)'),
+  "lunarMonth": zod.number().describe('Lunar month number'),
+  "lunarDay": zod.number().describe('Lunar day number'),
   "lunarLeap": zod.boolean().describe('Is this a leap month'),
+  "noSonDay": zod.boolean().describe('Traditional 손없는날 based on lunar day ending in 9 or 0'),
+  "holiday": zod.string().optional().describe('Public holiday name from KASI public data when available'),
   "dayGanzi": zod.string().describe('Day\'s ganzi (천간지지)'),
   "dayHeavenlyStem": zod.string(),
   "dayEarthlyBranch": zod.string(),
@@ -260,7 +264,9 @@ export const GetManseryokDateResponse = zod.object({
   "monthGanzi": zod.string(),
   "yearElement": zod.string(),
   "monthElement": zod.string(),
-  "yearZodiac": zod.string()
+  "yearZodiac": zod.string(),
+  "calendarDataSource": zod.enum(['kasi', 'partial', 'local']),
+  "calendarDataMessage": zod.string()
 })
 
 
@@ -288,10 +294,16 @@ export const GetManseryokMonthResponse = zod.object({
   "yearGanzi": zod.string(),
   "monthGanzi": zod.string(),
   "yearZodiac": zod.string(),
+  "calendarDataSource": zod.enum(['kasi', 'partial', 'local']),
+  "calendarDataMessage": zod.string(),
   "days": zod.array(zod.object({
   "solar": zod.string().describe('Solar date (YYYY-MM-DD)'),
   "lunar": zod.string().describe('Lunar date (MM-DD)'),
+  "lunarMonth": zod.number().describe('Lunar month number'),
+  "lunarDay": zod.number().describe('Lunar day number'),
   "lunarLeap": zod.boolean().describe('Is this a leap month'),
+  "noSonDay": zod.boolean().describe('Traditional 손없는날 based on lunar day ending in 9 or 0'),
+  "holiday": zod.string().optional().describe('Public holiday name from KASI public data when available'),
   "dayGanzi": zod.string().describe('Day\'s ganzi (천간지지)'),
   "dayHeavenlyStem": zod.string(),
   "dayEarthlyBranch": zod.string(),

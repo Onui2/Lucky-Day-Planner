@@ -319,8 +319,16 @@ export interface ManseryokDay {
   solar: string;
   /** Lunar date (MM-DD) */
   lunar: string;
+  /** Lunar month number */
+  lunarMonth: number;
+  /** Lunar day number */
+  lunarDay: number;
   /** Is this a leap month */
   lunarLeap: boolean;
+  /** Traditional 손없는날 based on lunar day ending in 9 or 0 */
+  noSonDay: boolean;
+  /** Public holiday name from KASI public data when available */
+  holiday?: string;
   /** Day's ganzi (천간지지) */
   dayGanzi: string;
   dayHeavenlyStem: string;
@@ -335,6 +343,15 @@ export interface ManseryokDay {
   personalized?: ManseryokPersonalized;
 }
 
+export type ManseryokDateCalendarDataSource = typeof ManseryokDateCalendarDataSource[keyof typeof ManseryokDateCalendarDataSource];
+
+
+export const ManseryokDateCalendarDataSource = {
+  kasi: 'kasi',
+  partial: 'partial',
+  local: 'local',
+} as const;
+
 export interface ManseryokDate {
   day: ManseryokDay;
   yearGanzi: string;
@@ -342,7 +359,18 @@ export interface ManseryokDate {
   yearElement: string;
   monthElement: string;
   yearZodiac: string;
+  calendarDataSource: ManseryokDateCalendarDataSource;
+  calendarDataMessage: string;
 }
+
+export type ManseryokMonthCalendarDataSource = typeof ManseryokMonthCalendarDataSource[keyof typeof ManseryokMonthCalendarDataSource];
+
+
+export const ManseryokMonthCalendarDataSource = {
+  kasi: 'kasi',
+  partial: 'partial',
+  local: 'local',
+} as const;
 
 export interface ManseryokMonth {
   year: number;
@@ -350,6 +378,8 @@ export interface ManseryokMonth {
   yearGanzi: string;
   monthGanzi: string;
   yearZodiac: string;
+  calendarDataSource: ManseryokMonthCalendarDataSource;
+  calendarDataMessage: string;
   days: ManseryokDay[];
 }
 

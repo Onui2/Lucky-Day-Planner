@@ -12,8 +12,16 @@ export interface ManseryokDay {
   solar: string;
   /** Lunar date (MM-DD) */
   lunar: string;
+  /** Lunar month number */
+  lunarMonth: number;
+  /** Lunar day number */
+  lunarDay: number;
   /** Is this a leap month */
   lunarLeap: boolean;
+  /** Traditional 손없는날 based on lunar day ending in 9 or 0 */
+  noSonDay: boolean;
+  /** Public holiday name from KASI public data when available */
+  holiday?: string;
   /** Day's ganzi (천간지지) */
   dayGanzi: string;
   dayHeavenlyStem: string;

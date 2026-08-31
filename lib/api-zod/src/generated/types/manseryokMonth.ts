@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ManseryokDay } from './manseryokDay';
+import type { ManseryokMonthCalendarDataSource } from './manseryokMonthCalendarDataSource';
 
 export interface ManseryokMonth {
   year: number;
@@ -13,5 +14,7 @@ export interface ManseryokMonth {
   yearGanzi: string;
   monthGanzi: string;
   yearZodiac: string;
+  calendarDataSource: ManseryokMonthCalendarDataSource;
+  calendarDataMessage: string;
   days: ManseryokDay[];
 }

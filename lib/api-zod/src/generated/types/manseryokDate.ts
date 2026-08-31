@@ -5,6 +5,7 @@
  * API specification for Saju & Fortune website
  * OpenAPI spec version: 0.1.0
  */
+import type { ManseryokDateCalendarDataSource } from './manseryokDateCalendarDataSource';
 import type { ManseryokDay } from './manseryokDay';
 
 export interface ManseryokDate {
@@ -14,4 +15,6 @@ export interface ManseryokDate {
   yearElement: string;
   monthElement: string;
   yearZodiac: string;
+  calendarDataSource: ManseryokDateCalendarDataSource;
+  calendarDataMessage: string;
 }

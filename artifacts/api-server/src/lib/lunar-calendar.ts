@@ -1,7 +1,7 @@
 /**
  * Korean Lunar Calendar Converter
- * Uses lookup table data for accurate solar-to-lunar date conversion.
- * Data covers years 1900-2050.
+ * Uses korean-lunar-calendar as the primary converter and retains the local
+ * lookup/approximation only as a compatibility fallback outside its range.
  *
  * Data format per year: [solarMonth, solarDay, monthLengths...]
  *   - solarMonth, solarDay: solar date of the first day of lunar year
@@ -10,6 +10,8 @@
  *
  * Reference: Korean Astronomical Observatory lunar calendar data
  */
+
+import KoreanLunarCalendar from "korean-lunar-calendar";
 
 // Leap month for each year (0 = no leap month, otherwise = which month is followed by leap)
 const LEAP_MONTH: Record<number, number> = {
@@ -88,6 +90,17 @@ export interface LunarDate {
 }
 
 export function solarToLunar(solarYear: number, solarMonth: number, solarDay: number): LunarDate {
+  const calendar = new KoreanLunarCalendar();
+  if (calendar.setSolarDate(solarYear, solarMonth, solarDay)) {
+    const lunar = calendar.getLunarCalendar();
+    return {
+      lunarYear: lunar.year,
+      lunarMonth: lunar.month,
+      lunarDay: lunar.day,
+      isLeap: Boolean(lunar.intercalation),
+    };
+  }
+
   // Find the starting year in our data table
   const targetJD = toJulianDay(solarYear, solarMonth, solarDay);
 

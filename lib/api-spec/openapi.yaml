@@ -753,9 +753,21 @@ components:
         lunar:
           type: string
           description: Lunar date (MM-DD)
+        lunarMonth:
+          type: integer
+          description: Lunar month number
+        lunarDay:
+          type: integer
+          description: Lunar day number
         lunarLeap:
           type: boolean
           description: Is this a leap month
+        noSonDay:
+          type: boolean
+          description: Traditional 손없는날 based on lunar day ending in 9 or 0
+        holiday:
+          type: string
+          description: Public holiday name from KASI public data when available
         dayGanzi:
           type: string
           description: Day's ganzi (천간지지)
@@ -781,7 +793,10 @@ components:
       required:
         - solar
         - lunar
+        - lunarMonth
+        - lunarDay
         - lunarLeap
+        - noSonDay
         - dayGanzi
         - dayHeavenlyStem
         - dayEarthlyBranch
@@ -875,6 +890,11 @@ components:
           type: string
         yearZodiac:
           type: string
+        calendarDataSource:
+          type: string
+          enum: [kasi, partial, local]
+        calendarDataMessage:
+          type: string
       required:
         - day
         - yearGanzi
@@ -882,6 +902,8 @@ components:
         - yearElement
         - monthElement
         - yearZodiac
+        - calendarDataSource
+        - calendarDataMessage
 
     ManseryokMonth:
       type: object
@@ -896,6 +918,11 @@ components:
           type: string
         yearZodiac:
           type: string
+        calendarDataSource:
+          type: string
+          enum: [kasi, partial, local]
+        calendarDataMessage:
+          type: string
         days:
           type: array
           items:
@@ -906,6 +933,8 @@ components:
         - yearGanzi
         - monthGanzi
         - yearZodiac
+        - calendarDataSource
+        - calendarDataMessage
         - days
 
     AuthUser:
