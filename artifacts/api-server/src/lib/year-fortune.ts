@@ -486,7 +486,7 @@ export function getYearFortune(
   const year = targetYear ?? new Date().getFullYear();
   const yearPillar  = getYearPillar(year);
   const sajuYearNum = getSajuYear(birthYear, birthMonth, birthDay, birthHour);
-  const dayPillar   = getDayPillar(birthYear, birthMonth, birthDay);
+  const dayPillar   = getDayPillar(birthYear, birthMonth, birthDay, birthHour);
 
   // ── 사주 4주 모두 계산 ──────────────────────────────
   const birthYearPillar  = getYearPillar(sajuYearNum);

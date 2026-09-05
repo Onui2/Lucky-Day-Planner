@@ -198,12 +198,23 @@ export function getMonthPillar(year: number, month: number, day: number, birthHo
 }
 
 // Day pillar calculation (using Julian Day Number)
-export function getDayPillar(year: number, month: number, day: number) {
+// birthHour: -1/unknown or 0-22 = day pillar uses the calendar date as-is.
+// 23 (자시, 23:00-23:59) = traditional day boundary is at 자시, not midnight,
+// so the day pillar rolls forward to the next calendar date (야자시).
+export function getDayPillar(year: number, month: number, day: number, birthHour: number = -1) {
+  let y0 = year, m0 = month, d0 = day;
+  if (birthHour === 23) {
+    const rolled = new Date(year, month - 1, day + 1);
+    y0 = rolled.getFullYear();
+    m0 = rolled.getMonth() + 1;
+    d0 = rolled.getDate();
+  }
+
   // Calculate Julian Day Number
-  const a = Math.floor((14 - month) / 12);
-  const y = year + 4800 - a;
-  const m = month + 12 * a - 3;
-  const jdn = day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  const a = Math.floor((14 - m0) / 12);
+  const y = y0 + 4800 - a;
+  const m = m0 + 12 * a - 3;
+  const jdn = d0 + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
   
   const REF_JDN = 2451545; // JDN for Jan 1, 2000
   const REF_IDX = 54; // 무오 (戊午) - Jan 1, 2000 is index 54 in sexagenary cycle
@@ -1466,8 +1477,8 @@ export function calculateGungap(
   p1: { year: number; month: number; day: number; hour: number; gender: 'male' | 'female' },
   p2: { year: number; month: number; day: number; hour: number; gender: 'male' | 'female' }
 ) {
-  const d1 = getDayPillar(p1.year, p1.month, p1.day);
-  const d2 = getDayPillar(p2.year, p2.month, p2.day);
+  const d1 = getDayPillar(p1.year, p1.month, p1.day, p1.hour);
+  const d2 = getDayPillar(p2.year, p2.month, p2.day, p2.hour);
   const y1 = getYearPillar(p1.year);
   const y2 = getYearPillar(p2.year);
 

@@ -152,7 +152,7 @@ router.post("/saju/monthly", (req, res) => {
     const sajuYear  = getSajuYear(bYear, bMonth, bDay, Math.max(bHour, 0));
     const yearPillar  = getYearPillar(sajuYear);
     const monthPillar = getMonthPillar(bYear, bMonth, bDay, Math.max(bHour, 0));
-    const dayPillar   = getDayPillar(bYear, bMonth, bDay);
+    const dayPillar   = getDayPillar(bYear, bMonth, bDay, bHour);
     const hourPillar  = bHour >= 0 ? getHourPillar(dayPillar.stemIndex, bHour) : null;
     const pillars = [yearPillar, monthPillar, dayPillar, ...(hourPillar ? [hourPillar] : [])];
     const elementBalance = countElements(pillars);
@@ -295,7 +295,7 @@ router.get("/fortune/lucky-days", (req, res) => {
     const sajuYear   = getSajuYear(bYear, bMonth, bDay, Math.max(bHour, 0));
     const yearPillar = getYearPillar(sajuYear);
     const bMonthPillar = getMonthPillar(bYear, bMonth, bDay, Math.max(bHour, 0));
-    const dayPillar  = getDayPillar(bYear, bMonth, bDay);
+    const dayPillar  = getDayPillar(bYear, bMonth, bDay, bHour);
     const hourPillar = bHour >= 0 ? getHourPillar(dayPillar.stemIndex, bHour) : null;
     const pillars    = [yearPillar, bMonthPillar, dayPillar, ...(hourPillar ? [hourPillar] : [])];
     const elementBalance = countElements(pillars);

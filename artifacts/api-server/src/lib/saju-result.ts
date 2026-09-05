@@ -85,7 +85,7 @@ export function buildSajuResult(input: SajuBirthInput) {
   const sajuYearNum = getSajuYear(year, month, day, hour, minute);
   const yearPillar = getYearPillar(sajuYearNum);
   const monthPillar = getMonthPillar(year, month, day, hour, minute);
-  const dayPillar = getDayPillar(year, month, day);
+  const dayPillar = getDayPillar(year, month, day, hour);
   const hourPillar = hour >= 0 ? getHourPillar(dayPillar.stemIndex, hour) : null;
 
   const pillars = [yearPillar, monthPillar, dayPillar];

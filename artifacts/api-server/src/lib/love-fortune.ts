@@ -242,7 +242,7 @@ export function getLoveFortune(
   partnerYear?: number, partnerMonth?: number, partnerDay?: number,
   partnerHour: number = -1, partnerGender: 'male' | 'female' = 'female',
 ): LoveFortuneResult {
-  const dayPillar = getDayPillar(birthYear, birthMonth, birthDay);
+  const dayPillar = getDayPillar(birthYear, birthMonth, birthDay, birthHour);
   const myElem = dayPillar.stemElement ?? '목';
   const myStem = dayPillar.stem;
 
@@ -292,7 +292,7 @@ export function getLoveFortune(
   const partYear = partnerYear ?? birthYear - 2;
   const partMonth = partnerMonth ?? birthMonth;
   const partDay = partnerDay ?? birthDay;
-  const partnerDayPillar = getDayPillar(partYear, partMonth, partDay);
+  const partnerDayPillar = getDayPillar(partYear, partMonth, partDay, partnerHour);
   const partElem = partnerDayPillar.stemElement ?? '화';
   const partStem = partnerDayPillar.stem;
 
