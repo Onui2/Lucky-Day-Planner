@@ -1,13 +1,16 @@
 import { Router, type Request, type Response } from "express";
-import { aiQuestionsTable, db, usersTable } from "@workspace/db";
+import { aiQuestionsTable, db, type JsonObject, usersTable } from "@workspace/db";
 import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
 import { buildSajuQuestionAnswer } from "../lib/ai-assistant.js";
 import {
+  finalizeQuestionAnswer,
   getActiveSubscription,
   getMonthlyBucket,
   getMonthlyQuestionUsage,
   getPlanQuestionLimit,
   parseBirthInfo,
+  releaseQuestionSlot,
+  reserveQuestionSlot,
 } from "../lib/commerce.js";
 import { requireDatabase } from "../lib/database-guard.js";
 import { isPrivilegedRole } from "../lib/date-access.js";
@@ -263,7 +266,33 @@ router.post("/ai/questions", async (req, res) => {
 
   try {
     const usage = await getUsageSummary(req.user.id, req.user.role);
-    if (!usage.unlimited && usage.limit !== null && usage.used >= usage.limit) {
+    const promptAssessment = assessPromptInjection(question);
+
+    // Quota check + row insert happen atomically inside reserveQuestionSlot
+    // (see there for why "check usage, then insert after generating the
+    // answer" is exploitable). The row starts with a placeholder answer
+    // and is filled in below once the real answer is known.
+    const reserved = await reserveQuestionSlot(
+      req.user.id,
+      usage.monthlyBucket,
+      usage.unlimited ? null : usage.limit,
+      {
+        userId: req.user.id,
+        subscriptionPlanCode: usage.planCode,
+        monthlyBucket: usage.monthlyBucket,
+        question,
+        answer: "",
+        birthInfo,
+        blockedByGuard: promptAssessment.blocked,
+        riskLevel: promptAssessment.riskLevel,
+        riskReasons: promptAssessment.reasons,
+        conversationHistory: history,
+        requestMetadata: getRequestMetadata(req),
+        promptGuardVersion: promptAssessment.guardVersion,
+      },
+    );
+
+    if (!reserved) {
       res.status(403).json({
         error: "이번 달 질문 가능 횟수를 모두 사용했습니다.",
         ...usage,
@@ -271,26 +300,9 @@ router.post("/ai/questions", async (req, res) => {
       return;
     }
 
-    const promptAssessment = assessPromptInjection(question);
     if (promptAssessment.blocked) {
       const answer = buildPromptGuardAnswer(promptAssessment);
-      const [saved] = await db
-        .insert(aiQuestionsTable)
-        .values({
-          userId: req.user.id,
-          subscriptionPlanCode: usage.planCode,
-          monthlyBucket: usage.monthlyBucket,
-          question,
-          answer,
-          birthInfo,
-          blockedByGuard: true,
-          riskLevel: promptAssessment.riskLevel,
-          riskReasons: promptAssessment.reasons,
-          conversationHistory: history,
-          requestMetadata: getRequestMetadata(req),
-          promptGuardVersion: promptAssessment.guardVersion,
-        })
-        .returning();
+      const saved = await finalizeQuestionAnswer(reserved.id, answer, {});
 
       res.json({
         question: saved,
@@ -312,30 +324,21 @@ router.post("/ai/questions", async (req, res) => {
       gender: birthInfo.gender,
       calendarType: birthInfo.calendarType,
     });
-    const answer = await buildSajuQuestionAnswer(
-      question,
-      sajuResult as Record<string, any>,
-      history,
-    );
 
-    const [saved] = await db
-      .insert(aiQuestionsTable)
-      .values({
-        userId: req.user.id,
-        subscriptionPlanCode: usage.planCode,
-        monthlyBucket: usage.monthlyBucket,
+    let answer: string;
+    try {
+      answer = await buildSajuQuestionAnswer(
         question,
-        answer,
-        birthInfo,
-        sajuResult,
-        blockedByGuard: false,
-        riskLevel: promptAssessment.riskLevel,
-        riskReasons: promptAssessment.reasons,
-        conversationHistory: history,
-        requestMetadata: getRequestMetadata(req),
-        promptGuardVersion: promptAssessment.guardVersion,
-      })
-      .returning();
+        sajuResult as Record<string, any>,
+        history,
+      );
+    } catch (error) {
+      // Refund the reserved slot — a failed generation must not consume quota.
+      await releaseQuestionSlot(reserved.id);
+      throw error;
+    }
+
+    const saved = await finalizeQuestionAnswer(reserved.id, answer, sajuResult as JsonObject);
 
     res.json({
       question: saved,

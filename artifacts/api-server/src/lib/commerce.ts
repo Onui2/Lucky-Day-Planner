@@ -1,7 +1,10 @@
 import crypto from "node:crypto";
 import {
+  type AiQuestionRow,
   aiQuestionsTable,
   db,
+  type InsertAiQuestion,
+  type JsonObject,
   type OrderRow,
   ordersTable,
   type ReportBirthInfo,
@@ -120,6 +123,68 @@ export async function getMonthlyQuestionUsage(userId: string, monthlyBucket: str
     );
 
   return row?.count ?? 0;
+}
+
+// Atomically checks the monthly quota and inserts the question row in one
+// transaction, serialized per (userId, monthlyBucket) via an advisory lock.
+// Without this, a plain "SELECT count(*) then INSERT" (as done previously)
+// lets concurrent requests all read the same pre-insert count and all pass
+// the quota check, which is exploitable because the real work between the
+// check and the insert (the Gemini call) takes seconds — a wide window for
+// concurrent requests to race past a quota of just a few questions/month.
+// limit: null means unlimited (skips the lock/count and always inserts).
+// Returns the inserted row, or null if the quota was already exhausted.
+export async function reserveQuestionSlot(
+  userId: string,
+  monthlyBucket: string,
+  limit: number | null,
+  values: InsertAiQuestion,
+): Promise<AiQuestionRow | null> {
+  return db.transaction(async (tx) => {
+    if (limit !== null) {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${userId}:${monthlyBucket}`}, 0))`,
+      );
+
+      const [{ used }] = await tx
+        .select({ used: sql<number>`count(*)::int` })
+        .from(aiQuestionsTable)
+        .where(
+          and(
+            eq(aiQuestionsTable.userId, userId),
+            eq(aiQuestionsTable.monthlyBucket, monthlyBucket),
+          ),
+        );
+
+      if (used >= limit) {
+        return null;
+      }
+    }
+
+    const [row] = await tx.insert(aiQuestionsTable).values(values).returning();
+    return row;
+  });
+}
+
+// Fills in the real answer/saju result on a row inserted as a placeholder
+// while the (slow) Gemini call was in flight.
+export async function finalizeQuestionAnswer(
+  id: number,
+  answer: string,
+  sajuResult: JsonObject,
+): Promise<AiQuestionRow> {
+  const [row] = await db
+    .update(aiQuestionsTable)
+    .set({ answer, sajuResult })
+    .where(eq(aiQuestionsTable.id, id))
+    .returning();
+  return row;
+}
+
+// Releases a reserved slot when the Gemini call fails after reservation, so
+// a failed generation does not consume the user's monthly quota.
+export async function releaseQuestionSlot(id: number): Promise<void> {
+  await db.delete(aiQuestionsTable).where(eq(aiQuestionsTable.id, id));
 }
 
 export async function confirmPaymentWithProvider(

@@ -48,7 +48,7 @@ test(`rate limiter allows up to max requests then returns 429 (store: ${usingDbS
     const blocked = await fetch(`${baseUrl}/probe`);
     assert.equal(blocked.status, 429);
     assert.ok(blocked.headers.get("retry-after"));
-    const body = await blocked.json();
+    const body = (await blocked.json()) as { error: string };
     assert.match(body.error, /너무 많습니다/);
   });
 });
