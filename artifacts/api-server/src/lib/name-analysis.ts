@@ -165,10 +165,13 @@ export function analyzeName(name: string): NameAnalysisData {
   const wonGyeok = sv[0] ?? 1;
   // 형격: 성 + 이름 첫 글자 (두 번째)
   const hyeongGyeok = (sv[0] ?? 0) + (sv[1] ?? 0);
-  // 이격: 이름 첫 글자 + 이름 둘째 (2음절 이름은 이름 첫 + 성)
+  // 이격: 이름 첫 글자 + 이름 둘째 글자. 2음절(성+이름 각 1자) 이름은 4번째
+  // 글자가 없어 원형이정 관례대로 가상 1획을 더한다 — 성+이름 첫 글자를
+  // 그대로 더하면 덧셈의 교환법칙 때문에 형격과 완전히 같은 값이 되어버려,
+  // 서로 다른 항목(형격=직업운, 이격=대인관계운)인데 풀이가 통째로 중복 노출됨.
   const iGyeok = chars.length >= 3
     ? (sv[1] ?? 0) + (sv[2] ?? 0)
-    : (sv[0] ?? 0) + (sv[1] ?? 0);
+    : (sv[1] ?? 0) + 1;
   // 정격: 전체 합
   const jeongGyeok = sv.reduce((a, b) => a + b, 0);
 
