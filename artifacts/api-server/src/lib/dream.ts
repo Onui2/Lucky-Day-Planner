@@ -162,11 +162,23 @@ function normalizeDreamEntry(entry: DreamKeyword): DreamKeyword {
   };
 }
 
+// "꿈"을 띄어쓰기 없이 붙이는 게("돼지꿈") 오히려 표준적인 검색 표현이라,
+// 키워드 매칭 전에 떼어낸다("돼지꿈" -> "돼지"). 단, 검색어가 "꿈" 그 자체인
+// 경우까지 빈 문자열로 만들지 않도록 길이 2 이상일 때만 적용한다.
+function stripDreamSuffix(token: string): string {
+  return token.length > 1 && token.endsWith("꿈") ? token.slice(0, -1) : token;
+}
+
+// "꿈"은 해몽 사이트 특성상 거의 모든 검색어와 항목 설명에 등장하는 불용어라,
+// 부분 연관 검색에서 그대로 두면 DB 전체가 매칭돼버린다.
+const DREAM_SEARCH_STOPWORDS = new Set(["꿈"]);
+
 export function searchDream(query: string): DreamSearchResult {
   const q = query.trim().toLowerCase();
   if (!q) return { matched: [], partialMatched: [], totalFound: 0 };
 
-  const tokens = q.split(/\s+/).filter(Boolean);
+  const tokens = q.split(/\s+/).filter(Boolean).map(stripDreamSuffix);
+  const partialTokens = tokens.filter(t => t.length >= 2 && !DREAM_SEARCH_STOPWORDS.has(t));
   const matched: DreamKeyword[] = [];
   const partialMatched: DreamKeyword[] = [];
   const seen = new Set<string>();
@@ -176,7 +188,7 @@ export function searchDream(query: string): DreamSearchResult {
     const detail = (entry.detail + entry.meaning).toLowerCase();
 
     const exactHit = tokens.some(t => kw === t || kw.includes(t));
-    const partialHit = tokens.some(t => detail.includes(t));
+    const partialHit = partialTokens.some(t => detail.includes(t));
 
     if (exactHit && !seen.has(entry.keyword)) {
       matched.push(normalizeDreamEntry(entry));
