@@ -500,6 +500,17 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_user_created_idx ON ai_questions (user_id, created_at DESC)`);
         await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_guard_created_idx ON ai_questions (blocked_by_guard, created_at DESC)`);
 
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS rate_limit_buckets (
+            bucket_name varchar(60) NOT NULL,
+            key varchar(200) NOT NULL,
+            count integer NOT NULL DEFAULT 0,
+            reset_at timestamptz NOT NULL,
+            PRIMARY KEY (bucket_name, key)
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS rate_limit_buckets_reset_idx ON rate_limit_buckets (reset_at)`);
+
         databaseReady = true;
         lastDatabaseError = null;
       } finally {
