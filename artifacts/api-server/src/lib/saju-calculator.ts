@@ -200,6 +200,9 @@ export function getMonthPillar(year: number, month: number, day: number, birthHo
 }
 
 // Day pillar calculation (using Julian Day Number)
+// Callers that need the 자시(23:00-23:59)/late-zi day-boundary adjustment must
+// pre-resolve the date via birth-resolution.ts's dayPillarDate and pass the
+// already-shifted year/month/day here; this function does not shift itself.
 export function getDayPillar(year: number, month: number, day: number) {
   // Calculate Julian Day Number
   const a = Math.floor((14 - month) / 12);
