@@ -23,10 +23,21 @@ The app also accepts Vercel/Supabase-style Postgres variables such as:
 - `POSTGRES_URL_NON_POOLING`
 - `POSTGRES_HOST`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DATABASE`
 
+Remote database connections require TLS with certificate and hostname verification.
+For Supabase or a private CA, set `DATABASE_SSL_CA_CERT` to the trusted root PEM
+from the database provider (literal `\n` line breaks are supported). `PGSSLMODE`
+may be `verify-full`; `require` and `prefer` also use full verification. Insecure
+remote modes such as `no-verify` or `disable` are rejected. The runtime and schema
+CLI use the same rules. Loopback databases can use plaintext for local development.
+
 ### Recommended
 
 - `ADMIN_EMAILS`: comma-separated admin email list
 - `SUPER_ADMIN_EMAILS`: comma-separated super admin email list
+
+These lists assign roles only to **new provider identities with verified email**.
+Local registration always creates a normal user. Existing users retain their
+stored role, including demotions; manage those roles through authorized admin tools.
 
 ### AI 상담 (Gemini)
 
@@ -34,10 +45,14 @@ The app also accepts Vercel/Supabase-style Postgres variables such as:
 
 ### 결제 (Toss Payments)
 
-- `TOSS_SECRET_KEY`: 토스 서버 시크릿 키 (없으면 dev 시뮬레이션 모드로 작동)
+- `TOSS_SECRET_KEY`: 토스 서버 시크릿 키 (없으면 유료 결제 비활성화)
 - `VITE_TOSS_CLIENT_KEY`: 토스 클라이언트 키 (프론트엔드 빌드 시 포함됨)
 
-`TOSS_SECRET_KEY`가 없으면 결제가 시뮬레이션 모드(`dev`)로 동작하여 실제 과금 없이 테스트할 수 있습니다.
+운영에서는 키가 없으면 유료 주문·결제 승인이 HTTP 503으로 차단됩니다.
+로컬 테스트에서만 `PAYMENT_SIMULATION_ENABLED=true`를 명시하면 시뮬레이션이 가능합니다.
+`NODE_ENV=production` 또는 `VERCEL_ENV=production`에서는 이 옵션이 적용되지 않습니다.
+무료 사주 PDF와 관리자 무료 발급은 유지됩니다. 자세한 정책은
+[결제 및 리포트 접근 제어](docs/PAYMENT_SECURITY.md)를 참고하세요.
 
 ### Optional mail settings
 
@@ -84,7 +99,11 @@ Run that command with `DATABASE_URL` pointed at the target database.
 
 `drizzle-kit` and the runtime API now use the same connection lookup rules, so `POSTGRES_URL` and the equivalent Postgres variables work there as well.
 
-At runtime the API also auto-creates the core auth tables (`users`, `sessions`) and app tables (`saved_saju`, `inquiries`) when a valid database connection is available, but an explicit schema push is still the safer first deploy step.
+At runtime the API also ensures the core auth tables (`users`, `sessions`,
+`auth_identities`) and app tables when a valid database connection is available,
+but an explicit schema push is still the safer first deploy step. Read
+[the security rollout notes](docs/SECURITY_ROLLOUT.md) before upgrading an existing
+deployment: the auth update invalidates existing cookie sessions.
 
 ## 5. Local development
 
@@ -93,3 +112,8 @@ At runtime the API also auto-creates the core auth tables (`users`, `sessions`) 
 - Start with `corepack pnpm run dev`
 
 The local dev script loads `.env` and `.env.local`, runs the API on `PORT` default `5001`, and the web app on `WEB_PORT` default `3000`.
+
+Vite development and preview servers bind to loopback and reject unknown Host
+headers. For intentional remote development, pass an explicit `--host` and set
+`__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` to the exact hostname you control. Do not
+use unrestricted host allowlists.

@@ -99,6 +99,11 @@ export function ReportPurchaseCard({
         return;
       }
 
+      if (created.checkoutMode !== "provider") {
+        setMessage("현재 결제를 이용할 수 없습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
       setMessage("토스 결제창으로 이동합니다...");
       await startTossCardPayment({
         user: authState.user,

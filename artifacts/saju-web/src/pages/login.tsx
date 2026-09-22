@@ -30,6 +30,7 @@ export default function LoginPage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const returnTo = sanitizeReturnTo(params.get("returnTo"));
+  const passwordChanged = params.get("notice") === "password-changed";
   const { isAuthenticated, isLoading, refreshUser, setAuthenticatedUser } = useAuth();
 
   const [email, setEmail] = useState(() => {
@@ -162,6 +163,12 @@ export default function LoginPage() {
               이메일과 비밀번호로 로그인해 주세요.
             </p>
           </div>
+
+          {passwordChanged && (
+            <div role="status" className="mb-5 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-700">
+              비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.
+            </div>
+          )}
 
           {localLoginUnavailable && (
             <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700">

@@ -1107,7 +1107,7 @@ export interface OrderListItem {
 
 export interface CreateCommerceOrderResponse {
   product: CommerceProduct;
-  checkoutMode: "admin" | "dev" | "provider";
+  checkoutMode: "admin" | "dev" | "provider" | "disabled";
   order: CommerceOrderSummary;
   report: {
     id: number;
@@ -1188,10 +1188,10 @@ export interface AdminAiQuestionLogsResponse {
 }
 
 export function useGetMyOrders(enabled = true) {
-  return useQuery<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" }>({
+  return useQuery<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" | "disabled" }>({
     queryKey: ORDERS_KEY,
     queryFn: () =>
-      customFetch<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" }>(
+      customFetch<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" | "disabled" }>(
         "/api/commerce/orders",
       ),
     staleTime: 30_000,

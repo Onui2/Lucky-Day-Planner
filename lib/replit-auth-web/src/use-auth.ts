@@ -1,14 +1,18 @@
-import { createElement, useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
+import { createElement, useState, useEffect, useCallback, useRef, createContext, useContext, type ReactNode } from "react";
 import type { AuthUser } from "@workspace/api-client-react";
 
 export type { AuthUser };
+
+interface LogoutOptions {
+  redirectTo?: string;
+}
 
 interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: () => void;
-  logout: () => void;
+  logout: (options?: LogoutOptions) => Promise<void>;
   refreshUser: () => Promise<void>;
   setAuthenticatedUser: (user: AuthUser | null) => void;
 }
@@ -85,10 +89,28 @@ function getStoredAccessToken(): string | null {
 }
 
 function clearStoredSupabaseTokens(): void {
-  if (!canUseStorage()) return;
+  try {
+    if (!canUseStorage()) return;
+    window.localStorage.removeItem(SUPABASE_ACCESS_TOKEN_STORAGE_KEY);
+    window.localStorage.removeItem(SUPABASE_REFRESH_TOKEN_STORAGE_KEY);
+  } catch {
+    // Storage restrictions must not prevent clearing in-memory auth state.
+  }
+}
 
-  window.localStorage.removeItem(SUPABASE_ACCESS_TOKEN_STORAGE_KEY);
-  window.localStorage.removeItem(SUPABASE_REFRESH_TOKEN_STORAGE_KEY);
+function clearSupabaseSessionStorage(): void {
+  clearStoredSupabaseTokens();
+  try {
+    if (!canUseStorage() || !SUPABASE_URL) return;
+    // getSupabaseClient uses the SDK's default storage key. Clear it even when
+    // signOut cannot reach Supabase, so a reload cannot restore stale tokens.
+    const key = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+    for (const suffix of ["", "-code-verifier", "-user"]) {
+      window.localStorage.removeItem(`${key}${suffix}`);
+    }
+  } catch {
+    // Continue redirecting if browser storage is unavailable.
+  }
 }
 
 function buildAuthHeaders(): HeadersInit | undefined {
@@ -141,7 +163,23 @@ async function fetchCurrentUser(): Promise<AuthUser | null> {
     });
   }
 
-  if (res.status === 401 || res.status === 403) {
+  const conflict = res.status === 409
+    ? await res.json().catch(() => null) as { code?: unknown } | null
+    : null;
+  if (res.status === 401 || res.status === 403 || conflict?.code === "IDENTITY_ACCOUNT_CONFLICT") {
+    if (hasStoredSupabaseSession()) {
+      clearSupabaseSessionStorage();
+      // Do not await SDK operations from an onAuthStateChange callback: the
+      // callback may hold the SDK session lock. Clear request tokens now and
+      // finish local SDK cleanup after the callback can return.
+      if (isSupabaseAuthEnabled()) {
+        void import("./supabase").then(async ({ getSupabaseClient }) => {
+          const client = getSupabaseClient();
+          await client?.auth.stopAutoRefresh();
+          await client?.auth.signOut({ scope: "local" });
+        }).catch(() => {});
+      }
+    }
     return null;
   }
 
@@ -203,7 +241,7 @@ const AuthContext = createContext<AuthState>({
   isLoading: true,
   isAuthenticated: false,
   login: () => {},
-  logout: () => {},
+  logout: async () => {},
   refreshUser: async () => {},
   setAuthenticatedUser: () => {},
 });
@@ -214,8 +252,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [initialSnapshot] = useState(() => readAuthSnapshot());
   const [user, setUser] = useState<AuthUser | null>(initialSnapshot?.user ?? null);
   const [isLoading, setIsLoading] = useState(initialSnapshot === null);
+  const isSigningOut = useRef(false);
 
   const applyUser = useCallback((next: AuthUser | null) => {
+    if (isSigningOut.current && next) return;
     writeAuthSnapshot(next);
     setUser(next);
   }, []);
@@ -229,7 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { getSupabaseClient, storeSupabaseSession } = await import("./supabase");
       const client = getSupabaseClient();
       const { data } = await client!.auth.getSession();
-      if (data.session) {
+      if (data.session && !isSigningOut.current) {
         storeSupabaseSession(data.session);
       }
     } catch {
@@ -267,10 +307,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         const { getSupabaseClient, storeSupabaseSession } = await import("./supabase");
-        if (!isMounted) return;
+        if (!isMounted || isSigningOut.current) return;
 
         const client = getSupabaseClient();
         const result = client!.auth.onAuthStateChange(async (event, session) => {
+          if (isSigningOut.current) return;
           if (session) {
             storeSupabaseSession(session);
           } else if (event === "SIGNED_OUT") {
@@ -308,25 +349,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = buildLoginUrl();
   }, []);
 
-  const logout = useCallback(() => {
-    void (async () => {
-      try {
-        if (isSupabaseAuthEnabled()) {
-          const { getSupabaseClient } = await import("./supabase");
-          const client = getSupabaseClient();
-          await client!.auth.signOut();
-        }
-        await fetch(`${BASE}/api/logout`, {
-          credentials: "include",
-        });
-      } catch {
-        // Best-effort logout cleanup.
-      } finally {
-        clearStoredSupabaseTokens();
-        applyUser(null);
-        window.location.href = `${BASE}/`;
+  const logout = useCallback(async (options?: LogoutOptions) => {
+    isSigningOut.current = true;
+    clearStoredSupabaseTokens();
+    applyUser(null);
+    setIsLoading(false);
+    try {
+      if (isSupabaseAuthEnabled()) {
+        const { getSupabaseClient } = await import("./supabase");
+        const client = getSupabaseClient();
+        await client!.auth.stopAutoRefresh();
+        await client!.auth.signOut();
       }
-    })();
+    } catch {
+      // Server logout must still run if Supabase cleanup fails.
+    }
+    try {
+      await fetch(`${BASE}/api/logout`, { credentials: "include" });
+    } catch {
+      // Best-effort logout cleanup.
+    } finally {
+      clearSupabaseSessionStorage();
+      applyUser(null);
+      const requested = options?.redirectTo;
+      const redirectTo = requested?.startsWith("/") && !requested.startsWith("//") && !requested.includes("\\")
+        ? requested
+        : "/";
+      window.location.href = `${BASE}${redirectTo}`;
+    }
   }, [applyUser]);
 
   const refreshUser = useCallback(async () => {

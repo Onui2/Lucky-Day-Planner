@@ -21,7 +21,7 @@ const databaseConfigError = new Error(
 const databaseUnavailableError = new Error(
   "The configured Postgres database is unavailable. Verify the server is running and the connection settings are correct.",
 );
-const sslConfig = resolveDatabaseSslConfig(resolvedDatabaseUrl);
+const sslConfig = resolveDatabaseSslConfig(rawDatabaseUrl);
 
 export function hasDatabaseConfig(): boolean {
   return Boolean(resolvedDatabaseUrl);
@@ -108,8 +108,13 @@ export function ensureDatabaseSchema(): Promise<void> {
       }
 
       const client = await pool.connect();
+      let discardClient = false;
 
       try {
+        // Each serverless instance runs bootstrap. Keep DDL atomic and
+        // serialize it across instances; IF NOT EXISTS alone can still race.
+        await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended('lucky-day-planner:schema-bootstrap', 0))");
         await client.query(`
           CREATE TABLE IF NOT EXISTS users (
             id varchar PRIMARY KEY,
@@ -129,6 +134,8 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name varchar`);
         await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url varchar`);
         await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role varchar(20) DEFAULT 'user'`);
+        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_version integer NOT NULL DEFAULT 0`);
+        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_valid_after timestamptz`);
         await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash varchar`);
         await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token varchar`);
         await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expiry timestamptz`);
@@ -145,6 +152,18 @@ export function ensureDatabaseSchema(): Promise<void> {
         await client.query(`ALTER TABLE users ALTER COLUMN updated_at SET NOT NULL`);
         await client.query(`CREATE INDEX IF NOT EXISTS users_email_lookup_idx ON users ((lower(email)))`);
         await client.query(`CREATE INDEX IF NOT EXISTS users_password_reset_token_idx ON users (password_reset_token)`);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS auth_identities (
+            provider varchar NOT NULL,
+            subject varchar NOT NULL,
+            user_id varchar REFERENCES users(id) ON DELETE SET NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (provider, subject)
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS auth_identities_user_idx ON auth_identities (user_id)`);
+        await client.query(`ALTER TABLE auth_identities ENABLE ROW LEVEL SECURITY`);
 
         await client.query(`
           CREATE TABLE IF NOT EXISTS sessions (
@@ -511,10 +530,19 @@ export function ensureDatabaseSchema(): Promise<void> {
         `);
         await client.query(`CREATE INDEX IF NOT EXISTS rate_limit_buckets_reset_idx ON rate_limit_buckets (reset_at)`);
 
+        await client.query("COMMIT");
         databaseReady = true;
         lastDatabaseError = null;
+      } catch (error) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          // A connection with an unknown transaction state must leave the pool.
+          discardClient = true;
+        }
+        throw error;
       } finally {
-        client.release();
+        client.release(discardClient);
       }
     })().catch((error) => {
       lastDatabaseError =

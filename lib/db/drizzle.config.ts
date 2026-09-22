@@ -2,6 +2,7 @@ import { defineConfig } from "drizzle-kit";
 import {
   getDatabaseConfigGuidance,
   normalizeDatabaseUrlForNodePostgres,
+  resolveDatabaseSslConfig,
   resolveDatabaseUrl,
 } from "./src/database-url";
 
@@ -21,5 +22,6 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     url: databaseUrl,
+    ...resolveDatabaseSslConfig(rawDatabaseUrl),
   },
 });

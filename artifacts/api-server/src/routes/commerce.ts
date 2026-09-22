@@ -19,6 +19,7 @@ import {
 import { isPrivilegedRole } from "../lib/date-access.js";
 import { generateSajuReportPdf } from "../lib/report-generator.js";
 import { buildSajuResult } from "../lib/saju-result.js";
+import { hasReportAccess } from "../lib/report-access.js";
 
 const router = Router();
 
@@ -84,6 +85,11 @@ router.post("/commerce/orders", async (req, res) => {
   }
 
   const hasAdminFreeAccess = product.type === "saju_pdf" || isPrivilegedRole(req.user.role);
+
+  if (!hasAdminFreeAccess && getCheckoutMode() === "disabled") {
+    res.status(503).json({ error: "결제 설정이 준비되지 않았습니다." });
+    return;
+  }
 
   try {
     const sajuResult = buildSajuResult({
@@ -293,6 +299,8 @@ router.post("/commerce/payments/confirm", async (req, res) => {
         and(
           eq(ordersTable.userId, req.user.id),
           eq(ordersTable.orderId, publicOrderId),
+          eq(pdfReportsTable.userId, req.user.id),
+          eq(analysisSnapshotsTable.userId, req.user.id),
         ),
       );
 
@@ -302,11 +310,24 @@ router.post("/commerce/payments/confirm", async (req, res) => {
     }
 
     if (row.order.status === "paid") {
+      if (!(await hasReportAccess(req.user.id, row.report))) {
+        res.status(403).json({ error: "이 리포트를 이용할 권한이 없습니다." });
+        return;
+      }
       res.json({
         order: row.order,
         report: row.report,
         alreadyPaid: true,
       });
+      return;
+    }
+
+    if (row.order.status !== "pending") {
+      res.status(409).json({ error: "승인할 수 없는 주문 상태입니다." });
+      return;
+    }
+    if (getCheckoutMode() === "disabled") {
+      res.status(503).json({ error: "결제 설정이 준비되지 않았습니다." });
       return;
     }
 
@@ -327,8 +348,19 @@ router.post("/commerce/payments/confirm", async (req, res) => {
           status: "paid",
           updatedAt: new Date(),
         })
-        .where(eq(ordersTable.id, row.order.id))
+        .where(and(
+          eq(ordersTable.id, row.order.id),
+          eq(ordersTable.userId, req.user.id),
+          eq(ordersTable.status, "pending"),
+        ))
         .returning();
+
+      // The provider call and PDF generation run outside this transaction.
+      // Never overwrite cancellation or another confirmation that completed
+      // while those requests were in flight.
+      if (!updatedOrder) {
+        throw new Error("주문 상태가 변경되었습니다. 주문 내역을 확인해주세요.");
+      }
 
       await tx
         .insert(paymentsTable)

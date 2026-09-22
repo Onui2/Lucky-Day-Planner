@@ -13,6 +13,8 @@ import {
   isSupabaseAuthEnabled,
   verifySupabaseAccessToken,
 } from "../lib/supabase-auth.js";
+import { IdentityAuthError } from "../lib/auth-users.js";
+import { isDatabaseAvailable } from "../lib/database-guard.js";
 
 interface SessionUser {
   id: string;
@@ -70,16 +72,33 @@ export async function authMiddleware(
   };
 
   const bearerToken = getBearerToken(authReq);
-  if (bearerToken && isSupabaseAuthEnabled()) {
-    const user = await verifySupabaseAccessToken(bearerToken);
-    if (user) {
+  const sid = getSessionId(authReq);
+  if ((bearerToken || sid) && !(await isDatabaseAvailable())) {
+    res.status(503).json({ error: "인증 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요." });
+    return;
+  }
+  if (bearerToken) {
+    try {
+      const user = isSupabaseAuthEnabled() ? await verifySupabaseAccessToken(bearerToken) : null;
+      if (!user) {
+        res.status(401).json({ error: "로그인 토큰이 유효하지 않습니다. 다시 로그인해주세요." });
+        return;
+      }
       authReq.user = user;
-      next();
+    } catch (error) {
+      if (error instanceof IdentityAuthError) {
+        res.status(error.status).json({ error: error.message, code: error.code });
+        return;
+      }
+      next(error);
       return;
     }
+    // An invalid bearer must never fall back to cookie authentication, which
+    // would also bypass the bearer-token CSRF exemption.
+    next();
+    return;
   }
 
-  const sid = getSessionId(authReq);
   if (!sid) {
     next();
     return;
@@ -90,7 +109,7 @@ export async function authMiddleware(
     session = await getSession(sid);
   } catch (error) {
     console.error("[auth] failed to load session:", error);
-    next();
+    res.status(503).json({ error: "인증 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요." });
     return;
   }
 

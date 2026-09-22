@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { clearSession, getSessionId } from "../lib/auth.js";
+import { clearSession, deleteUserAccount, getSessionId, lockLegacyUserId, revokeUserSessions } from "../lib/auth.js";
 import { requireDatabase } from "../lib/database-guard.js";
 
 const router = Router();
@@ -120,10 +120,21 @@ router.patch("/account/password", async (req: Request, res: Response) => {
   }
 
   const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-  await db
-    .update(usersTable)
-    .set({ passwordHash: hash })
-    .where(eq(usersTable.id, userId));
+  const changed = await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(usersTable)
+      .where(eq(usersTable.id, userId)).for("update");
+    if (!current || current.authVersion !== user.authVersion || current.passwordHash !== user.passwordHash) return false;
+    await tx.update(usersTable).set({
+      passwordHash: hash, passwordResetToken: null, passwordResetExpiry: null,
+    }).where(eq(usersTable.id, userId));
+    await revokeUserSessions(tx, userId);
+    return true;
+  });
+  if (!changed) {
+    res.status(401).json({ error: "계정 인증 정보가 변경되었습니다. 다시 로그인해주세요." });
+    return;
+  }
+  await clearSession(res, getSessionId(req));
 
   res.json({ ok: true });
 });
@@ -154,7 +165,18 @@ router.delete("/account", async (req: Request, res: Response) => {
     }
   }
 
-  await db.delete(usersTable).where(eq(usersTable.id, userId));
+  const deleted = await db.transaction(async (tx) => {
+    await lockLegacyUserId(tx, userId);
+    const [current] = await tx.select().from(usersTable)
+      .where(eq(usersTable.id, userId)).for("update");
+    if (!current || current.authVersion !== user.authVersion || current.passwordHash !== user.passwordHash) return false;
+    await deleteUserAccount(tx, userId);
+    return true;
+  });
+  if (!deleted) {
+    res.status(401).json({ error: "계정 인증 정보가 변경되었습니다. 다시 로그인해주세요." });
+    return;
+  }
   const sid = getSessionId(req);
   await clearSession(res, sid);
 

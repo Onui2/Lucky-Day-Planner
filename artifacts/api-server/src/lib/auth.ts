@@ -1,8 +1,8 @@
 import * as client from "openid-client";
 import crypto from "crypto";
 import { type Request, type Response } from "express";
-import { db, sessionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { authIdentitiesTable, db, sessionsTable, usersTable, type User } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import type { AuthUser } from "@workspace/api-zod";
 
 export const OIDC_ISSUER_URL =
@@ -14,6 +14,7 @@ export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 
 export interface SessionData {
   user: AuthUser;
+  authVersion: number;
   access_token: string;
   refresh_token?: string;
   expires_at?: number;
@@ -47,70 +48,89 @@ export async function getOidcConfig(): Promise<client.Configuration> {
   return oidcConfig;
 }
 
-// ─── 세션 인메모리 캐시 ──────────────────────────────
-// 모든 인증 요청이 getSession으로 DB를 조회하던 것을, 짧은 TTL 동안 캐시해
-// 원격 DB 왕복을 줄인다. 서버리스 다중 인스턴스에서는 인스턴스별 캐시라
-// 다른 인스턴스의 로그아웃/역할변경이 최대 TTL(30초)까지 지연될 수 있다.
-const SESSION_CACHE_TTL = 30_000;
-const SESSION_CACHE_MAX = 5000;
-type SessionCacheEntry = { data: SessionData; cachedAt: number; expire: number };
-const sessionCache = new Map<string, SessionCacheEntry>();
+export type AuthTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function cacheSession(sid: string, data: SessionData, expire: number): void {
-  if (sessionCache.size >= SESSION_CACHE_MAX) {
-    const now = Date.now();
-    for (const [key, entry] of sessionCache) {
-      if (now - entry.cachedAt >= SESSION_CACHE_TTL) sessionCache.delete(key);
-    }
-    if (sessionCache.size >= SESSION_CACHE_MAX) sessionCache.clear();
+export class AuthStateChangedError extends Error {
+  constructor() {
+    super("계정 인증 정보가 변경되었습니다. 다시 로그인해주세요.");
   }
-  sessionCache.set(sid, { data, cachedAt: Date.now(), expire });
 }
 
-function invalidateSessionCache(sid: string): void {
-  sessionCache.delete(sid);
+export function toAuthUser(user: User): AuthUser {
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    profileImageUrl: user.profileImageUrl,
+    role: user.role,
+  };
+}
+
+// Call inside the same transaction as the credential/role/account change.
+// Version checking also prevents a login that verified an old password before
+// this transaction from creating a new session after revocation completes.
+export async function revokeUserSessions(tx: AuthTransaction, userId: string): Promise<void> {
+  await tx.update(usersTable).set({
+    authVersion: sql`${usersTable.authVersion} + 1`,
+    authValidAfter: new Date(),
+  }).where(eq(usersTable.id, userId));
+  await tx.delete(sessionsTable).where(sql`${sessionsTable.sess}->'user'->>'id' = ${userId}`);
+}
+
+export async function lockLegacyUserId(tx: AuthTransaction, userId: string): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`legacy-user:${userId}`}, 0))`);
+}
+
+export async function deleteUserAccount(tx: AuthTransaction, userId: string): Promise<void> {
+  await lockLegacyUserId(tx, userId);
+  const [user] = await tx.select().from(usersTable)
+    .where(eq(usersTable.id, userId)).for("update");
+  if (!user) return;
+  await revokeUserSessions(tx, userId);
+  // Pre-upgrade external accounts may not have a provider binding yet.
+  await tx.insert(authIdentitiesTable).values({
+    provider: "legacy-deleted", subject: userId, userId: null,
+  }).onConflictDoNothing();
+  await tx.delete(usersTable).where(eq(usersTable.id, userId));
 }
 
 export async function createSession(data: SessionData): Promise<string> {
   const sid = crypto.randomBytes(32).toString("hex");
   const expire = new Date(Date.now() + SESSION_TTL);
-  await db.insert(sessionsTable).values({
-    sid,
-    sess: data as unknown as Record<string, unknown>,
-    expire,
+  await db.transaction(async (tx) => {
+    const [user] = await tx.select().from(usersTable)
+      .where(eq(usersTable.id, data.user.id)).for("update");
+    if (!user || user.authVersion !== data.authVersion) {
+      throw new AuthStateChangedError();
+    }
+    await tx.insert(sessionsTable).values({
+      sid,
+      sess: { ...data, user: toAuthUser(user) } as unknown as Record<string, unknown>,
+      expire,
+    });
   });
-  cacheSession(sid, data, expire.getTime());
   return sid;
 }
 
 export async function getSession(sid: string): Promise<SessionData | null> {
-  const now = Date.now();
-  const cached = sessionCache.get(sid);
-  if (cached && now - cached.cachedAt < SESSION_CACHE_TTL) {
-    if (cached.expire <= now) {
-      invalidateSessionCache(sid);
-      await deleteSessionQuietly(sid, "expired-session");
-      return null;
-    }
-    return cached.data;
-  }
-
+  // No per-instance auth cache: revocations must apply across all instances.
   const [row] = await db
-    .select()
+    .select({ session: sessionsTable, user: usersTable })
     .from(sessionsTable)
+    .innerJoin(usersTable, eq(usersTable.id, sql`${sessionsTable.sess}->'user'->>'id'`))
     .where(eq(sessionsTable.sid, sid));
 
-  if (!row || row.expire < new Date()) {
-    invalidateSessionCache(sid);
+  const data = row?.session.sess as unknown as SessionData | undefined;
+  if (!row || !data || row.session.expire.getTime() <= Date.now() ||
+      !Number.isInteger(data?.authVersion) || data?.authVersion !== row.user.authVersion) {
     if (row) {
       await deleteSessionQuietly(sid, "expired-session");
     }
     return null;
   }
 
-  const data = row.sess as unknown as SessionData;
-  cacheSession(sid, data, row.expire.getTime());
-  return data;
+  return { ...data, user: toAuthUser(row.user) };
 }
 
 export async function updateSession(
@@ -118,18 +138,19 @@ export async function updateSession(
   data: SessionData,
 ): Promise<void> {
   const expire = new Date(Date.now() + SESSION_TTL);
-  await db
-    .update(sessionsTable)
-    .set({
-      sess: data as unknown as Record<string, unknown>,
+  await db.transaction(async (tx) => {
+    const [user] = await tx.select().from(usersTable)
+      .where(eq(usersTable.id, data.user.id)).for("update");
+    if (!user || user.authVersion !== data.authVersion) throw new AuthStateChangedError();
+    const updated = await tx.update(sessionsTable).set({
+      sess: { ...data, user: toAuthUser(user) } as unknown as Record<string, unknown>,
       expire,
-    })
-    .where(eq(sessionsTable.sid, sid));
-  cacheSession(sid, data, expire.getTime());
+    }).where(eq(sessionsTable.sid, sid)).returning({ sid: sessionsTable.sid });
+    if (!updated.length) throw new AuthStateChangedError();
+  });
 }
 
 export async function deleteSession(sid: string): Promise<void> {
-  invalidateSessionCache(sid);
   await db.delete(sessionsTable).where(eq(sessionsTable.sid, sid));
 }
 

@@ -64,12 +64,15 @@ export function createMerchantOrderId(prefix = "MHW") {
 }
 
 export function getCheckoutMode() {
-  return process.env.TOSS_SECRET_KEY ? "provider" : "dev";
+  if (process.env.TOSS_SECRET_KEY?.trim()) return "provider";
+  return isDevelopmentPaymentMode() ? "dev" : "disabled";
 }
 
 export function isDevelopmentPaymentMode() {
-  // Toss 키 없으면 항상 dev 시뮬레이션 — NODE_ENV 무관
-  return !process.env.TOSS_SECRET_KEY;
+  return process.env.NODE_ENV !== "production"
+    && process.env.VERCEL_ENV !== "production"
+    && process.env.PAYMENT_SIMULATION_ENABLED === "true"
+    && !process.env.TOSS_SECRET_KEY?.trim();
 }
 
 export function getPlanQuestionLimit(planCode?: string | null): number {
@@ -237,16 +240,35 @@ export async function confirmPaymentWithProvider(
     throw new Error(message);
   }
 
+  // For virtual accounts, HTTP success only issues an account. It does not
+  // mean money was received: WAITING_FOR_DEPOSIT must remain unpaid locally.
+  if (data.status !== "DONE") {
+    throw new Error("결제가 완료되지 않았습니다. 입금 대기 또는 미완료 결제는 승인할 수 없습니다.");
+  }
+  if (
+    data.orderId !== order.orderId
+    || data.paymentKey !== paymentKey.trim()
+    || data.totalAmount !== order.amount
+    || !Number.isInteger(data.totalAmount)
+    || data.currency !== order.currency
+  ) {
+    throw new Error("결제 승인 정보가 주문 정보와 일치하지 않습니다.");
+  }
+  const approvedAt = typeof data.approvedAt === "string"
+    ? new Date(data.approvedAt)
+    : new Date(NaN);
+  if (!Number.isFinite(approvedAt.getTime())) {
+    throw new Error("유효한 결제 승인 시간이 없습니다.");
+  }
+
   return {
     provider: "toss",
-    paymentKey: String(data.paymentKey ?? paymentKey),
+    paymentKey: paymentKey.trim(),
     method: typeof data.method === "string" ? data.method : "CARD",
     status: "paid",
-    amount: Number(data.totalAmount ?? order.amount),
+    amount: order.amount,
     rawResponse: data,
-    approvedAt: data.approvedAt
-      ? new Date(String(data.approvedAt))
-      : new Date(),
+    approvedAt,
   };
 }
 

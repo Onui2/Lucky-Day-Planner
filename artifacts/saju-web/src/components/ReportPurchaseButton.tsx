@@ -103,7 +103,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
         return;
       }
 
-      setMessage("지원하지 않는 결제 모드입니다.");
+      setMessage("현재 결제를 이용할 수 없습니다. 잠시 후 다시 시도해주세요.");
     } catch (e) {
       const status =
         typeof e === "object" &&

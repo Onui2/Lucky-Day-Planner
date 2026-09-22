@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db, inquiriesTable, ordersTable, savedSajuTable, usersTable } from "@workspace/db";
 import { and, count, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { requireDatabase } from "../lib/database-guard.js";
+import { deleteUserAccount, revokeUserSessions } from "../lib/auth.js";
 
 const router = Router();
 
@@ -240,7 +241,9 @@ router.delete("/admin/users/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  await db.delete(usersTable).where(eq(usersTable.id, targetId));
+  await db.transaction(async (tx) => {
+    await deleteUserAccount(tx, targetId);
+  });
   res.json({ ok: true });
 });
 
@@ -299,16 +302,15 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
     return;
   }
 
-  const [updated] = await db
-    .update(usersTable)
-    .set({ role: String(role) })
-    .where(eq(usersTable.id, targetId))
-    .returning({
-      id: usersTable.id,
-      email: usersTable.email,
-      firstName: usersTable.firstName,
-      role: usersTable.role,
-    });
+  const updated = await db.transaction(async (tx) => {
+    const [user] = await tx.update(usersTable).set({ role: String(role) })
+      .where(eq(usersTable.id, targetId)).returning({
+        id: usersTable.id, email: usersTable.email,
+        firstName: usersTable.firstName, role: usersTable.role,
+      });
+    await revokeUserSessions(tx, targetId);
+    return user;
+  });
 
   res.json({ user: updated });
 });

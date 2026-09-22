@@ -80,22 +80,19 @@ export default defineConfig({
   },
   server: {
     port,
-    host: "0.0.0.0",
+    host: "127.0.0.1",
     proxy: {
       "/api": {
         target: apiTarget,
         changeOrigin: true,
       },
     },
-    allowedHosts: true,
     fs: {
       strict: true,
-      deny: ["**/.*"],
     },
   },
   preview: {
     port,
-    host: "0.0.0.0",
-    allowedHosts: true,
+    host: "127.0.0.1",
   },
 });

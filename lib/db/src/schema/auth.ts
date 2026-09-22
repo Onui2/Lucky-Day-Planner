@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, primaryKey, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // Session storage for the app authentication flow.
 export const sessionsTable = pgTable(
@@ -23,6 +23,8 @@ export const usersTable = pgTable(
     lastName: varchar("last_name"),
     profileImageUrl: varchar("profile_image_url"),
     role: varchar("role", { length: 20 }).notNull().default("user"),
+    authVersion: integer("auth_version").notNull().default(0),
+    authValidAfter: timestamp("auth_valid_after", { withTimezone: true }),
     passwordHash: varchar("password_hash"),
     passwordResetToken: varchar("password_reset_token"),
     passwordResetExpiry: timestamp("password_reset_expiry", { withTimezone: true }),
@@ -34,6 +36,22 @@ export const usersTable = pgTable(
     index("users_password_reset_token_idx").on(table.passwordResetToken),
   ],
 );
+
+// Keep the provider subject after account deletion. A still-valid external
+// token must not silently recreate a deleted (potentially privileged) account.
+export const authIdentitiesTable = pgTable(
+  "auth_identities",
+  {
+    provider: varchar("provider").notNull(),
+    subject: varchar("subject").notNull(),
+    userId: varchar("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.provider, table.subject] }),
+    index("auth_identities_user_idx").on(table.userId),
+  ],
+).enableRLS();
 
 export type UpsertUser = typeof usersTable.$inferInsert;
 export type User = typeof usersTable.$inferSelect;

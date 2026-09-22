@@ -7,6 +7,7 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 import { requireDatabase } from "../lib/database-guard.js";
 import { generateSajuReportPdf } from "../lib/report-generator.js";
+import { hasReportAccess } from "../lib/report-access.js";
 
 const router = Router();
 
@@ -51,7 +52,7 @@ router.get("/reports/:id/download", async (req, res) => {
   if (!(await requireDatabase(res))) return;
 
   const id = Number(req.params.id);
-  if (!Number.isFinite(id)) {
+  if (!Number.isSafeInteger(id) || id <= 0) {
     res.status(400).json({ error: "유효하지 않은 리포트 ID입니다." });
     return;
   }
@@ -69,6 +70,11 @@ router.get("/reports/:id/download", async (req, res) => {
 
     if (!report) {
       res.status(404).json({ error: "리포트를 찾을 수 없습니다." });
+      return;
+    }
+
+    if (!(await hasReportAccess(req.user.id, report))) {
+      res.status(403).json({ error: "이 리포트를 이용할 권한이 없습니다." });
       return;
     }
 
@@ -97,7 +103,7 @@ router.post("/reports/:id/regenerate", async (req, res) => {
   if (!(await requireDatabase(res))) return;
 
   const id = Number(req.params.id);
-  if (!Number.isFinite(id)) {
+  if (!Number.isSafeInteger(id) || id <= 0) {
     res.status(400).json({ error: "유효하지 않은 리포트 ID입니다." });
     return;
   }
@@ -117,11 +123,17 @@ router.post("/reports/:id/regenerate", async (req, res) => {
         and(
           eq(pdfReportsTable.id, id),
           eq(pdfReportsTable.userId, req.user.id),
+          eq(analysisSnapshotsTable.userId, req.user.id),
         ),
       );
 
     if (!row) {
       res.status(404).json({ error: "리포트를 찾을 수 없습니다." });
+      return;
+    }
+
+    if (!(await hasReportAccess(req.user.id, row.report))) {
+      res.status(403).json({ error: "이 리포트를 이용할 권한이 없습니다." });
       return;
     }
 

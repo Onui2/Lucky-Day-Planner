@@ -5,23 +5,14 @@ const DATABASE_URL_ENV_KEYS = [
   "POSTGRES_URL_NON_POOLING",
 ] as const;
 
-const LIBPQ_COMPAT_SSLMODES = new Set(["prefer", "require"]);
 const SSL_DISABLED_VALUES = new Set(["0", "false", "disable", "off"]);
-const SSL_ENABLED_VALUES = new Set(["1", "true", "on"]);
-const SSL_NO_VERIFY_VALUES = new Set([
-  "allow",
-  "allow-unauthorized",
-  "disable-verification",
-  "insecure",
-  "no-verify",
-  "prefer",
-  "require",
-]);
-const SSL_VERIFY_VALUES = new Set(["verify-ca", "verify-full"]);
+const SSL_VERIFY_VALUES = new Set(["1", "true", "on", "prefer", "require", "verify-ca", "verify-full"]);
+const SSL_URL_OPTIONS = ["ssl", "sslmode", "sslcert", "sslkey", "sslrootcert", "uselibpqcompat"];
 
 type NodePostgresSslConfig = {
-  ssl?: {
-    rejectUnauthorized: boolean;
+  ssl: false | {
+    rejectUnauthorized: true;
+    ca?: string;
   };
 };
 
@@ -53,21 +44,11 @@ export function resolveDatabaseUrl(
 }
 
 export function normalizeDatabaseUrlForNodePostgres(databaseUrl: string): string {
-  let url: URL;
-
-  try {
-    url = new URL(databaseUrl);
-  } catch {
-    return databaseUrl;
-  }
-
-  const sslMode = url.searchParams.get("sslmode")?.trim().toLowerCase();
-  if (!sslMode || !LIBPQ_COMPAT_SSLMODES.has(sslMode)) {
-    return databaseUrl;
-  }
-
-  if (!url.searchParams.has("uselibpqcompat")) {
-    url.searchParams.set("uselibpqcompat", "true");
+  const url = getDatabaseUrl(databaseUrl)!;
+  // pg lets URL SSL parameters replace the entire ssl object, including its CA.
+  // Callers must pair this URL with resolveDatabaseSslConfig(rawUrl).
+  for (const option of SSL_URL_OPTIONS) {
+    url.searchParams.delete(option);
   }
 
   return url.toString();
@@ -79,9 +60,13 @@ function getDatabaseUrl(databaseUrl: string | null): URL | null {
   }
 
   try {
-    return new URL(databaseUrl);
+    const url = new URL(databaseUrl);
+    if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
+      throw new Error();
+    }
+    return url;
   } catch {
-    return null;
+    throw new Error("Database URL must be a valid postgres:// or postgresql:// URL.");
   }
 }
 
@@ -90,62 +75,35 @@ function getSslMode(value: string | undefined | null): string | null {
   return sslMode || null;
 }
 
-function sslConfigFromMode(sslMode: string | null): NodePostgresSslConfig | null {
-  if (!sslMode) {
-    return null;
-  }
-
-  if (SSL_DISABLED_VALUES.has(sslMode)) {
-    return {};
-  }
-
-  if (SSL_NO_VERIFY_VALUES.has(sslMode)) {
-    return { ssl: { rejectUnauthorized: false } };
-  }
-
-  if (SSL_VERIFY_VALUES.has(sslMode) || SSL_ENABLED_VALUES.has(sslMode)) {
-    return { ssl: { rejectUnauthorized: true } };
-  }
-
-  return null;
-}
-
 export function resolveDatabaseSslConfig(
   databaseUrl: string | null,
   env: NodeJS.ProcessEnv = process.env,
 ): NodePostgresSslConfig {
-  const envSslMode = getSslMode(env.PGSSLMODE ?? env.PGSSL);
-  const envSslConfig = sslConfigFromMode(envSslMode);
-
-  if (envSslConfig) {
-    return envSslConfig;
-  }
-
   const url = getDatabaseUrl(databaseUrl);
-  const urlSslConfig = sslConfigFromMode(getSslMode(url?.searchParams.get("sslmode")));
-
-  if (urlSslConfig) {
-    return urlSslConfig;
-  }
-
-  const databaseHost = url?.hostname.toLowerCase() ?? "";
+  if (!url) return { ssl: false };
+  // pg accepts a host query parameter and uses its last occurrence.
+  const hostOverrides = url.searchParams.getAll("host");
+  const databaseHost = (hostOverrides.at(-1) || url.hostname).toLowerCase();
   const isLocalDatabaseHost =
-    databaseHost === "" ||
     databaseHost === "localhost" ||
     databaseHost === "127.0.0.1" ||
-    databaseHost === "::1";
+    databaseHost === "::1" || databaseHost === "[::1]";
+  const sslMode = getSslMode(env.PGSSLMODE ?? env.PGSSL) ??
+    getSslMode(url.searchParams.getAll("sslmode").at(-1)) ??
+    getSslMode(url.searchParams.getAll("ssl").at(-1));
 
-  if (isLocalDatabaseHost) {
-    return {};
+  if (sslMode && SSL_DISABLED_VALUES.has(sslMode)) {
+    if (!isLocalDatabaseHost) {
+      throw new Error("Remote database connections require verified TLS.");
+    }
+    return { ssl: false };
   }
-
-  return {
-    ssl: {
-      rejectUnauthorized:
-        !databaseHost.endsWith(".supabase.co") &&
-        !databaseHost.endsWith(".supabase.com"),
-    },
-  };
+  if (sslMode && !SSL_VERIFY_VALUES.has(sslMode)) {
+    throw new Error("Unsupported or insecure database SSL mode. Use verify-full and DATABASE_SSL_CA_CERT if needed.");
+  }
+  const ca = env.DATABASE_SSL_CA_CERT?.replace(/\\n/g, "\n").trim();
+  if (isLocalDatabaseHost && !sslMode && !ca) return { ssl: false };
+  return { ssl: { rejectUnauthorized: true, ...(ca ? { ca } : {}) } };
 }
 
 export function getDatabaseConfigGuidance(): string {

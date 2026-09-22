@@ -2,11 +2,12 @@ import * as oidc from "openid-client";
 import { Router, type Request, type Response } from "express";
 import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
 import { db, usersTable } from "@workspace/db";
-import { count, eq, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "../lib/email.js";
 import { issueCsrfToken } from "../middlewares/csrf.js";
+import { IdentityAuthError, syncUserFromIdentity } from "../lib/auth-users.js";
 import {
   isDatabaseAvailable,
   requireDatabase,
@@ -18,6 +19,9 @@ import {
   getSession,
   getSessionId,
   createSession,
+  AuthStateChangedError,
+  OIDC_ISSUER_URL,
+  revokeUserSessions,
   isOidcEnabled,
   SESSION_COOKIE,
   SESSION_TTL,
@@ -25,7 +29,7 @@ import {
 } from "../lib/auth.js";
 
 // bcrypt 작업 계수. 10은 OWASP 권장 하한이며 cost 12(~285ms) 대비 ~4배 빠름(~72ms).
-// 로그인 UX와 보안의 균형. 기존 cost 12 해시는 로그인 성공 시 자동 재해싱된다.
+// 로그인 UX와 보안의 균형. 더 높은 비용으로 저장된 기존 해시는 유지한다.
 const BCRYPT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1시간
 
@@ -82,7 +86,7 @@ function setOidcCookie(res: Response, name: string, value: string) {
 }
 
 function getSafeReturnTo(value: unknown): string {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
     return "/";
   }
   return value;
@@ -92,33 +96,13 @@ function buildLocalLoginRedirect(returnTo: string): string {
   return `/login${returnTo !== "/" ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`;
 }
 
-function isSuperAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const list = (process.env.SUPER_ADMIN_EMAILS ?? "").split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
-  return list.includes(email.toLowerCase());
-}
-
-function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "").split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
-  return adminEmails.includes(email.toLowerCase());
-}
-
 function hasConfiguredPrivilegedEmails(): boolean {
-  return Boolean(
-    (process.env.SUPER_ADMIN_EMAILS ?? "").trim() ||
-    (process.env.ADMIN_EMAILS ?? "").trim(),
-  );
+  return Boolean((process.env.SUPER_ADMIN_EMAILS ?? "").trim() || (process.env.ADMIN_EMAILS ?? "").trim());
 }
 
 function isProductionLike(): boolean {
   return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
 }
-
-function isAdminBootstrapAllowed(): boolean {
-  return !isProductionLike();
-}
-
 async function requireLocalAuthDatabaseReady(res: Response): Promise<boolean> {
   if (await requireDatabase(res)) {
     return true;
@@ -134,91 +118,18 @@ async function requireLocalAuthDatabaseReady(res: Response): Promise<boolean> {
   return false;
 }
 
-function resolveRole(email: string | null | undefined, fallback = "user"): string {
-  if (isSuperAdminEmail(email)) return "superadmin";
-  if (isAdminEmail(email)) return "admin";
-  return fallback;
-}
-
-async function needsAdminBootstrap(): Promise<boolean> {
-  if (!(await isDatabaseAvailable())) {
-    return false;
-  }
-
-  if (!isAdminBootstrapAllowed()) {
-    return false;
-  }
-
-  if (hasConfiguredPrivilegedEmails()) {
-    return false;
-  }
-
-  const [{ total }] = await db
-    .select({ total: count() })
-    .from(usersTable)
-    .where(
-      or(
-        eq(usersTable.role, "admin"),
-        eq(usersTable.role, "superadmin"),
-      ),
-    );
-
-  return Number(total) === 0;
-}
-
-async function resolveAssignableRole(
-  email: string | null | undefined,
-  fallback = "user",
-): Promise<string> {
-  const explicitRole = resolveRole(email, fallback);
-
-  if (explicitRole !== fallback) {
-    return explicitRole;
-  }
-
-  if (fallback === "user" && await needsAdminBootstrap()) {
-    return "superadmin";
-  }
-
-  return fallback;
-}
-
 async function upsertUser(claims: Record<string, unknown>) {
-  const email = (claims.email as string) || null;
-  const subject = String(claims.sub ?? "");
-  const [existingUserById] = subject
-    ? await db.select().from(usersTable).where(eq(usersTable.id, subject))
-    : [];
-  const [existingUserByEmail] = !existingUserById && email
-    ? await db.select().from(usersTable).where(eq(usersTable.email, email))
-    : [];
-  const existingUser = existingUserById ?? existingUserByEmail;
-  const resolvedRole = await resolveAssignableRole(email, existingUser?.role ?? "user");
-
-  const userData: Record<string, unknown> = {
-    id: existingUser?.id ?? subject,
-    email,
-    firstName: (claims.first_name as string) || null,
-    lastName: (claims.last_name as string) || null,
-    profileImageUrl: (claims.profile_image_url || claims.picture) as string | null,
-    role: resolvedRole,
-  };
-
-  const updateData: Record<string, unknown> = { ...userData, updatedAt: new Date() };
-
-  if (existingUser) {
-    const [user] = await db
-      .update(usersTable)
-      .set(updateData)
-      .where(eq(usersTable.id, existingUser.id))
-      .returning();
-    return user;
-  }
-
-  const [user] = await db.insert(usersTable).values(userData).returning();
-  return user;
+  return syncUserFromIdentity({
+    provider: `oidc:${OIDC_ISSUER_URL}`,
+    externalId: typeof claims.sub === "string" ? claims.sub : "",
+    email: typeof claims.email === "string" ? claims.email : null,
+    emailVerified: claims.email_verified === true,
+    firstName: typeof claims.first_name === "string" ? claims.first_name : null,
+    lastName: typeof claims.last_name === "string" ? claims.last_name : null,
+    profileImageUrl: typeof claims.profile_image_url === "string" ? claims.profile_image_url :
+      typeof claims.picture === "string" ? claims.picture : null,
+  });
 }
-
 router.get("/auth/user", (req: Request, res: Response) => {
   res.json(
     GetCurrentAuthUserResponse.parse({
@@ -246,7 +157,7 @@ router.get("/auth/setup-status", async (_req: Request, res: Response) => {
   }
 
   res.json({
-    canSelfBootstrapAdmin: await needsAdminBootstrap(),
+    canSelfBootstrapAdmin: false,
     hasConfiguredPrivilegedEmails: hasConfiguredPrivilegedEmails(),
     databaseConfigured: databaseAvailable,
     localPasswordAuthEnabled: databaseAvailable,
@@ -359,6 +270,7 @@ router.get("/callback", async (req: Request, res: Response) => {
 
     const now = Math.floor(Date.now() / 1000);
     const sessionData: SessionData = {
+      authVersion: dbUser.authVersion,
       user: {
         id: dbUser.id,
         email: dbUser.email,
@@ -376,6 +288,10 @@ router.get("/callback", async (req: Request, res: Response) => {
     setSessionCookie(res, sid);
     res.redirect(returnTo);
   } catch (error) {
+    if (error instanceof IdentityAuthError) {
+      res.status(error.status).json({ error: error.message, code: error.code });
+      return;
+    }
     console.error("[auth:callback] failed to persist authenticated session:", error);
     res.redirect(buildLocalLoginRedirect(returnTo));
   }
@@ -451,7 +367,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   }
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const role = await resolveAssignableRole(normalizedEmail);
+  const role = "user";
 
   const displayName = typeof name === "string" && name.trim() ? name.trim() : null;
 
@@ -464,6 +380,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   }).returning();
 
   const sessionData: SessionData = {
+    authVersion: user.authVersion,
     user: {
       id: user.id,
       email: user.email,
@@ -510,36 +427,32 @@ router.post("/auth/login-local", async (req: Request, res: Response) => {
     return;
   }
 
-  // 비밀번호 검증(bcrypt, ~수십~수백 ms)과 역할 해석을 병렬로 처리해
-  // 역할 조회(needsAdminBootstrap 등)의 지연을 bcrypt 시간 뒤로 숨긴다.
   const passwordHash = user.passwordHash;
-  const [valid, role] = await Promise.all([
-    bcrypt.compare(password, passwordHash),
-    resolveAssignableRole(normalizedEmail, user.role ?? "user"),
-  ]);
+  const valid = await bcrypt.compare(password, passwordHash);
+  const role = user.role;
 
   if (!valid) {
     res.status(401).json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
     return;
   }
 
-  if (role !== user.role) {
-    await db.update(usersTable).set({ role }).where(eq(usersTable.id, user.id));
-  }
-
-  // 기존에 더 높은 작업 계수(cost)로 저장된 해시는 로그인 성공 시 백그라운드에서
-  // 현재 계수로 재해싱해 다음 로그인부터 빨라지게 한다(응답을 막지 않음).
-  // bcrypt 해시 형식 "$2a$<cost>$..."에서 cost를 직접 파싱한다.
-  if (bcryptCost(passwordHash) > BCRYPT_ROUNDS) {
+  // Upgrade weaker hashes only. A concurrent password reset/change must not be
+  // overwritten by a background rehash of the previously verified password.
+  if (bcryptCost(passwordHash) < BCRYPT_ROUNDS) {
     void bcrypt
       .hash(password, BCRYPT_ROUNDS)
       .then((rehashed) =>
-        db.update(usersTable).set({ passwordHash: rehashed }).where(eq(usersTable.id, user.id)),
+        db.update(usersTable).set({ passwordHash: rehashed }).where(and(
+          eq(usersTable.id, user.id),
+          eq(usersTable.passwordHash, passwordHash),
+          eq(usersTable.authVersion, user.authVersion),
+        )),
       )
       .catch((error) => console.error("[auth] password rehash failed:", error));
   }
 
   const sessionData: SessionData = {
+    authVersion: user.authVersion,
     user: {
       id: user.id,
       email: user.email,
@@ -551,7 +464,14 @@ router.post("/auth/login-local", async (req: Request, res: Response) => {
     access_token: "",
   };
 
-  const sid = await createSession(sessionData);
+  let sid: string;
+  try {
+    sid = await createSession(sessionData);
+  } catch (error) {
+    if (!(error instanceof AuthStateChangedError)) throw error;
+    res.status(401).json({ error: error.message });
+    return;
+  }
   setSessionCookie(res, sid);
 
   res.json({
@@ -646,14 +566,23 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-  await db
-    .update(usersTable)
-    .set({
-      passwordHash,
-      passwordResetToken: null,
-      passwordResetExpiry: null,
-    })
-    .where(eq(usersTable.id, user.id));
+  const reset = await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(usersTable)
+      .where(eq(usersTable.id, user.id)).for("update");
+    if (!current || current.passwordResetToken !== token ||
+        !current.passwordResetExpiry || current.passwordResetExpiry.getTime() <= Date.now()) {
+      return false;
+    }
+    await tx.update(usersTable).set({
+      passwordHash, passwordResetToken: null, passwordResetExpiry: null,
+    }).where(eq(usersTable.id, user.id));
+    await revokeUserSessions(tx, user.id);
+    return true;
+  });
+  if (!reset) {
+    res.status(400).json({ error: "초기화 링크가 유효하지 않거나 만료되었습니다." });
+    return;
+  }
 
   res.json({ ok: true });
 });

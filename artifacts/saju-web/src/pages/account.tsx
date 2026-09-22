@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -69,6 +69,7 @@ function ErrorMsg({ msg }: { msg: string }) {
 export default function AccountPage() {
   const [, navigate] = useLocation();
   const { isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const logoutRedirectPending = useRef(false);
   const { profile, profileReady } = useUser();
   const [tab, setTab] = useState<Tab>("info");
   const [recentActivities, setRecentActivities] = useState<RecentActivityItem[]>([]);
@@ -95,7 +96,7 @@ export default function AccountPage() {
   const [delMsg, setDelMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated && !logoutRedirectPending.current) {
       navigate(buildAuthHref("/login"));
     }
   }, [authLoading, isAuthenticated, navigate]);
@@ -142,8 +143,9 @@ export default function AccountPage() {
     if (newPw !== newPw2) { setPwMsg({ type: "err", text: "새 비밀번호가 일치하지 않습니다." }); return; }
     try {
       await changePassword.mutateAsync({ currentPassword: account?.hasPassword ? curPw : undefined, newPassword: newPw });
-      setPwMsg({ type: "ok", text: "비밀번호가 변경되었습니다." });
       setCurPw(""); setNewPw(""); setNewPw2("");
+      logoutRedirectPending.current = true;
+      await logout({ redirectTo: `${buildAuthHref("/login", "/account")}&notice=password-changed` });
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? "비밀번호 변경에 실패했습니다.";
       setPwMsg({ type: "err", text: msg });
@@ -156,8 +158,8 @@ export default function AccountPage() {
     if (delConfirm !== "탈퇴합니다") { setDelMsg({ type: "err", text: '"탈퇴합니다" 를 정확히 입력해주세요.' }); return; }
     try {
       await deleteAccount.mutateAsync(account?.hasPassword ? delPw : undefined);
-      logout();
-      navigate("/");
+      logoutRedirectPending.current = true;
+      await logout();
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? "탈퇴 처리에 실패했습니다.";
       setDelMsg({ type: "err", text: msg });
