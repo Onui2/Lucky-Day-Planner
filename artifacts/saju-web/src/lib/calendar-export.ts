@@ -50,7 +50,7 @@ function escapeIcs(value: string) {
 }
 
 function normalizeTimeZone(value: string) {
-  if (!/^[A-Za-z_+-]+(?:\/[A-Za-z0-9_+.-]+)+$/.test(value)) return "Asia/Seoul";
+  if (!/^[A-Za-z_+-]+(?:\/[A-Za-z0-9_+.-]+)*$/.test(value)) return "Asia/Seoul";
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: value }).format(new Date(0));
     return value;
