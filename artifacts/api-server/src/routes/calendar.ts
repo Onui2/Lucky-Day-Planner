@@ -1,11 +1,23 @@
 import { Router, type Request, type Response } from "express";
 import { getDailyFortune } from "../lib/fortune.js";
+import { getSeoulToday } from "../lib/date-access.js";
 
 const router = Router();
 
 router.get("/fortune/calendar", async (req: Request, res: Response) => {
-  const year = parseInt(String(req.query.year) || String(new Date().getFullYear()));
-  const month = parseInt(String(req.query.month) || String(new Date().getMonth() + 1));
+  const today = getSeoulToday();
+  const yearText = req.query.year ?? String(today.year);
+  const monthText = req.query.month ?? String(today.month);
+
+  if (typeof yearText !== "string" || !/^\d{4}$/.test(yearText)) {
+    res.status(400).json({ error: "유효하지 않은 연도입니다." }); return;
+  }
+  if (typeof monthText !== "string" || !/^\d{1,2}$/.test(monthText)) {
+    res.status(400).json({ error: "유효하지 않은 월입니다." }); return;
+  }
+
+  const year = Number(yearText);
+  const month = Number(monthText);
 
   if (isNaN(year) || year < 1900 || year > 2100) {
     res.status(400).json({ error: "유효하지 않은 연도입니다." }); return;
@@ -14,7 +26,7 @@ router.get("/fortune/calendar", async (req: Request, res: Response) => {
     res.status(400).json({ error: "유효하지 않은 월입니다." }); return;
   }
 
-  const daysInMonth = new Date(year, month, 0).getDate();
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const days: { day: number; overallScore: number; ganzi: string; element: string; label: string }[] = [];
 
   for (let d = 1; d <= daysInMonth; d++) {

@@ -38,14 +38,11 @@ router.get("/fortune/daily", (req, res) => {
     
     let year: number, month: number, day: number;
     
-    if (date && typeof date === 'string') {
-      const parts = date.split('-');
-      if (parts.length !== 3) {
+    if (date !== undefined) {
+      if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return res.status(400).json({ error: "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용하세요." });
       }
-      year = parseInt(parts[0], 10);
-      month = parseInt(parts[1], 10);
-      day = parseInt(parts[2], 10);
+      [year, month, day] = date.split("-").map(Number);
     } else {
       const today = getSeoulToday();
       year = today.year;
@@ -53,7 +50,13 @@ router.get("/fortune/daily", (req, res) => {
       day = today.day;
     }
     
-    if (isNaN(year) || isNaN(month) || isNaN(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+    const solarDate = new Date(Date.UTC(year, month - 1, day));
+    if (
+      year < 1900 || year > 2100
+      || solarDate.getUTCFullYear() !== year
+      || solarDate.getUTCMonth() !== month - 1
+      || solarDate.getUTCDate() !== day
+    ) {
       return res.status(400).json({ error: "유효하지 않은 날짜입니다." });
     }
 
