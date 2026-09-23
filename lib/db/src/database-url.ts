@@ -1,3 +1,5 @@
+import { SUPABASE_ROOT_CA } from "./supabase-root-ca.js";
+
 const DATABASE_URL_ENV_KEYS = [
   "DATABASE_URL",
   "POSTGRES_URL",
@@ -101,7 +103,11 @@ export function resolveDatabaseSslConfig(
   if (sslMode && !SSL_VERIFY_VALUES.has(sslMode)) {
     throw new Error("Unsupported or insecure database SSL mode. Use verify-full and DATABASE_SSL_CA_CERT if needed.");
   }
-  const ca = env.DATABASE_SSL_CA_CERT?.replace(/\\n/g, "\n").trim();
+  const suppliedCa = env.DATABASE_SSL_CA_CERT?.replace(/\\n/g, "\n").trim();
+  const isSupabaseDatabaseHost =
+    /^[a-z0-9-]+\.pooler\.supabase\.com$/.test(databaseHost) ||
+    /^db\.[a-z0-9-]+\.supabase\.co$/.test(databaseHost);
+  const ca = suppliedCa || (isSupabaseDatabaseHost ? SUPABASE_ROOT_CA : undefined);
   if (isLocalDatabaseHost && !sslMode && !ca) return { ssl: false };
   return { ssl: { rejectUnauthorized: true, ...(ca ? { ca } : {}) } };
 }

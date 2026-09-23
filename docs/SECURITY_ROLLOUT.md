@@ -60,9 +60,10 @@ as part of these local fixes.
 
 ## Environment and payment changes
 
-- Remote Postgres requires certificate and hostname verification. If a project
-  uses a private root CA, configure `DATABASE_SSL_CA_CERT` with its trusted PEM
-  before deploying. An invalid or missing trust anchor fails closed.
+- Remote Postgres requires certificate and hostname verification. Supabase
+  database hosts use the bundled Supabase Root 2021 CA. For a private or rotated
+  root CA, configure `DATABASE_SSL_CA_CERT` with its trusted PEM. An invalid or
+  missing trust anchor fails closed.
 - Missing `TOSS_SECRET_KEY` disables paid checkout. Simulation requires explicit
   `PAYMENT_SIMULATION_ENABLED=true` and is always disabled in production.
 - Unpaid reports and revoked/expired entitlements cannot be regenerated,

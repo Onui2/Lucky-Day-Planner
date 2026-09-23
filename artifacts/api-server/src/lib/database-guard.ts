@@ -11,6 +11,10 @@ const NOT_CONFIGURED_MESSAGE =
 const UNAVAILABLE_MESSAGE =
   "Database is currently unavailable. Check that Postgres is running and reachable.";
 
+function isProductionLike(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+}
+
 export async function isDatabaseAvailable(): Promise<boolean> {
   if (!hasDatabaseConfig()) {
     return false;
@@ -39,7 +43,7 @@ export async function requireDatabase(res: Response): Promise<boolean> {
   res.status(503).json({
     error: "DB_UNAVAILABLE",
     message: UNAVAILABLE_MESSAGE,
-    detail: getDatabaseStatusMessage(),
+    ...(!isProductionLike() ? { detail: getDatabaseStatusMessage() } : {}),
   });
   return false;
 }

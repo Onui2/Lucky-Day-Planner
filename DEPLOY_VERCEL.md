@@ -24,11 +24,14 @@ The app also accepts Vercel/Supabase-style Postgres variables such as:
 - `POSTGRES_HOST`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DATABASE`
 
 Remote database connections require TLS with certificate and hostname verification.
-For Supabase or a private CA, set `DATABASE_SSL_CA_CERT` to the trusted root PEM
-from the database provider (literal `\n` line breaks are supported). `PGSSLMODE`
-may be `verify-full`; `require` and `prefer` also use full verification. Insecure
-remote modes such as `no-verify` or `disable` are rejected. The runtime and schema
-CLI use the same rules. Loopback databases can use plaintext for local development.
+Supabase pooler and direct database hosts use the bundled Supabase Root 2021 CA.
+For a different private CA or a rotated Supabase CA, set `DATABASE_SSL_CA_CERT`
+to the trusted root PEM from the database provider (literal `\n` line breaks
+are supported). This explicit value takes precedence over the bundled CA.
+`PGSSLMODE` may be `verify-full`; `require` and `prefer` also use full
+verification. Insecure remote modes such as `no-verify` or `disable` are
+rejected. The runtime and schema CLI use the same rules. Loopback databases
+can use plaintext for local development.
 
 ### Recommended
 
