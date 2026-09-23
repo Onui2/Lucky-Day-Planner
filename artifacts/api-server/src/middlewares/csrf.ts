@@ -14,7 +14,6 @@ const PUBLIC_MUTATION_PATHS = new Set([
   "/api/auth/reset-password",
   "/api/saju/calculate",
   "/api/gungap/compare",
-  "/api/saju/share",
   "/api/year-fortune",
   "/api/saju/monthly",
   "/api/love-fortune",

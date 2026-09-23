@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Request, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { db, hasDatabaseConfig } from "@workspace/db";
@@ -132,7 +133,10 @@ export function rateLimitKeyByEmailAndIp(req: Request) {
       ? (req.body as Record<string, unknown>).email
       : null;
   const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
-  return `${defaultKeyGenerator(req)}:email:${email || "unknown"}`;
+  // Keep keys within rate_limit_buckets.key varchar(200), even before route
+  // validation rejects an oversized email. Do not store addresses in the key.
+  const emailKey = email ? createHash("sha256").update(email).digest("hex") : "unknown";
+  return `${defaultKeyGenerator(req)}:email:${emailKey}`;
 }
 
 export function createRateLimiter({

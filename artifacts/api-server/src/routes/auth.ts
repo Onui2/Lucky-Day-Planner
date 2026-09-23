@@ -32,6 +32,13 @@ import {
 // 로그인 UX와 보안의 균형. 더 높은 비용으로 저장된 기존 해시는 유지한다.
 const BCRYPT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1시간
+const MAX_EMAIL_BYTES = 254;
+
+function normalizeLocalEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const email = value.trim().toLowerCase();
+  return email && Buffer.byteLength(email, "utf8") <= MAX_EMAIL_BYTES ? email : null;
+}
 
 // bcrypt 해시 문자열 "$2a$<cost>$..."에서 작업 계수(cost)를 파싱한다. 실패 시 0.
 function bcryptCost(hash: string): number {
@@ -346,11 +353,11 @@ router.post("/auth/register", async (req: Request, res: Response) => {
 
   const { email, password, name } = req.body as Record<string, unknown>;
 
-  if (!email || typeof email !== "string") {
+  const normalizedEmail = normalizeLocalEmail(email);
+  if (!normalizedEmail) {
     res.status(400).json({ error: "유효한 이메일 주소를 입력해주세요." });
     return;
   }
-  const normalizedEmail = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizedEmail)) {
     res.status(400).json({ error: "유효한 이메일 주소를 입력해주세요." });
     return;
@@ -413,12 +420,11 @@ router.post("/auth/login-local", async (req: Request, res: Response) => {
 
   const { email, password } = req.body as Record<string, unknown>;
 
-  if (!email || typeof email !== "string" || !password || typeof password !== "string") {
+  const normalizedEmail = normalizeLocalEmail(email);
+  if (!normalizedEmail || !password || typeof password !== "string") {
     res.status(400).json({ error: "이메일과 비밀번호를 입력해주세요." });
     return;
   }
-
-  const normalizedEmail = email.trim().toLowerCase();
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
 
@@ -492,12 +498,11 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
 
   const { email } = req.body as Record<string, unknown>;
 
-  if (!email || typeof email !== "string") {
+  const normalizedEmail = normalizeLocalEmail(email);
+  if (!normalizedEmail) {
     res.status(400).json({ error: "이메일을 입력해주세요." });
     return;
   }
-
-  const normalizedEmail = email.trim().toLowerCase();
 
   // 보안상 이유로 계정 존재 여부를 노출하지 않음
   const [user] = await db

@@ -190,6 +190,66 @@ export async function releaseQuestionSlot(id: number): Promise<void> {
   await db.delete(aiQuestionsTable).where(eq(aiQuestionsTable.id, id));
 }
 
+function tossAuthorization(): string {
+  const secretKey = process.env.TOSS_SECRET_KEY?.trim();
+  if (!secretKey) throw new Error("결제 설정이 준비되지 않았습니다.");
+  return `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`;
+}
+
+function verifiedTossPayment(
+  order: OrderRow,
+  data: Record<string, unknown>,
+  expectedPaymentKey?: string,
+): ConfirmedPayment {
+  // For virtual accounts, HTTP success may only issue an account. Never grant
+  // access until the provider reports a completed deposit.
+  if (data.status !== "DONE") {
+    throw new Error("결제가 완료되지 않았습니다. 입금 대기 또는 미완료 결제는 승인할 수 없습니다.");
+  }
+  const providerPaymentKey = data.paymentKey;
+  if (
+    data.orderId !== order.orderId
+    || typeof providerPaymentKey !== "string"
+    || !providerPaymentKey.trim()
+    || providerPaymentKey.length > 200
+    || (expectedPaymentKey !== undefined && providerPaymentKey !== expectedPaymentKey)
+    || data.totalAmount !== order.amount
+    || !Number.isInteger(data.totalAmount)
+    || data.currency !== order.currency
+  ) {
+    throw new Error("결제 승인 정보가 주문 정보와 일치하지 않습니다.");
+  }
+  const approvedAt = typeof data.approvedAt === "string"
+    ? new Date(data.approvedAt)
+    : new Date(NaN);
+  if (!Number.isFinite(approvedAt.getTime())) {
+    throw new Error("유효한 결제 승인 시간이 없습니다.");
+  }
+
+  return {
+    provider: "toss",
+    paymentKey: providerPaymentKey,
+    method: typeof data.method === "string" ? data.method : "CARD",
+    status: "paid",
+    amount: order.amount,
+    rawResponse: data,
+    approvedAt,
+  };
+}
+
+/** Read-only provider recovery when the checkout redirect/paymentKey was lost. */
+export async function recoverPaymentByOrderId(order: OrderRow): Promise<ConfirmedPayment> {
+  const response = await fetch(
+    `https://api.tosspayments.com/v1/payments/orders/${encodeURIComponent(order.orderId)}`,
+    { headers: { Authorization: tossAuthorization() } },
+  );
+  const data = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok || !data) {
+    throw new Error("완료된 결제 내역을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
+  return verifiedTossPayment(order, data);
+}
+
 export async function confirmPaymentWithProvider(
   order: OrderRow,
   paymentKey?: string,
@@ -210,66 +270,74 @@ export async function confirmPaymentWithProvider(
     };
   }
 
-  const secretKey = process.env.TOSS_SECRET_KEY?.trim();
-  if (!secretKey) {
-    throw new Error("결제 설정이 준비되지 않았습니다.");
-  }
+  const authorization = tossAuthorization();
 
   if (!paymentKey?.trim()) {
     throw new Error("paymentKey가 필요합니다.");
   }
 
-  const response = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      paymentKey: paymentKey.trim(),
-      orderId: order.orderId,
-      amount: order.amount,
-    }),
-  });
+  const confirmedPaymentKey = paymentKey.trim();
+  if (confirmedPaymentKey.length > 200) {
+    throw new Error("paymentKey가 너무 깁니다.");
+  }
+  const idempotencyKey = crypto
+    .createHash("sha256")
+    .update(`${order.orderId}:${confirmedPaymentKey}`)
+    .digest("hex");
+  let data: Record<string, unknown> | null = null;
+  let confirmError: Error | null = null;
 
-  const data = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-  if (!response.ok || !data) {
-    const message =
-      (typeof data?.message === "string" && data.message) ||
-      "토스 결제 승인에 실패했습니다.";
-    throw new Error(message);
-  }
+  try {
+    const response = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
+      method: "POST",
+      headers: {
+        Authorization: authorization,
+        "Content-Type": "application/json",
+        // Stable per attempt. A new paymentKey must not inherit an old error.
+        "Idempotency-Key": idempotencyKey,
+      },
+      body: JSON.stringify({
+        paymentKey: confirmedPaymentKey,
+        orderId: order.orderId,
+        amount: order.amount,
+      }),
+    });
 
-  // For virtual accounts, HTTP success only issues an account. It does not
-  // mean money was received: WAITING_FOR_DEPOSIT must remain unpaid locally.
-  if (data.status !== "DONE") {
-    throw new Error("결제가 완료되지 않았습니다. 입금 대기 또는 미완료 결제는 승인할 수 없습니다.");
-  }
-  if (
-    data.orderId !== order.orderId
-    || data.paymentKey !== paymentKey.trim()
-    || data.totalAmount !== order.amount
-    || !Number.isInteger(data.totalAmount)
-    || data.currency !== order.currency
-  ) {
-    throw new Error("결제 승인 정보가 주문 정보와 일치하지 않습니다.");
-  }
-  const approvedAt = typeof data.approvedAt === "string"
-    ? new Date(data.approvedAt)
-    : new Date(NaN);
-  if (!Number.isFinite(approvedAt.getTime())) {
-    throw new Error("유효한 결제 승인 시간이 없습니다.");
+    const reply = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    if (response.ok && reply) {
+      data = reply;
+    } else {
+      confirmError = new Error(
+        (typeof reply?.message === "string" && reply.message) ||
+        "토스 결제 승인에 실패했습니다.",
+      );
+    }
+  } catch (error) {
+    confirmError = error instanceof Error ? error : new Error("토스 결제 승인에 실패했습니다.");
   }
 
-  return {
-    provider: "toss",
-    paymentKey: paymentKey.trim(),
-    method: typeof data.method === "string" ? data.method : "CARD",
-    status: "paid",
-    amount: order.amount,
-    rawResponse: data,
-    approvedAt,
-  };
+  if (!data || data.status !== "DONE") {
+    // Older attempts lacked the idempotency header, and a network failure may
+    // hide a successful approval. A cached WAITING_FOR_DEPOSIT response may
+    // also be stale after a virtual-account deposit. Query current status.
+    try {
+      const lookup = await fetch(
+        `https://api.tosspayments.com/v1/payments/${encodeURIComponent(confirmedPaymentKey)}`,
+        { headers: { Authorization: authorization } },
+      );
+      if (lookup.ok) {
+        data = (await lookup.json().catch(() => null)) as Record<string, unknown> | null;
+      }
+    } catch {
+      // Preserve the original approval error when the provider is unavailable.
+    }
+  }
+
+  if (!data) {
+    throw confirmError ?? new Error("토스 결제 승인에 실패했습니다.");
+  }
+
+  return verifiedTossPayment(order, data, confirmedPaymentKey);
 }
 
 export function parseBirthInfo(input: unknown): ReportBirthInfo | null {

@@ -138,42 +138,4 @@ router.post("/saju/birth-time-candidates", (req, res) => {
   }
 });
 
-// ─── 사주 공유 링크 ────────────────────────────────────────────────────────────
-interface ShareEntry { data: unknown; expires: number; name?: string }
-const shareStore = new Map<string, ShareEntry>();
-
-// 만료된 항목 정리 (30분마다)
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of shareStore.entries()) {
-    if (v.expires < now) shareStore.delete(k);
-  }
-}, 30 * 60 * 1000);
-
-router.post("/saju/share", (req, res) => {
-  try {
-    const { data, name } = req.body;
-    if (!data) return res.status(400).json({ error: "공유할 데이터가 없습니다." });
-    const token = Array.from({ length: 12 }, () =>
-      Math.random().toString(36)[2]
-    ).join('');
-    shareStore.set(token, {
-      data,
-      name: name ?? "사주 분석",
-      expires: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30일
-    });
-    return res.json({ token });
-  } catch (err) {
-    return res.status(500).json({ error: "공유 링크 생성 중 오류가 발생했습니다." });
-  }
-});
-
-router.get("/saju/share/:token", (req, res) => {
-  const entry = shareStore.get(req.params.token);
-  if (!entry || entry.expires < Date.now()) {
-    return res.status(404).json({ error: "만료되었거나 존재하지 않는 링크입니다." });
-  }
-  return res.json({ data: entry.data, name: entry.name });
-});
-
 export default router;

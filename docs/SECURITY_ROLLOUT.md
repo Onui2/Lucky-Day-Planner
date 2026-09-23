@@ -20,9 +20,17 @@ database state on every request, without an instance-local authorization cache.
 For Supabase tokens, a changed account also requires a new sign-in event; refreshing
 an old token is insufficient. If prompted, sign out and sign in again.
 
-The identity table has RLS enabled and no public policies. It is server-managed;
-the API database role must have the required owner/service privileges. Do not grant
-browser clients direct access to identity records or session contents.
+All 19 application tables, including identities, shared snapshots, and rate-limit
+buckets, have RLS enabled with no public policies. Bootstrap also revokes table and
+owned-sequence privileges from `PUBLIC`, `anon`, and `authenticated`. These tables
+are server-managed; the API database role must own them or have equivalent access
+that bypasses RLS. Do not grant browser clients direct access to application data.
+
+The 2026-09-23 production check found `share_snapshots` and `rate_limit_buckets`
+without RLS and with direct `anon` grants. Both were protected in the live database;
+the same controls now run during bootstrap for every application table. The shared
+snapshot table held no rows at the time of that check. Database grants showed an
+exposure path, but no direct Data API request or exploitation was confirmed.
 
 ## Account linking and recovery
 

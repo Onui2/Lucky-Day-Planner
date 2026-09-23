@@ -6,12 +6,25 @@ import test from "node:test";
 import express from "express";
 import { hasDatabaseConfig } from "@workspace/db";
 
-import { createRateLimiter } from "../middlewares/rateLimit.js";
+import { createRateLimiter, rateLimitKeyByEmailAndIp } from "../middlewares/rateLimit.js";
 
 // Whether DATABASE_URL is configured determines which store this test
 // actually exercises (shared Postgres bucket vs. the per-process in-memory
 // fallback) — both must enforce the same limit/header contract.
 const usingDbStore = hasDatabaseConfig();
+
+test("email rate-limit keys stay bounded and normalize equivalent addresses", () => {
+  const request = (email: string) => ({
+    body: { email },
+    headers: {},
+    ip: "127.0.0.1",
+  }) as unknown as express.Request;
+  const key = rateLimitKeyByEmailAndIp(request("  User@Example.Test  "));
+  assert.equal(key, rateLimitKeyByEmailAndIp(request("user@example.test")));
+  assert.notEqual(key, rateLimitKeyByEmailAndIp(request("other@example.test")));
+  assert.ok(!key.includes("user@example.test"));
+  assert.ok(rateLimitKeyByEmailAndIp(request("x".repeat(100_000))).length <= 200);
+});
 
 async function withTestServer(
   limiter: express.RequestHandler,

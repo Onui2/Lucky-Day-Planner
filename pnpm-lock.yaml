@@ -130,8 +130,8 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       nodemailer:
-        specifier: ^9.0.1
-        version: 9.0.1
+        specifier: 9.1.1
+        version: 9.1.1
       openid-client:
         specifier: ^6.8.2
         version: 6.8.2
@@ -2972,8 +2972,8 @@ packages:
   node-releases@2.0.36:
     resolution: {integrity: sha512-TdC8FSgHz8Mwtw9g5L4gR/Sh9XhSP/0DEkQxfEFXOpiul5IiHgHan2VhYYb6agDSfp4KuvltmGApc8HMgUrIkA==}
 
-  nodemailer@9.0.1:
-    resolution: {integrity: sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==}
+  nodemailer@9.1.1:
+    resolution: {integrity: sha512-izw9mVKFix6YSnC9eLgV6g1opl9DUlRio9ZNcq+Wu9Ujn2UwF+8Nl0B8nz22kEC+CTZCvinkxwJ0DeFbb6NwcQ==}
     engines: {node: '>=6.0.0'}
 
   npm-run-path@6.0.0:
@@ -5888,7 +5888,7 @@ snapshots:
 
   node-releases@2.0.36: {}
 
-  nodemailer@9.0.1: {}
+  nodemailer@9.1.1: {}
 
   npm-run-path@6.0.0:
     dependencies:

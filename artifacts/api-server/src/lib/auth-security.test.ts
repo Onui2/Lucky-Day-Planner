@@ -213,6 +213,29 @@ test("local signup and later login cannot claim allowlisted admin privileges", (
   assert.equal(h.tables.users[0].role, "user");
 }));
 
+test("local auth rejects oversized email input before creating accounts or reset tokens", async () => {
+  const h = makeHarness();
+  const craftedEmail = `${"x,".repeat(130)}x@example.invalid`;
+
+  const signup = await h.route("auth", "post", "/auth/register", {
+    body: { email: craftedEmail, password: "attacker-password" },
+  });
+  assert.equal(signup.statusCode, 400);
+  assert.equal(h.tables.users.length, 0);
+
+  await h.addUser({ email: craftedEmail, passwordHash: "$2a$10$old-password" });
+  const login = await h.route("auth", "post", "/auth/login-local", {
+    body: { email: craftedEmail, password: "old-password" },
+  });
+  assert.equal(login.statusCode, 400);
+
+  const reset = await h.route("auth", "post", "/auth/forgot-password", {
+    body: { email: craftedEmail },
+  });
+  assert.equal(reset.statusCode, 400);
+  assert.equal(h.tables.users[0].passwordResetToken, null);
+});
+
 test("verified identity never merges into an attacker-preclaimed local email", async () => {
   const h = makeHarness();
   const planted = await h.addUser({ email: "victim@example.invalid", passwordHash: "$2a$10$attacker" });

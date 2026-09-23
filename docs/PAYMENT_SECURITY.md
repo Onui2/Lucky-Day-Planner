@@ -14,9 +14,20 @@ confirmation then return HTTP 503.
 Provider confirmation grants access only for `status: DONE` and matching order ID,
 payment key, integer amount, currency, and a valid approval timestamp. A successful
 HTTP response with `WAITING_FOR_DEPOSIT` returns a clear error and leaves the order
-pending, without generating a report or granting an entitlement. Virtual-account
-fulfillment is not supported by this card checkout flow; it requires a separate
-verified deposit flow before it can grant access.
+pending, without generating a report or granting an entitlement. Approval requests
+use a stable idempotency key per order and payment key. On a failed or duplicate
+approval response, the server looks up the payment key at Toss and accepts only a
+matching completed payment. This also lets a later retry recognize a virtual-account
+deposit that has since reached `DONE`.
+
+The paid order, payment record, and entitlement commit together before PDF generation.
+If rendering fails, the report can be regenerated without charging again. Customers
+can retry the success URL or regenerate a pending/failed report from their account.
+If the success URL and payment key are lost before the local commit, the owner can
+select "결제 상태 다시 확인" for a pending order in their account. The server looks
+up that order ID at Toss without initiating another charge and applies the same
+`DONE`, payment key, order ID, integer amount, currency, and timestamp checks.
+Missing or incomplete provider payments leave the order pending.
 
 Report regeneration and download require an owned paid order and an active,
 unexpired entitlement for that exact report and product. Revoked entitlements also

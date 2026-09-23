@@ -46,7 +46,14 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
     queries: 0,
     writes: 0,
     generated: 0,
+    orderStatusesAtGeneration: [] as string[],
+    generationFails: false,
+    failNextTransaction: false,
     providerCalls: [] as Row[],
+    providerIdempotencyKeys: [] as string[],
+    providerLookups: [] as string[],
+    approvedPayment: null as Row | null,
+    providerLookupReply: null as Row | null,
     providerReply: {} as Row,
     providerOk: true,
     beforeProviderReply: null as (() => void) | null,
@@ -117,7 +124,13 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
         return { returning: async () => rows };
       } }; } };
     },
-    async transaction(run: (transaction: any) => Promise<unknown>) { return run(db); },
+    async transaction(run: (transaction: any) => Promise<unknown>) {
+      if (state.failNextTransaction) {
+        state.failNextTransaction = false;
+        throw new Error("synthetic database outage");
+      }
+      return run(db);
+    },
   };
   const cache = new Map<string, any>();
   function load(filename: string): any {
@@ -131,17 +144,27 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
       module, exports: module.exports, Buffer, Date, Promise,
       process: { env },
       console: { error() {} },
-      fetch: async (url: string, options: { body: string }) => {
+      fetch: async (url: string, options: { body?: string; headers: Row }) => {
+        if (url.startsWith("https://api.tosspayments.com/v1/payments/") &&
+            url !== "https://api.tosspayments.com/v1/payments/confirm") {
+          state.providerLookups.push(url);
+          const reply = state.providerLookupReply ?? state.approvedPayment;
+          return { ok: Boolean(reply), json: async () => reply };
+        }
         assert.equal(url, "https://api.tosspayments.com/v1/payments/confirm");
-        const request = JSON.parse(options.body);
+        assert.ok(options.headers["Idempotency-Key"]);
+        state.providerIdempotencyKeys.push(options.headers["Idempotency-Key"]);
+        const request = JSON.parse(options.body!);
         state.providerCalls.push(request);
         state.beforeProviderReply?.();
+        const reply = {
+          ...request, totalAmount: request.amount, currency: "KRW", status: "DONE",
+          method: "카드", approvedAt: "2026-09-22T03:00:00Z", ...state.providerReply,
+        };
+        if (state.providerOk && reply.status === "DONE") state.approvedPayment = reply;
         return {
           ok: state.providerOk,
-          json: async () => ({
-            ...request, totalAmount: request.amount, currency: "KRW", status: "DONE",
-            method: "카드", approvedAt: "2026-09-22T03:00:00Z", ...state.providerReply,
-          }),
+          json: async () => reply,
         };
       },
       require(specifier: string) {
@@ -151,6 +174,8 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
         if (specifier.endsWith("/report-generator.js")) return {
           generateSajuReportPdf: async () => {
             state.generated++;
+            state.orderStatusesAtGeneration.push(records.orders[0]?.status);
+            if (state.generationFails) throw new Error("synthetic renderer failure");
             return { fileName: "report.pdf", fileDataBase64: Buffer.from("test PDF").toString("base64"), previewText: "preview", htmlContent: "<p>report</p>" };
           },
         };
@@ -379,6 +404,202 @@ test("matching DONE card approval fulfills once and supports authorized idempote
   assert.equal(h.state.generated, 1);
   assert.equal(h.state.providerCalls.length, 1);
   assert.equal(h.state.records.purchaseEntitlements.length, 1);
+  assert.deepEqual(h.state.orderStatusesAtGeneration, ["paid"]);
+});
+
+test("duplicate provider approval recovers a payment captured before a failed DB commit", async () => {
+  const h = createHarness();
+  const { order } = h.seed();
+  h.state.failNextTransaction = true;
+  await withServer(h, async (url) => {
+    const first = await post(`${url}/commerce/payments/confirm`, confirmationBody);
+    assert.equal(first.status, 400);
+    assert.equal(order.status, "pending");
+    assert.equal(h.state.records.payments.length, 0);
+    assert.equal(h.state.records.purchaseEntitlements.length, 0);
+
+    h.state.providerOk = false;
+    h.state.providerReply = { code: "ALREADY_PROCESSED_PAYMENT", message: "이미 처리된 결제입니다." };
+    const retry = await post(`${url}/commerce/payments/confirm`, confirmationBody);
+    assert.equal(retry.status, 200);
+    assert.equal((await retry.json() as Row).order.status, "paid");
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+  });
+  assert.equal(h.state.providerCalls.length, 2);
+  assert.equal(h.state.providerIdempotencyKeys[0], h.state.providerIdempotencyKeys[1]);
+  assert.equal(h.state.providerLookups.length, 1);
+  assert.equal(h.state.records.payments.length, 1);
+  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+});
+
+test("owner recovers a completed payment by order ID without the success URL", async () => {
+  const h = createHarness();
+  const { order } = h.seed();
+  h.state.providerLookupReply = {
+    orderId: order.orderId,
+    paymentKey: "provider-returned-key",
+    totalAmount: order.amount,
+    currency: order.currency,
+    status: "DONE",
+    approvedAt: "2026-09-22T03:00:00Z",
+    method: "카드",
+  };
+  await withServer(h, async (url) => {
+    const response = await post(`${url}/commerce/payments/confirm`, { orderId: order.orderId });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as Row).order.status, "paid");
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+  });
+  assert.equal(h.state.providerCalls.length, 0);
+  assert.deepEqual(h.state.providerLookups, [
+    "https://api.tosspayments.com/v1/payments/orders/synthetic-order",
+  ]);
+  assert.equal(h.state.records.payments[0].paymentKey, "provider-returned-key");
+  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+});
+
+test("missing provider order stays pending without creating payment or entitlement", async () => {
+  const h = createHarness();
+  const { order } = h.seed();
+  await withServer(h, async (url) => {
+    const response = await post(`${url}/commerce/payments/confirm`, { orderId: order.orderId });
+    assert.equal(response.status, 400);
+  });
+  assert.equal(order.status, "pending");
+  assert.equal(h.state.providerCalls.length, 0);
+  assert.equal(h.state.providerLookups.length, 1);
+  assert.equal(h.state.writes, 0);
+});
+
+test("oversized payment key is rejected before contacting Toss", async () => {
+  const h = createHarness();
+  const { order } = h.seed();
+  await withServer(h, async (url) => {
+    const response = await post(`${url}/commerce/payments/confirm`, {
+      orderId: order.orderId,
+      paymentKey: "x".repeat(201),
+    });
+    assert.equal(response.status, 400);
+  });
+  assert.equal(order.status, "pending");
+  assert.equal(h.state.providerCalls.length, 0);
+  assert.equal(h.state.providerLookups.length, 0);
+});
+
+for (const [name, override] of [
+  ["unpaid", { status: "WAITING_FOR_DEPOSIT" }],
+  ["cancelled", { status: "CANCELED" }],
+  ["another order", { orderId: "different-order" }],
+  ["missing payment key", { paymentKey: null }],
+  ["wrong amount", { totalAmount: 1 }],
+  ["string amount", { totalAmount: "9900" }],
+  ["wrong currency", { currency: "USD" }],
+  ["missing approval date", { approvedAt: null }],
+] as const) {
+  test(`order ID recovery rejects ${name} provider records`, async () => {
+    const h = createHarness();
+    const { order } = h.seed();
+    h.state.providerLookupReply = Object.assign({
+      orderId: order.orderId,
+      paymentKey: "provider-returned-key",
+      totalAmount: order.amount,
+      currency: order.currency,
+      status: "DONE",
+      approvedAt: "2026-09-22T03:00:00Z",
+    }, override);
+    await withServer(h, async (url) => {
+      const response = await post(`${url}/commerce/payments/confirm`, { orderId: order.orderId });
+      assert.equal(response.status, 400);
+    });
+    assert.equal(order.status, "pending");
+    assert.equal(h.state.generated, 0);
+    assert.equal(h.state.writes, 0);
+    assert.equal(h.state.records.purchaseEntitlements.length, 0);
+  });
+}
+
+test("order ID recovery checks authentication and ownership before provider access", async () => {
+  const h = createHarness();
+  h.seed();
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/commerce/payments/confirm`, { orderId: "synthetic-order" }, { "x-test-user": "anonymous" })).status, 401);
+    assert.equal((await post(`${url}/commerce/payments/confirm`, { orderId: "synthetic-order" }, { "x-test-user": "intruder" })).status, 404);
+  });
+  assert.equal(h.state.providerLookups.length, 0);
+  assert.equal(h.state.providerCalls.length, 0);
+  assert.equal(h.state.writes, 0);
+});
+
+test("a new payment attempt gets a different provider idempotency key", async () => {
+  const h = createHarness();
+  const { order } = h.seed();
+  await h.commerce.confirmPaymentWithProvider(order, "first-payment-key");
+  await h.commerce.confirmPaymentWithProvider(order, "second-payment-key");
+  assert.notEqual(h.state.providerIdempotencyKeys[0], h.state.providerIdempotencyKeys[1]);
+});
+
+test("virtual-account deposit is recognized after a cached waiting response", async () => {
+  const h = createHarness();
+  const { order } = h.seed();
+  h.state.providerReply = { status: "WAITING_FOR_DEPOSIT" };
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/commerce/payments/confirm`, confirmationBody)).status, 400);
+    assert.equal(order.status, "pending");
+    h.state.providerLookupReply = {
+      orderId: order.orderId,
+      paymentKey: confirmationBody.paymentKey,
+      totalAmount: order.amount,
+      currency: order.currency,
+      status: "DONE",
+      approvedAt: "2026-09-22T03:00:00Z",
+      method: "가상계좌",
+    };
+    const deposited = await post(`${url}/commerce/payments/confirm`, confirmationBody);
+    assert.equal(deposited.status, 200);
+    assert.equal((await deposited.json() as Row).order.status, "paid");
+  });
+  assert.equal(h.state.providerLookups.length, 2);
+  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+});
+
+test("recovery lookup cannot fulfill a different or incomplete payment", async () => {
+  const h = createHarness();
+  const { order } = h.seed();
+  h.state.providerOk = false;
+  h.state.providerReply = { code: "ALREADY_PROCESSED_PAYMENT", message: "이미 처리된 결제입니다." };
+  h.state.providerLookupReply = {
+    orderId: order.orderId,
+    paymentKey: confirmationBody.paymentKey,
+    totalAmount: order.amount,
+    currency: order.currency,
+    status: "WAITING_FOR_DEPOSIT",
+    approvedAt: "2026-09-22T03:00:00Z",
+  };
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/commerce/payments/confirm`, confirmationBody)).status, 400);
+  });
+  assert.equal(order.status, "pending");
+  assert.equal(h.state.generated, 0);
+  assert.equal(h.state.records.purchaseEntitlements.length, 0);
+});
+
+test("PDF failure leaves paid order and entitlement durable for regeneration", async () => {
+  const h = createHarness();
+  const { order, report } = h.seed();
+  h.state.generationFails = true;
+  await withServer(h, async (url) => {
+    const confirmed = await post(`${url}/commerce/payments/confirm`, confirmationBody);
+    assert.equal(confirmed.status, 200);
+    assert.equal((await confirmed.json() as Row).report.status, "failed");
+    assert.equal(order.status, "paid");
+    assert.equal(report.status, "failed");
+    assert.equal(h.state.records.purchaseEntitlements.length, 1);
+    h.state.generationFails = false;
+    assert.equal((await post(`${url}/reports/21/regenerate`)).status, 200);
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+  });
+  assert.equal(h.state.providerCalls.length, 1);
+  assert.deepEqual(h.state.orderStatusesAtGeneration, ["paid", "paid"]);
 });
 
 test("cancelled orders cannot be reactivated by confirmation", async () => {

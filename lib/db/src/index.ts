@@ -163,7 +163,6 @@ export function ensureDatabaseSchema(): Promise<void> {
           )
         `);
         await client.query(`CREATE INDEX IF NOT EXISTS auth_identities_user_idx ON auth_identities (user_id)`);
-        await client.query(`ALTER TABLE auth_identities ENABLE ROW LEVEL SECURITY`);
 
         await client.query(`
           CREATE TABLE IF NOT EXISTS sessions (
@@ -529,6 +528,58 @@ export function ensureDatabaseSchema(): Promise<void> {
           )
         `);
         await client.query(`CREATE INDEX IF NOT EXISTS rate_limit_buckets_reset_idx ON rate_limit_buckets (reset_at)`);
+
+        // These tables are accessed only through the server. Supabase exposes
+        // public tables through its Data API and may grant anon/authenticated
+        // privileges by default, including on tables created in raw SQL.
+        await client.query(`
+          DO $private_tables$
+          DECLARE
+            private_tables text[] := ARRAY[
+              'users', 'auth_identities', 'sessions', 'saved_saju',
+              'lucky_day_bookmarks', 'inquiries', 'user_profiles',
+              'member_bookmarks', 'recent_activities', 'announcements',
+              'analysis_snapshots', 'orders', 'payments',
+              'purchase_entitlements', 'pdf_reports', 'share_snapshots',
+              'user_subscriptions', 'ai_questions', 'rate_limit_buckets'
+            ];
+            private_table text;
+            private_sequence text;
+          BEGIN
+            FOREACH private_table IN ARRAY private_tables LOOP
+              EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', private_table);
+              EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.%I FROM PUBLIC', private_table);
+              IF to_regrole('anon') IS NOT NULL THEN
+                EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.%I FROM anon', private_table);
+              END IF;
+              IF to_regrole('authenticated') IS NOT NULL THEN
+                EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.%I FROM authenticated', private_table);
+              END IF;
+            END LOOP;
+
+            FOR private_sequence IN
+              SELECT format('%I.%I', sequence_schema.nspname, sequence_relation.relname)
+              FROM pg_class AS sequence_relation
+              JOIN pg_namespace AS sequence_schema ON sequence_schema.oid = sequence_relation.relnamespace
+              JOIN pg_depend AS sequence_dependency ON sequence_dependency.objid = sequence_relation.oid
+              JOIN pg_class AS table_relation ON table_relation.oid = sequence_dependency.refobjid
+              JOIN pg_namespace AS table_schema ON table_schema.oid = table_relation.relnamespace
+              WHERE sequence_relation.relkind = 'S'
+                AND sequence_dependency.deptype IN ('a', 'i')
+                AND table_schema.nspname = 'public'
+                AND table_relation.relname = ANY(private_tables)
+            LOOP
+              EXECUTE format('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM PUBLIC', private_sequence);
+              IF to_regrole('anon') IS NOT NULL THEN
+                EXECUTE format('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM anon', private_sequence);
+              END IF;
+              IF to_regrole('authenticated') IS NOT NULL THEN
+                EXECUTE format('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM authenticated', private_sequence);
+              END IF;
+            END LOOP;
+          END
+          $private_tables$;
+        `);
 
         await client.query("COMMIT");
         databaseReady = true;

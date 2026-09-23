@@ -91,7 +91,19 @@ test("bootstrap locks before DDL, commits auth schema, and shares concurrent cal
   assert.ok(client.statements.some((sql) => sql.includes("ADD COLUMN IF NOT EXISTS auth_version")));
   assert.ok(client.statements.some((sql) => sql.includes("ADD COLUMN IF NOT EXISTS auth_valid_after")));
   assert.ok(client.statements.some((sql) => sql.startsWith("CREATE TABLE IF NOT EXISTS auth_identities")));
-  assert.ok(client.statements.includes("ALTER TABLE auth_identities ENABLE ROW LEVEL SECURITY"));
+  const accessControl = client.statements.find((sql) => sql.includes("DO $private_tables$"));
+  assert.ok(accessControl, "bootstrap must protect its private tables");
+  const createdTables = client.statements.flatMap((sql) => {
+    const match = /^CREATE TABLE IF NOT EXISTS (\w+)/.exec(sql);
+    return match ? [match[1]] : [];
+  });
+  for (const tableName of createdTables) {
+    assert.ok(accessControl.includes(`'${tableName}'`), `${tableName} must have RLS enabled`);
+  }
+  assert.match(accessControl, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(accessControl, /REVOKE ALL PRIVILEGES ON TABLE .* FROM anon/);
+  assert.match(accessControl, /REVOKE ALL PRIVILEGES ON TABLE .* FROM authenticated/);
+  assert.match(accessControl, /REVOKE ALL PRIVILEGES ON SEQUENCE .* FROM anon/);
   assert.equal(client.statements.at(-1), "COMMIT");
   assert.ok(!client.statements.includes("ROLLBACK"));
   assert.deepEqual(client.released, [false]);

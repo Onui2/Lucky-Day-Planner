@@ -15,6 +15,7 @@ import {
   getCheckoutMode,
   getProductConfig,
   parseBirthInfo,
+  recoverPaymentByOrderId,
 } from "../lib/commerce.js";
 import { isPrivilegedRole } from "../lib/date-access.js";
 import { generateSajuReportPdf } from "../lib/report-generator.js";
@@ -326,22 +327,19 @@ router.post("/commerce/payments/confirm", async (req, res) => {
       res.status(409).json({ error: "승인할 수 없는 주문 상태입니다." });
       return;
     }
-    if (getCheckoutMode() === "disabled") {
+    const checkoutMode = getCheckoutMode();
+    if (checkoutMode === "disabled") {
       res.status(503).json({ error: "결제 설정이 준비되지 않았습니다." });
       return;
     }
 
-    const confirmed = await confirmPaymentWithProvider(row.order, paymentKey);
+    const confirmed = paymentKey || checkoutMode === "dev"
+      ? await confirmPaymentWithProvider(row.order, paymentKey)
+      : await recoverPaymentByOrderId(row.order);
 
-    const generated = await generateSajuReportPdf(
-      row.report.title,
-      row.snapshot.sajuResult as Record<string, any>,
-    ).catch((error: unknown) => {
-      console.error("report generation error:", error);
-      return null;
-    });
-
-    const result = await db.transaction(async (tx) => {
+    // Commit payment and access before PDF work. A renderer crash or serverless
+    // timeout can then be retried without losing a completed provider payment.
+    const paidOrder = await db.transaction(async (tx) => {
       const [updatedOrder] = await tx
         .update(ordersTable)
         .set({
@@ -355,9 +353,8 @@ router.post("/commerce/payments/confirm", async (req, res) => {
         ))
         .returning();
 
-      // The provider call and PDF generation run outside this transaction.
-      // Never overwrite cancellation or another confirmation that completed
-      // while those requests were in flight.
+      // The provider call runs outside this transaction. Never overwrite
+      // cancellation or another confirmation that completed meanwhile.
       if (!updatedOrder) {
         throw new Error("주문 상태가 변경되었습니다. 주문 내역을 확인해주세요.");
       }
@@ -388,29 +385,6 @@ router.post("/commerce/payments/confirm", async (req, res) => {
           },
         });
 
-      const [updatedReport] = await tx
-        .update(pdfReportsTable)
-        .set(
-          generated
-            ? {
-                status: "ready",
-                previewText: generated.previewText,
-                htmlContent: generated.htmlContent,
-                fileName: generated.fileName,
-                fileDataBase64: generated.fileDataBase64,
-                failedReason: null,
-                generatedAt: new Date(),
-                updatedAt: new Date(),
-              }
-            : {
-                status: "failed",
-                failedReason: "PDF 생성에 실패했습니다. 다시 시도해주세요.",
-                updatedAt: new Date(),
-              },
-        )
-        .where(eq(pdfReportsTable.id, row.report.id))
-        .returning();
-
       await tx
         .insert(purchaseEntitlementsTable)
         .values({
@@ -428,12 +402,60 @@ router.post("/commerce/payments/confirm", async (req, res) => {
           ],
         });
 
-      return { order: updatedOrder, report: updatedReport };
+      return updatedOrder;
     });
 
+    let report = row.report;
+    try {
+      const generated = await generateSajuReportPdf(
+        row.report.title,
+        row.snapshot.sajuResult as Record<string, any>,
+      );
+      const [updated] = await db
+        .update(pdfReportsTable)
+        .set({
+          status: "ready",
+          previewText: generated.previewText,
+          htmlContent: generated.htmlContent,
+          fileName: generated.fileName,
+          fileDataBase64: generated.fileDataBase64,
+          failedReason: null,
+          generatedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(pdfReportsTable.id, row.report.id),
+          eq(pdfReportsTable.userId, req.user.id),
+          eq(pdfReportsTable.status, "pending"),
+        ))
+        .returning();
+      if (updated) report = updated;
+    } catch (error) {
+      console.error("report generation error:", error);
+      try {
+        const [failed] = await db
+          .update(pdfReportsTable)
+          .set({
+            status: "failed",
+            failedReason: "PDF 생성에 실패했습니다. 다시 시도해주세요.",
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(pdfReportsTable.id, row.report.id),
+            eq(pdfReportsTable.userId, req.user.id),
+            eq(pdfReportsTable.status, "pending"),
+          ))
+          .returning();
+        if (failed) report = failed;
+      } catch (updateError) {
+        console.error("report failure status update error:", updateError);
+        // The paid order and entitlement are durable; regeneration can retry.
+      }
+    }
+
     res.json({
-      order: result.order,
-      report: result.report,
+      order: paidOrder,
+      report,
       payment: {
         provider: confirmed.provider,
         method: confirmed.method,

@@ -9,6 +9,7 @@ import {
   useDeleteAccount,
   useGetMyReports,
   useGetMyOrders,
+  useConfirmCommercePayment,
   useRegenerateReport,
   downloadReportFile,
 } from "@workspace/api-client-react";
@@ -81,7 +82,10 @@ export default function AccountPage() {
   const deleteAccount = useDeleteAccount();
   const { data: reportsData } = useGetMyReports(isAuthenticated);
   const { data: ordersData } = useGetMyOrders(isAuthenticated);
+  const confirmPayment = useConfirmCommercePayment();
   const regenerateReport = useRegenerateReport();
+  const [checkingOrderId, setCheckingOrderId] = useState<string | null>(null);
+  const [paymentCheckMessage, setPaymentCheckMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   const [name, setName] = useState("");
   const [nameMsg, setNameMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -163,6 +167,25 @@ export default function AccountPage() {
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? "탈퇴 처리에 실패했습니다.";
       setDelMsg({ type: "err", text: msg });
+    }
+  }
+
+  async function handlePaymentRecheck(orderId: string) {
+    setCheckingOrderId(orderId);
+    setPaymentCheckMessage(null);
+    try {
+      const result = await confirmPayment.mutateAsync({ orderId });
+      setPaymentCheckMessage({
+        type: "ok",
+        text: result.report.status === "ready"
+          ? "결제와 리포트가 확인되었습니다. PDF를 다운로드할 수 있습니다."
+          : "결제가 확인되었습니다. 리포트가 준비되지 않았다면 다시 생성해주세요.",
+      });
+    } catch (err: unknown) {
+      const text = (err as { message?: string })?.message ?? "결제 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.";
+      setPaymentCheckMessage({ type: "err", text });
+    } finally {
+      setCheckingOrderId(null);
     }
   }
 
@@ -339,7 +362,12 @@ export default function AccountPage() {
           </div>
 
           <div className="space-y-3">
-            {(ordersData?.orders ?? []).slice(0, 4).map((order) => (
+            {paymentCheckMessage && (paymentCheckMessage.type === "ok"
+              ? <SuccessMsg msg={paymentCheckMessage.text} />
+              : <ErrorMsg msg={paymentCheckMessage.text} />)}
+            {(ordersData?.orders ?? [])
+              .filter((order, index) => index < 4 || order.status === "pending")
+              .map((order) => (
               <div
                 key={order.orderId}
                 className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4"
@@ -358,11 +386,26 @@ export default function AccountPage() {
                       {order.amount.toLocaleString("ko-KR")}원
                     </div>
                     <div className="mt-1 text-[11px] text-muted-foreground">
-                      {order.status}
+                      {order.status === "pending" ? "결제 확인 대기" : order.status === "paid" ? "결제 완료" : order.status}
                       {order.reportStatus ? ` · 리포트 ${order.reportStatus}` : ""}
                     </div>
                   </div>
                 </div>
+                {order.status === "pending" && order.amount > 0 && ordersData?.checkoutMode !== "disabled" && (
+                  <div className="mt-3">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handlePaymentRecheck(order.orderId)}
+                      disabled={confirmPayment.isPending}
+                    >
+                      {checkingOrderId === order.orderId
+                        ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />확인 중...</>
+                        : "결제 상태 다시 확인"}
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
 
