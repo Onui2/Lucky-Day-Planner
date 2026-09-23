@@ -135,6 +135,8 @@ app.use(
     name: "api-general",
     windowMs: 60_000,
     max: 900,
+    skip: (req) =>
+      req.path === "/healthz" && (req.method === "GET" || req.method === "HEAD"),
   }),
 );
 app.use(

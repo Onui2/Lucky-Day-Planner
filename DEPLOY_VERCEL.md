@@ -3,8 +3,10 @@
 ## 1. Project setup
 
 - Import this repository into Vercel with the project root set to the repository root.
-- The repo already includes `vercel.json`, so Vercel will build the Vite app from `artifacts/saju-web` and serve `/api/*` through `api/index.ts`.
+- The repo already includes `vercel.json`, so Vercel will build the Vite app from `artifacts/saju-web` and serve `/api/*` through `api/index.js`.
 - Node.js should be `24.x`. This is also declared in `package.json`.
+- API Functions run in Tokyo (`hnd1`), near the current Supabase database.
+  If the database moves regions, update `vercel.json` to keep database latency low.
 
 ## 2. Environment variables
 
