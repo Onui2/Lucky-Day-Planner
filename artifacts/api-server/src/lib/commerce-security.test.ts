@@ -213,10 +213,27 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
 
 type Harness = ReturnType<typeof createHarness>;
 async function withServer(harness: Harness, run: (baseUrl: string) => Promise<void>) {
-  const server = harness.app.listen(0, "127.0.0.1");
-  await once(server, "listening");
-  try { await run(`http://127.0.0.1:${(server.address() as AddressInfo).port}`); }
-  finally { await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); }
+  // Port 0 can choose a port forbidden by Fetch. Retry only that allocation.
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const server = harness.app.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const close = () => new Promise<void>((resolve, reject) =>
+      server.close((error) => error ? reject(error) : resolve()));
+    try {
+      await fetch(`${baseUrl}/__port_probe`, { method: "HEAD" });
+    } catch (error) {
+      await close();
+      if (error instanceof TypeError && (error.cause as Error | undefined)?.message === "bad port") {
+        continue;
+      }
+      throw error;
+    }
+    try { await run(baseUrl); }
+    finally { await close(); }
+    return;
+  }
+  throw new Error("Could not allocate a Fetch-compatible test port");
 }
 function post(url: string, body: Row = {}, headers: Record<string, string> = {}) {
   return fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
