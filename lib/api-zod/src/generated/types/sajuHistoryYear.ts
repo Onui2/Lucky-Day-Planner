@@ -9,7 +9,10 @@ import type { SajuHistoryEvidence } from './sajuHistoryEvidence';
 
 export interface SajuHistoryYear {
   year: number;
-  /** Calendar year minus solar birth year, not exact age on the birthday */
+  /**
+     * Korean counting age (calendar year minus solar birth year plus one); the birth year is age 1
+     * @minimum 1
+     */
   age: number;
   isCurrent: boolean;
   ganzi: string;

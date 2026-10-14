@@ -96,7 +96,7 @@ function HistoryReading({ data }: { data: SajuHistoryResult }) {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="font-semibold">나이대별로 돌아보기</h3>
+          <h3 className="font-semibold">나이대별로 돌아보기 · 세는나이</h3>
           <p className="mt-1 text-xs text-muted-foreground">연도를 열면 당시 흐름과 해석 근거를 볼 수 있습니다.</p>
         </div>
         <Select value={expandedYear === null ? "" : String(expandedYear)} onValueChange={(year) => openYear(Number(year))}>
@@ -134,7 +134,7 @@ function HistoryReading({ data }: { data: SajuHistoryResult }) {
                 className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-3 text-left sm:p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
                 <span className="w-14 text-center">
                   <span className="block font-bold text-foreground">{year.year}</span>
-                  <span className="block text-xs text-muted-foreground">{year.age === 0 ? "출생" : `${year.age}세`}</span>
+                  <span className="block text-xs text-muted-foreground">{year.age}세{year.year === data.birthYear ? " · 출생" : ""}</span>
                 </span>
                 <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">

@@ -63,12 +63,13 @@ function buildYearReading(
   daeun: ReturnType<typeof getDaeun>,
   yongsin: ReturnType<typeof getYongsin>,
 ): SajuHistoryYear {
-  const age = flow.year - birthYear;
+  // Life-stage interpretation uses elapsed years; displayed ages use counting age.
+  const elapsedYears = flow.year - birthYear;
   const isCurrent = flow.year === currentYear;
-  const themes = [...new Set([themeFor(flow.stemTenGod, age), themeFor(flow.branchTenGod, age)])];
+  const themes = [...new Set([themeFor(flow.stemTenGod, elapsedYears), themeFor(flow.branchTenGod, elapsedYears)])];
   const pressure = flow.interactions.filter((item) => !item.positive).sort((a, b) => a.score - b.score)[0];
   const support = flow.interactions.find((item) => item.positive);
-  const mainDomain = pressure ? domainFor(pressure.target, age) : themes[0];
+  const mainDomain = pressure ? domainFor(pressure.target, elapsedYears) : themes[0];
   const difficult = flow.score < 45;
   const favorable = flow.score >= 60;
   const headline = isCurrent
@@ -83,7 +84,7 @@ function buildYearReading(
       ? `${themes.join(", ")} 쪽에서 주변의 도움을 받거나 시도한 일이 비교적 수월하게 이어졌을 수 있습니다.`
       : `${themes.join(", ")}를 중심으로 안정과 조정이 함께 나타났을 수 있습니다.`;
   const nuance = difficult && support
-    ? `그 안에서도 ${domainFor(support.target, age)}에는 도움과 연결의 신호가 함께 있습니다.`
+    ? `그 안에서도 ${domainFor(support.target, elapsedYears)}에는 도움과 연결의 신호가 함께 있습니다.`
     : favorable && pressure
       ? `다만 ${mainDomain}에는 별도의 긴장 신호도 있어, 모든 영역이 편했음을 뜻하지는 않습니다.`
       : "같은 흐름도 실제 환경과 선택에 따라 다르게 경험할 수 있습니다.";
@@ -117,7 +118,7 @@ function buildYearReading(
   for (const interaction of flow.interactions) {
     evidence.push({
       label: `${interaction.type} · ${interaction.target}`,
-      detail: `${domainFor(interaction.target, age)}에서 ${INTERACTION_READING[interaction.type]} 신호로 해석했습니다.`,
+      detail: `${domainFor(interaction.target, elapsedYears)}에서 ${INTERACTION_READING[interaction.type]} 신호로 해석했습니다.`,
       kind: interaction.positive ? "support" : "caution",
     });
   }
@@ -126,15 +127,15 @@ function buildYearReading(
   const transition = transitionPeriod
     ? `${transitionPeriod.startDate} 전후 ${transitionPeriod.stem}${transitionPeriod.branch} ${transitionPeriod.idx === 1 ? "첫 대운 시작" : "대운 진입"}. 전환일 전후에는 앞뒤 흐름을 함께 비교합니다.`
     : null;
-  const reviewPoints = age < 7
+  const reviewPoints = elapsedYears < 7
     ? ["당시 거주지·돌봄 방식·보호자와의 생활이 달라졌는지 가족 기록과 비교해보세요.", "놀이·생활 습관과 또래 관계에서 편했던 점과 어려웠던 점을 함께 살펴보세요."]
-    : age < 20
+    : elapsedYears < 20
       ? ["학교·학업·친구 관계의 실제 변화와 당시 기억을 비교해보세요.", "가족·선생님의 도움과 평가·경쟁에서 느낀 부담을 함께 살펴보세요."]
       : ["일·소속·거주지·가까운 관계에서 실제로 바뀐 점과 비교해보세요.", "성과나 도움을 받은 일과 부담·지연을 겪은 일을 함께 살펴보세요."];
 
   return {
     year: flow.year,
-    age,
+    age: elapsedYears + 1,
     isCurrent,
     ganzi: `${flow.stem}${flow.branch}`,
     daeunLabel: flow.daeunLabel,
@@ -186,8 +187,9 @@ export function buildSajuHistory(input: SajuBirthInput, now = new Date()): SajuH
     .sort((a, b) => b.score - a.score || a.year - b.year).slice(0, 3).map((item) => item.year).sort((a, b) => a - b);
   const transitionYears = past.filter((item) => item.transition).map((item) => item.year);
   const periods: SajuHistoryResult["periods"] = [];
-  for (let offset = 0; offset < years.length; offset += 10) {
-    const group = years.slice(offset, offset + 10);
+  for (let startAge = 1; startAge <= years.length; startAge = startAge === 1 ? 10 : startAge + 10) {
+    const endAge = startAge === 1 ? 9 : startAge + 9;
+    const group = years.slice(startAge - 1, endAge);
     const completed = group.filter((item) => !item.isCurrent);
     const difficultCount = completed.filter((item) => item.score < 45).length;
     const favorableCount = completed.filter((item) => item.score >= 60).length;
@@ -196,10 +198,10 @@ export function buildSajuHistory(input: SajuBirthInput, now = new Date()): SajuH
       endAge: group[group.length - 1].age,
       startYear: group[0].year,
       endYear: group[group.length - 1].year,
-      title: offset === 0 ? "어린 시절" : offset === 10 ? "10대 · 성장기" : `${offset}대`,
+      title: startAge === 1 ? "어린 시절" : startAge === 10 ? "10대 · 성장기" : `${startAge}대`,
       summary: completed.length
         ? `지난 ${completed.length}개 연도 중 부담·조정 신호 ${difficultCount}년, 도움·기회 신호 ${favorableCount}년입니다.${group.some((item) => item.isCurrent) ? " 올해는 진행 중으로 집계에서 제외했습니다." : ""}`
-        : "출생한 해가 진행 중입니다. 아직 지난 연도는 없습니다.",
+        : "올해는 진행 중입니다. 이 나이대에는 아직 지난 연도가 없습니다.",
     });
   }
 
@@ -209,7 +211,7 @@ export function buildSajuHistory(input: SajuBirthInput, now = new Date()): SajuH
     asOfDate: `${today.year}-${today.month}-${today.day}`,
     birthTimeKnown: hour >= 0,
     summary: `${solar.year}년 출생부터 ${currentYear}년 현재까지, 어린 시절과 성장 과정의 흐름을 연도별로 살펴봅니다. 당시 경험과 대조하기 위한 사주 해석이며, 실제 사건이 있었다고 단정하지 않습니다.`,
-    ageNote: "나이는 해당 연도 − 양력 출생 연도로 표시합니다. 생일에 따른 만 나이와는 다를 수 있습니다.",
+    ageNote: "세는나이 = 해당 연도 − 양력 출생 연도 + 1. 태어난 해를 1세로 표시하고, 해가 바뀔 때 한 살씩 더합니다.",
     methodNote: "기존 분석과 같은 용신·희신·기신, 대운·세운 십신, 원국·대운의 합충형파해를 반영했습니다. 점수는 해석용 참고값이며 실제 행복·불행의 측정값이 아닙니다. 연도별 대운은 기존 대운 나이 구간 기준이며 전환일 전후는 앞뒤 대운을 함께 봅니다. 세운은 입춘 기준이므로 연초 경험은 전년도 흐름과도 대조하세요.",
     years,
     periods,

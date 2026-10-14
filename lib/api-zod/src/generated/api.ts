@@ -181,6 +181,9 @@ export const CalculateSajuHistoryBody = zod.object({
   "dayBoundary": zod.enum(['midnight', 'late-zi']).optional().describe('Day-pillar boundary rule for the late Zi hour')
 })
 
+
+
+
 export const CalculateSajuHistoryResponse = zod.object({
   "birthYear": zod.number(),
   "currentYear": zod.number(),
@@ -191,7 +194,7 @@ export const CalculateSajuHistoryResponse = zod.object({
   "ageNote": zod.string(),
   "years": zod.array(zod.object({
   "year": zod.number(),
-  "age": zod.number().describe('Calendar year minus solar birth year, not exact age on the birthday'),
+  "age": zod.number().min(1).describe('Korean counting age (calendar year minus solar birth year plus one); the birth year is age 1'),
   "isCurrent": zod.boolean(),
   "ganzi": zod.string(),
   "daeunLabel": zod.string().nullable(),

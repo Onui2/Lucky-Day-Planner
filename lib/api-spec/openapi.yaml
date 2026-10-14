@@ -380,7 +380,8 @@ components:
           type: integer
         age:
           type: integer
-          description: Calendar year minus solar birth year, not exact age on the birthday
+          minimum: 1
+          description: Korean counting age (calendar year minus solar birth year plus one); the birth year is age 1
         isCurrent:
           type: boolean
         ganzi:
