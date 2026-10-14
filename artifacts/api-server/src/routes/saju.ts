@@ -1,9 +1,11 @@
 import { Router } from "express";
+import { CalculateSajuHistoryBody } from "@workspace/api-zod";
 import {
   calculateGungap,
   getSajuYear,
 } from "../lib/saju-calculator.js";
 import { buildSajuResult } from "../lib/saju-result.js";
+import { buildSajuHistory } from "../lib/saju-history.js";
 import {
   BirthResolutionError,
   birthOptionsFromRecord,
@@ -16,6 +18,28 @@ import {
 } from "../lib/saju-advanced.js";
 
 const router = Router();
+
+router.post("/saju/history", (req, res) => {
+  if (!req.isAuthenticated() || !req.user) {
+    return res.status(401).json({ error: "로그인이 필요합니다." });
+  }
+  if (req.user.role !== "admin" && req.user.role !== "superadmin") {
+    return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+  }
+  const parsed = CalculateSajuHistoryBody.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "생년월일·성별·달력 구분을 확인해주세요." });
+  }
+  try {
+    return res.json(buildSajuHistory(parsed.data));
+  } catch (error) {
+    if (error instanceof BirthResolutionError) {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("Saju history error:", error);
+    return res.status(500).json({ error: "과거 흐름 분석 중 오류가 발생했습니다." });
+  }
+});
 
 router.post("/saju/calculate", (req, res) => {
   try {

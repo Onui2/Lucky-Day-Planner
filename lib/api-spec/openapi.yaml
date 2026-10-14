@@ -52,6 +52,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/SajuResult"
 
+  /saju/history:
+    post:
+      operationId: calculateSajuHistory
+      tags: [saju]
+      summary: Childhood-to-present saju reading for administrators
+      description: Requires an authenticated admin or superadmin. Returns interpretive yearly history, not verified life events. The current year is marked as ongoing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SajuRequest"
+      responses:
+        "200":
+          description: Lifetime retrospective reading
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SajuHistoryResult"
+        "400":
+          description: Invalid birth input or birth date in the future
+        "401":
+          description: Login required
+        "403":
+          description: Administrator role required
+
   /fortune/daily:
     get:
       operationId: getDailyFortune
@@ -333,6 +359,112 @@ components:
         - birthDay
         - gender
         - calendarType
+
+    SajuHistoryEvidence:
+      type: object
+      required: [label, detail, kind]
+      properties:
+        label:
+          type: string
+        detail:
+          type: string
+        kind:
+          type: string
+          enum: [support, caution, context]
+
+    SajuHistoryYear:
+      type: object
+      required: [year, age, isCurrent, ganzi, daeunLabel, score, level, headline, summary, themes, reviewPoints, evidence, transition]
+      properties:
+        year:
+          type: integer
+        age:
+          type: integer
+          description: Calendar year minus solar birth year, not exact age on the birthday
+        isCurrent:
+          type: boolean
+        ganzi:
+          type: string
+        daeunLabel:
+          type: [string, "null"]
+        score:
+          type: integer
+        level:
+          type: string
+        headline:
+          type: string
+        summary:
+          type: string
+        themes:
+          type: array
+          items:
+            type: string
+        reviewPoints:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/SajuHistoryEvidence"
+        transition:
+          type: [string, "null"]
+
+    SajuHistoryPeriod:
+      type: object
+      required: [startAge, endAge, startYear, endYear, title, summary]
+      properties:
+        startAge:
+          type: integer
+        endAge:
+          type: integer
+        startYear:
+          type: integer
+        endYear:
+          type: integer
+        title:
+          type: string
+        summary:
+          type: string
+
+    SajuHistoryResult:
+      type: object
+      required: [birthYear, currentYear, asOfDate, birthTimeKnown, summary, methodNote, ageNote, years, periods, difficultYears, favorableYears, transitionYears]
+      properties:
+        birthYear:
+          type: integer
+        currentYear:
+          type: integer
+        asOfDate:
+          type: string
+        birthTimeKnown:
+          type: boolean
+        summary:
+          type: string
+        methodNote:
+          type: string
+        ageNote:
+          type: string
+        years:
+          type: array
+          items:
+            $ref: "#/components/schemas/SajuHistoryYear"
+        periods:
+          type: array
+          items:
+            $ref: "#/components/schemas/SajuHistoryPeriod"
+        difficultYears:
+          type: array
+          items:
+            type: integer
+        favorableYears:
+          type: array
+          items:
+            type: integer
+        transitionYears:
+          type: array
+          items:
+            type: integer
 
     SajuPillar:
       type: object

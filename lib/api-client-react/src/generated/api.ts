@@ -28,6 +28,7 @@ import type {
   HealthStatus,
   ManseryokDate,
   ManseryokMonth,
+  SajuHistoryResult,
   SajuRequest,
   SajuResult
 } from './api.schemas';
@@ -191,6 +192,77 @@ export const useCalculateSaju = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCalculateSajuMutationOptions(options));
+    }
+
+export const getCalculateSajuHistoryUrl = () => {
+
+
+
+
+  return `/api/saju/history`
+}
+
+/**
+ * Requires an authenticated admin or superadmin. Returns interpretive yearly history, not verified life events. The current year is marked as ongoing.
+ * @summary Childhood-to-present saju reading for administrators
+ */
+export const calculateSajuHistory = async (sajuRequest: SajuRequest, options?: RequestInit): Promise<SajuHistoryResult> => {
+
+  return customFetch<SajuHistoryResult>(getCalculateSajuHistoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sajuRequest)
+  }
+);}
+
+
+
+
+export const getCalculateSajuHistoryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof calculateSajuHistory>>, TError,{data: BodyType<SajuRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof calculateSajuHistory>>, TError,{data: BodyType<SajuRequest>}, TContext> => {
+
+const mutationKey = ['calculateSajuHistory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof calculateSajuHistory>>, {data: BodyType<SajuRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  calculateSajuHistory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CalculateSajuHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof calculateSajuHistory>>>
+    export type CalculateSajuHistoryMutationBody = BodyType<SajuRequest>
+    export type CalculateSajuHistoryMutationError = ErrorType<void>
+
+    /**
+ * @summary Childhood-to-present saju reading for administrators
+ */
+export const useCalculateSajuHistory = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof calculateSajuHistory>>, TError,{data: BodyType<SajuRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof calculateSajuHistory>>,
+        TError,
+        {data: BodyType<SajuRequest>},
+        TContext
+      > => {
+      return useMutation(getCalculateSajuHistoryMutationOptions(options));
     }
 
 export const getGetDailyFortuneUrl = (params?: GetDailyFortuneParams,) => {

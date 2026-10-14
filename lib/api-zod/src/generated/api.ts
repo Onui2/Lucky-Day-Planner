@@ -161,6 +161,68 @@ export const CalculateSajuResponse = zod.object({
 
 
 /**
+ * Requires an authenticated admin or superadmin. Returns interpretive yearly history, not verified life events. The current year is marked as ongoing.
+ * @summary Childhood-to-present saju reading for administrators
+ */
+export const CalculateSajuHistoryBody = zod.object({
+  "birthYear": zod.number().describe('Birth year (e.g. 1990)'),
+  "birthMonth": zod.number().describe('Birth month (1-12)'),
+  "birthDay": zod.number().describe('Birth day (1-31)'),
+  "birthHour": zod.number().optional().describe('Birth hour in 24h format (0-23), -1 if unknown'),
+  "birthMinute": zod.number().optional().describe('Birth minute (0-59)'),
+  "gender": zod.enum(['male', 'female']).describe('Gender for fortune calculation'),
+  "calendarType": zod.enum(['solar', 'lunar']).describe('Whether birth date is in solar or lunar calendar'),
+  "isLeapMonth": zod.boolean().optional().describe('Whether a lunar birth date uses the intercalary month'),
+  "birthPlace": zod.string().optional().describe('Human-readable birthplace label'),
+  "timeZone": zod.string().optional().describe('IANA timezone used for historical civil-time conversion'),
+  "longitude": zod.number().optional().describe('Birthplace longitude in degrees east'),
+  "latitude": zod.number().optional().describe('Birthplace latitude in degrees north'),
+  "applyTrueSolarTime": zod.boolean().optional().describe('Apply longitude, historical DST, and equation-of-time correction'),
+  "dayBoundary": zod.enum(['midnight', 'late-zi']).optional().describe('Day-pillar boundary rule for the late Zi hour')
+})
+
+export const CalculateSajuHistoryResponse = zod.object({
+  "birthYear": zod.number(),
+  "currentYear": zod.number(),
+  "asOfDate": zod.string(),
+  "birthTimeKnown": zod.boolean(),
+  "summary": zod.string(),
+  "methodNote": zod.string(),
+  "ageNote": zod.string(),
+  "years": zod.array(zod.object({
+  "year": zod.number(),
+  "age": zod.number().describe('Calendar year minus solar birth year, not exact age on the birthday'),
+  "isCurrent": zod.boolean(),
+  "ganzi": zod.string(),
+  "daeunLabel": zod.string().nullable(),
+  "score": zod.number(),
+  "level": zod.string(),
+  "headline": zod.string(),
+  "summary": zod.string(),
+  "themes": zod.array(zod.string()),
+  "reviewPoints": zod.array(zod.string()),
+  "evidence": zod.array(zod.object({
+  "label": zod.string(),
+  "detail": zod.string(),
+  "kind": zod.enum(['support', 'caution', 'context'])
+})),
+  "transition": zod.string().nullable()
+})),
+  "periods": zod.array(zod.object({
+  "startAge": zod.number(),
+  "endAge": zod.number(),
+  "startYear": zod.number(),
+  "endYear": zod.number(),
+  "title": zod.string(),
+  "summary": zod.string()
+})),
+  "difficultYears": zod.array(zod.number()),
+  "favorableYears": zod.array(zod.number()),
+  "transitionYears": zod.array(zod.number())
+})
+
+
+/**
  * Get today's fortune and luck information
  * @summary Get daily fortune (일진)
  */

@@ -1230,7 +1230,8 @@ export function getDaeun(
   yearPillar: ReturnType<typeof getYearPillar>,
   monthPillar: ReturnType<typeof getMonthPillar>,
   birthHour: number = -1,
-  birthMinute: number = 0
+  birthMinute: number = 0,
+  periodCount: number = 8,
 ) {
   // 대운 순행/역행은 년간(年干) 기준 (전통 사주 표준)
   // 양년간(갑·병·무·경·임) + 男 or 음년간 + 女 → 순행
@@ -1282,7 +1283,7 @@ export function getDaeun(
   const monthGanziIdx = getGanziIdx(monthPillar.stemIndex, monthPillar.branchIndex);
 
   const periods = [];
-  for (let i = 1; i <= 8; i++) {
+  for (let i = 1; i <= periodCount; i++) {
     const offset = isForward ? i : -i;
     const idx = ((monthGanziIdx + offset) % 60 + 60) % 60;
     const ganzi = getGanzi(idx);

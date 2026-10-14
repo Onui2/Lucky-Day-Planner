@@ -73,6 +73,64 @@ export interface SajuRequest {
   dayBoundary?: SajuRequestDayBoundary;
 }
 
+export type SajuHistoryEvidenceKind = typeof SajuHistoryEvidenceKind[keyof typeof SajuHistoryEvidenceKind];
+
+
+export const SajuHistoryEvidenceKind = {
+  support: 'support',
+  caution: 'caution',
+  context: 'context',
+} as const;
+
+export interface SajuHistoryEvidence {
+  label: string;
+  detail: string;
+  kind: SajuHistoryEvidenceKind;
+}
+
+export interface SajuHistoryYear {
+  year: number;
+  /** Calendar year minus solar birth year, not exact age on the birthday */
+  age: number;
+  isCurrent: boolean;
+  ganzi: string;
+  /** @nullable */
+  daeunLabel: string | null;
+  score: number;
+  level: string;
+  headline: string;
+  summary: string;
+  themes: string[];
+  reviewPoints: string[];
+  evidence: SajuHistoryEvidence[];
+  /** @nullable */
+  transition: string | null;
+}
+
+export interface SajuHistoryPeriod {
+  startAge: number;
+  endAge: number;
+  startYear: number;
+  endYear: number;
+  title: string;
+  summary: string;
+}
+
+export interface SajuHistoryResult {
+  birthYear: number;
+  currentYear: number;
+  asOfDate: string;
+  birthTimeKnown: boolean;
+  summary: string;
+  methodNote: string;
+  ageNote: string;
+  years: SajuHistoryYear[];
+  periods: SajuHistoryPeriod[];
+  difficultYears: number[];
+  favorableYears: number[];
+  transitionYears: number[];
+}
+
 export interface SajuPillar {
   /** Heavenly stem (천간) */
   heavenlyStem: string;

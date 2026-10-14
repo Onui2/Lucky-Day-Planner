@@ -22,6 +22,7 @@ import {
 } from "@/lib/share-snapshot";
 import BirthPrecisionFields from "@/components/BirthPrecisionFields";
 import AdvancedSajuAnalysis from "@/components/AdvancedSajuAnalysis";
+import AdminSajuHistory from "@/components/AdminSajuHistory";
 import {
   DEFAULT_BIRTH_PRECISION,
   precisionToPayload,
@@ -1918,6 +1919,10 @@ export default function SajuPage() {
             </div>
           ))}
         </div>
+
+        {isAdmin && r.birthInfo && (
+          <AdminSajuHistory key={user?.id} birthInfo={r.birthInfo} />
+        )}
 
         <Card className="mb-8 glass-panel border-primary/25 bg-background/25">
           <CardHeader className="pb-4">
