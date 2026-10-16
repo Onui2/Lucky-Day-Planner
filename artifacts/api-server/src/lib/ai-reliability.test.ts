@@ -90,6 +90,28 @@ test("empty AI output cannot become a charged successful answer", async () => {
   await assert.rejects(assistant.buildSajuQuestionAnswer("직업운", {}), /답변/);
 });
 
+test("404 model not found on primary model automatically falls back to fallback model", async () => {
+  const triedModels: string[] = [];
+  const assistant = load(path.join(directory, "ai-assistant.ts"), {
+    "@google/generative-ai": { GoogleGenerativeAI: class {
+      getGenerativeModel({ model }: { model: string }) {
+        triedModels.push(model);
+        return {
+          generateContent: async () => {
+            if (model === "gemini-3.6-flash") {
+              throw new Error("[404 Not Found] models/gemini-3.6-flash is not found");
+            }
+            return { response: { text: () => "폴백 모델 정상 답변" } };
+          },
+        };
+      }
+    } },
+  }, { process: { env: { GEMINI_API_KEY: "synthetic-test-only" } }, setTimeout, Set });
+  const answer = await assistant.buildSajuQuestionAnswer("직업운", {});
+  assert.equal(answer, "폴백 모델 정상 답변");
+  assert.deepEqual(triedModels, ["gemini-3.6-flash", "gemini-3.5-flash-lite"]);
+});
+
 test("blocked browser storage does not crash AI session reads or writes", () => {
   const filename = path.resolve(directory, "../../../saju-web/src/lib/ai-chat-sessions.ts");
   for (const window of [

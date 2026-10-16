@@ -198,6 +198,13 @@ function isTransientAiError(error: unknown): boolean {
   return /\[(429|500|503)[^\]]*\]|overloaded|high demand|quota/i.test(message);
 }
 
+function isModelUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\[404[^\]]*\]|not found|not supported for generateContent|model.*not available/i.test(
+    message,
+  );
+}
+
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function buildSajuQuestionAnswer(
@@ -211,9 +218,10 @@ export async function buildSajuQuestionAnswer(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const primaryModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
+  const primaryModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
   const fallbackModel =
-    process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-2.5-flash-lite";
+    process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-3.5-flash-lite";
+  const legacyFallbackModel = "gemini-2.5-flash-lite";
   const sajuContext = buildSajuContext(result);
   const conversationContext = buildConversationContext(history);
   const today = new Date().toLocaleDateString("ko-KR", {
@@ -236,11 +244,20 @@ export async function buildSajuQuestionAnswer(
     { modelName: primaryModel, delayMs: 0 },
     { modelName: primaryModel, delayMs: 1500 },
     { modelName: fallbackModel, delayMs: 1000 },
+    ...(fallbackModel !== legacyFallbackModel
+      ? [{ modelName: legacyFallbackModel, delayMs: 500 }]
+      : []),
   ];
 
+  const unavailableModels = new Set<string>();
   let lastError: unknown;
   for (const attempt of attempts) {
-    if (attempt.delayMs > 0) await wait(attempt.delayMs);
+    if (unavailableModels.has(attempt.modelName)) {
+      continue;
+    }
+    if (attempt.delayMs > 0 && unavailableModels.size === 0) {
+      await wait(attempt.delayMs);
+    }
     try {
       const model = genAI.getGenerativeModel({
         model: attempt.modelName,
@@ -254,6 +271,14 @@ export async function buildSajuQuestionAnswer(
       return answer;
     } catch (error) {
       lastError = error;
+      if (isModelUnavailableError(error)) {
+        unavailableModels.add(attempt.modelName);
+        console.warn(
+          `gemini ${attempt.modelName} unavailable (404/unsupported), falling back:`,
+          error instanceof Error ? error.message.slice(0, 200) : error,
+        );
+        continue;
+      }
       if (!isTransientAiError(error)) throw error;
       console.warn(
         `gemini ${attempt.modelName} transient error, retrying:`,
