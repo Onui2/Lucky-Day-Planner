@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 type PdfModule = typeof import("pdfjs-dist");
 type PdfLoadingTask = ReturnType<PdfModule["getDocument"]>;
-type PdfDocument = Awaited<PdfLoadingTask["promise"]>;
+export type PdfDocument = Awaited<PdfLoadingTask["promise"]>;
 
 const MIN_SCALE = 0.6;
 const MAX_SCALE = 2.4;
@@ -16,7 +16,7 @@ const SCALE_STEP = 0.2;
 
 let pdfModulePromise: Promise<PdfModule> | null = null;
 
-async function loadPdfModule() {
+export async function loadPdfModule() {
   if (!pdfModulePromise) {
     pdfModulePromise = Promise.all([
       import("pdfjs-dist"),
@@ -29,7 +29,7 @@ async function loadPdfModule() {
   return pdfModulePromise;
 }
 
-function PdfPage({ document, pageNumber, scale }: { document: PdfDocument; pageNumber: number; scale: number }) {
+export function PdfPage({ document, pageNumber, scale }: { document: PdfDocument; pageNumber: number; scale: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
 

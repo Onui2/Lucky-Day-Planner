@@ -319,6 +319,32 @@ function getFocusSection(result: Record<string, any>) {
   };
 }
 
+export function getNewYearReportSections(result: Record<string, any>) {
+  if (result.reportEdition !== "new-year-2027") return [];
+  const year = result.newYearAnalysis;
+  if (year?.targetYear !== 2027 || !Array.isArray(year.monthlyScores)
+    || year.monthlyScores.length !== 12 || !year.overallText || !year.monthBasis
+    || !year.careerText || !year.moneyText || !year.loveText
+    || year.monthlyScores.some((item: any, index: number) => item.month !== index + 1
+      || !Number.isFinite(item.score) || !item.monthStem || !item.monthBranch)) {
+    throw new Error("2027 리포트의 저장된 연간·월별 분석이 불완전합니다.");
+  }
+  return [
+    { title: "2027 핵심 요약·목차", hanja: "總評", accent: "#caa75d",
+      body: [year.overallText,
+        "목차: 성향·원국·오행 → 관계·직업·재물 → 대운 → 2027 연간 흐름 → 월별 요약 → 계산 기준과 참고 안내.",
+        "월별 요약은 월주와 참고 점수입니다. 월별 서술형 심화 풀이와 개별 고민 상담은 포함하지 않습니다.",
+        "점수는 기존 사주 계산의 참고값이며 사건 발생 확률이나 결과 보장이 아닙니다."] .join("\n\n") },
+    { title: "2027 월별 요약표", hanja: "月運", accent: "#526f62",
+      body: ["양력 월 | 15일 대표 월주 | 참고 점수",
+        ...year.monthlyScores.map((item: any) => item.month + "월 | " + item.monthStem + item.monthBranch + " | " + item.score),
+        "", year.monthBasis].join("\n") },
+    { title: "2027 분야별 상세 해석", hanja: "歲運", accent: "#6d657d",
+      body: ["직업: " + year.careerText, "관계: " + year.loveText,
+        "재물: " + year.moneyText].join("\n\n") },
+  ];
+}
+
 export function getSajuReportSections(result: Record<string, any>, tier: ReportTier = "full") {
   const sections = [
     {
@@ -437,6 +463,7 @@ export function getSajuReportSections(result: Record<string, any>, tier: ReportT
     body: wealth ? `${wealth.label} ${wealth.level}: ${wealth.interpretation} ${wealth.advice} 실제 소득이나 투자 수익을 예측하는 값은 아닙니다.`
       : "재물운은 수입과 지출, 생활 습관을 함께 돌아보는 참고 해석입니다. 현재 리포트에는 재성 세부 데이터가 없습니다.",
   });
+  sections.unshift(...getNewYearReportSections(result));
   if (tier === "full") {
     const history = result.historyAnalysis;
     if (history?.years?.length) {
@@ -544,7 +571,7 @@ const TEXT = "#2a2230";
 const TEXT_BODY = "#4a4036";
 const TEXT_SUB = "#7a6f5f";
 
-export async function generateSajuReportPdf(title: string, result: Record<string, any>, tier: ReportTier = "full") {
+export async function generateSajuReportPdf(title: string, result: Record<string, any>, tier: ReportTier = "full", options: { sampleOnly?: boolean } = {}) {
   const doc = new PDFDocument({
     size: "A4",
     margin: 48,
@@ -598,7 +625,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     doc.font("serif").fillColor(INK).fontSize(10).text("命海苑", margin, 34, { lineBreak: false });
     doc.font("body").fillColor(TEXT_SUB).fontSize(8.5).text("정밀 사주 리포트", margin + 46, 36.5, { lineBreak: false });
     doc.font("body").fillColor(TEXT_SUB).fontSize(8.5).text(
-      `${birthInfo.year ?? "?"}.${String(birthInfo.month ?? "?").padStart(2, "0")}.${String(birthInfo.day ?? "?").padStart(2, "0")} ${genderLabel}`,
+      options.sampleOnly ? "공개 승인 샘플 · 비식별" : `${birthInfo.year ?? "?"}.${String(birthInfo.month ?? "?").padStart(2, "0")}.${String(birthInfo.day ?? "?").padStart(2, "0")} ${genderLabel}`,
       margin, 36.5,
       { width: contentWidth, align: "right", lineBreak: false },
     );
@@ -643,6 +670,57 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     doc.y = y + 26;
   };
 
+  // ─── 인사이트 섹션 카드 ───
+  const drawInsightCard = (titleText: string, hanja: string, bodyText: string, accent: string) => {
+    const textWidth = contentWidth - 44;
+    const measure = (text: string) => {
+      doc.font("body").fontSize(10.5);
+      return doc.heightOfString(text, { width: textWidth, lineGap: 5 });
+    };
+    let remaining = bodyText;
+    let continuation = false;
+    do {
+      const fullHeight = measure(remaining) + 60;
+      if (fullHeight <= contentBottom - contentTop) ensureSpace(fullHeight + 14);
+      else ensureSpace(180);
+      const y = doc.y;
+      const availableHeight = contentBottom - y - 60;
+      let chunk = remaining;
+      if (measure(chunk) > availableHeight) {
+        // Split by code points so page breaks cannot corrupt a surrogate pair.
+        const characters = Array.from(remaining);
+        let low = 1;
+        let high = characters.length;
+        while (low < high) {
+          const middle = Math.ceil((low + high) / 2);
+          if (measure(characters.slice(0, middle).join("")) <= availableHeight) low = middle;
+          else high = middle - 1;
+        }
+        chunk = characters.slice(0, low).join("");
+        const wordBreak = Math.max(chunk.lastIndexOf(" "), chunk.lastIndexOf("\n"));
+        if (wordBreak > chunk.length * 0.6) chunk = chunk.slice(0, wordBreak);
+      }
+      const cardHeight = measure(chunk) + 60;
+      const x = margin;
+      doc.save();
+      doc.roundedRect(x, y, contentWidth, cardHeight, 12).fillAndStroke(CARD, CARD_BORDER);
+      doc.roundedRect(x, y + 12, 3.5, cardHeight - 24, 1.75).fill(accent);
+      doc.restore();
+      const heading = `${titleText}${continuation ? " (계속)" : ""}`;
+      doc.font("serif").fillColor(TEXT).fontSize(13.5).text(heading, x + 22, y + 16, { lineBreak: false });
+      const tWidth = doc.widthOfString(heading);
+      doc.font("serif").fillColor(accent).fontSize(9.5).text(hanja, x + 22 + tWidth + 8, y + 19.5, { lineBreak: false });
+      doc.font("body").fillColor(TEXT_BODY).fontSize(10.5).text(chunk, x + 22, y + 40, {
+        width: textWidth, lineGap: 5,
+      });
+      doc.y = y + cardHeight + 14;
+      remaining = remaining.slice(chunk.length).trimStart();
+      continuation = true;
+      if (remaining) doc.addPage();
+    } while (remaining);
+  };
+
+  if (!options.sampleOnly) {
   // ════════════════ 1페이지: 표지 ════════════════
   doc.rect(0, 0, pageWidth, pageHeight).fill(INK);
 
@@ -673,7 +751,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   });
 
   // 중앙 타이틀
-  doc.font("serif").fillColor("#fff8ec").fontSize(31).text(REPORT_TITLES[tier], 0, 166, {
+  doc.font("serif").fillColor("#fff8ec").fontSize(31).text(result.reportEdition === "new-year-2027" ? "2027 종합 신년운세" : REPORT_TITLES[tier], 0, 166, {
     width: pageWidth,
     align: "center",
     characterSpacing: 2,
@@ -788,6 +866,54 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   // ════════════════ 2페이지부터: 본문 ════════════════
   doc.addPage();
 
+  } else {
+    drawContentChrome();
+    doc.y = contentTop;
+  }
+
+  const newYearSections = getNewYearReportSections(result);
+  if (options.sampleOnly && newYearSections.length !== 3) {
+    throw new Error("승인된 2027 분석이 있어야 샘플을 만들 수 있습니다.");
+  }
+  if (newYearSections.length) {
+    const firstPage = pageNo;
+    for (const [index, section] of newYearSections.entries()) {
+      if (index > 0) doc.addPage();
+      drawSectionHeading(section.title, section.hanja);
+      if (index === 1) {
+        const columns = [margin + 16, margin + 158, margin + 332];
+        const rows = result.newYearAnalysis.monthlyScores;
+        const top = doc.y;
+        const rowHeight = 25;
+        doc.save();
+        doc.roundedRect(margin, top, contentWidth, rowHeight * 13, 10).fillAndStroke(CARD, CARD_BORDER);
+        doc.font("bold").fontSize(10).fillColor(GOLD_DARK);
+        ["양력 월", "15일 대표 월주", "참고 점수"].forEach((label, column) => {
+          doc.text(label, columns[column], top + 8, { width: 130, lineBreak: false });
+        });
+        for (const [row, item] of rows.entries()) {
+          const y = top + (row + 1) * rowHeight;
+          doc.moveTo(margin + 12, y).lineTo(pageWidth - margin - 12, y).lineWidth(0.5).strokeColor(CARD_BORDER).stroke();
+          doc.font("body").fontSize(10).fillColor(TEXT_BODY);
+          [item.month + "월", item.monthStem + item.monthBranch, String(item.score)].forEach((label, column) => {
+            doc.text(label, columns[column], y + 8, { width: 130, lineBreak: false });
+          });
+        }
+        doc.restore();
+        doc.y = top + rowHeight * 13 + 20;
+        doc.font("body").fontSize(9.5).fillColor(TEXT_SUB).text(result.newYearAnalysis.monthBasis,
+          margin, doc.y, { width: contentWidth, lineGap: 4 });
+      } else {
+        drawInsightCard(section.title, section.hanja, section.body, section.accent);
+      }
+      if (pageNo !== firstPage + index) {
+        throw new Error("2027 미리보기 내용이 한 쪽을 넘었습니다. 서식 검수가 필요합니다.");
+      }
+    }
+    if (!options.sampleOnly) doc.addPage();
+  }
+
+  if (!options.sampleOnly) {
   // 오행 분포 차트
   drawSectionHeading("오행 분포", "五行 分布");
   const balance = (result.elementBalance ?? {}) as Record<string, number>;
@@ -866,58 +992,8 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     doc.y = laneTop + boxHeight + 26;
   }
 
-  // ─── 인사이트 섹션 카드 ───
-  const drawInsightCard = (titleText: string, hanja: string, bodyText: string, accent: string) => {
-    const textWidth = contentWidth - 44;
-    const measure = (text: string) => {
-      doc.font("body").fontSize(10.5);
-      return doc.heightOfString(text, { width: textWidth, lineGap: 5 });
-    };
-    let remaining = bodyText;
-    let continuation = false;
-    do {
-      const fullHeight = measure(remaining) + 60;
-      if (fullHeight <= contentBottom - contentTop) ensureSpace(fullHeight + 14);
-      else ensureSpace(180);
-      const y = doc.y;
-      const availableHeight = contentBottom - y - 60;
-      let chunk = remaining;
-      if (measure(chunk) > availableHeight) {
-        // Split by code points so page breaks cannot corrupt a surrogate pair.
-        const characters = Array.from(remaining);
-        let low = 1;
-        let high = characters.length;
-        while (low < high) {
-          const middle = Math.ceil((low + high) / 2);
-          if (measure(characters.slice(0, middle).join("")) <= availableHeight) low = middle;
-          else high = middle - 1;
-        }
-        chunk = characters.slice(0, low).join("");
-        const wordBreak = Math.max(chunk.lastIndexOf(" "), chunk.lastIndexOf("\n"));
-        if (wordBreak > chunk.length * 0.6) chunk = chunk.slice(0, wordBreak);
-      }
-      const cardHeight = measure(chunk) + 60;
-      const x = margin;
-      doc.save();
-      doc.roundedRect(x, y, contentWidth, cardHeight, 12).fillAndStroke(CARD, CARD_BORDER);
-      doc.roundedRect(x, y + 12, 3.5, cardHeight - 24, 1.75).fill(accent);
-      doc.restore();
-      const heading = `${titleText}${continuation ? " (계속)" : ""}`;
-      doc.font("serif").fillColor(TEXT).fontSize(13.5).text(heading, x + 22, y + 16, { lineBreak: false });
-      const tWidth = doc.widthOfString(heading);
-      doc.font("serif").fillColor(accent).fontSize(9.5).text(hanja, x + 22 + tWidth + 8, y + 19.5, { lineBreak: false });
-      doc.font("body").fillColor(TEXT_BODY).fontSize(10.5).text(chunk, x + 22, y + 40, {
-        width: textWidth, lineGap: 5,
-      });
-      doc.y = y + cardHeight + 14;
-      remaining = remaining.slice(chunk.length).trimStart();
-      continuation = true;
-      if (remaining) doc.addPage();
-    } while (remaining);
-  };
-
   drawSectionHeading("운세 풀이", "解說");
-  for (const section of sections) {
+  for (const section of sections.filter((section) => !newYearSections.some((preview) => preview.title === section.title))) {
     drawInsightCard(section.title, section.hanja, section.body, section.accent);
   }
 
@@ -938,6 +1014,8 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     width: contentWidth - 36,
     lineGap: 4,
   });
+
+  }
 
   doc.end();
 

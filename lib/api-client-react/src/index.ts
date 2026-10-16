@@ -1073,6 +1073,12 @@ export interface MonetizationBirthInfo {
   dayBoundary?: "midnight" | "late-zi";
 }
 
+export interface NewYearCampaign {
+  id: string; targetYear: number; productType: string; title: string; amount: number;
+  scope: string[]; monthBasis: string; sampleStatus: "unverified" | "verified";
+  samplePath: string | null; samplePages: string[]; salesEnabled: boolean; analyticsEnabled: boolean;
+}
+
 export interface CommerceProduct {
   type: string;
   title: string;
@@ -1217,6 +1223,7 @@ export function useGetCommerceProducts(userId?: string | null) {
       checkoutMode: CreateCommerceOrderResponse["checkoutMode"];
       salesEnabled: boolean;
       freeTrialAvailable: boolean | null;
+      campaign: NewYearCampaign;
     }>("/api/commerce/products"),
     staleTime: 60_000,
   });
@@ -1242,6 +1249,8 @@ export function useCreateCommerceOrder() {
       reportFocus?: "career" | "money" | "relationship";
       expectedAmount?: number;
       expectFreeTrial?: boolean;
+      reportEdition?: "new-year-2027";
+      campaignVisitId?: string;
     }) =>
       customFetch<CreateCommerceOrderResponse>("/api/commerce/orders", {
         method: "POST",

@@ -25,7 +25,10 @@ import aiRouter from "./ai.js";
 import daeunRouter from "./daeun.js";
 import shareSnapshotsRouter from "./share-snapshots.js";
 
+import campaignsRouter from "./campaigns.js";
+
 const router = Router();
+router.use(campaignsRouter);
 
 router.use(healthRouter);
 router.use(authRouter);

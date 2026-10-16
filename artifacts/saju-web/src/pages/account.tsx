@@ -337,7 +337,7 @@ export default function AccountPage() {
                       </Button>
                     </>
                   )}
-                  {(report.status === "failed" || report.status === "pending") && (
+                  {(report.status === "failed" || report.status === "pending" || report.status === "processing") && (
                     <Button
                       size="sm"
                       variant="outline"

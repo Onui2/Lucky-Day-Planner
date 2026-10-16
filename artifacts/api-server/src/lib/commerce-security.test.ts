@@ -72,6 +72,7 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
   const conditions = {
     eq: (left: any, right: any): Predicate => (context) => value(left, context) === value(right, context),
     gt: (left: any, right: any): Predicate => (context) => value(left, context) > value(right, context),
+    lt: (left: any, right: any): Predicate => (context) => value(left, context) < value(right, context),
     isNull: (input: any): Predicate => (context) => value(input, context) == null,
     and: (...items: Predicate[]): Predicate => (context) => items.every((item) => item(context)),
     or: (...items: Predicate[]): Predicate => (context) => items.some((item) => item(context)),
@@ -266,7 +267,7 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
     if (paid) records.purchaseEntitlements.push(entitlement);
     return { order, report, entitlement };
   }
-  return { app, state, seed, commerce };
+  return { app, state, seed, commerce, rendering: load(path.join(sourceDir, "lib/report-rendering.ts")) };
 }
 
 type Harness = ReturnType<typeof createHarness>;
@@ -390,6 +391,63 @@ test("paid report with an active entitlement can be regenerated and downloaded",
     assert.equal(await download.text(), "test PDF");
   });
   assert.equal(h.state.generated, 1);
+});
+
+test("concurrent explicit regeneration renders a ready report once", async () => {
+  const h = createHarness();
+  const { report } = h.seed(true);
+  Object.assign(report, { status: "ready", updatedAt: new Date(0) });
+  let started!: () => void;
+  let release!: () => void;
+  const rendering = new Promise<void>((resolve) => { started = resolve; });
+  const blocked = new Promise<void>((resolve) => { release = resolve; });
+  h.state.beforeGeneration = async () => { started(); await blocked; };
+  await withServer(h, async (url) => {
+    const first = post(`${url}/reports/21/regenerate`);
+    try {
+      await Promise.race([rendering, first.then(() => assert.fail("Ready report was not regenerated"))]);
+      const duplicate = await post(`${url}/reports/21/regenerate`);
+      assert.equal(duplicate.status, 200);
+      assert.equal((await duplicate.json() as Row).report.status, "processing");
+      assert.equal(h.state.generated, 1);
+    } finally { release(); await first; }
+  });
+  assert.equal(report.status, "ready");
+  assert.equal(h.state.generated, 1);
+});
+
+test("payment rendering preserves a ready report without another generation", async () => {
+  const h = createHarness();
+  const { report } = h.seed(true);
+  Object.assign(report, { status: "ready", updatedAt: new Date(0) });
+  const ready = { ...report };
+  assert.equal(await h.rendering.renderStoredReport(ready, {}), ready);
+  assert.equal(h.state.generated, 0);
+  assert.equal(h.state.writes, 0);
+});
+
+test("expired rendering lease can retry and a late renderer cannot overwrite it", async () => {
+  const h = createHarness();
+  const { report } = h.seed(true);
+  let started!: () => void;
+  let release!: () => void;
+  const rendering = new Promise<void>((resolve) => { started = resolve; });
+  const blocked = new Promise<void>((resolve) => { release = resolve; });
+  h.state.beforeGeneration = async () => {
+    if (h.state.generated === 1) { started(); await blocked; }
+  };
+  const first = h.rendering.renderStoredReport({ ...report }, {});
+  await rendering;
+  Object.assign(report, { updatedAt: new Date(Date.now() - 121_000) });
+  try {
+    await h.rendering.renderStoredReport({ ...report }, {});
+    assert.equal(report.status, "ready");
+    const writesAfterRetry = h.state.writes;
+    release();
+    await first;
+    assert.equal(h.state.writes, writesAfterRetry);
+    assert.equal(h.state.generated, 2);
+  } finally { release(); await first; }
 });
 
 for (const [productType, tier] of [["saju_basic", "basic"], ["saju_detail", "detail"], ["saju_full", "full"]]) {

@@ -3,12 +3,12 @@ import {
   analysisSnapshotsTable,
   db,
   pdfReportsTable,
+  ordersTable,
 } from "@workspace/db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { requireDatabase } from "../lib/database-guard.js";
-import { generateSajuReportPdf } from "../lib/report-generator.js";
+import { renderStoredReport } from "../lib/report-rendering.js";
 import { hasReportAccess } from "../lib/report-access.js";
-import { getReportTier } from "../lib/product-config.js";
 
 const router = Router();
 
@@ -95,6 +95,16 @@ router.get("/reports/:id/download", async (req, res) => {
         report.fileName ?? `report-${report.id}.pdf`,
       )}`,
     );
+    if (process.env.CAMPAIGN_ANALYTICS_ENABLED === "true") {
+      // First successful file response, shared by web viewer and download.
+      // Tracking failure must not prevent access to a purchased report.
+      await db.update(ordersTable).set({
+        metadata: sql`jsonb_set(coalesce(${ordersTable.metadata}, '{}'::jsonb), '{firstDeliveredAt}', to_jsonb(${new Date().toISOString()}::text))`,
+      }).where(and(eq(ordersTable.id, report.orderId), eq(ordersTable.userId, req.user.id),
+        sql`${ordersTable.metadata}->>'reportEdition' = 'new-year-2027'`,
+        sql`${ordersTable.metadata}->>'firstDeliveredAt' IS NULL`)).catch(() => undefined);
+    }
+    res.setHeader("Cache-Control", "private, no-store");
     res.send(buffer);
   } catch (error) {
     console.error("report download error:", error);
@@ -141,26 +151,7 @@ router.post("/reports/:id/regenerate", async (req, res) => {
       return;
     }
 
-    const generated = await generateSajuReportPdf(
-      row.report.title,
-      row.snapshot.sajuResult as Record<string, any>,
-      getReportTier(row.report.productType),
-    );
-
-    const [updated] = await db
-      .update(pdfReportsTable)
-      .set({
-        status: "ready",
-        previewText: generated.previewText,
-        htmlContent: generated.htmlContent,
-        fileName: generated.fileName,
-        fileDataBase64: generated.fileDataBase64,
-        failedReason: null,
-        generatedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(pdfReportsTable.id, row.report.id))
-      .returning();
+    const updated = await renderStoredReport(row.report, row.snapshot.sajuResult as Record<string, any>, { force: true });
 
     res.json({ report: updated });
   } catch (error) {

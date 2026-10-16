@@ -14,6 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BIRTH_HOURS, getBirthHourLabel } from "@/lib/birth-time";
+import { NewYearOffer } from "@/components/NewYearOffer";
+import { trackCampaignEvent } from "@/lib/campaign-tracking";
+import { useGetCommerceProducts } from "@workspace/api-client-react";
 import { parseReportFocus, REPORT_FOCUS_LABELS } from "@/lib/report-focus";
 import {
   createShareSnapshot,
@@ -392,6 +395,7 @@ export default function SajuPage() {
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
   const reportFocus = parseReportFocus(searchParams.get("focus"));
+  const isNewYear = searchParams.get("campaign") === "new-year-2027";
   const startCompact = searchParams.get("compact") === "1" || (!searchParams.has("sections") && searchParams.get("compact") !== "0");
   const initialAiQuestion = searchParams.get("aiPrompt")?.trim() || undefined;
 
@@ -503,6 +507,8 @@ export default function SajuPage() {
 
   const { user, isAuthenticated } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const campaignCatalog = useGetCommerceProducts(user?.id);
+  const measureCampaign = isNewYear && !isAdmin && campaignCatalog.data?.campaign.analyticsEnabled === true;
   const { profile } = useUser();
   const { mutate: calculateSaju, data: result, isPending, error } = useCalculateSaju();
   const saveMut = useSaveSaju();
@@ -1089,6 +1095,7 @@ export default function SajuPage() {
     });
     if (dateError) { setFormError(dateError); return; }
 
+    if (measureCampaign) trackCampaignEvent("input_complete", search);
     const year = parseInt(inputForm.birthYear);
     const month = parseInt(inputForm.birthMonth);
     const day = parseInt(inputForm.birthDay);
@@ -1275,6 +1282,7 @@ export default function SajuPage() {
   // ─── 입력 폼 ───────────────────────────────────────
   if (!r) return (
     <div className="max-w-6xl mx-auto">
+      {isNewYear && <NewYearOffer />}
       <AnimatePresence mode="wait">
         <motion.div key="form" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }}>
           <div className="text-center mb-12">
@@ -1754,6 +1762,7 @@ export default function SajuPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {isNewYear && <NewYearOffer onPurchase={() => setFloatingPanel("report")} />}
       {/* 공유 카드 — 화면 밖에 숨겨두고 캡처 시 사용 */}
       <div aria-hidden="true" style={{ position: "fixed", left: -9999, top: 0, zIndex: -1, pointerEvents: "none" }}>
         {shareOptionsOpen && sharePreviewPayload && (
@@ -1902,6 +1911,7 @@ export default function SajuPage() {
             <ReportPurchaseButton
               birthInfo={monetizationBirthInfo}
               initialFocus={reportFocus}
+              reportEdition={isNewYear ? "new-year-2027" : undefined}
               isAuthenticated={isAuthenticated}
               isAdmin={isAdmin}
               externalOpen={floatingPanel === "report"}

@@ -483,10 +483,11 @@ export function getYearFortune(
   birthYear: number, birthMonth: number, birthDay: number,
   birthHour: number = -1, targetYear?: number,
   dayPillarDate?: { year: number; month: number; day: number },
+  birthMinute: number = 0,
 ): YearFortuneData {
   const year = targetYear ?? new Date().getFullYear();
   const yearPillar  = getYearPillar(year);
-  const sajuYearNum = getSajuYear(birthYear, birthMonth, birthDay, birthHour);
+  const sajuYearNum = getSajuYear(birthYear, birthMonth, birthDay, birthHour, birthMinute);
   const dayPillar   = getDayPillar(
     dayPillarDate?.year ?? birthYear,
     dayPillarDate?.month ?? birthMonth,
@@ -495,7 +496,7 @@ export function getYearFortune(
 
   // ── 사주 4주 모두 계산 ──────────────────────────────
   const birthYearPillar  = getYearPillar(sajuYearNum);
-  const birthMonthPillar = getMonthPillar(birthYear, birthMonth, birthDay, birthHour);
+  const birthMonthPillar = getMonthPillar(birthYear, birthMonth, birthDay, birthHour, birthMinute);
   const hourPillar       = birthHour >= 0
     ? getHourPillar(dayPillar.stemIndex, birthHour)
     : { stem: '무', branch: '자', stemElement: '토', branchElement: '수' };

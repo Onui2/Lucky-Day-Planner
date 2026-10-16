@@ -16,6 +16,7 @@ import {
   type ConfirmCommercePaymentResponse,
 } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
+import { clearPendingCheckout, getPendingCheckout } from "@/lib/toss-payments";
 import { Button } from "@/components/ui/button";
 
 type ConfirmationState = "confirming" | "ready" | "processing" | "failed" | "error";
@@ -49,7 +50,7 @@ function toErrorMessage(error: unknown) {
 
 export default function PaymentSuccessPage() {
   const search = useSearch();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const confirmPayment = useConfirmCommercePayment();
   const [state, setState] = useState<ConfirmationState>("confirming");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -58,11 +59,14 @@ export default function PaymentSuccessPage() {
 
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const isTossPay = params.get("provider") === "toss_pay";
-  const orderId = (params.get("orderId") ?? params.get("orderNo"))?.trim() ?? "";
+  const orderId = (params.get("orderId") ?? params.get("orderNo"))?.trim()
+    || (user?.id ? getPendingCheckout(user.id)?.orderId : "") || "";
   const paymentKey = params.get("paymentKey")?.trim() ?? "";
-  const amount = Number(params.get("amount") ?? "");
+  const hasAmount = params.has("amount");
+  const amount = hasAmount ? Number(params.get("amount")) : NaN;
+  const [retry, setRetry] = useState(0);
 
-  const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } =
+  const { data: ordersData, isLoading: isLoadingOrders, error: ordersError, refetch: refetchOrders } =
     useGetMyOrders(isAuthenticated && Boolean(orderId));
 
   const order = useMemo(
@@ -71,7 +75,7 @@ export default function PaymentSuccessPage() {
   );
 
   useEffect(() => {
-    if (!orderId || (!isTossPay && (!paymentKey || !Number.isFinite(amount)))) {
+    if (!orderId || (hasAmount && !Number.isFinite(amount))) {
       setState("error");
       setErrorMessage("결제 확인에 필요한 정보가 누락되었습니다.");
       return;
@@ -101,7 +105,7 @@ export default function PaymentSuccessPage() {
       return;
     }
 
-    if (!isTossPay && order.amount !== amount) {
+    if (hasAmount && order.amount !== amount) {
       setState("error");
       setErrorMessage("결제 금액 검증에 실패했습니다. 안전을 위해 결제 승인을 중단했습니다.");
       return;
@@ -140,6 +144,8 @@ export default function PaymentSuccessPage() {
       });
   }, [
     amount,
+    hasAmount,
+    retry,
     isTossPay,
     authLoading,
     confirmPayment,
@@ -151,7 +157,35 @@ export default function PaymentSuccessPage() {
     paymentKey,
   ]);
 
-  const report = result?.report;
+  useEffect(() => {
+    if (!orderId || !isAuthenticated || (state !== "confirming" && state !== "processing" && state !== "error")) return;
+    const started = Date.now();
+    const timer = window.setInterval(() => {
+      if (Date.now() - started > 120_000) {
+        window.clearInterval(timer);
+        setErrorMessage("생성이 지연되고 있습니다. 추가 결제 없이 마이페이지에서 같은 주문을 확인·재생성해주세요.");
+        return;
+      }
+      void refetchOrders();
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [state, refetchOrders, orderId, isAuthenticated]);
+
+  useEffect(() => {
+    if (order?.status !== "paid" || !order.reportStatus) return;
+    if (user?.id) clearPendingCheckout(user.id, order.orderId);
+    if (order.reportStatus === "ready") {
+      setState("ready");
+      setResult((previous) => previous ? { ...previous, report: { ...previous.report, status: "ready" } } : previous);
+    } else if (order.reportStatus === "failed") {
+      setState("failed");
+      setErrorMessage("결제는 완료되었습니다. 마이페이지에서 같은 주문의 PDF를 다시 생성해주세요.");
+    }
+  }, [order?.status, order?.reportStatus, order?.orderId, user?.id]);
+
+  const report = result?.report ?? (order?.reportId ? {
+    id: order.reportId, title: order.reportTitle ?? "사주 리포트", fileName: null,
+  } : null);
   const [isDownloading, setIsDownloading] = useState(false);
 
   return (
@@ -204,13 +238,14 @@ export default function PaymentSuccessPage() {
         <div className="mt-6 rounded-2xl border border-white/10 bg-background/35 p-4 text-sm leading-6 text-muted-foreground">
           {state === "confirming" && "결제 승인과 PDF 생성 상태를 서버에서 확인하는 중입니다."}
           {state === "ready" && "정밀 사주 PDF가 준비되었습니다. 바로 다운로드하거나 마이페이지에서 다시 받을 수 있습니다."}
-          {state === "processing" && "결제 승인까지는 끝났습니다. PDF 생성이 조금 더 걸릴 수 있으니 마이페이지에서 상태를 확인해주세요."}
+          {state === "processing" && (errorMessage ?? "결제는 완료되었습니다. 서버의 실제 생성 상태를 확인하고 있습니다.")}
           {state === "failed" && (errorMessage ?? "PDF 생성에 실패했습니다. 마이페이지에서 재생성을 시도해주세요.")}
           {state === "error" && (errorMessage ?? "결제 확인 중 문제가 발생했습니다.")}
         </div>
 
         {state === "ready" && errorMessage && <p role="alert" className="mt-3 text-sm text-amber-700">{errorMessage}</p>}
         <div className="mt-6 flex flex-wrap gap-3">
+          {state === "error" && orderId && <Button variant="outline" onClick={() => { startedRef.current = false; setErrorMessage(null); setState("confirming"); setRetry((value) => value + 1); }}>같은 주문 다시 확인</Button>}
           {state === "ready" && report && (
             <Button
               className="gap-2"

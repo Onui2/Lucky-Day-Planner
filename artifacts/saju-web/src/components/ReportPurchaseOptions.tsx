@@ -9,6 +9,8 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import { startCommercePayment, type TossCheckoutUser } from "@/lib/toss-payments";
+import { NewYearOffer } from "./NewYearOffer";
+import { getCampaignVisit } from "@/lib/campaign-tracking";
 import type { ReportFocus } from "@/lib/report-focus";
 
 type Tier = "saju_basic" | "saju_detail" | "saju_full";
@@ -43,15 +45,17 @@ interface Props {
   isAuthenticated: boolean;
   isAdmin?: boolean;
   initialFocus?: ReportFocus;
+  reportEdition?: "new-year-2027";
 }
 
-export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = false, initialFocus = "career" }: Props) {
+export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = false, initialFocus = "career", reportEdition }: Props) {
+  const isNewYear = reportEdition === "new-year-2027";
   const id = useId();
   const { user, setAuthenticatedUser } = useAuth();
   const catalog = useGetCommerceProducts(user?.id);
   const createOrder = useCreateCommerceOrder();
   const confirmPayment = useConfirmCommercePayment();
-  const [tier, setTier] = useState<Tier>("saju_basic");
+  const [tier, setTier] = useState<Tier>(isNewYear ? "saju_detail" : "saju_basic");
   const [focus, setFocus] = useState<Focus>(initialFocus);
   const [message, setMessage] = useState<string | null>(null);
   const [readyReport, setReadyReport] = useState<{ id: number; title: string; fileName?: string | null } | null>(null);
@@ -62,7 +66,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
   const adminAccess = isAdmin || catalog.data?.checkoutMode === "admin";
   const freeTrial = tier === "saju_basic" && catalog.data?.freeTrialAvailable === true;
   const guestTrial = !isAuthenticated && tier === "saju_basic" && catalog.data?.freeTrialAvailable !== false;
-  const available = Boolean(selectedProduct && (adminAccess || freeTrial
+  const available = Boolean(selectedProduct && (!isNewYear || birthInfo.hour >= 0) && (!isNewYear || selectedProduct.amount === catalog.data?.campaign.amount) && (!isNewYear || adminAccess || catalog.data?.campaign.salesEnabled) && (adminAccess || freeTrial
     || (catalog.data?.salesEnabled && catalog.data.checkoutMode !== "disabled")));
   const details = DETAILS[tier];
   const focusLabel = FOCUSES.find((item) => item.value === focus)!.label;
@@ -96,9 +100,10 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
       }
       const created = await createOrder.mutateAsync({
         productType: tier, birthInfo, reportFocus: focus,
+        ...(isNewYear ? { reportEdition, campaignVisitId: catalog.data?.campaign.analyticsEnabled ? getCampaignVisit()?.visitId : undefined } : {}),
         expectedAmount: adminAccess || freeTrial ? 0 : selectedProduct.amount,
         expectFreeTrial: !adminAccess && freeTrial,
-        label: `${birthDate} ${selectedProduct.title} · ${focusLabel}`,
+        label: isNewYear ? catalog.data?.campaign.title : `${birthDate} ${selectedProduct.title} · ${focusLabel}`,
       });
       if (created.checkoutMode === "admin" || created.checkoutMode === "trial" || created.checkoutMode === "dev") {
         const report = created.checkoutMode !== "dev" ? created.report
@@ -112,7 +117,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
         setReadyReport(report);
         setMessage(created.checkoutMode === "admin" ? "관리자 무료 리포트가 생성되었습니다."
           : created.checkoutMode === "trial" ? "첫 무료 리포트가 생성되었습니다." : "리포트가 생성되었습니다.");
-        await downloadReadyReport(report);
+        if (!isNewYear) await downloadReadyReport(report);
         return;
       }
       if (created.checkoutMode !== "provider" && created.checkoutMode !== "toss_pay") {
@@ -159,16 +164,16 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
 
       <fieldset disabled={busy || catalog.isPending} className="space-y-2">
         <legend className="mb-2 font-medium">2. 필요한 리포트 범위</legend>
-        {catalog.isPending ? <p role="status" className="text-muted-foreground">리포트 정보를 불러오고 있습니다.</p> : TIERS.map((value) => {
+        {catalog.isPending ? <p role="status" className="text-muted-foreground">리포트 정보를 불러오고 있습니다.</p> : (isNewYear ? ["saju_detail"] as Tier[] : TIERS).map((value) => {
           const product = catalog.data?.products.find((item) => item.type === value);
           if (!product) return null;
           return (
             <label key={value} className={`block cursor-pointer rounded-xl border p-3 ${tier === value ? "border-amber-600 bg-amber-50" : "border-foreground/10"}`}>
               <span className="flex items-start justify-between gap-3">
-                <span className="flex items-center gap-2 font-medium"><input type="radio" name={`${id}-tier`} value={value} checked={tier === value} onChange={() => setTier(value)} className="accent-amber-700" />{product.title}</span>
+                <span className="flex items-center gap-2 font-medium"><input type="radio" name={`${id}-tier`} value={value} checked={tier === value} onChange={() => setTier(value)} className="accent-amber-700" />{isNewYear ? catalog.data?.campaign.title : product.title}</span>
                 <span className="shrink-0 font-semibold text-amber-800">{adminAccess ? "관리자 무료" : `${product.amount.toLocaleString("ko-KR")}원`}</span>
               </span>
-              <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">{DETAILS[value].audience}</span>
+              <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">{isNewYear ? "성향·관계·직업·재물과 2027 연간·월별 요약을 함께 확인할 분" : DETAILS[value].audience}</span>
               {value === "saju_basic" && !adminAccess && catalog.data?.freeTrialAvailable !== false && <span className="mt-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">첫 1회 무료</span>}
             </label>
           );
@@ -176,7 +181,9 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
       </fieldset>
 
       {catalog.isError && <div role="alert" className="rounded-xl border border-foreground/10 p-3">상품 정보를 불러오지 못했습니다.<button type="button" className="ml-2 text-primary underline" onClick={() => void catalog.refetch()}>다시 불러오기</button></div>}
-      {selectedProduct && (
+      {isNewYear && <NewYearOffer />}
+      {isNewYear && birthInfo.hour < 0 && <p role="status" className="rounded-xl border p-3">2027 유료 분석의 출생시간 미입력 처리는 검수 전입니다. 현재는 출생시간을 입력해야 구매할 수 있습니다. 무료 요약은 이용 가능합니다.</p>}
+      {!isNewYear && selectedProduct && (
         <div className="rounded-xl border border-foreground/10 bg-white/50 p-3">
           <p className="font-medium">{selectedProduct.title}에 담긴 내용</p>
           <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-muted-foreground">{details.sections.map((section) => <li key={section}>{section}</li>)}</ul>
@@ -185,7 +192,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
         </div>
       )}
 
-      <p className="text-xs leading-5 text-muted-foreground">무료 웹 분석과 같은 사주 계산을 바탕으로, 읽고 보관하기 쉽게 PDF로 정리합니다. 고민별 점검이 포함되며, 종합 리포트는 과거 회고와 앞으로의 연도별 흐름을 더합니다. 실제 사건이나 결과를 보장하지 않습니다.</p>
+      <p className="text-xs leading-5 text-muted-foreground">{isNewYear ? "무료 성향 분석에 기존 연간 계산 엔진의 2027 결과를 더해 저장합니다. 웹과 PDF는 같은 저장 리포트입니다. 선택한 주제는 기존 고민별 점검에 사용하며 개별 질문 상담은 제공하지 않습니다." : "무료 웹 분석과 같은 사주 계산을 바탕으로, 읽고 보관하기 쉽게 PDF로 정리합니다. 고민별 점검이 포함되며, 종합 리포트는 과거 회고와 앞으로의 연도별 흐름을 더합니다."} 실제 사건이나 결과를 보장하지 않습니다.</p>
       <div className="rounded-xl border border-foreground/10 p-3">
         <p className="font-medium">발급 전 출생정보를 확인해 주세요</p>
         <p className="mt-1.5 leading-6">{birthDate} · {birthInfo.calendarType === "lunar" ? `음력 ${birthInfo.isLeapMonth ? "윤달" : "평달"}` : "양력"}<br />{timeLabel} · {birthInfo.gender === "male" ? "남성" : "여성"}</p>
@@ -194,7 +201,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
       </div>
       {!available && !guestTrial && !catalog.isPending && !catalog.isError && <p className="rounded-xl bg-foreground/5 p-3 font-medium">판매 준비 중</p>}
       {!isAuthenticated ? (
-        <p className="text-muted-foreground">리포트 발급과 보관은 로그인 후 이용할 수 있습니다. <Link href={buildAuthHref("/login")} className="text-primary underline">로그인하고 기본형 첫 1회 무료</Link></p>
+        <p className="text-muted-foreground">리포트 발급과 보관은 로그인 후 이용할 수 있습니다. <Link href={buildAuthHref("/login")} className="text-primary underline">{isNewYear ? "로그인 후 상품 확인" : "로그인하고 기본형 첫 1회 무료"}</Link></p>
       ) : (
         <div className="space-y-2">
           <Button onClick={handlePurchase} disabled={!available || busy || downloading} className="w-full gap-2">

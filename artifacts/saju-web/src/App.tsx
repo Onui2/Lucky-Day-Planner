@@ -20,6 +20,7 @@ const GungapPage = lazy(() => import("@/pages/gungap"));
 const SavedPage = lazy(() => import("@/pages/saved"));
 const InquiriesPage = lazy(() => import("@/pages/inquiries"));
 const AdminPage = lazy(() => import("@/pages/admin"));
+const CampaignResultsPage = lazy(() => import("@/pages/campaign-results"));
 const YearFortunePage = lazy(() => import("@/pages/year-fortune"));
 const NameAnalysisPage = lazy(() => import("@/pages/name-analysis"));
 const ZodiacPage = lazy(() => import("@/pages/zodiac"));
@@ -148,6 +149,9 @@ function Router() {
                 </RequireAdmin>
               </Route>
               <Route path="/inquiries" component={InquiriesPage} />
+              <Route path="/admin/campaigns/new-year-2027">
+                <RequireAdmin><CampaignResultsPage /></RequireAdmin>
+              </Route>
               <Route path="/admin">
                 <RequireAdmin>
                   <AdminPage />

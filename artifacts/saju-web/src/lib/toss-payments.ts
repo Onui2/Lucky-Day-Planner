@@ -181,7 +181,7 @@ export async function startTossCardPayment({
     },
     orderId,
     orderName,
-    successUrl: buildAbsoluteAppUrl("/payments/success"),
+    successUrl: buildAbsoluteAppUrl(`/payments/success?orderId=${encodeURIComponent(orderId)}`),
     failUrl: buildAbsoluteAppUrl("/payments/fail"),
     customerEmail: user.email ?? undefined,
     customerName: buildCustomerName(user),
@@ -189,6 +189,9 @@ export async function startTossCardPayment({
 }
 
 export async function startCommercePayment(params: StartTossCardPaymentParams & { checkoutMode: string }) {
+  try {
+    localStorage.setItem("lucky-day:checkout:" + params.user.id, JSON.stringify({ orderId: params.orderId, expiresAt: Date.now() + 86_400_000 }));
+  } catch { /* Server order history remains authoritative. */ }
   if (params.checkoutMode === "toss_pay") {
     const checkout = await customFetch<{ checkoutPage: string }>(
       `/api/commerce/orders/${encodeURIComponent(params.orderId)}/checkout`, { method: "POST" },
@@ -202,4 +205,18 @@ export async function startCommercePayment(params: StartTossCardPaymentParams & 
   }
   if (params.checkoutMode !== "provider") throw new Error("현재 결제를 이용할 수 없습니다.");
   await startTossCardPayment(params);
+}
+
+// Recovery hint only. Order ownership, amount, and payment are verified by the server.
+export function getPendingCheckout(userId: string) {
+  try {
+    const saved = JSON.parse(localStorage.getItem("lucky-day:checkout:" + userId) ?? "null");
+    return saved && typeof saved.orderId === "string" && /^MHW_[A-Za-z0-9_]+$/.test(saved.orderId)
+      && Number.isFinite(saved.expiresAt) && saved.expiresAt > Date.now() ? saved as { orderId: string } : null;
+  } catch { return null; }
+}
+export function clearPendingCheckout(userId: string, orderId: string) {
+  try {
+    if (getPendingCheckout(userId)?.orderId === orderId) localStorage.removeItem("lucky-day:checkout:" + userId);
+  } catch { /* The URL and account order history remain recovery paths. */ }
 }

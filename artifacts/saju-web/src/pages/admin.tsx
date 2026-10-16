@@ -68,7 +68,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBirthHourLabel } from "@/lib/birth-time";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 /* ─── 헬퍼 ───────────────────────────────────── */
 const STEM_HANJA: Record<string, string> = {
@@ -1947,6 +1947,7 @@ export default function AdminPage() {
             <h1 className="text-2xl font-serif text-primary">
               관리자 대시보드
             </h1>
+            <Link href="/admin/campaigns/new-year-2027" className="mt-2 inline-block text-sm text-primary underline">2027 콘텐츠 반응·손익</Link>
             <p className="text-sm text-muted-foreground">명해원 운영 관리</p>
           </div>
         </div>

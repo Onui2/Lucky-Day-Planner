@@ -11,11 +11,12 @@ interface ReportPurchaseButtonProps {
   isAuthenticated: boolean;
   isAdmin?: boolean;
   initialFocus?: ReportFocus;
+  reportEdition?: "new-year-2027";
   externalOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
-export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = false, initialFocus, externalOpen, onOpenChange }: ReportPurchaseButtonProps) {
+export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = false, initialFocus, reportEdition, externalOpen, onOpenChange }: ReportPurchaseButtonProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const panelId = useId();
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -40,7 +41,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
               <button onClick={() => setOpen(false)} aria-label="리포트 옵션 닫기" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-amber-400/10 hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
             <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
-              <ReportPurchaseOptions key={`${JSON.stringify(birthInfo)}:${initialFocus ?? "career"}`} birthInfo={birthInfo} isAuthenticated={isAuthenticated} isAdmin={isAdmin} initialFocus={initialFocus} />
+              <ReportPurchaseOptions key={`${JSON.stringify(birthInfo)}:${initialFocus ?? "career"}:${reportEdition ?? "standard"}`} birthInfo={birthInfo} isAuthenticated={isAuthenticated} isAdmin={isAdmin} initialFocus={initialFocus} reportEdition={reportEdition} />
             </div>
           </motion.div>
         )}

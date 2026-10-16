@@ -27,6 +27,12 @@ import { buildSajuHistory } from "../lib/saju-history.js";
 import { createTossPayCheckout, confirmTossPayPayment, getTossPayConfig } from "../lib/toss-pay.js";
 import { getSeoulDateString } from "../lib/daeun-date.js";
 
+import { buildNewYearAnalysis, getNewYearCampaign, NEW_YEAR_CAMPAIGN } from "../lib/new-year-campaign.js";
+import { campaignVisitsTable } from "@workspace/db";
+import { UUID_PATTERN } from "../lib/campaign-metrics.js";
+
+import { renderStoredReport } from "../lib/report-rendering.js";
+
 const router = Router();
 
 function trialClaim(userId: string) {
@@ -45,7 +51,7 @@ router.get("/commerce/products", async (req, res) => {
       return;
     }
   }
-  res.json({ products: REPORT_PRODUCTS, checkoutMode: getCheckoutMode(), salesEnabled: process.env.REPORT_SALES_ENABLED === "true", freeTrialAvailable });
+  res.json({ campaign: { ...getNewYearCampaign(), analyticsEnabled: process.env.CAMPAIGN_ANALYTICS_ENABLED === "true" }, products: REPORT_PRODUCTS, checkoutMode: getCheckoutMode(), salesEnabled: process.env.REPORT_SALES_ENABLED === "true", freeTrialAvailable });
 });
 
 function requireAuth(req: Request, res: Response): req is Request & { user: Express.User } {
@@ -114,6 +120,31 @@ router.post("/commerce/orders", async (req, res) => {
     return;
   }
 
+  const isNewYear = body.reportEdition === NEW_YEAR_CAMPAIGN.id;
+  if (body.reportEdition !== undefined && !isNewYear) {
+    res.status(400).json({ error: "지원하지 않는 리포트 버전입니다." }); return;
+  }
+  if (isNewYear && (product.type !== NEW_YEAR_CAMPAIGN.productType || product.amount !== NEW_YEAR_CAMPAIGN.amount)) {
+    res.status(400).json({ error: "2027 신년운세는 9,900원 상세 상품으로만 발급합니다." }); return;
+  }
+  if (isNewYear && birthInfo.hour < 0) {
+    res.status(400).json({ error: "2027 유료 리포트는 출생시간을 입력해야 합니다. 시간 미확인 상태에서는 무료 요약을 이용해주세요." }); return;
+  }
+  // No public sale until actual sample and provision have been reviewed.
+  if (isNewYear && !isPrivilegedRole(req.user.role) && !getNewYearCampaign().salesEnabled) {
+    res.status(503).json({ error: "2027 신년운세는 실제 샘플을 검수 중입니다. 무료 요약을 먼저 확인해주세요." }); return;
+  }
+  let campaignVisitId: string | null = null;
+  if (isNewYear && process.env.CAMPAIGN_ANALYTICS_ENABLED === "true"
+    && typeof body.campaignVisitId === "string" && UUID_PATTERN.test(body.campaignVisitId)) {
+    try {
+      const [visit] = await db.select({ id: campaignVisitsTable.visitId }).from(campaignVisitsTable).where(and(
+        eq(campaignVisitsTable.visitId, body.campaignVisitId), eq(campaignVisitsTable.campaignId, NEW_YEAR_CAMPAIGN.id),
+        sql`${campaignVisitsTable.createdAt} >= now() - interval '7 days'`,
+      )).limit(1);
+      campaignVisitId = visit?.id ?? null;
+    } catch { /* Tracking failure must not prevent a valid order. */ }
+  }
   const hasAdminFreeAccess = isPrivilegedRole(req.user.role);
   let hasFreeTrial = false;
   if (!hasAdminFreeAccess && product.type === "saju_basic") {
@@ -160,12 +191,13 @@ router.post("/commerce/orders", async (req, res) => {
       ...buildSajuResult(birthInput),
       reportFocus,
       reportAsOfDate: getSeoulDateString(),
+      ...(isNewYear ? { reportEdition: NEW_YEAR_CAMPAIGN.id, newYearAnalysis: buildNewYearAnalysis(birthInput) } : {}),
       ...(product.type === "saju_full" ? { historyAnalysis: buildSajuHistory(birthInput) } : {}),
     };
     const orderId = createMerchantOrderId();
     const title =
       label ??
-      `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 ${product.title}`;
+      `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 ${isNewYear ? NEW_YEAR_CAMPAIGN.title : product.title}`;
 
     // Free trial is claimed atomically per account; regeneration reuses this order.
     if (hasAdminFreeAccess || hasFreeTrial) {
@@ -199,7 +231,8 @@ router.post("/commerce/orders", async (req, res) => {
             amount: 0,
             snapshotId: snapshot.id,
             metadata: {
-              productTitle: product.title,
+              productTitle: isNewYear ? NEW_YEAR_CAMPAIGN.title : product.title,
+              ...(isNewYear ? { reportEdition: NEW_YEAR_CAMPAIGN.id, campaignVisitId } : {}),
               productDescription: product.description,
               adminFreeAccess: hasAdminFreeAccess,
               freeTrial: hasFreeTrial,
@@ -291,10 +324,14 @@ router.post("/commerce/orders", async (req, res) => {
           amount: product.amount,
           snapshotId: snapshot.id,
           metadata: {
-            productTitle: product.title,
+            productTitle: isNewYear ? NEW_YEAR_CAMPAIGN.title : product.title,
+              ...(isNewYear ? { reportEdition: NEW_YEAR_CAMPAIGN.id, campaignVisitId } : {}),
             productDescription: product.description,
             checkoutProvider: getCheckoutMode() === "toss_pay" ? "toss_pay" : getCheckoutMode() === "dev" ? "dev" : "toss",
             ...(getCheckoutMode() === "toss_pay" ? { tossPayMode: getTossPayConfig()!.mode } : {}),
+            paymentEnvironment: getCheckoutMode() === "toss_pay"
+              ? (getTossPayConfig()?.mode === "LIVE" ? "live" : "test")
+              : getCheckoutMode() === "provider" && process.env.TOSS_SECRET_KEY?.startsWith("live_") ? "live" : "test",
           },
         })
         .returning();
@@ -428,7 +465,7 @@ router.post("/commerce/payments/confirm", async (req, res) => {
       }
       res.json({
         order: row.order,
-        report: row.report,
+        report: await renderStoredReport(row.report, row.snapshot.sajuResult as Record<string, any>),
         alreadyPaid: true,
       });
       return;
@@ -522,54 +559,7 @@ router.post("/commerce/payments/confirm", async (req, res) => {
       return updatedOrder;
     });
 
-    let report = row.report;
-    try {
-      const generated = await generateSajuReportPdf(
-        row.report.title,
-        row.snapshot.sajuResult as Record<string, any>,
-        getReportTier(row.report.productType),
-      );
-      const [updated] = await db
-        .update(pdfReportsTable)
-        .set({
-          status: "ready",
-          previewText: generated.previewText,
-          htmlContent: generated.htmlContent,
-          fileName: generated.fileName,
-          fileDataBase64: generated.fileDataBase64,
-          failedReason: null,
-          generatedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(and(
-          eq(pdfReportsTable.id, row.report.id),
-          eq(pdfReportsTable.userId, req.user.id),
-          eq(pdfReportsTable.status, "pending"),
-        ))
-        .returning();
-      if (updated) report = updated;
-    } catch (error) {
-      console.error("report generation error:", error);
-      try {
-        const [failed] = await db
-          .update(pdfReportsTable)
-          .set({
-            status: "failed",
-            failedReason: "PDF 생성에 실패했습니다. 다시 시도해주세요.",
-            updatedAt: new Date(),
-          })
-          .where(and(
-            eq(pdfReportsTable.id, row.report.id),
-            eq(pdfReportsTable.userId, req.user.id),
-            eq(pdfReportsTable.status, "pending"),
-          ))
-          .returning();
-        if (failed) report = failed;
-      } catch (updateError) {
-        console.error("report failure status update error:", updateError);
-        // The paid order and entitlement are durable; regeneration can retry.
-      }
-    }
+    const report = await renderStoredReport(row.report, row.snapshot.sajuResult as Record<string, any>);
 
     res.json({
       order: paidOrder,
