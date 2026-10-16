@@ -6,6 +6,11 @@
   "installCommand": "corepack pnpm install --frozen-lockfile",
   "buildCommand": "corepack pnpm --filter @workspace/api-server run build && corepack pnpm --filter @workspace/saju-web run build",
   "outputDirectory": "artifacts/saju-web/dist/public",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "artifacts/api-server/dist/fonts/*.otf"
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
