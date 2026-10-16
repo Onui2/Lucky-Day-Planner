@@ -1312,6 +1312,88 @@ export function useGetMyAiQuestions(enabled = true) {
   });
 }
 
+export interface AskSajuQuestionResponse {
+  question: AiQuestionItem;
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  planCode?: string | null;
+  unlimited?: boolean;
+}
+
+async function askSajuQuestionRequest(body: {
+  question: string;
+  birthInfo: MonetizationBirthInfo;
+  history?: AiQuestionHistoryTurn[];
+  onChunk?: (textSoFar: string, delta: string) => void;
+}): Promise<AskSajuQuestionResponse> {
+  const { onChunk, ...payload } = body;
+  if (!onChunk) {
+    return customFetch<AskSajuQuestionResponse>("/api/ai/questions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  const response = await customFetch<Response>("/api/ai/questions?stream=1", {
+    method: "POST",
+    responseType: "stream",
+    headers: {
+      Accept: "text/event-stream, application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/event-stream") || !response.body) {
+    const json = (await response.json()) as AskSajuQuestionResponse;
+    if (json?.question?.answer) {
+      onChunk(json.question.answer, json.question.answer);
+    }
+    return json;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalPayload: AskSajuQuestionResponse | null = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary !== -1) {
+      const rawEvent = buffer.slice(0, boundary).trim();
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf("\n\n");
+
+      if (!rawEvent.startsWith("data:")) continue;
+      const jsonStr = rawEvent.replace(/^data:\s*/, "");
+      if (!jsonStr) continue;
+
+      const parsed = JSON.parse(jsonStr) as
+        | { type: "chunk"; delta: string; text: string }
+        | { type: "done"; payload: AskSajuQuestionResponse }
+        | { type: "error"; error?: string };
+
+      if (parsed.type === "chunk") {
+        onChunk(parsed.text, parsed.delta);
+      } else if (parsed.type === "done") {
+        finalPayload = parsed.payload;
+      } else if (parsed.type === "error") {
+        throw new Error(parsed.error || "AI 질문 답변 생성에 실패했습니다.");
+      }
+    }
+  }
+
+  if (!finalPayload) {
+    throw new Error("AI 질문 답변 스트리밍이 정상적으로 완료되지 않았습니다.");
+  }
+  return finalPayload;
+}
+
 export function useAskSajuQuestion() {
   const qc = useQueryClient();
   return useMutation({
@@ -1319,7 +1401,8 @@ export function useAskSajuQuestion() {
       question: string;
       birthInfo: MonetizationBirthInfo;
       history?: AiQuestionHistoryTurn[];
-    }) =>
+      onChunk?: (textSoFar: string, delta: string) => void;
+    }) => body.onChunk ? askSajuQuestionRequest(body) :
       customFetch<{
         question: AiQuestionItem;
         limit: number | null;

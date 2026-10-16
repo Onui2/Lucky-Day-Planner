@@ -1,7 +1,7 @@
 import { appendCsrfHeader, clearCachedCsrfToken } from "./csrf";
 
 export type CustomFetchOptions = RequestInit & {
-  responseType?: "json" | "text" | "blob" | "auto";
+  responseType?: "json" | "text" | "blob" | "stream" | "auto";
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -339,6 +339,10 @@ export async function customFetch<T = unknown>(
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
+  }
+
+  if (responseType === "stream") {
+    return response as unknown as T;
   }
 
   return (await parseSuccessBody(response, responseType, requestInfo)) as T;

@@ -211,6 +211,7 @@ export async function buildSajuQuestionAnswer(
   question: string,
   result: Record<string, any>,
   history: SajuConversationTurn[] = [],
+  onChunk?: (delta: string, fullTextSoFar: string) => void,
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
@@ -218,10 +219,10 @@ export async function buildSajuQuestionAnswer(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const primaryModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
+  const primaryModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
   const fallbackModel =
-    process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-3.5-flash-lite";
-  const legacyFallbackModel = "gemini-2.5-flash-lite";
+    process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-3.6-flash";
+  const secondaryFallbackModel = "gemini-3.1-flash-lite";
   const sajuContext = buildSajuContext(result);
   const conversationContext = buildConversationContext(history);
   const today = new Date().toLocaleDateString("ko-KR", {
@@ -242,10 +243,10 @@ export async function buildSajuQuestionAnswer(
 
   const attempts: Array<{ modelName: string; delayMs: number }> = [
     { modelName: primaryModel, delayMs: 0 },
-    { modelName: primaryModel, delayMs: 1500 },
-    { modelName: fallbackModel, delayMs: 1000 },
-    ...(fallbackModel !== legacyFallbackModel
-      ? [{ modelName: legacyFallbackModel, delayMs: 500 }]
+    { modelName: primaryModel, delayMs: 1200 },
+    { modelName: fallbackModel, delayMs: 800 },
+    ...(fallbackModel !== secondaryFallbackModel && primaryModel !== secondaryFallbackModel
+      ? [{ modelName: secondaryFallbackModel, delayMs: 500 }]
       : []),
   ];
 
@@ -258,19 +259,45 @@ export async function buildSajuQuestionAnswer(
     if (attempt.delayMs > 0 && unavailableModels.size === 0) {
       await wait(attempt.delayMs);
     }
+    let streamedAnyChunk = false;
     try {
       const model = genAI.getGenerativeModel({
         model: attempt.modelName,
         systemInstruction: SYSTEM_PROMPT,
       });
+
+      if (onChunk && typeof (model as any).generateContentStream === "function") {
+        const streamResult = await model.generateContentStream(prompt);
+        let accumulated = "";
+        for await (const chunk of streamResult.stream) {
+          const piece = chunk.text();
+          if (piece) {
+            streamedAnyChunk = true;
+            accumulated += piece;
+            onChunk(piece, accumulated);
+          }
+        }
+        const answer = accumulated.trim();
+        if (!answer) {
+          throw new Error("AI 답변이 비어 있습니다. 잠시 후 다시 질문해주세요.");
+        }
+        return answer;
+      }
+
       const response = await model.generateContent(prompt);
       const answer = response.response.text().trim();
       if (!answer) {
         throw new Error("AI 답변이 비어 있습니다. 잠시 후 다시 질문해주세요.");
       }
+      if (onChunk) {
+        onChunk(answer, answer);
+      }
       return answer;
     } catch (error) {
       lastError = error;
+      if (streamedAnyChunk) {
+        throw error;
+      }
       if (isModelUnavailableError(error)) {
         unavailableModels.add(attempt.modelName);
         console.warn(

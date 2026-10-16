@@ -331,6 +331,44 @@ router.post("/ai/questions", async (req, res) => {
       ...birthOptionsFromRecord({ ...birthInfo }),
     });
 
+    const wantsStream = req.query?.stream === "1";
+    if (wantsStream && typeof res.setHeader === "function" && typeof res.write === "function") {
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders?.();
+
+      const answer = await buildSajuQuestionAnswer(
+        question,
+        sajuResult as Record<string, any>,
+        history,
+        (delta, text) => {
+          res.write(`data: ${JSON.stringify({ type: "chunk", delta, text })}\n\n`);
+        },
+      );
+
+      const saved = await finalizeQuestionAnswer(reserved.id, answer, sajuResult as JsonObject);
+      if (!saved) throw new Error("AI 답변을 저장하지 못했습니다.");
+      reservedQuestionId = null;
+
+      res.write(
+        `data: ${JSON.stringify({
+          type: "done",
+          payload: {
+            question: saved,
+            limit: usage.limit,
+            used: usage.used + 1,
+            remaining: getRemainingAfterQuestion(usage),
+            planCode: usage.planCode,
+            unlimited: usage.unlimited,
+          },
+        })}\n\n`,
+      );
+      res.end();
+      return;
+    }
+
     const answer = await buildSajuQuestionAnswer(
       question,
       sajuResult as Record<string, any>,
@@ -360,6 +398,11 @@ router.post("/ai/questions", async (req, res) => {
     }
     console.error("ai question create error:", error);
     const message = error instanceof Error ? error.message : "AI 질문 답변 생성에 실패했습니다.";
+    if (res.headersSent && typeof res.write === "function" && typeof res.end === "function") {
+      res.write(`data: ${JSON.stringify({ type: "error", error: message })}\n\n`);
+      res.end();
+      return;
+    }
     res.status(500).json({ error: message });
   }
 });

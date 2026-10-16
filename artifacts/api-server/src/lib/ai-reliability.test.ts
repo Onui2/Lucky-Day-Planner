@@ -98,8 +98,8 @@ test("404 model not found on primary model automatically falls back to fallback 
         triedModels.push(model);
         return {
           generateContent: async () => {
-            if (model === "gemini-3.6-flash") {
-              throw new Error("[404 Not Found] models/gemini-3.6-flash is not found");
+            if (model === "gemini-3.5-flash-lite") {
+              throw new Error("[404 Not Found] models/gemini-3.5-flash-lite is not found");
             }
             return { response: { text: () => "폴백 모델 정상 답변" } };
           },
@@ -109,7 +109,33 @@ test("404 model not found on primary model automatically falls back to fallback 
   }, { process: { env: { GEMINI_API_KEY: "synthetic-test-only" } }, setTimeout, Set });
   const answer = await assistant.buildSajuQuestionAnswer("직업운", {});
   assert.equal(answer, "폴백 모델 정상 답변");
-  assert.deepEqual(triedModels, ["gemini-3.6-flash", "gemini-3.5-flash-lite"]);
+  assert.deepEqual(triedModels, ["gemini-3.5-flash-lite", "gemini-3.6-flash"]);
+});
+
+test("streaming callback receives incremental chunks and returns full answer", async () => {
+  const chunks: string[] = [];
+  const assistant = load(path.join(directory, "ai-assistant.ts"), {
+    "@google/generative-ai": { GoogleGenerativeAI: class {
+      getGenerativeModel() {
+        return {
+          generateContentStream: async () => ({
+            stream: (async function* () {
+              yield { text: () => "첫 문장 " };
+              yield { text: () => "둘째 문장" };
+            })(),
+          }),
+        };
+      }
+    } },
+  }, { process: { env: { GEMINI_API_KEY: "synthetic-test-only" } }, setTimeout, Set });
+  const answer = await assistant.buildSajuQuestionAnswer(
+    "직업운",
+    {},
+    [],
+    (_delta: string, fullText: string) => chunks.push(fullText),
+  );
+  assert.equal(answer, "첫 문장 둘째 문장");
+  assert.deepEqual(chunks, ["첫 문장 ", "첫 문장 둘째 문장"]);
 });
 
 test("blocked browser storage does not crash AI session reads or writes", () => {

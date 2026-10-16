@@ -103,6 +103,7 @@ export function AiChatPanel({
   const [sessions, setSessions] = useState<AiChatSessionRecord[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const [streamingAnswer, setStreamingAnswer] = useState<string>("");
   const pendingInitialQuestionRef = useRef<string | null>(null);
   const appliedInitialQuestionRef = useRef<string | null>(null);
   const loginHref = buildAuthHref("/login");
@@ -441,12 +442,16 @@ export function AiChatPanel({
     const nextQuestion = question.trim();
     setQuestion("");
     setPendingQuestion(nextQuestion);
+    setStreamingAnswer("");
 
     try {
       const response = await ask.mutateAsync({
         question: nextQuestion,
         birthInfo,
         history: promptHistory,
+        onChunk: (textSoFar) => {
+          setStreamingAnswer(textSoFar);
+        },
       });
       const createdQuestion = response.question;
       const updatedSession: AiChatSessionRecord = {
@@ -484,6 +489,7 @@ export function AiChatPanel({
       setQuestion((draft) => draft || nextQuestion);
     } finally {
       setPendingQuestion(null);
+      setStreamingAnswer("");
     }
   }
 
@@ -688,10 +694,17 @@ export function AiChatPanel({
                         </div>
                       </div>
                       <div className="flex justify-start">
-                        <div className="rounded-2xl rounded-bl-sm border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          AI가 이전 대화를 참고해서 답변 중...
-                        </div>
+                        {streamingAnswer ? (
+                          <div className="max-w-[90%] rounded-2xl rounded-bl-sm border border-foreground/10 bg-foreground/5 px-3.5 py-2.5 text-sm text-muted-foreground leading-7 whitespace-pre-line">
+                            {streamingAnswer}
+                            <span className="inline-block ml-0.5 text-violet-600 animate-pulse">▍</span>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl rounded-bl-sm border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            AI가 이전 대화를 참고해서 답변 중...
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
