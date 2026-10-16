@@ -10,6 +10,8 @@ on:
     - cron: "*/5 * * * *" # 5분마다
   workflow_dispatch: {} # 수동 실행
 
+permissions: {}
+
 concurrency:
   group: keep-warm
   cancel-in-progress: false
