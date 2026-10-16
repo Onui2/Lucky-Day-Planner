@@ -1,8 +1,10 @@
 # Payment and report access
 
-Production payment confirmation requires `TOSS_SECRET_KEY`. Missing or blank keys
-disable paid checkout; they never authorize simulated purchases. The intentional
-free `saju_pdf` offer and administrator grants remain available: they create paid
+Production payment confirmation requires a configured payment provider. Missing or
+blank provider keys disable paid checkout; they never authorize simulated purchases.
+Public free report issuance is closed: retired trial payloads return
+`409 FREE_TRIAL_CLOSED`, and non-admin zero-amount orders are rejected. Historical
+entitlements remain accessible. Privileged administrator grants still create paid
 zero-amount orders and active report entitlements.
 
 For isolated local development or tests, set `PAYMENT_SIMULATION_ENABLED=true`
