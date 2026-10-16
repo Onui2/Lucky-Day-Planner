@@ -1,3 +1,5 @@
+import { customFetch } from "@workspace/api-client-react";
+
 const TOSS_SDK_URL = "https://js.tosspayments.com/v2/standard";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -184,4 +186,20 @@ export async function startTossCardPayment({
     customerEmail: user.email ?? undefined,
     customerName: buildCustomerName(user),
   });
+}
+
+export async function startCommercePayment(params: StartTossCardPaymentParams & { checkoutMode: string }) {
+  if (params.checkoutMode === "toss_pay") {
+    const checkout = await customFetch<{ checkoutPage: string }>(
+      `/api/commerce/orders/${encodeURIComponent(params.orderId)}/checkout`, { method: "POST" },
+    );
+    const url = new URL(checkout.checkoutPage);
+    if (url.origin !== "https://pay.toss.im" || url.username || url.password) {
+      throw new Error("결제창 주소를 확인하지 못했습니다.");
+    }
+    window.location.assign(url.toString());
+    return;
+  }
+  if (params.checkoutMode !== "provider") throw new Error("현재 결제를 이용할 수 없습니다.");
+  await startTossCardPayment(params);
 }

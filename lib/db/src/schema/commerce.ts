@@ -21,6 +21,13 @@ export interface ReportBirthInfo {
   minute?: number;
   gender: "male" | "female";
   calendarType: "solar" | "lunar";
+  isLeapMonth?: boolean;
+  birthPlace?: string;
+  timeZone?: string;
+  longitude?: number;
+  latitude?: number;
+  applyTrueSolarTime?: boolean;
+  dayBoundary?: "midnight" | "late-zi";
 }
 
 export type JsonObject = Record<string, unknown>;

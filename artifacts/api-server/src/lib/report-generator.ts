@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
+import { getSeoulDateString, isDaeunOnDate } from "./daeun-date.js";
+import type { ReportTier } from "./product-config.js";
+export type { ReportTier } from "./product-config.js";
+const REPORT_TITLES: Record<ReportTier, string> = { basic: "기본 사주 리포트", detail: "상세 사주 리포트", full: "종합 사주 리포트" };
 
 // 한자 글리프가 포함된 Noto KR 폰트 — NanumGothic 서브셋은 한자가 없어 PDF에서 사라짐
 type FontName = "body" | "bold" | "serif";
@@ -137,7 +141,7 @@ function sectionHtml(title: string, body: string, accent: string) {
       <div style="padding:20px 22px 22px;">
         <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#7d7364;">Insight</div>
         <h2 style="font-size:20px;margin:8px 0 10px;color:#241b20;">${escapeHtml(title)}</h2>
-        <p style="font-size:13px;line-height:1.9;margin:0;color:#43372c;">${escapeHtml(body)}</p>
+        <p style="font-size:13px;line-height:1.9;white-space:pre-line;margin:0;color:#43372c;">${escapeHtml(body)}</p>
       </div>
     </section>
   `;
@@ -198,22 +202,28 @@ function formatLuckFlowAnalysis(result: Record<string, any>) {
   const flow = result.luckFlowAnalysis;
   if (!flow) return "";
   const current = Array.isArray(flow.periods)
-    ? flow.periods.find((item: any) => item.idx === flow.currentDaeunIndex)
+    ? flow.periods.find((item: any) => typeof item.startDate === "string" && typeof item.endDate === "string" && isDaeunOnDate(item, getReportDate(result)))
     : null;
-  const years = Array.isArray(flow.annual)
-    ? flow.annual.slice(0, 5).map((item: any) => `${item.year}년 ${item.level} ${item.score}점(${item.headline})`).join(" · ")
-    : "";
   return [
     current ? `현재 ${current.stem}${current.branch} 대운: ${current.summary} ${current.advice}` : "",
-    years ? `향후 5년: ${years}` : "",
+
   ].filter(Boolean).join(" ");
+}
+
+function getReportDate(result: Record<string, any>): string {
+  const value = result.reportAsOfDate ?? result.historyAnalysis?.asOfDate;
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : getSeoulDateString();
 }
 
 function formatCalculationBasis(result: Record<string, any>) {
   const basis = result.calculationBasis;
   if (!basis) return "";
   return [
-    basis.summary,
+    basis.summary ?? basis.method,
+    basis.timeZone ? `출생지 시간대 ${basis.timeZone}.` : "",
+    basis.solarDate ? `양력 환산 ${basis.solarDate.year}년 ${basis.solarDate.month}월 ${basis.solarDate.day}일.` : "",
+    basis.pillarComparison?.summary,
+    Array.isArray(basis.pillarComparison?.notes) ? basis.pillarComparison.notes.join(" ") : "",
     Number.isFinite(basis.totalCorrectionMinutes) ? `출생시각 총 보정 ${basis.totalCorrectionMinutes}분.` : "",
     Array.isArray(basis.warnings) ? basis.warnings.join(" ") : "",
   ].filter(Boolean).join(" ");
@@ -275,205 +285,41 @@ function formatTransitionTimeline(result: Record<string, any>) {
   return [active, months].filter(Boolean).join(" ");
 }
 
-export function buildSajuReportHtml(title: string, result: Record<string, any>) {
-  const birthInfo = result.birthInfo ?? {};
-  const summary = [
-    `생년월일 ${birthInfo.year ?? "?"}년 ${birthInfo.month ?? "?"}월 ${birthInfo.day ?? "?"}일`,
-    `일주 ${formatPillar(result.dayPillar)}`,
-    `용신 ${result.yongsin?.yongsin ?? "미확인"}`,
-  ].join(" · ");
-
-  const sections = [
-    {
-      title: "핵심 요약",
-      body: result.fortune ?? "현재 흐름은 균형과 속도 조절이 핵심입니다.",
-      accent: "#caa75d",
+function getFocusSection(result: Record<string, any>) {
+  const configs = {
+    career: {
+      title: "이직 고민: 내 기준과 다음 행동", key: "관성", reading: result.career,
+      reality: "옮기려는 이유를 보수·업무·성장·근무환경으로 나누고, 새 직무의 실제 조건과 현재 직장의 개선 가능성을 비교하세요.",
+      action: "관심 공고 3개의 필수 역량과 본인 경력의 근거를 표로 정리하세요. 지원 전 확인할 질문 3개를 만들고, 제안 조건을 문서로 확인한 뒤 이동 여부를 판단하세요.",
     },
-    {
-      title: "계산 기준과 출생시각 보정",
-      body: formatCalculationBasis(result) || "기본 표준시와 자정 일주 기준으로 계산했습니다.",
-      accent: "#71614d",
+    money: {
+      title: "돈 고민: 수입·지출을 점검할 순서", key: "재성", reading: result.tenGodDistribution?.details?.find((item: any) => item.key === "재성")?.interpretation,
+      reality: "최근 수입과 필수 지출, 예정된 큰 지출, 부채 상환 조건을 실제 금액으로 확인하세요. 사주 점수로 수익률이나 자산 가격을 예측할 수 없습니다.",
+      action: "최근 한 달 거래 내역에서 고정비·변동비·일회성 지출을 구분하세요. 반복 지출 한 항목을 검토하고, 큰 결제나 계약은 비용·해지 조건을 확인한 뒤 판단하세요.",
     },
-    {
-      title: "지장간 세력·통근·투출",
-      body: formatHiddenStemAnalysis(result) || "지장간 가중 세력 데이터가 준비되지 않았습니다.",
-      accent: "#526f62",
+    relationship: {
+      title: "연애 고민: 관계에서 확인할 점", key: "비겁", reading: result.love,
+      reality: "상대의 실제 말과 행동, 서로 원하는 관계의 속도, 연락·시간·경계에 대한 기대가 맞는지 확인하세요. 한 사람의 사주만으로 상대의 마음을 알 수 없습니다.",
+      action: "최근 반복된 상황 하나를 골라 관찰한 사실과 본인의 감정을 구분해 적어보세요. 바라는 행동을 한 가지로 좁혀 대화하고, 서로 동의한 약속이 지켜지는지 확인하세요.",
     },
-    {
-      title: "다중 용신 교차검증",
-      body: formatMultiYongsinAnalysis(result) || "다중 용신 교차검증 데이터가 준비되지 않았습니다.",
-      accent: "#7b6742",
-    },
-    {
-      title: "천간합과 합화 조건",
-      body: formatTransformationAnalysis(result) || "천간합은 발견되지 않았거나 합화 조건이 성립하지 않았습니다.",
-      accent: "#636d8b",
-    },
-    {
-      title: "육친·궁성 분석",
-      body: formatFamilyRoleAnalysis(result) || "육친·궁성 데이터가 준비되지 않았습니다.",
-      accent: "#8a5964",
-    },
-    {
-      title: "그림자와 주의점",
-      body:
-        formatShadowReading(result) ||
-        "좋은 기운도 과하면 부담이 됩니다. 강점이 과해질 때 생기는 반복 실수를 함께 살피는 편이 좋습니다.",
-      accent: "#9a4f4f",
-    },
-    {
-      title: "성격 분석",
-      body: result.personality ?? "기본 성향 정보가 준비되지 않았습니다.",
-      accent: "#7a8f7b",
-    },
-    {
-      title: "직업운",
-      body: result.career ?? "직업운 정보가 준비되지 않았습니다.",
-      accent: "#cb8f6d",
-    },
-    {
-      title: "연애운",
-      body: result.love ?? "연애운 정보가 준비되지 않았습니다.",
-      accent: "#b67b8c",
-    },
-    {
-      title: "건강운",
-      body: result.health ?? "건강운 정보가 준비되지 않았습니다.",
-      accent: "#6f92a6",
-    },
-    {
-      title: "대운·세운 종합 흐름",
-      body:
-        formatLuckFlowAnalysis(result) ||
-        (result.yongsin?.advice ??
-          "조급하게 결론을 내리기보다 표면 분포와 조후·용신 판단을 함께 보며 움직이세요."),
-      accent: "#5b5368",
-    },
-    {
-      title: "교운기와 월별 통합 흐름",
-      body: formatTransitionTimeline(result) || "현재 확인할 교운기·월별 통합 데이터가 없습니다.",
-      accent: "#4f6b77",
-    },
-    {
-      title: "납음오행·태원·명궁·신궁",
-      body: formatAuxiliaryAnalysis(result) || "보조 분석 데이터가 준비되지 않았습니다.",
-      accent: "#58727a",
-    },
-  ];
-
-  return `<!DOCTYPE html>
-  <html lang="ko">
-    <head>
-      <meta charset="utf-8" />
-      <title>${escapeHtml(title)}</title>
-    </head>
-    <body style="font-family:'Noto Sans KR','Nanum Gothic',sans-serif;background:#f4efe6;color:#1f1722;padding:36px;">
-      <div style="max-width:880px;margin:0 auto;">
-        <header style="position:relative;overflow:hidden;border-radius:28px;padding:30px 32px 34px;background:linear-gradient(135deg,#1f1722 0%,#3a2d2d 52%,#6a4d1d 100%);box-shadow:0 24px 60px rgba(31,23,34,0.18);">
-          <div style="font-size:12px;letter-spacing:0.18em;color:#f4d898;text-transform:uppercase;">명해원 정밀 리포트</div>
-          <h1 style="font-size:30px;line-height:1.3;margin:14px 0 8px;color:#fff8ec;">${escapeHtml(title)}</h1>
-          <p style="max-width:560px;font-size:13px;line-height:1.8;margin:0;color:#f3e8d4;">${escapeHtml(summary)}</p>
-          <div style="margin-top:24px;padding:16px 18px;border-radius:20px;background:rgba(255,248,236,0.1);border:1px solid rgba(255,248,236,0.18);">
-            <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#eadab7;">Core Insight</div>
-            <div style="margin-top:8px;font-size:15px;line-height:1.8;color:#fff8ec;">${escapeHtml(
-              result.fortune ?? "현재 흐름은 균형과 속도 조절이 핵심입니다.",
-            )}</div>
-          </div>
-        </header>
-
-        <section style="display:flex;gap:14px;flex-wrap:wrap;margin-top:20px;">
-          ${infoCardHtml("일주", formatPillar(result.dayPillar), "#fffaf0")}
-          ${infoCardHtml("용신", result.yongsin?.yongsin ?? "미확인", "#f4f8f2")}
-          ${infoCardHtml(
-            "오행 밸런스",
-            `${result.dominantElement ?? "미확인"} / ${result.lackingElement ?? "미확인"}`,
-            "#f8f3fb",
-          )}
-        </section>
-
-        <section style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
-          ${getReportPillars(result)
-            .map((item) => pillarCardHtml(item.label, formatPillar(item.pillar)))
-            .join("")}
-        </section>
-
-        ${sections.map((section) => sectionHtml(section.title, section.body, section.accent)).join("")}
-
-        <footer style="margin-top:24px;padding:18px 20px;border-radius:20px;background:#efe7d7;border:1px solid #e2d3b7;color:#5d5145;font-size:11px;line-height:1.8;">
-          참고용 안내: 명해원의 사주 분석 결과는 참고용 콘텐츠이며, 의료·법률·투자·진로·결혼 등 중요한 의사결정을 대신하지 않습니다.
-        </footer>
-      </div>
-    </body>
-  </html>`;
+  };
+  const focus = result.reportFocus as keyof typeof configs;
+  if (!Object.hasOwn(configs, focus)) return null;
+  const config = configs[focus];
+  const evidence = result.tenGodDistribution?.details?.find((item: any) => item.key === config.key);
+  return {
+    title: config.title, hanja: "相談", accent: "#526f62",
+    body: [
+      `사주에서 읽은 경향: ${config.reading ?? "현재 데이터에서 이 고민의 세부 해석을 확인할 수 없습니다."}`,
+      `개인 해석 근거: 일주 ${formatPillar(result.dayPillar)} · 일간 ${result.dayMasterElement ?? "미확인"}.${evidence ? ` ${evidence.label} 가중치 ${evidence.score}, 분포 ${evidence.level}. ${evidence.interpretation}` : " 관련 십신 세부 데이터는 없습니다."} 이는 명리학의 해석 기준이며 현실의 결과를 측정한 값이 아닙니다.`,
+      `현실에서 확인할 조건: ${config.reality}`,
+      `다음 행동: ${config.action}`,
+      "판단 기준: 위 해석과 맞지 않는 실제 경험도 함께 기록하세요. 중요한 결정은 실제 조건과 본인의 선택을 기준으로 합니다.",
+    ].join("\n\n"),
+  };
 }
 
-export function buildSajuReportPreview(result: Record<string, any>) {
-  const parts = [
-    result.fortune,
-    result.shadowReading?.summary,
-    result.personality,
-    result.career,
-  ]
-    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-    .map((value) => value.trim());
-
-  return parts.join(" ").slice(0, 220);
-}
-
-// ─── PDF 색상 팔레트 ───
-const INK = "#221a26";          // 표지 배경 — 짙은 먹빛
-const INK_SOFT = "#2e2433";
-const PAPER = "#faf6ee";        // 본문 배경 — 한지
-const CARD = "#fffdf6";
-const CARD_BORDER = "#e8dcc2";
-const GOLD = "#c8a356";
-const GOLD_DARK = "#8a6b1f";
-const GOLD_LIGHT = "#ecd9a8";
-const TEXT = "#2a2230";
-const TEXT_BODY = "#4a4036";
-const TEXT_SUB = "#7a6f5f";
-
-export async function generateSajuReportPdf(title: string, result: Record<string, any>) {
-  const doc = new PDFDocument({
-    size: "A4",
-    margin: 48,
-    info: {
-      Title: title,
-      Author: "명해원",
-      Subject: "정밀 사주 PDF 리포트",
-    },
-  });
-
-  const [bodyFont, boldFont, serifFont] = await Promise.all([
-    getFontBuffer("body"),
-    getFontBuffer("bold"),
-    getFontBuffer("serif"),
-  ]);
-  doc.registerFont("body", bodyFont);
-  doc.registerFont("bold", boldFont);
-  doc.registerFont("serif", serifFont);
-  doc.font("body");
-
-  const chunks: Buffer[] = [];
-  doc.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-
-  const birthInfo = result.birthInfo ?? {};
-  const genderLabel = birthInfo.gender === "female" ? "여성" : "남성";
-  const calendarLabel = birthInfo.calendarType === "lunar" ? "음력" : "양력";
-  const hourLabel =
-    typeof birthInfo.hour === "number" && birthInfo.hour >= 0
-      ? ` ${birthInfo.hour}시${birthInfo.minute ? ` ${birthInfo.minute}분` : ""}`
-      : "";
-
-  const pageWidth = doc.page.width;
-  const pageHeight = doc.page.height;
-  const margin = 48;
-  const contentWidth = pageWidth - margin * 2;
-  const contentTop = 96;
-  const contentBottom = pageHeight - 64;
-
-  const pillars = getReportPillars(result);
-
+export function getSajuReportSections(result: Record<string, any>, tier: ReportTier = "full") {
   const sections = [
     {
       title: "핵심 요약",
@@ -575,6 +421,172 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     },
   ];
 
+  const balance = result.elementBalance ?? {};
+  sections.splice(2, 0, {
+    title: "개인 해석 근거와 생활 점검", hanja: "實踐", accent: "#526f62",
+    body: `일주 ${formatPillar(result.dayPillar)}, 일간 오행 ${result.dayMasterElement ?? "미확인"}. 표면 오행은 ${Object.entries(ELEMENT_KEY_EN).map(([label, key]) => `${label} ${balance[key] ?? 0}`).join(" · ")}입니다. 많이 드러난 ${result.dominantElement ?? "오행"}과 적게 드러난 ${result.lackingElement ?? "오행"}은 성격의 좋고 나쁨이나 능력의 우열을 뜻하지 않습니다. ${result.yongsin?.advice ?? "오행 수치만으로 생활의 성패를 단정하지 않습니다."} 이번 주에는 위 성격 해석과 맞았던 행동 한 가지와 맞지 않았던 행동 한 가지를 기록하고, 반복되는 부담 하나를 줄이는 실천을 정해보세요. ${result.birthInfo?.hour === -1 ? "출생시간 미입력으로 시주 관련 해석은 제한됩니다." : ""}`,
+  });
+  const focusSection = getFocusSection(result);
+  if (focusSection) sections.unshift(focusSection);
+  if (tier === "basic") return sections.filter((section) =>
+    section === focusSection || ["핵심 요약", "계산 기준과 보정", "개인 해석 근거와 생활 점검", "성격 분석"].includes(section.title));
+
+  const wealth = result.tenGodDistribution?.details?.find((item: any) => item.key === "재성");
+  sections.splice(sections.findIndex((section) => section.title === "연애운"), 0, {
+    title: "재물과 생활 관리", hanja: "財星", accent: "#bb8c33",
+    body: wealth ? `${wealth.label} ${wealth.level}: ${wealth.interpretation} ${wealth.advice} 실제 소득이나 투자 수익을 예측하는 값은 아닙니다.`
+      : "재물운은 수입과 지출, 생활 습관을 함께 돌아보는 참고 해석입니다. 현재 리포트에는 재성 세부 데이터가 없습니다.",
+  });
+  if (tier === "full") {
+    const history = result.historyAnalysis;
+    if (history?.years?.length) {
+      sections.push({ title: "어린 시절부터 현재까지", hanja: "人生流年", accent: "#71614d",
+        body: [history.summary, history.ageNote, history.methodNote].filter(Boolean).join(" ") });
+      for (const year of history.years) {
+        sections.push({ title: `${year.year}년 · ${year.age}세${year.isCurrent ? " · 올해" : ""}`, hanja: "回顧", accent: "#71614d",
+          body: [year.headline, year.reading, year.summary, year.transition,
+            Array.isArray(year.reviewPoints) ? `돌아볼 질문: ${year.reviewPoints.join(" ")}` : "",
+            Array.isArray(year.evidence) ? year.evidence.map((item: any) => `${item.label}: ${item.detail}`).join(" ") : "",
+          ].filter(Boolean).join(" ") });
+      }
+    }
+    const annual = result.luckFlowAnalysis?.annual;
+    if (Array.isArray(annual)) {
+      sections.push({title: "앞으로의 연도별 흐름", hanja: "歲運", accent: "#6d657d",
+        body: result.luckFlowAnalysis.methodNote || "세운은 입춘 기준의 참고 해석입니다. 실제 사건이나 성과를 보장하지 않습니다."});
+      for (const year of annual) sections.push({ title: `${year.year}년 연간 흐름`, hanja: "歲運", accent: "#6d657d",
+        body: [`${year.level} · 참고 점수 ${year.score}`, year.headline, year.summary, year.advice].filter(Boolean).join(" ") });
+    }
+  }
+  return sections;
+}
+
+export function buildSajuReportHtml(title: string, result: Record<string, any>, tier: ReportTier = "full") {
+  const birthInfo = result.birthInfo ?? {};
+  const summary = [
+    `생년월일 ${birthInfo.year ?? "?"}년 ${birthInfo.month ?? "?"}월 ${birthInfo.day ?? "?"}일`,
+    `일주 ${formatPillar(result.dayPillar)}`,
+    `용신 ${result.yongsin?.yongsin ?? "미확인"}`,
+    `분석 기준일 ${getReportDate(result)}`,
+  ].join(" · ");
+
+  const sections = getSajuReportSections(result, tier);
+
+  return `<!DOCTYPE html>
+  <html lang="ko">
+    <head>
+      <meta charset="utf-8" />
+      <title>${escapeHtml(title)}</title>
+    </head>
+    <body style="font-family:'Noto Sans KR','Nanum Gothic',sans-serif;background:#f4efe6;color:#1f1722;padding:36px;">
+      <div style="max-width:880px;margin:0 auto;">
+        <header style="position:relative;overflow:hidden;border-radius:28px;padding:30px 32px 34px;background:linear-gradient(135deg,#1f1722 0%,#3a2d2d 52%,#6a4d1d 100%);box-shadow:0 24px 60px rgba(31,23,34,0.18);">
+          <div style="font-size:12px;letter-spacing:0.18em;color:#f4d898;text-transform:uppercase;">명해원 정밀 리포트</div>
+          <h1 style="font-size:30px;line-height:1.3;margin:14px 0 8px;color:#fff8ec;">${escapeHtml(title)}</h1>
+          <p style="max-width:560px;font-size:13px;line-height:1.8;margin:0;color:#f3e8d4;">${escapeHtml(summary)}</p>
+          <div style="margin-top:24px;padding:16px 18px;border-radius:20px;background:rgba(255,248,236,0.1);border:1px solid rgba(255,248,236,0.18);">
+            <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#eadab7;">Core Insight</div>
+            <div style="margin-top:8px;font-size:15px;line-height:1.8;color:#fff8ec;">${escapeHtml(
+              result.fortune ?? "현재 흐름은 균형과 속도 조절이 핵심입니다.",
+            )}</div>
+          </div>
+        </header>
+
+        <section style="display:flex;gap:14px;flex-wrap:wrap;margin-top:20px;">
+          ${infoCardHtml("일주", formatPillar(result.dayPillar), "#fffaf0")}
+          ${infoCardHtml("용신", result.yongsin?.yongsin ?? "미확인", "#f4f8f2")}
+          ${infoCardHtml(
+            "오행 밸런스",
+            `${result.dominantElement ?? "미확인"} / ${result.lackingElement ?? "미확인"}`,
+            "#f8f3fb",
+          )}
+        </section>
+
+        <section style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
+          ${getReportPillars(result)
+            .map((item) => pillarCardHtml(item.label, formatPillar(item.pillar)))
+            .join("")}
+        </section>
+
+        ${sections.map((section) => sectionHtml(section.title, section.body, section.accent)).join("")}
+
+        <footer style="margin-top:24px;padding:18px 20px;border-radius:20px;background:#efe7d7;border:1px solid #e2d3b7;color:#5d5145;font-size:11px;line-height:1.8;">
+          참고용 안내: 명해원의 사주 분석 결과는 참고용 콘텐츠이며, 의료·법률·투자·진로·결혼 등 중요한 의사결정을 대신하지 않습니다.
+        </footer>
+      </div>
+    </body>
+  </html>`;
+}
+
+export function buildSajuReportPreview(result: Record<string, any>) {
+  const parts = [
+    result.fortune,
+    result.shadowReading?.summary,
+    result.personality,
+    result.career,
+  ]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .map((value) => value.trim());
+
+  return parts.join(" ").slice(0, 220);
+}
+
+// ─── PDF 색상 팔레트 ───
+const INK = "#221a26";          // 표지 배경 — 짙은 먹빛
+const INK_SOFT = "#2e2433";
+const PAPER = "#faf6ee";        // 본문 배경 — 한지
+const CARD = "#fffdf6";
+const CARD_BORDER = "#e8dcc2";
+const GOLD = "#c8a356";
+const GOLD_DARK = "#8a6b1f";
+const GOLD_LIGHT = "#ecd9a8";
+const TEXT = "#2a2230";
+const TEXT_BODY = "#4a4036";
+const TEXT_SUB = "#7a6f5f";
+
+export async function generateSajuReportPdf(title: string, result: Record<string, any>, tier: ReportTier = "full") {
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 48,
+    info: {
+      Title: title,
+      Author: "명해원",
+      Subject: "정밀 사주 PDF 리포트",
+    },
+  });
+
+  const [bodyFont, boldFont, serifFont] = await Promise.all([
+    getFontBuffer("body"),
+    getFontBuffer("bold"),
+    getFontBuffer("serif"),
+  ]);
+  doc.registerFont("body", bodyFont);
+  doc.registerFont("bold", boldFont);
+  doc.registerFont("serif", serifFont);
+  doc.font("body");
+
+  const chunks: Buffer[] = [];
+  doc.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+
+  const birthInfo = result.birthInfo ?? {};
+  const genderLabel = birthInfo.gender === "female" ? "여성" : "남성";
+  const calendarLabel = birthInfo.calendarType === "lunar" ? `음력${birthInfo.isLeapMonth ? " 윤달" : ""}` : "양력";
+  const hourLabel =
+    typeof birthInfo.hour === "number" && birthInfo.hour >= 0
+      ? ` ${birthInfo.hour}시${birthInfo.minute ? ` ${birthInfo.minute}분` : ""}`
+      : "";
+
+  const pageWidth = doc.page.width;
+  const pageHeight = doc.page.height;
+  const margin = 48;
+  const contentWidth = pageWidth - margin * 2;
+  const contentTop = 96;
+  const contentBottom = pageHeight - 64;
+
+  const pillars = getReportPillars(result);
+
+  const sections = getSajuReportSections(result, tier);
+
   // ─── 페이지 크롬 (본문 페이지 공통) ───
   let pageNo = 1;
   const drawContentChrome = () => {
@@ -661,7 +673,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   });
 
   // 중앙 타이틀
-  doc.font("serif").fillColor("#fff8ec").fontSize(31).text("정밀 사주 리포트", 0, 166, {
+  doc.font("serif").fillColor("#fff8ec").fontSize(31).text(REPORT_TITLES[tier], 0, 166, {
     width: pageWidth,
     align: "center",
     characterSpacing: 2,
@@ -671,6 +683,10 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     0, 214,
     { width: pageWidth, align: "center" },
   );
+
+  doc.font("body").fillColor(GOLD_LIGHT).fontSize(8.5).text(title, margin, 234, {
+    width: contentWidth, height: 13, ellipsis: true, align: "center",
+  });
 
   // 구분 괘선
   const ruleY = 252;
@@ -759,7 +775,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
     day: "numeric",
     timeZone: "Asia/Seoul",
   });
-  doc.font("body").fillColor(GOLD_LIGHT, 0.75).fontSize(9).text(`발행일 ${issuedAt}`, 0, pageHeight - 96, {
+  doc.font("body").fillColor(GOLD_LIGHT, 0.75).fontSize(9).text(`분석 기준일 ${getReportDate(result)} · 발행일 ${issuedAt}`, 0, pageHeight - 96, {
     width: pageWidth,
     align: "center",
   });
@@ -809,24 +825,22 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   doc.y += 24;
 
   // 대운 타임라인
-  const daeunPeriods: Array<{ stem?: string; branch?: string; startAge?: number; endAge?: number }> =
+  const daeunPeriods: Array<{ stem?: string; branch?: string; startAge?: number; endAge?: number; startDate?: string; endDate?: string }> =
     Array.isArray(result.daeun?.periods) ? result.daeun.periods.slice(0, 8) : [];
-  if (daeunPeriods.length > 0) {
+  if (tier !== "basic" && daeunPeriods.length > 0) {
     drawSectionHeading("대운의 흐름", "大運");
     const laneTop = doc.y;
     const boxGap = 6;
     const boxWidth = (contentWidth - boxGap * (daeunPeriods.length - 1)) / daeunPeriods.length;
     const boxHeight = 64;
-    const nowYear = new Date().getFullYear();
-    const currentAge = typeof birthInfo.year === "number" ? nowYear - birthInfo.year + 1 : -1;
+    const today = getReportDate(result);
 
     for (const [index, period] of daeunPeriods.entries()) {
       const x = margin + index * (boxWidth + boxGap);
       const isCurrent =
-        typeof period.startAge === "number" &&
-        typeof period.endAge === "number" &&
-        currentAge >= period.startAge &&
-        currentAge <= period.endAge;
+        typeof period.startDate === "string" &&
+        typeof period.endDate === "string" &&
+        isDaeunOnDate({ startDate: period.startDate, endDate: period.endDate }, today);
       doc.save();
       doc.roundedRect(x, laneTop, boxWidth, boxHeight, 8).fillAndStroke(
         isCurrent ? "#f3e7c8" : CARD,
@@ -854,33 +868,52 @@ export async function generateSajuReportPdf(title: string, result: Record<string
 
   // ─── 인사이트 섹션 카드 ───
   const drawInsightCard = (titleText: string, hanja: string, bodyText: string, accent: string) => {
-    doc.font("body").fontSize(10.5);
     const textWidth = contentWidth - 44;
-    const bodyHeight = doc.heightOfString(bodyText, {
-      width: textWidth,
-      lineGap: 5,
-    });
-    const cardHeightInner = bodyHeight + 60;
-
-    ensureSpace(cardHeightInner + 14);
-
-    const x = margin;
-    const y = doc.y;
-
-    doc.save();
-    doc.roundedRect(x, y, contentWidth, cardHeightInner, 12).fillAndStroke(CARD, CARD_BORDER);
-    doc.roundedRect(x, y + 12, 3.5, cardHeightInner - 24, 1.75).fill(accent);
-    doc.restore();
-
-    doc.font("serif").fillColor(TEXT).fontSize(13.5).text(titleText, x + 22, y + 16, { lineBreak: false });
-    const tWidth = doc.widthOfString(titleText);
-    doc.font("serif").fillColor(accent).fontSize(9.5).text(hanja, x + 22 + tWidth + 8, y + 19.5, { lineBreak: false });
-    doc.font("body").fillColor(TEXT_BODY).fontSize(10.5).text(bodyText, x + 22, y + 40, {
-      width: textWidth,
-      lineGap: 5,
-    });
-
-    doc.y = y + cardHeightInner + 14;
+    const measure = (text: string) => {
+      doc.font("body").fontSize(10.5);
+      return doc.heightOfString(text, { width: textWidth, lineGap: 5 });
+    };
+    let remaining = bodyText;
+    let continuation = false;
+    do {
+      const fullHeight = measure(remaining) + 60;
+      if (fullHeight <= contentBottom - contentTop) ensureSpace(fullHeight + 14);
+      else ensureSpace(180);
+      const y = doc.y;
+      const availableHeight = contentBottom - y - 60;
+      let chunk = remaining;
+      if (measure(chunk) > availableHeight) {
+        // Split by code points so page breaks cannot corrupt a surrogate pair.
+        const characters = Array.from(remaining);
+        let low = 1;
+        let high = characters.length;
+        while (low < high) {
+          const middle = Math.ceil((low + high) / 2);
+          if (measure(characters.slice(0, middle).join("")) <= availableHeight) low = middle;
+          else high = middle - 1;
+        }
+        chunk = characters.slice(0, low).join("");
+        const wordBreak = Math.max(chunk.lastIndexOf(" "), chunk.lastIndexOf("\n"));
+        if (wordBreak > chunk.length * 0.6) chunk = chunk.slice(0, wordBreak);
+      }
+      const cardHeight = measure(chunk) + 60;
+      const x = margin;
+      doc.save();
+      doc.roundedRect(x, y, contentWidth, cardHeight, 12).fillAndStroke(CARD, CARD_BORDER);
+      doc.roundedRect(x, y + 12, 3.5, cardHeight - 24, 1.75).fill(accent);
+      doc.restore();
+      const heading = `${titleText}${continuation ? " (계속)" : ""}`;
+      doc.font("serif").fillColor(TEXT).fontSize(13.5).text(heading, x + 22, y + 16, { lineBreak: false });
+      const tWidth = doc.widthOfString(heading);
+      doc.font("serif").fillColor(accent).fontSize(9.5).text(hanja, x + 22 + tWidth + 8, y + 19.5, { lineBreak: false });
+      doc.font("body").fillColor(TEXT_BODY).fontSize(10.5).text(chunk, x + 22, y + 40, {
+        width: textWidth, lineGap: 5,
+      });
+      doc.y = y + cardHeight + 14;
+      remaining = remaining.slice(chunk.length).trimStart();
+      continuation = true;
+      if (remaining) doc.addPage();
+    } while (remaining);
   };
 
   drawSectionHeading("운세 풀이", "解說");
@@ -916,7 +949,7 @@ export async function generateSajuReportPdf(title: string, result: Record<string
   return {
     fileName: `${sanitizeFilename(title) || "myeonghaewon_report"}.pdf`,
     previewText: buildSajuReportPreview(result),
-    htmlContent: buildSajuReportHtml(title, result),
+    htmlContent: buildSajuReportHtml(title, result, tier),
     fileDataBase64: buffer.toString("base64"),
   };
 }

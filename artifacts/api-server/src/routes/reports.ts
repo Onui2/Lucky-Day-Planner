@@ -8,6 +8,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { requireDatabase } from "../lib/database-guard.js";
 import { generateSajuReportPdf } from "../lib/report-generator.js";
 import { hasReportAccess } from "../lib/report-access.js";
+import { getReportTier } from "../lib/product-config.js";
 
 const router = Router();
 
@@ -140,6 +141,7 @@ router.post("/reports/:id/regenerate", async (req, res) => {
     const generated = await generateSajuReportPdf(
       row.report.title,
       row.snapshot.sajuResult as Record<string, any>,
+      getReportTier(row.report.productType),
     );
 
     const [updated] = await db

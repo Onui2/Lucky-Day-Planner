@@ -5,6 +5,8 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { Link, useSearch } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import { getCurrentAge } from "@/lib/age";
+import { useSeoulToday } from "@/hooks/use-seoul-today";
+import { isDaeunOnDate } from "@/lib/daeun-date";
 import { addRecentActivity } from "@/lib/member-insights";
 import { getSajuCacheStorageKey, LEGACY_SAJU_CACHE_STORAGE_KEY } from "@/lib/profile-storage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -385,6 +387,7 @@ const ELEM_BG: Record<string, string> = {
 
 // ─── 메인 컴포넌트 ───────────────────────────────────
 export default function SajuPage() {
+  const today = useSeoulToday();
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
   const initialAiQuestion = searchParams.get("aiPrompt")?.trim() || undefined;
@@ -1434,8 +1437,10 @@ export default function SajuPage() {
 
   // ─── 결과 화면 ───────────────────────────────────
   const bi = r.birthInfo ?? {};
-  const currentAge = r?.birthInfo
-    ? getCurrentAge(r.birthInfo.year, r.birthInfo.month, r.birthInfo.day)
+  const solarBirthDate = r.calculationBasis?.solarDate
+    ?? (r.birthInfo?.calendarType === "solar" ? r.birthInfo : null);
+  const currentAge = solarBirthDate
+    ? getCurrentAge(solarBirthDate.year, solarBirthDate.month, solarBirthDate.day, new Date(`${today}T12:00:00`))
     : null;
   const monetizationBirthInfo = {
     year: Number(bi.year),
@@ -1445,6 +1450,13 @@ export default function SajuPage() {
     minute: Number(bi.minute ?? 0),
     gender: (bi.gender === "female" ? "female" : "male") as "male" | "female",
     calendarType: (bi.calendarType === "lunar" ? "lunar" : "solar") as "solar" | "lunar",
+    isLeapMonth: bi.isLeapMonth === true,
+    birthPlace: typeof bi.birthPlace === "string" ? bi.birthPlace : undefined,
+    timeZone: typeof bi.timeZone === "string" ? bi.timeZone : undefined,
+    longitude: typeof bi.longitude === "number" ? bi.longitude : undefined,
+    latitude: typeof bi.latitude === "number" ? bi.latitude : undefined,
+    applyTrueSolarTime: bi.applyTrueSolarTime === true,
+    dayBoundary: bi.dayBoundary === "late-zi" ? "late-zi" as const : "midnight" as const,
   };
   const buildProfileAwareHref = (
     pathname: string,
@@ -2912,20 +2924,26 @@ export default function SajuPage() {
                     {typeof currentAge === 'number' && (
                       <>
                         <span className="text-muted-foreground">·</span>
-                        <span>현재 나이: <strong className="text-primary">{currentAge}세</strong></span>
+                        <span>현재 나이: <strong className="text-primary">만 {currentAge}세</strong></span>
                       </>
                     )}
                     <span className="text-muted-foreground text-xs">(3일 = 1년 환산)</span>
                   </div>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {r.daeun.periods?.some((p: any) => !p.startDate || !p.endDate)
+                      ? '이 저장 결과에는 대운 시작일이 없습니다. 다시 계산하면 현재 대운을 정확히 표시합니다.'
+                      : '현재 대운은 한국 날짜와 대운 시작일·종료일 기준으로 표시합니다. 대운 나이는 절기 간격을 환산한 참고값입니다.'}
+                  </p>
                   <div className="space-y-3">
                     {r.daeun.periods?.map((p: any) => {
-                      const isNow = typeof currentAge === 'number' && currentAge >= p.startAge && currentAge <= p.endAge;
+                      const isNow = isDaeunOnDate(p, today);
                       const flow = r.luckFlowAnalysis?.periods?.find((item: any) => item.idx === p.idx);
                       return (
                         <div key={p.idx} className={`relative flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all ${isNow ? 'border-primary/60 bg-primary/10 shadow-lg shadow-primary/10' : 'border-primary/15 bg-primary/3 hover:border-primary/30'}`}>
                           {isNow && <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary animate-pulse" />}
                           <div className="flex-shrink-0 sm:w-24 text-left sm:text-center">
                             <div className="text-xs text-muted-foreground">{p.startYear}~{p.endYear}</div>
+                            {p.startDate && p.endDate && <div className="text-[10px] text-muted-foreground mt-1">{p.startDate}<br />~ {p.endDate}</div>}
                             <div className="text-lg font-bold text-foreground/60">{p.startAge}~{p.endAge}세</div>
                             {isNow && <div className="text-xs text-primary font-medium mt-0.5">◀ 현재</div>}
                           </div>

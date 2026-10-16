@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getSeoulDateString, isDaeunOnDate, wholeYearsUntil } from "../lib/daeun-date.js";
 import {
   getSajuYear,
   getYearPillar,
@@ -92,18 +93,17 @@ router.post("/daeun", (req, res) => {
 
     const daeun = getDaeun(year, month, day, gender, yearPillar, monthPillar, hour, minute);
 
-    const currentYear = new Date().getFullYear();
+    const today = getSeoulDateString();
+    const currentYear = Number(today.slice(0, 4));
     const currentAge = currentYear - year;
 
     // 현재 적용 중인 대운 찾기
     const currentPeriod = daeun.periods.find(
-      (p) => currentAge >= p.startAge && currentAge <= p.endAge
+      (p) => isDaeunOnDate(p, today)
     ) ?? null;
 
     // 다음 대운 찾기
-    const nextPeriod = currentPeriod
-      ? daeun.periods.find((p) => p.startAge > currentPeriod.endAge) ?? null
-      : null;
+    const nextPeriod = daeun.periods.find((p) => p.startDate > today) ?? null;
 
     // 각 대운에 십신 정보 추가
     const periodsWithTenGod = daeun.periods.map((p) => ({
@@ -146,7 +146,7 @@ router.post("/daeun", (req, res) => {
             stemHanja: STEM_HANJA[currentPeriod.stem] ?? currentPeriod.stem,
             branchHanja: BRANCH_HANJA[currentPeriod.branch] ?? currentPeriod.branch,
             tenGod: getTenGod(dayPillar.stem, currentPeriod.stem),
-            yearsRemaining: currentPeriod.endAge - currentAge,
+            yearsRemaining: wholeYearsUntil(today, currentPeriod.endDate),
           }
         : null,
 
@@ -157,7 +157,7 @@ router.post("/daeun", (req, res) => {
             stemHanja: STEM_HANJA[nextPeriod.stem] ?? nextPeriod.stem,
             branchHanja: BRANCH_HANJA[nextPeriod.branch] ?? nextPeriod.branch,
             tenGod: getTenGod(dayPillar.stem, nextPeriod.stem),
-            yearsUntil: nextPeriod.startAge - currentAge,
+            yearsUntil: wholeYearsUntil(today, nextPeriod.startDate),
           }
         : null,
     });
@@ -288,13 +288,13 @@ router.get("/daeun/current", (req, res) => {
 
     const daeun = getDaeun(year, month, day, genderTyped, yearPillar, monthPillar, hour, minute);
 
-    const now = new Date();
-    const currentYear = now.getFullYear();
+    const today = getSeoulDateString();
+    const [currentYear, currentMonth, currentDay] = today.split("-").map(Number);
     const currentAge = currentYear - year;
 
     // 현재 대운
     const currentDaeun = daeun.periods.find(
-      (p) => currentAge >= p.startAge && currentAge <= p.endAge
+      (p) => isDaeunOnDate(p, today)
     ) ?? null;
 
     // 현재 세운
@@ -302,7 +302,7 @@ router.get("/daeun/current", (req, res) => {
 
     // 현재 월운 기간
     const currentMonthPillar = getMonthPillar(
-      now.getFullYear(), now.getMonth() + 1, now.getDate()
+      currentYear, currentMonth, currentDay
     );
 
     // 용신
@@ -337,7 +337,9 @@ router.get("/daeun/current", (req, res) => {
             endAge: currentDaeun.endAge,
             startYear: currentDaeun.startYear,
             endYear: currentDaeun.endYear,
-            yearsRemaining: currentDaeun.endAge - currentAge,
+            startDate: currentDaeun.startDate,
+            endDate: currentDaeun.endDate,
+            yearsRemaining: wholeYearsUntil(today, currentDaeun.endDate),
             fortune: currentDaeun.fortune,
           }
         : null,
@@ -360,7 +362,7 @@ router.get("/daeun/current", (req, res) => {
 
       // 현재 월건
       currentWolgeon: {
-        month: now.getMonth() + 1,
+        month: currentMonth,
         stem: currentMonthPillar.stem,
         branch: currentMonthPillar.branch,
         stemHanja: STEM_HANJA[currentMonthPillar.stem] ?? currentMonthPillar.stem,

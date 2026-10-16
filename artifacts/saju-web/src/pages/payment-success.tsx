@@ -56,7 +56,8 @@ export default function PaymentSuccessPage() {
   const startedRef = useRef(false);
 
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const orderId = params.get("orderId")?.trim() ?? "";
+  const isTossPay = params.get("provider") === "toss_pay";
+  const orderId = (params.get("orderId") ?? params.get("orderNo"))?.trim() ?? "";
   const paymentKey = params.get("paymentKey")?.trim() ?? "";
   const amount = Number(params.get("amount") ?? "");
 
@@ -69,7 +70,7 @@ export default function PaymentSuccessPage() {
   );
 
   useEffect(() => {
-    if (!orderId || !paymentKey || !Number.isFinite(amount)) {
+    if (!orderId || (!isTossPay && (!paymentKey || !Number.isFinite(amount)))) {
       setState("error");
       setErrorMessage("결제 확인에 필요한 정보가 누락되었습니다.");
       return;
@@ -99,7 +100,7 @@ export default function PaymentSuccessPage() {
       return;
     }
 
-    if (order.amount !== amount) {
+    if (!isTossPay && order.amount !== amount) {
       setState("error");
       setErrorMessage("결제 금액 검증에 실패했습니다. 안전을 위해 결제 승인을 중단했습니다.");
       return;
@@ -112,7 +113,7 @@ export default function PaymentSuccessPage() {
     startedRef.current = true;
 
     void confirmPayment
-      .mutateAsync({ orderId, paymentKey })
+      .mutateAsync({ orderId, ...(isTossPay ? { authorize: true } : { paymentKey }) })
       .then((confirmed) => {
         setResult(confirmed);
 
@@ -138,6 +139,7 @@ export default function PaymentSuccessPage() {
       });
   }, [
     amount,
+    isTossPay,
     authLoading,
     confirmPayment,
     isAuthenticated,
@@ -171,7 +173,7 @@ export default function PaymentSuccessPage() {
           </div>
           <div>
             <div className="text-sm uppercase tracking-[0.18em] text-primary/70">
-              Toss Payments
+              결제 확인
             </div>
             <h1 className="font-serif text-3xl font-bold text-foreground">
               {state === "confirming" && "결제를 확인하고 있습니다"}
@@ -189,7 +191,7 @@ export default function PaymentSuccessPage() {
             주문번호 {orderId || "-"}
           </div>
           <div className="mt-2">
-            결제 금액 {Number.isFinite(amount) ? `${amount.toLocaleString()}원` : "-"}
+            결제 금액 {(order?.amount ?? (isTossPay ? null : amount))?.toLocaleString() ?? "-"}원
           </div>
           {result?.alreadyPaid && (
             <div className="mt-2 text-emerald-300">
@@ -206,6 +208,7 @@ export default function PaymentSuccessPage() {
           {state === "error" && (errorMessage ?? "결제 확인 중 문제가 발생했습니다.")}
         </div>
 
+        {state === "ready" && errorMessage && <p role="alert" className="mt-3 text-sm text-amber-700">{errorMessage}</p>}
         <div className="mt-6 flex flex-wrap gap-3">
           {state === "ready" && report && (
             <Button
@@ -214,6 +217,8 @@ export default function PaymentSuccessPage() {
                 setIsDownloading(true);
                 try {
                   await downloadReportFile(report.id, report.fileName ?? report.title);
+                } catch (error) {
+                  setErrorMessage(error instanceof Error ? error.message : "다운로드에 실패했습니다. 다시 시도해주세요.");
                 } finally {
                   setIsDownloading(false);
                 }

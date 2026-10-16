@@ -12,18 +12,12 @@ import {
   userSubscriptionsTable,
 } from "@workspace/db";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-
-export type ProductType = "saju_pdf" | "gungap_premium" | "year_fortune_report";
-
-export interface ProductConfig {
-  type: ProductType;
-  title: string;
-  amount: number;
-  description: string;
-}
+import { birthOptionsFromRecord, resolveBirthInput } from "./birth-resolution.js";
+import { getTossPayConfig } from "./toss-pay.js";
+export { getProductConfig, type ProductConfig, type ProductType } from "./product-config.js";
 
 export interface ConfirmedPayment {
-  provider: "toss" | "dev";
+  provider: "toss" | "toss_pay" | "dev";
   paymentKey: string;
   method: string;
   status: "paid";
@@ -32,38 +26,17 @@ export interface ConfirmedPayment {
   approvedAt: Date;
 }
 
-const PRODUCT_CATALOG: Record<ProductType, ProductConfig> = {
-  saju_pdf: {
-    type: "saju_pdf",
-    title: "정밀 사주 PDF 리포트",
-    amount: 4900,
-    description: "개인 사주 종합 분석 PDF 리포트",
-  },
-  gungap_premium: {
-    type: "gungap_premium",
-    title: "궁합 심층 분석",
-    amount: 9900,
-    description: "두 사람의 관계와 궁합 흐름을 깊게 분석한 리포트",
-  },
-  year_fortune_report: {
-    type: "year_fortune_report",
-    title: "연간 운세 리포트",
-    amount: 14900,
-    description: "1년 운세 흐름과 주의 시기를 정리한 리포트",
-  },
-};
-
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
-
-export function getProductConfig(productType: string): ProductConfig | null {
-  return PRODUCT_CATALOG[productType as ProductType] ?? null;
-}
 
 export function createMerchantOrderId(prefix = "MHW") {
   return `${prefix}_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 }
 
 export function getCheckoutMode() {
+  if (process.env.TOSS_PAY_API_KEY?.trim()) {
+    try { return getTossPayConfig() ? "toss_pay" : "disabled"; }
+    catch { return "disabled"; }
+  }
   if (process.env.TOSS_SECRET_KEY?.trim()) return "provider";
   return isDevelopmentPaymentMode() ? "dev" : "disabled";
 }
@@ -72,6 +45,7 @@ export function isDevelopmentPaymentMode() {
   return process.env.NODE_ENV !== "production"
     && process.env.VERCEL_ENV !== "production"
     && process.env.PAYMENT_SIMULATION_ENABLED === "true"
+    && !process.env.TOSS_PAY_API_KEY?.trim()
     && !process.env.TOSS_SECRET_KEY?.trim();
 }
 
@@ -389,6 +363,31 @@ export function parseBirthInfo(input: unknown): ReportBirthInfo | null {
     return null;
   }
 
+  const precision = birthOptionsFromRecord(value);
+  for (const [key, limit] of [["longitude", 180], ["latitude", 90]] as const) {
+    const coordinate = value[key];
+    if (coordinate != null && coordinate !== "" && (
+      typeof coordinate === "boolean" || !Number.isFinite(Number(coordinate)) || Math.abs(Number(coordinate)) > limit
+    )) return null;
+  }
+  if (value.dayBoundary != null && value.dayBoundary !== "midnight" && value.dayBoundary !== "late-zi") return null;
+  for (const key of ["isLeapMonth", "applyTrueSolarTime"] as const) {
+    if (value[key] != null && ![true, false, "true", "false"].includes(value[key] as boolean | string)) return null;
+  }
+  for (const key of ["birthPlace", "timeZone"] as const) {
+    if (value[key] != null && typeof value[key] !== "string") return null;
+  }
+
+  // Validate before creating an order or reserving a paid AI question slot.
+  try {
+    resolveBirthInput({
+      birthYear: year, birthMonth: month, birthDay: day,
+      birthHour: hour, birthMinute: minute, calendarType, ...precision,
+    });
+  } catch {
+    return null;
+  }
+
   return {
     year,
     month,
@@ -397,5 +396,6 @@ export function parseBirthInfo(input: unknown): ReportBirthInfo | null {
     minute: hour === -1 ? 0 : minute,
     gender,
     calendarType,
+    ...Object.fromEntries(Object.entries(precision).filter(([key]) => value[key] != null)),
   };
 }

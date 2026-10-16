@@ -1,5 +1,6 @@
 // Korean Saju (Four Pillars of Destiny) Calculator
 // Based on traditional Korean/Chinese astrology
+import { getSeoulDateString, isDaeunOnDate } from "./daeun-date.js";
 
 export const HEAVENLY_STEMS = ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'];
 export const HEAVENLY_STEMS_EN = ['Jia', 'Yi', 'Bing', 'Ding', 'Wu', 'Ji', 'Geng', 'Xin', 'Ren', 'Gui'];
@@ -1577,6 +1578,8 @@ type LuckFlowPillar = Pick<SajuCorePillar, 'stem' | 'branch' | 'stemIndex' | 'br
 type LuckFlowDaeun = {
   periods: Array<{
     idx: number;
+    startDate?: string;
+    endDate?: string;
     startAge: number;
     endAge: number;
     startYear: number;
@@ -1781,8 +1784,9 @@ export function getLuckFlowAnalysis(
   hourPillar: SajuCorePillar | null,
   daeun: LuckFlowDaeun,
   yongsin: { yongsin: string; heegsin: string; geesin: string },
-  startYear = new Date().getFullYear(),
+  startYear = Number(getSeoulDateString().slice(0, 4)),
   yearCount = 10,
+  referenceDate = getSeoulDateString(),
 ): LuckFlowAnalysis {
   const natalTargets: Array<{ name: LuckFlowInteraction['target']; pillar: LuckFlowPillar | null }> = [
     { name: '연주', pillar: yearPillar },
@@ -1878,8 +1882,9 @@ export function getLuckFlowAnalysis(
     };
   });
 
-  const currentAge = startYear - birthYear;
-  const currentDaeunIndex = periods.find((item) => currentAge >= item.startAge && currentAge <= item.endAge)?.idx ?? null;
+  const currentDaeunIndex = daeun.periods.find((item) =>
+    item.startDate && item.endDate && isDaeunOnDate({ startDate: item.startDate, endDate: item.endDate }, referenceDate),
+  )?.idx ?? null;
   return {
     startYear,
     endYear: startYear + annual.length - 1,

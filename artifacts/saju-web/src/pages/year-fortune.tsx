@@ -267,11 +267,13 @@ export default function YearFortunePage() {
     birthDay: '',
     birthHour: -1,
     birthMinute: '',
+    calendarType: 'solar' as 'solar' | 'lunar',
     targetYear: currentYear.toString(),
   });
+  const [birthPrecision, setBirthPrecision] = useState<ReturnType<typeof precisionToPayload> | null>(null);
   const [fromProfile, setFromProfile] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const maxBirthDay = getBirthDayMax(form.birthYear, form.birthMonth);
+  const maxBirthDay = getBirthDayMax(form.birthYear, form.birthMonth, form.calendarType);
 
   function loadMyProfile() {
     if (!profile) return;
@@ -282,7 +284,9 @@ export default function YearFortunePage() {
       birthDay:   profile.birthDay?.toString()   ?? '',
       birthHour:  profile.birthHour !== undefined ? profile.birthHour : -1,
       birthMinute: profile.birthHour !== undefined && profile.birthHour >= 0 ? formatBirthMinute(profile.birthMinute) : '',
+      calendarType: profile.calendarType,
     }));
+    setBirthPrecision(precisionToPayload(precisionFromProfile(profile)));
     setFromProfile(true);
   }
 
@@ -295,12 +299,12 @@ export default function YearFortunePage() {
       } else if (k === "birthMonth") {
         next.birthMonth = sanitizeBirthMonthInput(v);
       } else if (k === "birthDay") {
-        next.birthDay = sanitizeBirthDayInput(v, prev.birthYear, prev.birthMonth);
+        next.birthDay = sanitizeBirthDayInput(v, prev.birthYear, prev.birthMonth, prev.calendarType);
       } else {
         (next as any)[k] = v;
       }
 
-      next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth);
+      next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth, next.calendarType);
       return next;
     });
   };
@@ -311,6 +315,7 @@ export default function YearFortunePage() {
       birthYear: form.birthYear,
       birthMonth: form.birthMonth,
       birthDay: form.birthDay,
+      calendarType: form.calendarType,
       yearMin: 1900,
       yearMax: 2100,
     });
@@ -320,16 +325,6 @@ export default function YearFortunePage() {
     }
 
     if (!form.birthYear || !form.birthMonth || !form.birthDay) return;
-    const matchesProfile = Boolean(
-      profile &&
-      Number(form.birthYear) === profile.birthYear &&
-      Number(form.birthMonth) === profile.birthMonth &&
-      Number(form.birthDay) === profile.birthDay &&
-      form.birthHour === profile.birthHour,
-    );
-    const precision = matchesProfile && profile
-      ? { calendarType: profile.calendarType, ...precisionToPayload(precisionFromProfile(profile)) }
-      : { calendarType: "solar" as const };
     mut.mutate({
       birthYear: Number(form.birthYear),
       birthMonth: Number(form.birthMonth),
@@ -337,7 +332,8 @@ export default function YearFortunePage() {
       birthHour: form.birthHour,
       birthMinute: form.birthHour === -1 ? 0 : parseBirthMinute(form.birthMinute),
       targetYear: Number(form.targetYear),
-      ...precision,
+      calendarType: form.calendarType,
+      ...birthPrecision,
     });
   };
 
@@ -360,7 +356,9 @@ export default function YearFortunePage() {
         {/* 입력 폼 */}
         <div className="glass-panel border border-foreground/10 rounded-2xl p-5 mb-6 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">생년월일 입력</span>
+            <span className="text-xs text-muted-foreground">
+              생년월일 입력 · {form.calendarType === 'lunar' ? (birthPrecision?.isLeapMonth ? '음력 윤달' : '음력 평달') : '양력'}
+            </span>
             {profile ? (
               <button
                 type="button"

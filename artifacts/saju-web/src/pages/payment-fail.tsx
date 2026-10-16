@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 function getFailureTitle(code: string) {
   switch (code) {
     case "PAY_PROCESS_CANCELED":
+    case "USER_CANCEL":
       return "결제를 취소했습니다";
     case "PAY_PROCESS_ABORTED":
       return "결제 중 오류가 발생했습니다";
@@ -18,6 +19,7 @@ function getFailureTitle(code: string) {
 function getFailureDescription(code: string, message: string) {
   switch (code) {
     case "PAY_PROCESS_CANCELED":
+    case "USER_CANCEL":
       return "결제창에서 취소하셨습니다. 준비되면 다시 시도하실 수 있습니다.";
     case "PAY_PROCESS_ABORTED":
       return message || "결제 처리 중 예기치 않은 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
@@ -49,7 +51,7 @@ export default function PaymentFailPage() {
           </div>
           <div>
             <div className="text-sm uppercase tracking-[0.18em] text-rose-200/80">
-              Toss Payments
+              결제 안내
             </div>
             <h1 className="font-serif text-3xl font-bold text-foreground">
               {getFailureTitle(code)}

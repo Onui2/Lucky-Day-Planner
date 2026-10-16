@@ -8,13 +8,13 @@ function getDatePart(
   return Number(value ?? 0);
 }
 
-export function getSeoulTodayString(): string {
+export function getSeoulTodayString(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: SEOUL_TIME_ZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date());
+  }).formatToParts(now);
 
   const year = getDatePart(parts, "year");
   const month = getDatePart(parts, "month");

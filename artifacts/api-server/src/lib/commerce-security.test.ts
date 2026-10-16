@@ -34,7 +34,8 @@ function value(input: any, context: Context): any {
     : input;
 }
 
-function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_KEY: "synthetic-test-secret" }) {
+function createHarness(overrides: Record<string, string | undefined> = { TOSS_SECRET_KEY: "synthetic-test-secret" }) {
+  const env: Record<string, string | undefined> = { REPORT_SALES_ENABLED: "true", ...overrides };
   const tables: Record<string, Table> = {};
   const records: Record<string, Row[]> = {};
   for (const name of ["orders", "payments", "pdfReports", "analysisSnapshots", "purchaseEntitlements"]) {
@@ -57,6 +58,15 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
     providerReply: {} as Row,
     providerOk: true,
     beforeProviderReply: null as (() => void) | null,
+    tossCalls: [] as { endpoint: string; body: Row }[],
+    tossStatus: "PAY_APPROVED",
+    tossReply: {} as Row,
+    tossExecuteTimeout: false,
+    locks: 0,
+    advisoryLocks: 0,
+    historyInputs: [] as Row[],
+    generatedTiers: [] as unknown[],
+    beforeGeneration: null as (() => Promise<void>) | null,
     nextId: 100,
   };
   const conditions = {
@@ -66,6 +76,14 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
     and: (...items: Predicate[]): Predicate => (context) => items.every((item) => item(context)),
     or: (...items: Predicate[]): Predicate => (context) => items.some((item) => item(context)),
     desc: (input: any) => input,
+    sql: (strings: TemplateStringsArray, ...args: any[]) => {
+      const text = strings.join("?");
+      if (/->>\s*'freeTrial'/.test(text)) {
+        return (context: Context) => String(value(args[0], context)?.freeTrial) === "true";
+      }
+      assert.match(text, /pg_advisory_xact_lock/, "Unexpected SQL in isolated commerce harness");
+      return { text, args };
+    },
   };
   function project(selection: Row | undefined, context: Context, base: string): Row {
     if (!selection) return context[base];
@@ -74,7 +92,12 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
       input.tableName ? context[input.tableName] : value(input, context),
     ]));
   }
+  let transactionTail: Promise<void> = Promise.resolve();
   const db = {
+    async execute(statement: { text: string }) {
+      assert.match(statement.text, /pg_advisory_xact_lock/);
+      state.advisoryLocks++;
+    },
     select(selection?: Row) {
       let base = "";
       let contexts: Context[] = [];
@@ -91,6 +114,14 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
             .filter(predicate));
           return query;
         },
+        leftJoin(input: Table, predicate: Predicate) {
+          contexts = contexts.flatMap((context) => {
+            const matches = records[input.tableName].map((row) => ({ ...context, [input.tableName]: row })).filter(predicate);
+            return matches.length ? matches : [{ ...context, [input.tableName]: {} }];
+          });
+          return query;
+        },
+        for(mode: string) { assert.equal(mode, "update"); state.locks++; return query; },
         where(predicate: Predicate) { contexts = contexts.filter(predicate); return query; },
         orderBy() { return query; },
         limit(limit: number) { contexts = contexts.slice(0, limit); return query; },
@@ -125,11 +156,21 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
       } }; } };
     },
     async transaction(run: (transaction: any) => Promise<unknown>) {
-      if (state.failNextTransaction) {
-        state.failNextTransaction = false;
-        throw new Error("synthetic database outage");
+      // Emulate serialized transactions for concurrent same-account trial claims.
+      // Tests also assert that the route actually requests its advisory lock.
+      const previous = transactionTail;
+      let release!: () => void;
+      transactionTail = new Promise<void>((resolve) => { release = resolve; });
+      await previous;
+      try {
+        if (state.failNextTransaction) {
+          state.failNextTransaction = false;
+          throw new Error("synthetic database outage");
+        }
+        return await run(db);
+      } finally {
+        release();
       }
-      return run(db);
     },
   };
   const cache = new Map<string, any>();
@@ -141,10 +182,24 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
       loader: "ts", format: "cjs", target: "es2016", sourcefile: filename,
     }).code;
     runInNewContext(code, {
-      module, exports: module.exports, Buffer, Date, Promise,
+      module, exports: module.exports, Buffer, Date, Promise, URL, AbortSignal,
       process: { env },
       console: { error() {} },
       fetch: async (url: string, options: { body?: string; headers: Row }) => {
+        if (url.startsWith("https://pay.toss.im/api/v2/")) {
+          const endpoint = url.split("/").at(-1)!;
+          const body = JSON.parse(options.body!);
+          state.tossCalls.push({ endpoint, body });
+          assert.equal(body.apiKey, env.TOSS_PAY_API_KEY);
+          if (endpoint === "payments") return { ok: true, json: async () => ({ code: 0, payToken: "synthetic-toss-token", checkoutPage: "https://pay.toss.im/checkout/synthetic" }) };
+          const order = records.orders.find((item) => item.orderId === body.orderNo)!;
+          assert.ok(order, "Provider request must reference a stored order");
+          if (endpoint === "execute") {
+            state.tossStatus = "PAY_COMPLETE";
+            if (state.tossExecuteTimeout) throw new Error("synthetic timeout after capture");
+          } else assert.equal(endpoint, "status");
+          return { ok: true, json: async () => ({ code: 0, mode: "TEST", payToken: "synthetic-toss-token", orderNo: order.orderId, amount: order.amount, payStatus: state.tossStatus, payMethod: "CARD", paidTs: "2026-10-16 12:00:00", transactions: [{ stepType: "PAY", transactionAmount: order.amount }], ...state.tossReply }) };
+        }
         if (url.startsWith("https://api.tosspayments.com/v1/payments/") &&
             url !== "https://api.tosspayments.com/v1/payments/confirm") {
           state.providerLookups.push(url);
@@ -172,14 +227,17 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
         if (specifier === "drizzle-orm") return conditions;
         if (specifier.endsWith("/database-guard.js")) return { requireDatabase: async () => true };
         if (specifier.endsWith("/report-generator.js")) return {
-          generateSajuReportPdf: async () => {
+          generateSajuReportPdf: async (_title: string, _result: Row, tier: unknown) => {
             state.generated++;
+            state.generatedTiers.push(tier);
             state.orderStatusesAtGeneration.push(records.orders[0]?.status);
+            await state.beforeGeneration?.();
             if (state.generationFails) throw new Error("synthetic renderer failure");
             return { fileName: "report.pdf", fileDataBase64: Buffer.from("test PDF").toString("base64"), previewText: "preview", htmlContent: "<p>report</p>" };
           },
         };
         if (specifier.endsWith("/saju-result.js")) return { buildSajuResult: () => ({}) };
+        if (specifier.endsWith("/saju-history.js")) return { buildSajuHistory: (input: Row) => { state.historyInputs.push(input); return { annual: [{ year: input.birthYear }] }; } };
         if (specifier.startsWith(".")) return load(path.resolve(path.dirname(filename), specifier.replace(/\.js$/, ".ts")));
         return require(specifier);
       },
@@ -199,7 +257,7 @@ function createHarness(env: Record<string, string | undefined> = { TOSS_SECRET_K
   app.use(load(path.join(sourceDir, "routes/commerce.ts")).default);
   app.use(load(path.join(sourceDir, "routes/reports.ts")).default);
   function seed(paid = false) {
-    const order = { id: 11, orderId: "synthetic-order", userId: "owner", productType: "gungap_premium", status: paid ? "paid" : "pending", amount: 9900, currency: "KRW", snapshotId: 7 };
+    const order: Row = { id: 11, orderId: "synthetic-order", userId: "owner", productType: "gungap_premium", status: paid ? "paid" : "pending", amount: 9900, currency: "KRW", snapshotId: 7 };
     const report = { id: 21, userId: "owner", orderId: 11, snapshotId: 7, productType: order.productType, status: "pending", title: "Report", fileDataBase64: null, mimeType: "application/pdf" };
     const entitlement: Row = { id: 31, userId: "owner", orderId: 11, productType: order.productType, resourceType: "pdf_report", resourceId: 21, status: "active", expiresAt: null };
     records.orders.push(order);
@@ -238,7 +296,7 @@ async function withServer(harness: Harness, run: (baseUrl: string) => Promise<vo
 function post(url: string, body: Row = {}, headers: Record<string, string> = {}) {
   return fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
 }
-const orderBody = { productType: "gungap_premium", birthInfo: { year: 1990, month: 1, day: 1, hour: 12, gender: "male", calendarType: "solar" } };
+const orderBody = { productType: "saju_detail", birthInfo: { year: 1990, month: 1, day: 1, hour: 12, gender: "male", calendarType: "solar" } };
 const confirmationBody = { orderId: "synthetic-order", paymentKey: "synthetic-payment-key" };
 
 test("an order cancelled during provider confirmation cannot be paid or fulfilled", async () => {
@@ -334,10 +392,11 @@ test("paid report with an active entitlement can be regenerated and downloaded",
   assert.equal(h.state.generated, 1);
 });
 
-test("free saju_pdf grant remains usable in production without payment configuration", async () => {
-  const h = createHarness({ NODE_ENV: "production" });
+for (const [productType, tier] of [["saju_basic", "basic"], ["saju_detail", "detail"], ["saju_full", "full"]]) {
+test(`admin ${productType} grant remains usable in production without payment configuration`, async () => {
+  const h = createHarness({ NODE_ENV: "production", REPORT_SALES_ENABLED: undefined });
   await withServer(h, async (url) => {
-    const response = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_pdf" });
+    const response = await post(`${url}/commerce/orders`, { ...orderBody, productType }, { "x-test-role": "admin" });
     assert.equal(response.status, 200);
     const created = await response.json() as Row;
     assert.equal(created.order.status, "paid");
@@ -347,7 +406,9 @@ test("free saju_pdf grant remains usable in production without payment configura
     assert.equal((await fetch(`${url}/reports/${created.report.id}/download`)).status, 200);
   });
   assert.equal(h.state.providerCalls.length, 0);
+  assert.deepEqual(h.state.generatedTiers, [tier, tier]);
 });
+}
 
 for (const env of [
   { NODE_ENV: "production", PAYMENT_SIMULATION_ENABLED: "true" },
@@ -372,7 +433,7 @@ for (const env of [
 
 test("explicit nonproduction simulation grants a paid report without calling Toss", async () => {
   const h = createHarness({ NODE_ENV: "test", PAYMENT_SIMULATION_ENABLED: "true" });
-  h.seed();
+  h.seed().order.metadata = { checkoutProvider: "dev" };
   assert.equal(h.commerce.getCheckoutMode(), "dev");
   await withServer(h, async (url) => {
     const response = await post(`${url}/commerce/payments/confirm`, { orderId: "synthetic-order" });
@@ -626,4 +687,309 @@ test("cancelled orders cannot be reactivated by confirmation", async () => {
   await withServer(h, async (url) => assert.equal((await post(`${url}/commerce/payments/confirm`, confirmationBody)).status, 409));
   assert.equal(h.state.providerCalls.length, 0);
   assert.equal(h.state.writes, 0);
+});
+
+test("paid sales stay closed by default even when a real payment provider is configured", async () => {
+  const h = createHarness({ TOSS_SECRET_KEY: "synthetic-test-secret", REPORT_SALES_ENABLED: undefined });
+  h.state.records.orders.push({ id: 1, userId: "owner", metadata: { freeTrial: true } });
+  await withServer(h, async (url) => {
+    const catalog = await (await fetch(`${url}/commerce/products`)).json() as Row;
+    assert.equal(catalog.salesEnabled, false);
+    for (const productType of ["saju_basic", "saju_detail", "saju_full"]) {
+      assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType })).status, 503);
+    }
+  });
+  assert.equal(h.state.writes, 0);
+  assert.equal(h.state.generated, 0);
+});
+
+for (const productType of ["saju_pdf", "gungap_premium", "year_fortune_report", "unknown"]) {
+  test(`legacy or unknown product ${productType} cannot create a new order`, async () => {
+    const h = createHarness();
+    await withServer(h, async (url) => {
+      for (const role of ["user", "admin"]) {
+        assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType }, { "x-test-role": role })).status, 400);
+      }
+    });
+    assert.equal(h.state.writes, 0);
+    assert.equal(h.state.generated, 0);
+  });
+}
+
+for (const [productType, amount] of [["saju_basic", 4900], ["saju_detail", 9900], ["saju_full", 19900]] as const) {
+  test(`${productType} uses server price and stores the chosen focus and correct history scope`, async () => {
+    const h = createHarness();
+    if (productType === "saju_basic") h.state.records.orders.push({ id: 1, userId: "owner", metadata: { freeTrial: true } });
+    await withServer(h, async (url) => {
+      const response = await post(`${url}/commerce/orders`, { ...orderBody, productType, amount: 1, currency: "USD", reportFocus: "money", adminFreeAccess: true });
+      assert.equal(response.status, 200);
+      const created = await response.json() as Row;
+      assert.equal(created.order.amount, amount);
+      assert.equal(created.order.currency, "KRW");
+      assert.equal(created.order.status, "pending");
+      assert.equal(created.product.type, productType);
+      const snapshot = h.state.records.analysisSnapshots[0];
+      assert.equal(snapshot.sajuResult.reportFocus, "money");
+      assert.equal(Boolean(snapshot.sajuResult.historyAnalysis), productType === "saju_full");
+      assert.equal(h.state.historyInputs.length, productType === "saju_full" ? 1 : 0);
+    });
+    assert.equal(h.state.generated, 0);
+    assert.equal(h.state.records.payments.length, 0);
+    assert.equal(h.state.records.purchaseEntitlements.length, 0);
+  });
+}
+
+test("omitted focus defaults to career and all supported focuses are preserved", async () => {
+  const h = createHarness();
+  await withServer(h, async (url) => {
+    for (const reportFocus of [undefined, "career", "money", "relationship"]) {
+      assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, reportFocus })).status, 200);
+      assert.equal(h.state.records.analysisSnapshots.at(-1)?.sajuResult.reportFocus, reportFocus ?? "career");
+    }
+  });
+});
+
+for (const reportFocus of ["health", "", ["career"], { value: "money" }, 1, true]) {
+  test(`invalid focus ${JSON.stringify(reportFocus)} cannot persist a purchase`, async () => {
+    const h = createHarness();
+    await withServer(h, async (url) => assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, reportFocus })).status, 400));
+    assert.equal(h.state.writes, 0);
+  });
+}
+
+test("enabling development simulation cannot convert an existing real order to a free purchase", async () => {
+  const h = createHarness({ NODE_ENV: "test", PAYMENT_SIMULATION_ENABLED: "true" });
+  const { order } = h.seed();
+  await withServer(h, async (url) => assert.equal((await post(`${url}/commerce/payments/confirm`, { orderId: order.orderId })).status, 409));
+  assert.equal(order.status, "pending");
+  assert.equal(h.state.writes, 0);
+  assert.equal(h.state.generated, 0);
+});
+
+const directTossEnv = { NODE_ENV: "test", TOSS_PAY_API_KEY: "sk_test_synthetic", APP_URL: "https://shop.example" };
+function seedDirectToss(h: Harness) {
+  const seeded = h.seed();
+  seeded.order.metadata = { checkoutProvider: "toss_pay", tossPayMode: "TEST", tossPayToken: "synthetic-toss-token", productTitle: "사주 상세 리포트", tossPayCheckoutPage: "https://pay.toss.im/checkout/synthetic" };
+  return seeded;
+}
+
+test("direct Toss checkout uses stored price, binds its token and reuses its hosted URL", async () => {
+  const h = createHarness(directTossEnv);
+  await withServer(h, async (url) => {
+    const creation = await post(`${url}/commerce/orders`, { ...orderBody, amount: 1 });
+    assert.equal(creation.status, 200);
+    const created = await creation.json() as Row;
+    assert.equal(created.checkoutMode, "toss_pay");
+    const endpoint = `${url}/commerce/orders/${created.order.orderId}/checkout`;
+    const first = await post(endpoint, { amount: 1, orderNo: "intruder-order", productDesc: "free" });
+    assert.equal(first.status, 200);
+    const firstResult = await first.json() as Row;
+    assert.equal(firstResult.checkoutPage, "https://pay.toss.im/checkout/synthetic");
+    const second = await post(endpoint);
+    assert.equal(second.status, 200);
+    assert.deepEqual(await second.json(), firstResult);
+    assert.equal(h.state.records.orders[0].metadata.tossPayToken, "synthetic-toss-token");
+    const providerRequest = h.state.tossCalls[0].body;
+    assert.equal(providerRequest.amount, 9900);
+    assert.equal(providerRequest.orderNo, created.order.orderId);
+    assert.equal(providerRequest.autoExecute, false);
+    assert.equal(new URL(providerRequest.retUrl).searchParams.get("orderId"), created.order.orderId);
+  });
+  assert.equal(h.state.tossCalls.length, 1);
+  assert.equal(h.state.locks, 2);
+});
+
+test("direct Toss checkout requires authentication and ownership before provider access", async () => {
+  const h = createHarness(directTossEnv);
+  const { order } = seedDirectToss(h);
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/commerce/orders/${order.orderId}/checkout`, {}, { "x-test-user": "anonymous" })).status, 401);
+    assert.equal((await post(`${url}/commerce/orders/${order.orderId}/checkout`, {}, { "x-test-user": "intruder" })).status, 400);
+  });
+  assert.equal(h.state.tossCalls.length, 0);
+  assert.equal(h.state.writes, 0);
+});
+
+test("direct Toss authorization records paid status before PDF work and cannot capture twice", async () => {
+  const h = createHarness(directTossEnv);
+  seedDirectToss(h);
+  await withServer(h, async (url) => {
+    const response = await post(`${url}/commerce/payments/confirm`, { orderId: "synthetic-order", authorize: true, amount: 1, paymentKey: "ignored-client-token" });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as Row).payment.provider, "toss_pay");
+    const repeated = await post(`${url}/commerce/payments/confirm`, { orderId: "synthetic-order", authorize: true });
+    assert.equal(repeated.status, 200);
+    assert.equal((await repeated.json() as Row).alreadyPaid, true);
+  });
+  assert.deepEqual(h.state.tossCalls.map((call) => call.endpoint), ["status", "execute", "status"]);
+  assert.deepEqual(h.state.orderStatusesAtGeneration, ["paid"]);
+  assert.equal(h.state.records.payments[0].amount, 9900);
+  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+});
+
+test("direct Toss lookup alone never executes an approved but unpaid purchase", async () => {
+  const h = createHarness(directTossEnv);
+  const { order } = seedDirectToss(h);
+  await withServer(h, async (url) => assert.equal((await post(`${url}/commerce/payments/confirm`, { orderId: order.orderId })).status, 400));
+  assert.deepEqual(h.state.tossCalls.map((call) => call.endpoint), ["status"]);
+  assert.equal(order.status, "pending");
+  assert.equal(h.state.writes, 0);
+});
+
+test("direct Toss recovers a captured payment after execute times out without executing twice", async () => {
+  const h = createHarness(directTossEnv);
+  seedDirectToss(h);
+  h.state.tossExecuteTimeout = true;
+  await withServer(h, async (url) => {
+    const response = await post(`${url}/commerce/payments/confirm`, { orderId: "synthetic-order", authorize: true });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as Row).order.status, "paid");
+  });
+  assert.deepEqual(h.state.tossCalls.map((call) => call.endpoint), ["status", "execute", "status"]);
+  assert.equal(h.state.records.payments.length, 1);
+});
+
+test("direct Toss paid status recovers without the success URL and survives renderer failure", async () => {
+  const h = createHarness(directTossEnv);
+  seedDirectToss(h);
+  h.state.tossStatus = "PAY_COMPLETE";
+  h.state.generationFails = true;
+  await withServer(h, async (url) => {
+    const response = await post(`${url}/commerce/payments/confirm`, { orderId: "synthetic-order" });
+    assert.equal(response.status, 200);
+    const confirmed = await response.json() as Row;
+    assert.equal(confirmed.order.status, "paid");
+    assert.equal(confirmed.report.status, "failed");
+    h.state.generationFails = false;
+    assert.equal((await post(`${url}/reports/21/regenerate`)).status, 200);
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+  });
+  assert.deepEqual(h.state.tossCalls.map((call) => call.endpoint), ["status"]);
+  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+});
+
+for (const [reason, reply] of [
+  ["wrong amount", { amount: 1 }],
+  ["wrong token", { payToken: "another-token" }],
+  ["wrong mode", { mode: "LIVE" }],
+  ["wrong order", { orderNo: "another-order" }],
+  ["refunded", { transactions: [{ stepType: "PAY" }, { stepType: "REFUND" }] }],
+] as const) {
+  test(`direct Toss ${reason} cannot create an entitlement`, async () => {
+    const h = createHarness(directTossEnv);
+    const { order } = seedDirectToss(h);
+    h.state.tossStatus = "PAY_COMPLETE";
+    h.state.tossReply = reply;
+    await withServer(h, async (url) => assert.equal((await post(`${url}/commerce/payments/confirm`, { orderId: order.orderId, authorize: true })).status, 400));
+    assert.equal(order.status, "pending");
+    assert.equal(h.state.writes, 0);
+    assert.equal(h.state.generated, 0);
+  });
+}
+
+test("first basic report is free per account with paid sales closed and no provider configured", async () => {
+  const h = createHarness({ NODE_ENV: "production", REPORT_SALES_ENABLED: undefined });
+  await withServer(h, async (url) => {
+    const anonymous = await (await fetch(`${url}/commerce/products`, { headers: { "x-test-user": "anonymous" } })).json() as Row;
+    assert.equal(anonymous.freeTrialAvailable, null);
+    assert.equal((await (await fetch(`${url}/commerce/products`)).json() as Row).freeTrialAvailable, true);
+    const first = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" });
+    assert.equal(first.status, 200);
+    const created = await first.json() as Row;
+    assert.equal(created.checkoutMode, "trial");
+    assert.equal(created.order.amount, 0);
+    assert.equal(created.order.status, "paid");
+    assert.equal((await fetch(`${url}/reports/${created.report.id}/download`)).status, 200);
+    assert.equal((await (await fetch(`${url}/commerce/products`)).json() as Row).freeTrialAvailable, false);
+    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" })).status, 503);
+    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_detail", freeTrial: true })).status, 503);
+    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_full", amount: 0 })).status, 503);
+    const other = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" }, { "x-test-user": "another-account" });
+    assert.equal(other.status, 200);
+    assert.equal((await other.json() as Row).checkoutMode, "trial");
+  });
+  assert.equal(h.state.records.orders.length, 2);
+  assert.equal(h.state.records.purchaseEntitlements.length, 2);
+  assert.equal(h.state.records.payments.every((payment) => payment.provider === "trial" && payment.amount === 0), true);
+  assert.equal(h.state.tossCalls.length + h.state.providerCalls.length, 0);
+  assert.equal(h.state.advisoryLocks, 2);
+});
+
+test("a used free trial switches the next basic purchase to the server price", async () => {
+  const h = createHarness();
+  await withServer(h, async (url) => {
+    const first = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" });
+    assert.equal(first.status, 200);
+    const next = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic", freeTrial: true, amount: 0 });
+    assert.equal(next.status, 200);
+    const created = await next.json() as Row;
+    assert.equal(created.checkoutMode, "provider");
+    assert.equal(created.order.amount, 4900);
+    assert.equal(created.order.status, "pending");
+  });
+  assert.equal(h.state.records.orders.filter((order) => order.metadata?.freeTrial).length, 1);
+  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+});
+
+test("a stale free-trial screen cannot silently create a paid order", async () => {
+  const h = createHarness();
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic", expectFreeTrial: true, expectedAmount: 0 })).status, 200);
+    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic", expectFreeTrial: true, expectedAmount: 0 })).status, 409);
+  });
+  assert.equal(h.state.records.orders.length, 1);
+  assert.equal(h.state.records.orders[0].amount, 0);
+  assert.equal(h.state.tossCalls.length + h.state.providerCalls.length, 0);
+});
+
+test("a changed displayed price blocks order creation before payment", async () => {
+  const h = createHarness();
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_detail", expectedAmount: 1 })).status, 409);
+  });
+  assert.equal(h.state.records.orders.length, 0);
+  assert.equal(h.state.tossCalls.length + h.state.providerCalls.length, 0);
+});
+
+test("concurrent first-trial requests claim exactly one free order under the account lock", async () => {
+  const h = createHarness({ NODE_ENV: "production", REPORT_SALES_ENABLED: undefined });
+  let release!: () => void;
+  const bothGenerating = new Promise<void>((resolve) => { release = resolve; });
+  h.state.beforeGeneration = async () => {
+    if (h.state.generated === 2) release();
+    await bothGenerating;
+  };
+  await withServer(h, async (url) => {
+    const results = await Promise.all([
+      post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" }),
+      post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" }),
+    ]);
+    assert.equal(results.filter((response) => response.status === 200).length, 1);
+    assert.equal(results.filter((response) => response.status === 409).length, 1);
+  });
+  assert.equal(h.state.advisoryLocks, 2);
+  assert.equal(h.state.records.orders.length, 1);
+  assert.equal(h.state.records.pdfReports.length, 1);
+  assert.equal(h.state.records.payments.length, 1);
+  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+});
+
+test("a failed free PDF can regenerate the same granted report without issuing another trial", async () => {
+  const h = createHarness({ NODE_ENV: "production", REPORT_SALES_ENABLED: undefined });
+  h.state.generationFails = true;
+  await withServer(h, async (url) => {
+    const first = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" });
+    assert.equal(first.status, 200);
+    const created = await first.json() as Row;
+    assert.equal(created.report.status, "failed");
+    assert.equal(created.order.status, "paid");
+    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" })).status, 503);
+    h.state.generationFails = false;
+    assert.equal((await post(`${url}/reports/${created.report.id}/regenerate`)).status, 200);
+    assert.equal((await fetch(`${url}/reports/${created.report.id}/download`)).status, 200);
+  });
+  assert.equal(h.state.records.orders.length, 1);
+  assert.equal(h.state.records.pdfReports.length, 1);
+  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+  assert.deepEqual(h.state.generatedTiers, ["basic", "basic"]);
 });

@@ -1064,6 +1064,13 @@ export interface MonetizationBirthInfo {
   minute?: number;
   gender: "male" | "female";
   calendarType: "solar" | "lunar";
+  isLeapMonth?: boolean;
+  birthPlace?: string;
+  timeZone?: string;
+  longitude?: number;
+  latitude?: number;
+  applyTrueSolarTime?: boolean;
+  dayBoundary?: "midnight" | "late-zi";
 }
 
 export interface CommerceProduct {
@@ -1107,7 +1114,7 @@ export interface OrderListItem {
 
 export interface CreateCommerceOrderResponse {
   product: CommerceProduct;
-  checkoutMode: "admin" | "dev" | "provider" | "disabled";
+  checkoutMode: "admin" | "trial" | "dev" | "provider" | "toss_pay" | "disabled";
   order: CommerceOrderSummary;
   report: {
     id: number;
@@ -1188,15 +1195,28 @@ export interface AdminAiQuestionLogsResponse {
 }
 
 export function useGetMyOrders(enabled = true) {
-  return useQuery<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" | "disabled" }>({
+  return useQuery<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" | "toss_pay" | "disabled" }>({
     queryKey: ORDERS_KEY,
     queryFn: () =>
-      customFetch<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" | "disabled" }>(
+      customFetch<{ orders: OrderListItem[]; checkoutMode: "dev" | "provider" | "toss_pay" | "disabled" }>(
         "/api/commerce/orders",
       ),
     staleTime: 30_000,
     retry: false,
     enabled,
+  });
+}
+
+export function useGetCommerceProducts(userId?: string | null) {
+  return useQuery({
+    queryKey: ["commerce", "products", userId ?? null],
+    queryFn: () => customFetch<{
+      products: CommerceProduct[];
+      checkoutMode: CreateCommerceOrderResponse["checkoutMode"];
+      salesEnabled: boolean;
+      freeTrialAvailable: boolean | null;
+    }>("/api/commerce/products"),
+    staleTime: 60_000,
   });
 }
 
@@ -1217,12 +1237,16 @@ export function useCreateCommerceOrder() {
       productType: string;
       birthInfo: MonetizationBirthInfo;
       label?: string;
+      reportFocus?: "career" | "money" | "relationship";
+      expectedAmount?: number;
+      expectFreeTrial?: boolean;
     }) =>
       customFetch<CreateCommerceOrderResponse>("/api/commerce/orders", {
         method: "POST",
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["commerce", "products"] });
       qc.invalidateQueries({ queryKey: ORDERS_KEY });
       qc.invalidateQueries({ queryKey: REPORTS_KEY });
     },
@@ -1232,7 +1256,7 @@ export function useCreateCommerceOrder() {
 export function useConfirmCommercePayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { orderId: string; paymentKey?: string }) =>
+    mutationFn: (body: { orderId: string; paymentKey?: string; authorize?: boolean }) =>
       customFetch<ConfirmCommercePaymentResponse>("/api/commerce/payments/confirm", {
         method: "POST",
         body: JSON.stringify(body),

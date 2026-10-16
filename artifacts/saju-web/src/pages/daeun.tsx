@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
 import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Loader2, Sparkles, ChevronDown, ChevronUp, Star, TrendingUp, Calendar } from "lucide-react";
 import ProfileModal from "@/components/ProfileModal";
 import { useResolvedProfile } from "@/lib/resolved-profile";
-import { getCurrentAge } from "@/lib/age";
+import { useSeoulToday } from "@/hooks/use-seoul-today";
+import { isCalendarDate, isDaeunOnDate } from "@/lib/daeun-date";
 import { profileBirthPayload } from "@/lib/birth-precision";
 
 const ELEM_COLOR: Record<string,string> = { 목:'text-green-600', 화:'text-rose-600', 토:'text-amber-600', 금:'text-slate-700', 수:'text-blue-600' };
@@ -25,6 +27,7 @@ const TENGOD_COLOR: Record<string,string> = {
 interface DaeunPeriod {
   idx: number; startAge: number; endAge: number;
   startYear: number; endYear: number;
+  startDate: string; endDate: string;
   stem: string; branch: string;
   stemElement: string; branchElement: string;
   fortune: string;
@@ -66,18 +69,8 @@ async function fetchDaeun(p: ReturnType<typeof useUser>['profile']): Promise<Dae
   };
 }
 
-function getCurrentPeriod(
-  periods: DaeunPeriod[],
-  birthYear: number,
-  birthMonth: number,
-  birthDay: number,
-) {
-  const age = getCurrentAge(birthYear, birthMonth, birthDay);
-  return periods.findIndex(p => age >= p.startAge && age <= p.endAge);
-}
-
-function PeriodCard({ period, isActive, expanded, onToggle }: {
-  period: DaeunPeriod; isActive: boolean;
+function PeriodCard({ period, isActive, isCurrent, expanded, onToggle }: {
+  period: DaeunPeriod; isActive: boolean; isCurrent: boolean;
   expanded: boolean; onToggle: () => void;
 }) {
   const stemColor = ELEM_COLOR[period.stemElement] ?? 'text-white';
@@ -95,7 +88,7 @@ function PeriodCard({ period, isActive, expanded, onToggle }: {
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          {isActive && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-medium">현재 대운</span>}
+          {(isActive || isCurrent) && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-medium">{isCurrent ? '현재 대운' : '선택일 대운'}</span>}
           <div className="text-center">
             <div className={cn("text-xl font-serif font-bold tracking-wider", stemColor)}>
               {STEM_HANJA[period.stem] ?? period.stem}{BRANCH_HANJA[period.branch] ?? period.branch}
@@ -104,7 +97,7 @@ function PeriodCard({ period, isActive, expanded, onToggle }: {
           </div>
           <div className="text-sm">
             <div className="font-medium">{period.startAge}세 ~ {period.endAge}세</div>
-            <div className="text-xs text-muted-foreground">{period.startYear}년 ~ {period.endYear}년</div>
+            <div className="text-xs text-muted-foreground">{period.startDate} ~ {period.endDate}</div>
           </div>
         </div>
         <div className="flex items-center gap-2 sm:justify-end">
@@ -180,6 +173,10 @@ export default function DaeunPage() {
   const { profile, hasCachedProfile } = useResolvedProfile();
   const [profileOpen, setProfileOpen] = useState(false);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const today = useSeoulToday();
+  const referenceDate = selectedDate ?? today;
+  const validReferenceDate = isCalendarDate(referenceDate);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['daeun', profile?.birthYear, profile?.birthMonth, profile?.birthDay, profile?.birthHour, profile?.birthMinute, profile?.gender, profile?.calendarType, profile?.isLeapMonth, profile?.timeZone, profile?.longitude, profile?.applyTrueSolarTime, profile?.dayBoundary],
@@ -187,9 +184,11 @@ export default function DaeunPage() {
     enabled: !!profile,
   });
 
-  const currentIdx = data && profile
-    ? getCurrentPeriod(data.periods, profile.birthYear, profile.birthMonth, profile.birthDay)
+  const currentIdx = data?.periods.findIndex((period) => isDaeunOnDate(period, today)) ?? -1;
+  const selectedIdx = validReferenceDate
+    ? data?.periods.findIndex((period) => isDaeunOnDate(period, referenceDate)) ?? -1
     : -1;
+  const isToday = referenceDate === today;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
@@ -239,6 +238,35 @@ export default function DaeunPage() {
               최근 계산한 사주 기준으로 대운을 계산하고 있습니다. 프로필로 저장하면 이후에도 그대로 이어집니다.
             </div>
           )}
+          <div className="glass-panel border border-primary/20 rounded-2xl p-4 space-y-3">
+            <label htmlFor="daeun-reference-date" className="block text-sm font-medium">날짜별 대운 찾아보기</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id="daeun-reference-date"
+                type="date"
+                value={referenceDate}
+                min="0001-01-01"
+                max="9999-12-31"
+                className="w-full sm:w-auto"
+                aria-invalid={!validReferenceDate}
+                aria-describedby="daeun-reference-status"
+                onChange={(event) => {
+                  setSelectedDate(event.target.value);
+                  setExpandedIdx(null);
+                }}
+              />
+              <Button variant="outline" onClick={() => { setSelectedDate(null); setExpandedIdx(null); }}>오늘</Button>
+            </div>
+            <p id="daeun-reference-status" role="status" className="text-sm text-muted-foreground">
+              {!validReferenceDate ? "올바른 기준일을 선택해주세요."
+                : selectedIdx >= 0
+                  ? `${referenceDate} 기준 · ${data.periods[selectedIdx].idx}번째 대운${isToday ? " (현재)" : ""}`
+                  : data.periods[0] && referenceDate < data.periods[0].startDate
+                    ? `선택일은 첫 대운 시작 전입니다. 첫 대운은 ${data.periods[0].startDate}에 시작합니다.`
+                    : "선택일은 표시된 대운 범위 밖입니다."}
+            </p>
+            <p className="text-xs text-muted-foreground">오늘은 한국 시간 기준입니다. 대운 적용은 아래 시작일·종료일로 판단하며, 나이는 절기 간격을 환산한 참고값입니다.</p>
+          </div>
           {/* 기본 정보 카드 */}
           <div className="glass-panel border border-foreground/10 rounded-2xl p-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -265,10 +293,10 @@ export default function DaeunPage() {
                   <p className="text-xs text-muted-foreground">행운 방향</p>
                   <p className="font-bold">{data.isForward ? '순행 →' : '← 역행'}</p>
                 </div>
-                {currentIdx >= 0 && (
+                {selectedIdx >= 0 && (
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground">현재 대운</p>
-                    <p className="font-bold text-amber-600">{data.periods[currentIdx]?.idx}번째</p>
+                    <p className="text-xs text-muted-foreground">{isToday ? '현재 대운' : '선택일 대운'}</p>
+                    <p className="font-bold text-amber-600">{data.periods[selectedIdx]?.idx}번째</p>
                   </div>
                 )}
               </div>
@@ -286,10 +314,12 @@ export default function DaeunPage() {
             {/* 시각적 타임라인 바 */}
             <div className="flex gap-1 mb-6 overflow-x-auto pb-2">
               {data.periods.map((period, i) => {
-                const isActive = i === currentIdx;
+                const isActive = i === selectedIdx;
                 return (
                   <button
                     key={period.idx}
+                    aria-label={`${period.idx}번째 대운, ${period.startDate}부터 ${period.endDate}까지${isActive ? ', 선택일에 해당' : ''}${i === currentIdx ? ', 현재 대운' : ''}`}
+                    aria-expanded={expandedIdx === i}
                     onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
                     className={cn(
                       "flex-1 min-w-[50px] h-12 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center",
@@ -313,7 +343,8 @@ export default function DaeunPage() {
                   <PeriodCard
                     key={period.idx}
                     period={period}
-                    isActive={i === currentIdx}
+                    isActive={i === selectedIdx}
+                    isCurrent={i === currentIdx}
                     expanded={expandedIdx === i}
                     onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
                 />

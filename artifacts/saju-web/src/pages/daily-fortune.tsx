@@ -19,7 +19,8 @@ import {
   ELEM_KOR as SAJU_ELEM_KOR, ELEM_COLOR as SAJU_ELEM_COLOR, ELEM_BG as SAJU_ELEM_BG,
 } from "@/lib/sajuLucky";
 import { useResolvedProfile } from "@/lib/resolved-profile";
-import { getMonthKey, getSeoulTodayString } from "@/lib/seoul-date";
+import { getMonthKey } from "@/lib/seoul-date";
+import { useSeoulToday } from "@/hooks/use-seoul-today";
 
 const ELEM_KOR: Record<string, string> = { 목: "木", 화: "火", 토: "土", 금: "金", 수: "水" };
 const ELEM_COLOR: Record<string, string> = { 목: "text-green-600", 화: "text-red-600", 토: "text-yellow-600", 금: "text-gray-700", 수: "text-blue-600" };
@@ -40,17 +41,16 @@ function overallScoreStyle(s: number) {
   return             { text: 'text-rose-600',    label: '보수적인 날' };
 }
 
-const TODAY = getSeoulTodayString();
-const TODAY_MONTH = TODAY.slice(0, 7);
-
 const DOW_KOR = ["일", "월", "화", "수", "목", "금", "토"];
 
 function DateNavPicker({
   date,
+  today,
   onDateChange,
   canAccessFutureDates,
 }: {
   date: string;
+  today: string;
   onDateChange: (d: string) => void;
   canAccessFutureDates: boolean;
 }) {
@@ -58,10 +58,10 @@ function DateNavPicker({
   const [calMonth, setCalMonth] = useState(new Date(date + "T00:00:00"));
   const [open, setOpen] = useState(false);
 
-  const isToday = date === TODAY;
-  const canGoNext = canAccessFutureDates || date < TODAY;
+  const isToday = date === today;
+  const canGoNext = canAccessFutureDates || date < today;
   const canGoNextMonth =
-    canAccessFutureDates || getMonthKey(addDays(endOfMonth(calMonth), 1)) <= TODAY_MONTH;
+    canAccessFutureDates || getMonthKey(addDays(endOfMonth(calMonth), 1)) <= today.slice(0, 7);
 
   function goPrev() {
     const prev = subDays(dateObj, 1);
@@ -75,7 +75,7 @@ function DateNavPicker({
   }
 
   function goToday() {
-    onDateChange(TODAY);
+    onDateChange(today);
   }
 
   function pickDay(d: Date) {
@@ -161,8 +161,8 @@ function DateNavPicker({
             {days.map((d) => {
               const key = format(d, "yyyy-MM-dd");
               const isSelected = key === date;
-              const isTodayCell = key === TODAY;
-              const isFutureCell = key > TODAY;
+              const isTodayCell = key === today;
+              const isFutureCell = key > today;
               const dow = getDay(d);
               const isDisabled = !canAccessFutureDates && isFutureCell;
               return (
@@ -217,7 +217,9 @@ function DateNavPicker({
 }
 
 export default function DailyFortunePage() {
-  const [date, setDate] = useState(TODAY);
+  const today = useSeoulToday();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const date = selectedDate ?? today;
   const { user } = useAuth();
   const canAccessFutureDates = user?.role === "admin" || user?.role === "superadmin";
   const accessScope = canAccessFutureDates ? "privileged" : "standard";
@@ -262,10 +264,10 @@ export default function DailyFortunePage() {
   const isResolvingProfile = !profileReady && !profile;
 
   useEffect(() => {
-    if (!canAccessFutureDates && date > TODAY) {
-      setDate(TODAY);
+    if (!canAccessFutureDates && date > today) {
+      setSelectedDate(null);
     }
-  }, [canAccessFutureDates, date]);
+  }, [canAccessFutureDates, date, today]);
 
   // 명시적 색상 매핑 (Tailwind 동적 클래스 미지원 우회)
   const BAR_BG: Record<string, string> = {
@@ -334,7 +336,8 @@ export default function DailyFortunePage() {
 
         <DateNavPicker
           date={date}
-          onDateChange={setDate}
+          today={today}
+          onDateChange={(value) => setSelectedDate(value === today ? null : value)}
           canAccessFutureDates={canAccessFutureDates}
         />
         {!canAccessFutureDates && (
