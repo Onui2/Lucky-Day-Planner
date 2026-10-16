@@ -12,15 +12,17 @@ type Row = Record<string, any>;
 type Expr = { kind: string; [key: string]: any };
 const nativeRequire = createRequire(import.meta.url);
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const consent = { terms: true, privacy: true, version: "2026-10-16" };
 
 function makeHarness() {
-  const tables: Record<string, Row[]> = { users: [], sessions: [], identities: [] };
+  const tables: Record<string, Row[]> = { users: [], sessions: [], identities: [], consents: [] };
   const table = (name: string) => new Proxy({ _table: name } as Row, {
     get(target, key) { return key === "_table" ? target._table : { kind: "column", table: name, key }; },
   });
   const usersTable = table("users");
   const sessionsTable = table("sessions");
   const authIdentitiesTable = table("identities");
+  const registrationConsentsTable = table("consents");
   const orm = {
     eq: (left: any, right: any) => ({ kind: "eq", left, right }),
     and: (...items: any[]) => ({ kind: "and", items }),
@@ -48,6 +50,7 @@ function makeHarness() {
   let configured = true;
   let ready = true;
   let databaseFailure: Error | null = null;
+  let consentFailure = false;
   let compareHook: (() => void) | null = null;
   const locks: string[] = [];
   const lockEvents: string[] = [];
@@ -77,6 +80,7 @@ function makeHarness() {
       if (this.executed) return this.result;
       this.executed = true;
       const name = this.target._table;
+      if (this.operation === "insert" && name === "consents" && consentFailure) throw new Error("consent storage unavailable");
       if (this.operation === "insert") {
         this.result = this.inserted!.map((insert) => {
           const row = name === "users" ? {
@@ -138,7 +142,7 @@ function makeHarness() {
   };
   const modules = new Map<string, Row>();
   const dependencies: Row = {
-    "@workspace/db": { db, usersTable, sessionsTable, authIdentitiesTable, hasDatabaseConfig: () => configured },
+    "@workspace/db": { db, usersTable, sessionsTable, authIdentitiesTable, registrationConsentsTable, hasDatabaseConfig: () => configured },
     "@workspace/api-zod": { GetCurrentAuthUserResponse: { parse: (value: any) => value } },
     "drizzle-orm": orm,
     "openid-client": {},
@@ -187,6 +191,7 @@ function makeHarness() {
     setConfigured: (value: boolean) => { configured = value; },
     setReady: (value: boolean) => { ready = value; },
     failDatabase: () => { databaseFailure = new Error("test database unavailable"); },
+    failConsentStorage: () => { consentFailure = true; },
     onPasswordCompare: (hook: () => void) => { compareHook = hook; },
   };
 }
@@ -205,7 +210,7 @@ test("local signup and later login cannot claim allowlisted admin privileges", (
   NODE_ENV: "production", SUPER_ADMIN_EMAILS: "victim@example.invalid", ADMIN_EMAILS: "",
 }, async () => {
   const h = makeHarness();
-  const signup = await h.route("auth", "post", "/auth/register", { body: { email: "victim@example.invalid", password: "attacker-password" } });
+  const signup = await h.route("auth", "post", "/auth/register", { body: { email: "victim@example.invalid", password: "attacker-password", consent } });
   assert.equal(signup.statusCode, 201);
   assert.equal(signup.body.user.role, "user");
   const login = await h.route("auth", "post", "/auth/login-local", { body: { email: "victim@example.invalid", password: "attacker-password" } });
@@ -213,12 +218,47 @@ test("local signup and later login cannot claim allowlisted admin privileges", (
   assert.equal(h.tables.users[0].role, "user");
 }));
 
+test("signup requires current explicit terms acceptance and privacy notice acknowledgement", async () => {
+  const h = makeHarness();
+  for (const supplied of [undefined, false, [], { ...consent, terms: "true" }, { ...consent, privacy: false }, { ...consent, version: "old" }]) {
+    const result = await h.route("auth", "post", "/auth/register", { body: { email: "new@example.invalid", password: "password", consent: supplied } });
+    assert.equal(result.statusCode, 400);
+  }
+  assert.equal(h.tables.users.length, 0); assert.equal(h.tables.consents.length, 0);
+  const success = await h.route("auth", "post", "/auth/register", { body: { email: "new@example.invalid", password: "password", consent, name: "ignored" } });
+  assert.equal(success.statusCode, 201);
+  assert.equal(h.tables.users[0].firstName, null);
+  assert.deepEqual(h.tables.consents[0], { userId: success.body.user.id, source: "email", version: consent.version, termsAccepted: true, privacyNoticeAcknowledged: true });
+});
+
+test("new external identities cannot bypass signup consent; existing bindings do not need new acknowledgement", async () => {
+  const h = makeHarness();
+  const sync = h.load("lib/auth-users.ts").syncUserFromIdentity;
+  const input = { provider: "social:google", externalId: "subject", email: "new@example.invalid", emailVerified: true };
+  await assert.rejects(sync(input), { code: "REGISTRATION_CONSENT_REQUIRED" });
+  assert.equal(h.tables.users.length, 0); assert.equal(h.tables.identities.length, 0);
+  const user = await sync(input, consent);
+  assert.equal(h.tables.consents.length, 1);
+  assert.equal(h.tables.consents[0].source, "google");
+  assert.equal((await sync(input)).id, user.id);
+  assert.equal(h.tables.consents.length, 1);
+});
+
+test("consent storage failure rolls back local and social signup without an authenticated session", async () => {
+  const local = makeHarness(); local.failConsentStorage();
+  await assert.rejects(local.route("auth", "post", "/auth/register", { body: { email: "new@example.invalid", password: "password", consent } }));
+  assert.equal(local.tables.users.length, 0); assert.equal(local.tables.sessions.length, 0);
+  const social = makeHarness(); social.failConsentStorage();
+  await assert.rejects(social.load("lib/auth-users.ts").syncUserFromIdentity({ provider: "social:kakao", externalId: "subject", emailVerified: false }, consent));
+  assert.equal(social.tables.users.length, 0); assert.equal(social.tables.identities.length, 0);
+});
+
 test("local auth rejects oversized email input before creating accounts or reset tokens", async () => {
   const h = makeHarness();
   const craftedEmail = `${"x,".repeat(130)}x@example.invalid`;
 
   const signup = await h.route("auth", "post", "/auth/register", {
-    body: { email: craftedEmail, password: "attacker-password" },
+    body: { email: craftedEmail, password: "attacker-password", consent },
   });
   assert.equal(signup.statusCode, 400);
   assert.equal(h.tables.users.length, 0);
@@ -252,18 +292,18 @@ test("only new verified provider accounts receive allowlist roles; demotions per
   const h = makeHarness();
   const sync = h.load("lib/auth-users.ts").syncUserFromIdentity;
   const input = { provider: "supabase:https://provider.invalid", externalId: "subject", email: "admin@example.invalid", emailVerified: true };
-  const created = await sync(input);
+  const created = await sync(input, consent);
   assert.equal(created.role, "superadmin");
   h.tables.users[0].role = "user";
   assert.equal((await sync(input)).role, "user");
   const other = makeHarness();
-  assert.equal((await other.load("lib/auth-users.ts").syncUserFromIdentity({ ...input, emailVerified: false })).role, "user");
+  assert.equal((await other.load("lib/auth-users.ts").syncUserFromIdentity({ ...input, emailVerified: false }, consent)).role, "user");
 }));
 
 test("stable subject preserves identity across email changes without merging another user's data", async () => {
   const h = makeHarness();
   const sync = h.load("lib/auth-users.ts").syncUserFromIdentity;
-  const original = await sync({ provider: "oidc:one", externalId: "sub", email: "one@example.invalid", emailVerified: true });
+  const original = await sync({ provider: "oidc:one", externalId: "sub", email: "one@example.invalid", emailVerified: true }, consent);
   const second = await h.addUser({ email: "two@example.invalid" });
   const current = await sync({ provider: "oidc:one", externalId: "sub", email: second.email, emailVerified: true });
   assert.equal(current.id, original.id);
@@ -415,7 +455,7 @@ function token(sub: string, amr: Row[] | undefined, iat = Math.floor(Date.now() 
   return `header.${Buffer.from(JSON.stringify({ sub, amr, iat })).toString("base64url")}.signature`;
 }
 
-test("Supabase checks verified email outside editable metadata and rejects mismatched token subject", () => withEnvironment({
+test("Supabase cannot provision from editable metadata, but existing members keep access and subject checks", () => withEnvironment({
   SUPABASE_URL: "https://provider.invalid", SUPABASE_PUBLISHABLE_KEY: "test-key", SUPER_ADMIN_EMAILS: "admin@example.invalid",
 }, async () => {
   const originalFetch = globalThis.fetch;
@@ -423,6 +463,11 @@ test("Supabase checks verified email outside editable metadata and rejects misma
   try {
     const h = makeHarness();
     const verify = h.load("lib/supabase-auth.ts").verifySupabaseAccessToken;
+    await assert.rejects(verify(token("subject", undefined)), { code: "REGISTRATION_CONSENT_REQUIRED" });
+    assert.equal(h.tables.users.length, 0);
+    await h.load("lib/auth-users.ts").syncUserFromIdentity({
+      provider: "supabase:https://provider.invalid", externalId: "subject", email: "admin@example.invalid", emailVerified: false,
+    }, consent);
     assert.equal((await verify(token("subject", undefined))).role, "user");
     assert.equal(await verify(token("other-subject", undefined)), null);
     h.failDatabase();
@@ -439,6 +484,9 @@ test("Supabase old/missing auth event and token refresh cannot bypass account re
     const h = makeHarness();
     const verify = h.load("lib/supabase-auth.ts").verifySupabaseAccessToken;
     const now = Math.floor(Date.now() / 1000);
+    await h.load("lib/auth-users.ts").syncUserFromIdentity({
+      provider: "supabase:https://provider.invalid", externalId: "subject", email: "user@example.invalid", emailVerified: true,
+    }, consent);
     await verify(token("subject", [{ method: "password", timestamp: now - 100 }]));
     h.tables.users[0].authValidAfter = new Date((now - 10) * 1000);
     h.tables.users[0].role = "user";

@@ -159,6 +159,9 @@ app.use(
     keyGenerator: rateLimitKeyByEmailAndIp,
   }),
 );
+app.use("/api/auth/social", createRateLimiter({
+  name: "auth-social", windowMs: 15 * 60_000, max: 30, methods: ["POST"],
+}));
 app.use(
   "/api/auth/forgot-password",
   createRateLimiter({

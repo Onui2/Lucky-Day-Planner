@@ -84,6 +84,19 @@ export default function AccountPage() {
   const { data: ordersData } = useGetMyOrders(isAuthenticated);
   const confirmPayment = useConfirmCommercePayment();
   const regenerateReport = useRegenerateReport();
+  const [reportDownloadError, setReportDownloadError] = useState<string | null>(null);
+  const [downloadingReportId, setDownloadingReportId] = useState<number | null>(null);
+  async function handleReportDownload(id: number, fileName: string) {
+    setReportDownloadError(null);
+    setDownloadingReportId(id);
+    try {
+      await downloadReportFile(id, fileName);
+    } catch (error) {
+      setReportDownloadError(error instanceof Error ? error.message : "PDF 다운로드에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setDownloadingReportId(null);
+    }
+  }
   const [checkingOrderId, setCheckingOrderId] = useState<string | null>(null);
   const [paymentCheckMessage, setPaymentCheckMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
@@ -310,14 +323,10 @@ export default function AccountPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        downloadReportFile(
-                          report.id,
-                          report.fileName ?? report.title,
-                        )
-                      }
+                      onClick={() => void handleReportDownload(report.id, report.fileName ?? report.title)}
+                      disabled={downloadingReportId !== null}
                     >
-                      PDF 다운로드
+                      {downloadingReportId === report.id ? "다운로드 중..." : "PDF 다운로드"}
                     </Button>
                   )}
                   {(report.status === "failed" || report.status === "pending") && (
@@ -336,6 +345,8 @@ export default function AccountPage() {
               </div>
             ))}
 
+            {regenerateReport.isError && <div role="alert"><ErrorMsg msg={regenerateReport.error instanceof Error ? regenerateReport.error.message : "재생성에 실패했습니다. 잠시 후 다시 시도해 주세요."} /></div>}
+            {reportDownloadError && <div role="alert"><ErrorMsg msg={reportDownloadError} /></div>}
             {(reportsData?.reports?.length ?? 0) > 5 && (
               <p className="text-xs text-muted-foreground text-center py-1">
                 최근 5개만 표시됩니다. (총 {reportsData!.reports.length}개)

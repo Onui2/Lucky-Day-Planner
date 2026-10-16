@@ -1,6 +1,7 @@
 import { Router } from "express";
 import healthRouter from "./health.js";
 import authRouter from "./auth.js";
+import socialAuthRouter from "./social-auth.js";
 import sajuRouter from "./saju.js";
 import fortuneRouter from "./fortune.js";
 import manseryokRouter from "./manseryok.js";
@@ -28,6 +29,7 @@ const router = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(socialAuthRouter);
 router.use(sajuRouter);
 router.use(fortuneRouter);
 router.use(manseryokRouter);

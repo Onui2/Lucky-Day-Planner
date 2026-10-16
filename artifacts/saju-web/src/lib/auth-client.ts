@@ -29,6 +29,25 @@ export interface AuthSetupStatus {
   oidcEnabled: boolean;
 }
 
+export const SIGNUP_CONSENT_VERSION = "2026-10-16";
+export type SocialProvider = "kakao" | "google";
+export interface SignupConsent {
+  terms: boolean;
+  privacy: boolean;
+  version: string;
+}
+export interface SocialAuthProvider {
+  id: SocialProvider;
+  name: string;
+  enabled: boolean;
+}
+export interface PendingSocialSignup {
+  pending: boolean;
+  provider?: SocialProvider;
+  returnTo?: string;
+  consentVersion: string;
+}
+
 function getErrorMessage(
   payload: AuthErrorShape | null,
   fallback: string,
@@ -85,6 +104,7 @@ export async function registerWithPassword(input: {
   email: string;
   password: string;
   name?: string;
+  consent: SignupConsent;
 }): Promise<AuthUser | null> {
   const payload = await postJson<AuthUserPayload>(
     "/api/auth/register",
@@ -93,6 +113,45 @@ export async function registerWithPassword(input: {
   );
 
   return payload.user ?? null;
+}
+
+export async function getSocialAuthProviders(): Promise<SocialAuthProvider[]> {
+  const result = await customFetch<{ providers: SocialAuthProvider[] }>(
+    withBasePath("/api/auth/social/providers"),
+    { credentials: "include" },
+  );
+  return result.providers.filter((provider) =>
+    provider.enabled && (provider.id === "kakao" || provider.id === "google"),
+  );
+}
+
+export async function startSocialLogin(provider: SocialProvider, returnTo: string): Promise<void> {
+  const result = await postJson<{ authorizationUrl: string }>(
+    `/api/auth/social/${provider}/start`,
+    { returnTo },
+    "간편 로그인을 시작하지 못했습니다. 다시 시도해 주세요.",
+  );
+  const url = new URL(result.authorizationUrl);
+  const host = provider === "kakao" ? "kauth.kakao.com" : "accounts.google.com";
+  if (url.protocol !== "https:" || url.hostname !== host || url.username || url.password || url.port) {
+    throw new Error("로그인 연결 주소를 확인할 수 없습니다.");
+  }
+  window.location.assign(url.href);
+}
+
+export function getPendingSocialSignup(): Promise<PendingSocialSignup> {
+  return customFetch<PendingSocialSignup>(withBasePath("/api/auth/social/pending"), {
+    credentials: "include",
+  });
+}
+
+export async function completeSocialSignup(consent: SignupConsent): Promise<AuthUser | null> {
+  const result = await postJson<AuthUserPayload>(
+    "/api/auth/social/complete",
+    { consent },
+    "간편 회원가입을 완료하지 못했습니다.",
+  );
+  return result.user ?? null;
 }
 
 export async function loginWithPassword(input: {

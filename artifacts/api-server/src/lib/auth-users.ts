@@ -1,6 +1,7 @@
 import { authIdentitiesTable, db, hasDatabaseConfig, usersTable, type User } from "@workspace/db";
 import { and, eq, sql } from "drizzle-orm";
 import { lockLegacyUserId } from "./auth.js";
+import { parseRegistrationConsent, recordRegistrationConsent, type RegistrationConsent } from "./registration-consent.js";
 
 export interface IdentityUserInput {
   provider: string;
@@ -38,7 +39,7 @@ export function resolveInitialIdentityRole(email: string | null, emailVerified: 
   return "user";
 }
 
-export async function syncUserFromIdentity(input: IdentityUserInput): Promise<User> {
+export async function syncUserFromIdentity(input: IdentityUserInput, consent?: RegistrationConsent): Promise<User> {
   if (!hasDatabaseConfig()) throw new Error("Identity authentication requires a database.");
   if (!input.provider || !input.externalId) {
     throw new IdentityAuthError("INVALID_IDENTITY", "로그인 제공자의 사용자 정보를 확인할 수 없습니다.", 401);
@@ -96,6 +97,9 @@ export async function syncUserFromIdentity(input: IdentityUserInput): Promise<Us
       if (emailOwner) throw identityConflict();
     }
 
+    if (!parseRegistrationConsent(consent)) {
+      throw new IdentityAuthError("REGISTRATION_CONSENT_REQUIRED", "가입 안내 확인과 필수 동의 후 가입을 완료해주세요.", 403);
+    }
     const [user] = await tx.insert(usersTable).values({
       email: normalizedEmail,
       firstName: input.firstName ?? null,
@@ -106,6 +110,7 @@ export async function syncUserFromIdentity(input: IdentityUserInput): Promise<Us
     await tx.insert(authIdentitiesTable).values({
       provider: input.provider, subject: input.externalId, userId: user.id,
     });
+    await recordRegistrationConsent(tx, user.id, input.provider.startsWith("social:") ? input.provider.slice(7) : "external", consent!);
     return user;
   });
 }

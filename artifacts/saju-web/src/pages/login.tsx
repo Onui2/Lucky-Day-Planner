@@ -21,6 +21,7 @@ import {
   loginWithPassword,
 } from "@/lib/auth-client";
 import { buildAuthHref, sanitizeReturnTo } from "@/lib/auth-redirect";
+import { SocialLoginButtons } from "@/components/SignupConsent";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
 const SAVED_EMAIL_KEY = "myunghae_saved_email";
@@ -31,6 +32,14 @@ export default function LoginPage() {
   const params = new URLSearchParams(search);
   const returnTo = sanitizeReturnTo(params.get("returnTo"));
   const passwordChanged = params.get("notice") === "password-changed";
+  const socialError = params.get("socialError");
+  const socialErrorMessage = socialError ? ({
+    cancelled: "간편 로그인을 취소했습니다. 다시 선택하거나 이메일로 로그인해 주세요.",
+    expired: "로그인 연결 시간이 지났습니다. 다시 시작해 주세요.",
+    unavailable: "현재 해당 간편 로그인을 이용할 수 없습니다. 이메일로 로그인해 주세요.",
+    conflict: "같은 이메일의 기존 계정이 있습니다. 기존 로그인 방법으로 로그인해 주세요.",
+    failed: "간편 로그인에 실패했습니다. 다시 시도해 주세요.",
+  }[socialError] ?? "간편 로그인에 실패했습니다. 다시 시도해 주세요.") : null;
   const { isAuthenticated, isLoading, refreshUser, setAuthenticatedUser } = useAuth();
 
   const [email, setEmail] = useState(() => {
@@ -160,7 +169,7 @@ export default function LoginPage() {
               로그인
             </h1>
             <p className="text-sm text-muted-foreground">
-              이메일과 비밀번호로 로그인해 주세요.
+              저장한 풀이와 내 리포트를 이어서 확인하세요.
             </p>
           </div>
 
@@ -170,13 +179,14 @@ export default function LoginPage() {
             </div>
           )}
 
+          {socialErrorMessage && <p role="alert" className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700">{socialErrorMessage}</p>}
+          <SocialLoginButtons returnTo={returnTo} disabled={submitting} onError={setError} />
+
           {localLoginUnavailable && (
             <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-700" />
               <p className="leading-relaxed">
-                로컬 로그인을 사용하려면 서버 데이터베이스 연결이 필요합니다.
-                `DATABASE_URL` 또는 `POSTGRES_URL` 환경변수를 먼저 설정해
-                주세요.
+                현재 이메일 로그인을 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.
               </p>
             </div>
           )}
@@ -293,7 +303,7 @@ export default function LoginPage() {
               {submitting
                 ? "로그인 중..."
                 : localLoginUnavailable
-                  ? "데이터베이스 연결 필요"
+                  ? "이메일 로그인 일시 중단"
                   : "로그인"}
             </Button>
           </form>

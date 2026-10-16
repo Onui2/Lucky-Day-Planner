@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { sendPasswordResetEmail } from "../lib/email.js";
 import { issueCsrfToken } from "../middlewares/csrf.js";
 import { IdentityAuthError, syncUserFromIdentity } from "../lib/auth-users.js";
+import { ensureRegistrationConsentSchema, parseRegistrationConsent, recordRegistrationConsent } from "../lib/registration-consent.js";
 import {
   isDatabaseAvailable,
   requireDatabase,
@@ -351,7 +352,12 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     return;
   }
 
-  const { email, password, name } = req.body as Record<string, unknown>;
+  const { email, password } = req.body as Record<string, unknown>;
+  const consent = parseRegistrationConsent(req.body?.consent);
+  if (!consent) {
+    res.status(400).json({ error: "최신 이용약관에 동의하고 개인정보 처리 안내를 확인해주세요.", code: "REGISTRATION_CONSENT_REQUIRED" });
+    return;
+  }
 
   const normalizedEmail = normalizeLocalEmail(email);
   if (!normalizedEmail) {
@@ -376,15 +382,14 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const role = "user";
 
-  const displayName = typeof name === "string" && name.trim() ? name.trim() : null;
-
-  const [user] = await db.insert(usersTable).values({
-    id: crypto.randomUUID(),
-    email: normalizedEmail,
-    firstName: displayName,
-    passwordHash,
-    role,
-  }).returning();
+  await ensureRegistrationConsentSchema();
+  const user = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(usersTable).values({
+      id: crypto.randomUUID(), email: normalizedEmail, passwordHash, role,
+    }).returning();
+    await recordRegistrationConsent(tx, created.id, "email", consent);
+    return created;
+  });
 
   const sessionData: SessionData = {
     authVersion: user.authVersion,

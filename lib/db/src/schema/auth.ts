@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { sql } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, primaryKey, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, primaryKey, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // Session storage for the app authentication flow.
 export const sessionsTable = pgTable(
@@ -55,3 +55,13 @@ export const authIdentitiesTable = pgTable(
 
 export type UpsertUser = typeof usersTable.$inferInsert;
 export type User = typeof usersTable.$inferSelect;
+
+// Required registration acknowledgements; never expose through browser DB roles.
+export const registrationConsentsTable = pgTable("registration_consents", {
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  version: varchar("version", { length: 40 }).notNull(),
+  source: varchar("source", { length: 30 }).notNull(),
+  termsAccepted: boolean("terms_accepted").notNull(),
+  privacyNoticeAcknowledged: boolean("privacy_notice_acknowledged").notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [primaryKey({ columns: [table.userId, table.version] })]).enableRLS();
