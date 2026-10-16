@@ -9,6 +9,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import { startCommercePayment, type TossCheckoutUser } from "@/lib/toss-payments";
+import type { ReportFocus } from "@/lib/report-focus";
 
 type Tier = "saju_basic" | "saju_detail" | "saju_full";
 type Focus = "career" | "money" | "relationship";
@@ -41,16 +42,17 @@ interface Props {
   birthInfo: MonetizationBirthInfo;
   isAuthenticated: boolean;
   isAdmin?: boolean;
+  initialFocus?: ReportFocus;
 }
 
-export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = false }: Props) {
+export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = false, initialFocus = "career" }: Props) {
   const id = useId();
   const { user, setAuthenticatedUser } = useAuth();
   const catalog = useGetCommerceProducts(user?.id);
   const createOrder = useCreateCommerceOrder();
   const confirmPayment = useConfirmCommercePayment();
   const [tier, setTier] = useState<Tier>("saju_basic");
-  const [focus, setFocus] = useState<Focus>("career");
+  const [focus, setFocus] = useState<Focus>(initialFocus);
   const [message, setMessage] = useState<string | null>(null);
   const [readyReport, setReadyReport] = useState<{ id: number; title: string; fileName?: string | null } | null>(null);
   const [busy, setBusy] = useState(false);

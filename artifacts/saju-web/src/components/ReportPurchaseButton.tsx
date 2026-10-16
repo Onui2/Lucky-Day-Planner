@@ -4,16 +4,18 @@ import type { MonetizationBirthInfo } from "@workspace/api-client-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crown, X } from "lucide-react";
 import { ReportPurchaseOptions } from "./ReportPurchaseOptions";
+import type { ReportFocus } from "@/lib/report-focus";
 
 interface ReportPurchaseButtonProps {
   birthInfo: MonetizationBirthInfo;
   isAuthenticated: boolean;
   isAdmin?: boolean;
+  initialFocus?: ReportFocus;
   externalOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
-export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = false, externalOpen, onOpenChange }: ReportPurchaseButtonProps) {
+export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = false, initialFocus, externalOpen, onOpenChange }: ReportPurchaseButtonProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const panelId = useId();
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -25,7 +27,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
     <>
       <button onClick={() => setOpen(!open)} aria-label="사주 PDF 리포트 옵션 보기" title="사주 PDF 리포트" aria-expanded={open} aria-controls={panelId}
         className="flex min-h-10 items-center gap-2 rounded-2xl bg-amber-600/90 px-3 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-900/30 backdrop-blur transition-all hover:bg-amber-500 sm:px-4">
-        <Crown className="h-4 w-4" /><span className="hidden sm:inline">사주 PDF 리포트</span>
+        <Crown className="h-4 w-4" /><span>PDF로 받기</span>
       </button>
       {createPortal(<AnimatePresence>
         {open && (
@@ -38,7 +40,7 @@ export function ReportPurchaseButton({ birthInfo, isAuthenticated, isAdmin = fal
               <button onClick={() => setOpen(false)} aria-label="리포트 옵션 닫기" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-amber-400/10 hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
             <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
-              <ReportPurchaseOptions key={JSON.stringify(birthInfo)} birthInfo={birthInfo} isAuthenticated={isAuthenticated} isAdmin={isAdmin} />
+              <ReportPurchaseOptions key={`${JSON.stringify(birthInfo)}:${initialFocus ?? "career"}`} birthInfo={birthInfo} isAuthenticated={isAuthenticated} isAdmin={isAdmin} initialFocus={initialFocus} />
             </div>
           </motion.div>
         )}

@@ -47,6 +47,7 @@ import {
   useRegenerateReport,
 } from "@workspace/api-client-react";
 import HomeInquiryModal from "@/components/HomeInquiryModal";
+import HomeStartGuide from "@/components/HomeStartGuide";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
 import {
@@ -170,7 +171,7 @@ const MEMBER_SERVICE_CARDS = [
   {
     href: "/monthly-fortune",
     title: "월운 분석",
-    desc: "세운(歲運)과 월건(月建)이 내 일주와 어떤 십신 관계를 맺는지 분석하여 이달의 재물·직업·애정·건강 흐름을 풀어드립니다.",
+    desc: "이달의 일·돈·관계 흐름과 생활 속에서 참고할 점을 살펴봅니다.",
     action: "분석하기",
     icon: CalendarDays,
     filter: "fortune" as const,
@@ -1028,32 +1029,19 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
-      <motion.div
-        className="text-center max-w-3xl mx-auto mb-16"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      >
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-md mb-8">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-primary">
-            당신의 운명을 비추는 빛
-          </span>
-        </div>
-        <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif font-bold mb-6 text-gradient-gold drop-shadow-2xl break-keep">
-          하늘의 뜻을 읽어
-          <br className="hidden md:block" /> 내일을 준비하다
-        </h1>
-        <p className="text-lg md:text-xl text-muted-foreground leading-relaxed font-light break-keep">
-          정통 명리학을 바탕으로 당신의 사주팔자와 오늘의 운세,{" "}
-          <br className="hidden md:block" />
-          그리고 인생의 흐름을 정확하게 짚어드립니다.
-        </p>
-      </motion.div>
+      <HomeStartGuide isAdmin={isAdmin} isAuthenticated={isAuthenticated} />
 
       {isAuthenticated && (
+        <details className="group/dashboard w-full max-w-5xl mb-4 rounded-2xl border border-primary/15 bg-card/30">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 [&::-webkit-details-marker]:hidden">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">내 기록 이어보기</h2>
+              <p className="mt-1 text-sm text-muted-foreground">저장한 사주, 받은 PDF, 최근 질문을 확인하세요.</p>
+            </div>
+            <ChevronDown className="h-5 w-5 shrink-0 text-primary transition-transform group-open/dashboard:rotate-180" aria-hidden="true" />
+          </summary>
         <motion.div
-          className="w-full max-w-6xl mb-12"
+          className="w-full p-2 sm:p-3"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
@@ -1065,7 +1053,7 @@ export default function Home() {
                   my dashboard
                 </p>
                 <h2 className="font-serif text-2xl md:text-3xl font-bold text-foreground">
-                  내 사주 대시보드
+                  내 사주와 활동 기록
                 </h2>
                 <p className="text-sm text-muted-foreground mt-2">
                   다시 볼 분석과 저장한 길일을 한곳에 모았습니다
@@ -2095,8 +2083,18 @@ export default function Home() {
             </div>
           </div>
         </motion.div>
+        </details>
       )}
 
+      <details id="all-features" className="group/features w-full max-w-5xl rounded-2xl border border-primary/15 bg-card/30">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 [&::-webkit-details-marker]:hidden">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">전체 기능 둘러보기</h2>
+            <p className="mt-1 text-sm text-muted-foreground">궁합, 날짜 고르기, 월별 운세, 사주 용어까지</p>
+          </div>
+          <ChevronDown className="h-5 w-5 shrink-0 text-primary transition-transform group-open/features:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="px-3 pb-5 sm:px-5">
       {/* 메인 기능 카드 */}
       <motion.div
         className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl"
@@ -2112,7 +2110,7 @@ export default function Home() {
                 <Sparkles className="w-7 h-7 text-primary" />
               </div>
               <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                사주팔자 (四柱八字)
+                내 성향과 인생 흐름
               </h3>
               <p className="text-muted-foreground mb-8">
                 태어난 연월일시를 바탕으로 당신의 평생 운의 흐름과 오행의 조화를
@@ -2133,12 +2131,10 @@ export default function Home() {
                 <Sun className="w-7 h-7 text-accent" />
               </div>
               <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                오늘의 일진 (日辰)
+                오늘 운세
               </h3>
               <p className="text-muted-foreground mb-8">
-                오늘의 천간지지가 내 사주와 어떻게 맞물리는지 풀어드립니다.
-                재물·애정·건강·직업 운은 물론, 오늘 특히 조심해야 할 것과
-                적극적으로 나서면 좋은 분야까지 구체적으로 안내합니다.
+                오늘의 일·돈·관계 흐름과 일상에서 참고할 점을 확인합니다.
               </p>
               <div className="flex items-center text-accent font-medium group-hover:gap-3 transition-all gap-2">
                 확인하기 <ArrowRight className="w-4 h-4" />
@@ -2155,7 +2151,7 @@ export default function Home() {
                 <Calendar className="w-7 h-7 text-emerald-600" />
               </div>
               <h3 className="font-serif text-2xl font-semibold mb-3 text-foreground">
-                만세력 (萬年曆)
+                날짜별 운세 달력
               </h3>
               <p className="text-muted-foreground mb-8">
                 한 달의 날마다 깃든 오행 기운과 운세 점수를 달력 위에 펼칩니다.
@@ -2635,6 +2631,9 @@ export default function Home() {
           </motion.div>
         </motion.div>
       )}
+
+        </div>
+      </details>
 
       {/* 문의하기 섹션 */}
       <motion.div

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
 import { ReportPurchaseButton } from "@/components/ReportPurchaseButton";
+import { parseReportFocus, REPORT_FOCUS_LABELS } from "@/lib/report-focus";
 import { AiChatPanel } from "@/components/AiChatPanel";
 import { SharedSajuView } from "@/components/SharedSajuView";
 import {
@@ -47,7 +48,7 @@ import {
   sanitizeBirthYearInput,
 } from "@/lib/birth-date";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
-import { Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown, Info, CalendarDays, Briefcase, Heart, Activity, Compass } from "lucide-react";
+import { Download, Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown, Info, CalendarDays, Briefcase, Heart, Activity, Compass } from "lucide-react";
 import { getDayPillarAnalysis } from "@/data/dayPillarAnalysis";
 
 // ─── 한자 변환 ───────────────────────────────────────────
@@ -269,13 +270,6 @@ const DEFAULT_VISIBLE_SECTIONS: Record<SectionKey, boolean> = {
 
 const COMPACT_SECTION_KEYS: SectionKey[] = [
   "saju",
-  "advanced",
-  "singang",
-  "yongsin",
-  "johu",
-  "tenGodSummary",
-  "hapChung",
-  "samjae",
   "daymaster",
   "career",
 ];
@@ -390,6 +384,8 @@ export default function SajuPage() {
   const today = useSeoulToday();
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
+  const reportFocus = parseReportFocus(searchParams.get("focus"));
+  const startCompact = searchParams.get("compact") === "1" || (!searchParams.has("sections") && searchParams.get("compact") !== "0");
   const initialAiQuestion = searchParams.get("aiPrompt")?.trim() || undefined;
 
   const [inputForm, setInputForm] = useState<InputForm>(() => {
@@ -418,11 +414,11 @@ export default function SajuPage() {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const maxBirthDay = getBirthDayMax(inputForm.birthYear, inputForm.birthMonth, inputForm.calendarType);
-  const [compactMode, setCompactMode] = useState(() => searchParams.get("compact") === "1");
+  const [compactMode, setCompactMode] = useState(() => startCompact);
   const [visibleSections, setVisibleSections] = useState<Record<SectionKey, boolean>>(
     () =>
       parseVisibleSectionsParam(searchParams.get("sections")) ??
-      (searchParams.get("compact") === "1"
+      (startCompact
         ? createVisibleSections(COMPACT_SECTION_KEYS)
         : { ...DEFAULT_VISIBLE_SECTIONS }),
   );
@@ -1229,7 +1225,7 @@ export default function SajuPage() {
     if (compactMode) {
       url.searchParams.set("compact", "1");
     } else {
-      url.searchParams.delete("compact");
+      url.searchParams.set("compact", "0");
     }
 
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
@@ -1275,8 +1271,10 @@ export default function SajuPage() {
       <AnimatePresence mode="wait">
         <motion.div key="form" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }}>
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-serif font-bold text-gradient-gold mb-4">사주 분석 (四柱)</h1>
-            <p className="text-muted-foreground text-lg">태어난 시간을 입력하여 타고난 운명의 흐름을 확인하세요.</p>
+            <p className="mb-3 text-sm font-medium text-primary">1. 생년월일 입력 → 2. 결과 확인 → 3. PDF로 보관</p>
+            <h1 className="text-4xl md:text-5xl font-serif font-bold text-gradient-gold mb-4">{reportFocus ? `${REPORT_FOCUS_LABELS[reportFocus]} 고민, 내 성향부터 살펴봐요` : "내 사주, 쉽게 시작해요"}</h1>
+            <p className="text-muted-foreground text-lg">생년월일을 입력하면 핵심 풀이부터 보여드려요. 태어난 시간은 몰라도 괜찮습니다.</p>
+            <p className="mt-3 text-sm text-muted-foreground">웹 분석은 무료 · 기본 PDF는 로그인 후 계정당 첫 1회 무료 · 자동 결제 없음</p>
           </div>
 
           {/* 이전 분석 결과 캐시 배너 */}
@@ -1342,8 +1340,8 @@ export default function SajuPage() {
             >
               <div className="glass-panel border border-primary/20 rounded-2xl p-5 text-center">
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  프로필을 등록하면 만세력, 월운, 길일 달력 등에서 개인화 분석이 이어집니다.
-                  프로필 없이도 아래에서 바로 사주 분석을 할 수 있습니다.
+                  가입하거나 프로필을 저장하지 않아도 바로 분석할 수 있어요.
+                  결과를 본 뒤 필요한 경우 저장하거나 PDF로 받아보세요.
                 </p>
               </div>
             </motion.div>
@@ -1414,18 +1412,24 @@ export default function SajuPage() {
                       placeholder="0~59" min={0} max={59} disabled={inputForm.birthHour === -1} className="placeholder:text-muted-foreground/40" />
                   </div>
                 </div>
-                <BirthPrecisionFields
-                  values={inputForm.precision}
-                  calendarType={inputForm.calendarType}
-                  onChange={(precision) => setInputForm((current) => ({ ...current, precision }))}
-                />
+                <details open={inputForm.calendarType === "lunar" || inputForm.precision.applyTrueSolarTime || inputForm.precision.dayBoundary === "late-zi" ? true : undefined} className="rounded-xl border border-primary/15">
+                  <summary className="cursor-pointer p-4 text-sm font-medium">추가 계산 설정 · 음력 윤달 / 출생지 / 시간 보정</summary>
+                  <div className="px-3 pb-3">
+                    <p className="mb-3 text-xs leading-5 text-muted-foreground">기본은 서울 시각·자정 기준입니다. 음력 윤달이거나 별도 보정이 필요할 때 확인하세요.</p>
+                    <BirthPrecisionFields
+                      values={inputForm.precision}
+                      calendarType={inputForm.calendarType}
+                      onChange={(precision) => setInputForm((current) => ({ ...current, precision }))}
+                    />
+                  </div>
+                </details>
                 {(formError || error) && (
                   <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
                     {formError || "분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
                   </div>
                 )}
                 <Button type="submit" size="lg" className="w-full text-lg mt-4" disabled={isPending}>
-                  {isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> 운명의 수레바퀴 돌리는 중...</> : "사주 확인하기"}
+                  {isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> 분석 중입니다...</> : "무료로 결과 보기"}
                 </Button>
               </form>
             </CardContent>
@@ -1744,11 +1748,21 @@ export default function SajuPage() {
   return (
     <div className="max-w-6xl mx-auto">
       {/* 공유 카드 — 화면 밖에 숨겨두고 캡처 시 사용 */}
-      <div style={{ position: "fixed", left: -9999, top: 0, zIndex: -1, pointerEvents: "none" }}>
+      <div aria-hidden="true" style={{ position: "fixed", left: -9999, top: 0, zIndex: -1, pointerEvents: "none" }}>
         {sharePreviewPayload && <SharedSajuView ref={shareCardRef} payload={sharePreviewPayload} />}
       </div>
 
       <motion.div key="result" className="saju-analysis-flow" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
+
+        <section aria-label="결과 읽는 순서" className="mb-6 rounded-2xl border border-primary/25 bg-primary/5 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+          <div>
+            <p className="text-sm font-semibold text-primary">2. 결과 확인</p>
+            <h1 className="mt-2 text-xl font-serif">{reportFocus ? `${REPORT_FOCUS_LABELS[reportFocus]} 고민을 이해할 단서부터` : "처음이라면 핵심 풀이부터 읽어보세요"}</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">내 성향과 일·관계 풀이를 먼저 보고, 자세한 계산은 ‘전체 보기’에서 확인하세요.</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">기본 PDF는 계정당 첫 1회 무료입니다. 이미 받았다면 마이페이지에서 다시 내려받을 수 있어요.</p>
+          </div>
+          <Button className="mt-4 shrink-0 gap-2 sm:mt-0" onClick={() => setFloatingPanel("report")}><Download className="h-4 w-4" />3. PDF로 받기</Button>
+        </section>
 
         {/* 헤더 */}
         <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
@@ -1875,6 +1889,7 @@ export default function SajuPage() {
           />
           <ReportPurchaseButton
             birthInfo={monetizationBirthInfo}
+            initialFocus={reportFocus}
             isAuthenticated={isAuthenticated}
             isAdmin={isAdmin}
             externalOpen={floatingPanel === "report"}
@@ -1883,7 +1898,9 @@ export default function SajuPage() {
         </div>
 
         {/* 섹션 토글 버튼 */}
-        <div className="flex flex-wrap gap-2 mb-8 p-4 glass-panel rounded-2xl border border-primary/20">
+        <details className="mb-8 glass-panel rounded-2xl border border-primary/20">
+          <summary className="cursor-pointer p-4 text-sm font-medium text-primary">보고 싶은 내용 직접 고르기 · 전문 분석 항목</summary>
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
           <button
             type="button"
             onClick={() => setVisibleSections({ ...DEFAULT_VISIBLE_SECTIONS })}
@@ -1911,7 +1928,8 @@ export default function SajuPage() {
               {visibleSections[s.key] ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
             </button>
           ))}
-        </div>
+          </div>
+        </details>
 
         <div className="grid grid-cols-1 gap-3 mb-8 sm:grid-cols-2 xl:grid-cols-4">
           {analysisHighlights.map((highlight) => (
