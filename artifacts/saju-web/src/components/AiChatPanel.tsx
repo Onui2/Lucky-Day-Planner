@@ -11,11 +11,14 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
+  Check,
+  Copy,
   Loader2,
   MessageCircleQuestion,
   Plus,
   Send,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -24,7 +27,9 @@ import {
   buildAiChatSessionTitle,
   createAiChatSessionRecord,
   getAiChatBirthInfoKey,
+  hideAiQuestionIds,
   loadAiChatSessions,
+  loadHiddenAiQuestionIds,
   saveAiChatSessions,
   sortAiChatSessions,
   type AiChatSessionRecord,
@@ -104,6 +109,9 @@ export function AiChatPanel({
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState<string>("");
+  const [copiedQuestionId, setCopiedQuestionId] = useState<number | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [hiddenVersion, setHiddenVersion] = useState(0);
   const pendingInitialQuestionRef = useRef<string | null>(null);
   const appliedInitialQuestionRef = useRef<string | null>(null);
   const loginHref = buildAuthHref("/login");
@@ -129,6 +137,11 @@ export function AiChatPanel({
   );
   const currentBirthInfoKey = getAiChatBirthInfoKey(birthInfo);
   const importedSessionId = `imported:${currentBirthInfoKey}`;
+  const hiddenQuestionIds = useMemo(
+    () => new Set(userId ? loadHiddenAiQuestionIds(userId) : []),
+    // hiddenVersion bumps after a session is deleted on this device.
+    [hiddenVersion, userId],
+  );
 
   const questionHistory = useMemo(
     () =>
@@ -136,6 +149,7 @@ export function AiChatPanel({
         .filter(
           (item) =>
             item.birthInfo &&
+            !hiddenQuestionIds.has(item.id) &&
             getAiChatBirthInfoKey(item.birthInfo) === currentBirthInfoKey,
         )
         .sort(
@@ -143,7 +157,7 @@ export function AiChatPanel({
             new Date(left.createdAt).getTime() -
             new Date(right.createdAt).getTime(),
         ),
-    [currentBirthInfoKey, data],
+    [currentBirthInfoKey, data, hiddenQuestionIds],
   );
 
   const questionMap = useMemo(
@@ -181,7 +195,8 @@ export function AiChatPanel({
   const remainingLabel = useMemo(() => {
     if (!data) return "확인 중";
     if (hasUnlimitedAccess || data.unlimited) return "무제한";
-    return `${data.remaining ?? 0}/${data.limit ?? 0}회 남음`;
+    const bonusLabel = data.bonus && data.bonus > 0 ? ` · 리포트 보너스 +${data.bonus}` : "";
+    return `${data.remaining ?? 0}/${data.limit ?? 0}회 남음${bonusLabel}`;
   }, [data, hasUnlimitedAccess]);
 
   useEffect(() => {
@@ -411,6 +426,48 @@ export function AiChatPanel({
     );
     setPendingQuestion(null);
     setQuestion("");
+    setConfirmingDelete(false);
+  }
+
+  function handleDeleteSession() {
+    if (!activeSession || ask.isPending) return;
+
+    const removedIds = activeSession.questionIds;
+    if (userId && removedIds.length > 0) {
+      hideAiQuestionIds(userId, removedIds);
+      setHiddenVersion((version) => version + 1);
+    }
+
+    const remainingSessions = sessions.filter(
+      (session) => session.id !== activeSession.id,
+    );
+    const nextActive = remainingSessions[0] ?? null;
+    if (nextActive) {
+      persistSessions(remainingSessions, nextActive.id);
+    } else {
+      const freshSession = createAiChatSessionRecord(currentBirthInfoKey);
+      persistSessions([freshSession], freshSession.id);
+    }
+
+    setPendingQuestion(null);
+    setQuestion("");
+    setConfirmingDelete(false);
+  }
+
+  async function handleCopyAnswer(item: AiQuestionItem) {
+    const text = `Q. ${item.question}\n\n${item.answer}`;
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard unavailable");
+      }
+      await navigator.clipboard.writeText(text);
+      setCopiedQuestionId(item.id);
+      globalThis.setTimeout(() => {
+        setCopiedQuestionId((current) => (current === item.id ? null : current));
+      }, 2000);
+    } catch {
+      setCopiedQuestionId(null);
+    }
   }
 
   function resizeQuestionInput(element = questionInputRef.current) {
@@ -585,13 +642,47 @@ export function AiChatPanel({
                     세션별로 기록되고, 같은 세션 질문은 최근 대화를 이어서
                     답해요.
                   </p>
-                  <button
-                    type="button"
-                    onClick={handleCreateSession}
-                    className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-violet-100 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />새 세션
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {activeSession && (activeSession.questionIds.length > 0 || sessions.length > 1) && (
+                      confirmingDelete ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-rose-700">
+                          삭제할까요?
+                          <button
+                            type="button"
+                            onClick={handleDeleteSession}
+                            disabled={ask.isPending}
+                            className="rounded-full bg-rose-500/15 px-2 py-0.5 font-medium hover:bg-rose-500/25 disabled:opacity-50"
+                          >
+                            삭제
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingDelete(false)}
+                            className="rounded-full bg-foreground/5 px-2 py-0.5 text-muted-foreground hover:bg-foreground/10"
+                          >
+                            취소
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          aria-label="현재 세션 삭제"
+                          title="현재 세션 삭제"
+                          onClick={() => setConfirmingDelete(true)}
+                          className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />세션 삭제
+                        </button>
+                      )
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleCreateSession}
+                      className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-violet-100 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />새 세션
+                    </button>
+                  </div>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {sessions.map((session) => {
@@ -601,7 +692,10 @@ export function AiChatPanel({
                       <button
                         key={session.id}
                         type="button"
-                        onClick={() => setActiveSessionId(session.id)}
+                        onClick={() => {
+                          setActiveSessionId(session.id);
+                          setConfirmingDelete(false);
+                        }}
                         className={cn(
                           "min-w-[150px] max-w-[200px] rounded-2xl border px-3 py-2 text-left transition-colors",
                           isActive
@@ -682,6 +776,25 @@ export function AiChatPanel({
                       <div className="flex justify-start">
                         <div className="max-w-[90%] rounded-2xl rounded-bl-sm border border-foreground/10 bg-foreground/5 px-3.5 py-2.5 text-sm text-muted-foreground leading-7 whitespace-pre-line">
                           {item.answer}
+                          <div className="mt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => void handleCopyAnswer(item)}
+                              aria-label={copiedQuestionId === item.id ? "답변 복사됨" : "답변 복사"}
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                                copiedQuestionId === item.id
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                  : "border-foreground/10 bg-white text-muted-foreground hover:border-violet-300 hover:text-violet-700",
+                              )}
+                            >
+                              {copiedQuestionId === item.id ? (
+                                <><Check className="w-3 h-3" />복사됨</>
+                              ) : (
+                                <><Copy className="w-3 h-3" />복사</>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

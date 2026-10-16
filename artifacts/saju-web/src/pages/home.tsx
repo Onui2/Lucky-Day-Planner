@@ -30,6 +30,7 @@ import {
   Activity,
   FileText,
   Download,
+  BookOpenText,
   ReceiptText,
   MessageCircleQuestion,
   Trash2,
@@ -402,19 +403,13 @@ function getDailyScoreFocus(
   return { best, caution };
 }
 
-function getUpcomingBookmarkSummary(
-  bookmarks: Array<
-    Pick<LuckyDayBookmark, "year" | "month" | "day" | "purposeLabel" | "grade">
-  >,
-  todayDate: string,
-) {
-  let nearest: {
-    bookmark: Pick<
-      LuckyDayBookmark,
-      "year" | "month" | "day" | "purposeLabel" | "grade"
-    >;
-    diffDays: number;
-  } | null = null;
+// Days ahead within which the home banner reminds the user of a saved lucky day.
+const UPCOMING_BOOKMARK_BANNER_DAYS = 30;
+
+function getUpcomingBookmarkSummary<
+  T extends Pick<LuckyDayBookmark, "year" | "month" | "day" | "purposeLabel" | "grade">,
+>(bookmarks: T[], todayDate: string) {
+  let nearest: { bookmark: T; diffDays: number } | null = null;
 
   for (const bookmark of bookmarks) {
     const diffDays = getDateDiffFromToday(bookmark, todayDate);
@@ -428,6 +423,8 @@ function getUpcomingBookmarkSummary(
   if (!nearest) return null;
 
   return {
+    bookmark: nearest.bookmark,
+    diffDays: nearest.diffDays,
     label:
       nearest.diffDays === 0
         ? "오늘"
@@ -1034,6 +1031,43 @@ export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
       <HomeStartGuide isAdmin={isAdmin} isAuthenticated={isAuthenticated} />
+
+      {isAuthenticated &&
+        upcomingBookmarkSummary &&
+        upcomingBookmarkSummary.diffDays <= UPCOMING_BOOKMARK_BANNER_DAYS && (
+          <motion.section
+            aria-label="다가오는 길일 알림"
+            className="w-full max-w-5xl mb-4"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
+            <Link
+              href={upcomingBookmarkSummary.bookmark.href || "/lucky-calendar"}
+              className="flex items-center gap-3 sm:gap-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-3 transition-colors hover:bg-emerald-500/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            >
+              <div className="flex h-12 w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-900/20">
+                <span className="text-[10px] leading-none opacity-85">저장한 길일</span>
+                <span className="mt-1 text-base font-bold leading-none tabular-nums">
+                  {upcomingBookmarkSummary.label}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold text-foreground">
+                  {upcomingBookmarkSummary.bookmark.title}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {upcomingBookmarkSummary.description} · {upcomingBookmarkSummary.grade}
+                  {bookmarks.length > 1 ? ` · 외 ${bookmarks.length - 1}건` : ""}
+                </div>
+              </div>
+              <span className="hidden sm:inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700">
+                상세 보기
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+            </Link>
+          </motion.section>
+        )}
 
       {isAuthenticated && (
         <details className="group/dashboard w-full max-w-5xl mb-4 rounded-2xl border border-primary/15 bg-card/30">
@@ -1726,19 +1760,28 @@ export default function Home() {
                             </span>
                           </div>
                           {latestReport.status === "ready" ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void downloadReportFile(
-                                  latestReport.id,
-                                  latestReport.fileName ?? latestReport.title,
-                                );
-                              }}
-                              className="inline-flex items-center gap-1 rounded-lg border border-primary/25 bg-primary/8 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/12 transition-colors"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              PDF
-                            </button>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <Link
+                                href={`/reports/${latestReport.id}/view`}
+                                className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                              >
+                                <BookOpenText className="w-3.5 h-3.5" />
+                                읽기
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void downloadReportFile(
+                                    latestReport.id,
+                                    latestReport.fileName ?? latestReport.title,
+                                  );
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg border border-primary/25 bg-primary/8 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/12 transition-colors"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                PDF
+                              </button>
+                            </div>
                           ) : latestReport.status === "failed" ||
                             latestReport.status === "pending" ? (
                             <button

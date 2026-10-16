@@ -61,6 +61,7 @@ export default defineConfig({
           if (id.includes("date-fns")) return "datefns-vendor";
           if (id.includes("lucide-react")) return "icon-vendor";
           if (id.includes("@supabase")) return "supabase-vendor";
+          if (id.includes("pdfjs-dist")) return "pdf-vendor";
           if (id.includes("html2canvas") || id.includes("html-to-image")) {
             return "capture-vendor";
           }

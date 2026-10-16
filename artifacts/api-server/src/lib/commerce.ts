@@ -7,11 +7,12 @@ import {
   type JsonObject,
   type OrderRow,
   ordersTable,
+  purchaseEntitlementsTable,
   type ReportBirthInfo,
   type UserSubscriptionRow,
   userSubscriptionsTable,
 } from "@workspace/db";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNull, or, sql } from "drizzle-orm";
 import { birthOptionsFromRecord, resolveBirthInput } from "./birth-resolution.js";
 import { getTossPayConfig } from "./toss-pay.js";
 export { getProductConfig, type ProductConfig, type ProductType } from "./product-config.js";
@@ -60,6 +61,47 @@ export function getPlanQuestionLimit(planCode?: string | null): number {
     default:
       return 3;
   }
+}
+
+// Paid report purchases add bonus AI questions to the monthly plan limit while
+// the report entitlement stays active. Zero-amount grants (free trial, admin)
+// do not count. The total bonus is capped so stacked purchases stay bounded.
+const REPORT_QUESTION_BONUS: Record<string, number> = {
+  saju_basic: 2,
+  saju_detail: 5,
+  saju_full: 10,
+};
+export const REPORT_QUESTION_BONUS_CAP = 30;
+
+export function getReportQuestionBonusForProduct(productType: string): number {
+  return REPORT_QUESTION_BONUS[productType] ?? 0;
+}
+
+export async function getReportQuestionBonus(userId: string): Promise<number> {
+  const rows = await db
+    .select({ productType: purchaseEntitlementsTable.productType })
+    .from(purchaseEntitlementsTable)
+    .innerJoin(ordersTable, eq(ordersTable.id, purchaseEntitlementsTable.orderId))
+    .where(
+      and(
+        eq(purchaseEntitlementsTable.userId, userId),
+        eq(purchaseEntitlementsTable.resourceType, "pdf_report"),
+        eq(purchaseEntitlementsTable.status, "active"),
+        or(
+          isNull(purchaseEntitlementsTable.expiresAt),
+          gt(purchaseEntitlementsTable.expiresAt, new Date()),
+        ),
+        eq(ordersTable.userId, userId),
+        eq(ordersTable.status, "paid"),
+        gt(ordersTable.amount, 0),
+      ),
+    );
+
+  const total = rows.reduce(
+    (sum, row) => sum + getReportQuestionBonusForProduct(row.productType),
+    0,
+  );
+  return Math.min(total, REPORT_QUESTION_BONUS_CAP);
 }
 
 export function getMonthlyBucket(date = new Date()) {

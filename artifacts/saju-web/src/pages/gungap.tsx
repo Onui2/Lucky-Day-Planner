@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import {
   Heart, Loader2, RefreshCw, UserCircle2, Star, Flame, Sprout,
   AlertTriangle, Lightbulb, Share2, CheckCheck, MessageCircle,
-  Sparkles, ChevronDown, ChevronUp, Users,
+  Sparkles, ChevronDown, ChevronUp, Users, BookMarked, X,
 } from "lucide-react";
 import { useUser, type UserProfile } from "@/contexts/UserContext";
-import { useLoveFortune, type LoveFortuneResult } from "@workspace/api-client-react";
+import { useAuth } from "@workspace/replit-auth-web";
+import { useGetSavedSaju, useLoveFortune, type LoveFortuneResult, type SavedSajuItem } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { parseBirthProfileSearch } from "@/lib/birth-profile-query";
 import { BIRTH_HOURS, formatBirthMinute, normalizeBirthHour, parseBirthMinute } from "@/lib/birth-time";
@@ -412,6 +413,33 @@ function profileToPersonForm(profile: UserProfile): PersonForm {
   };
 }
 
+function savedItemToPersonForm(item: SavedSajuItem): PersonForm {
+  const b = item.birthInfo;
+  return profileToPersonForm({
+    name: item.label,
+    gender: b.gender === "female" ? "female" : "male",
+    birthYear: b.year,
+    birthMonth: b.month,
+    birthDay: b.day,
+    birthHour: b.hour,
+    birthMinute: b.minute ?? 0,
+    calendarType: b.calendarType === "lunar" ? "lunar" : "solar",
+    isLeapMonth: b.isLeapMonth,
+    birthPlace: b.birthPlace,
+    timeZone: b.timeZone,
+    longitude: b.longitude,
+    latitude: b.latitude ?? undefined,
+    applyTrueSolarTime: b.applyTrueSolarTime,
+    dayBoundary: b.dayBoundary === "late-zi" ? "late-zi" : "midnight",
+  });
+}
+
+function formatSavedBirth(item: SavedSajuItem) {
+  const b = item.birthInfo;
+  const time = b.hour < 0 ? "시간 미입력" : `${String(b.hour).padStart(2, "0")}:${String(b.minute ?? 0).padStart(2, "0")}`;
+  return `${b.year}.${String(b.month).padStart(2, "0")}.${String(b.day).padStart(2, "0")} · ${time} · ${b.calendarType === "lunar" ? "음력" : "양력"}`;
+}
+
 async function fetchGungap(p1: PersonForm, p2: PersonForm) {
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   const toPayload = (p: PersonForm) => ({
@@ -433,14 +461,32 @@ function GungapTab() {
   const search = useSearch();
   const linkedProfile = parseBirthProfileSearch(search);
   const { profile } = useUser();
+  const { isAuthenticated } = useAuth();
+  const { data: savedItems } = useGetSavedSaju(isAuthenticated);
   const [p1, setP1] = useState<PersonForm>(defaultPerson("male"));
   const [p2, setP2] = useState<PersonForm>(defaultPerson("female"));
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [p1FromProfile, setP1FromProfile] = useState(false);
+  const [savedPickerFor, setSavedPickerFor] = useState<"p1" | "p2" | null>(null);
+  const [savedLoaded, setSavedLoaded] = useState<{ p1?: string; p2?: string }>({});
   const [copied, setCopied] = useState(false);
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  const hasSavedItems = isAuthenticated && (savedItems?.length ?? 0) > 0;
+
+  function loadSavedItem(target: "p1" | "p2", item: SavedSajuItem) {
+    const form = savedItemToPersonForm(item);
+    if (target === "p1") {
+      setP1(form);
+      setP1FromProfile(false);
+    } else {
+      setP2(form);
+    }
+    setSavedLoaded((prev) => ({ ...prev, [target]: item.label }));
+    setSavedPickerFor(null);
+    setError(null);
+  }
   const p1MaxBirthDay = getBirthDayMax(p1.birthYear, p1.birthMonth);
   const p2MaxBirthDay = getBirthDayMax(p2.birthYear, p2.birthMonth);
 
@@ -478,6 +524,8 @@ function GungapTab() {
     if (!profile) return;
     setP1(profileToPersonForm(profile));
     setP1FromProfile(true);
+    setSavedLoaded((prev) => ({ ...prev, p1: undefined }));
+    setSavedPickerFor(null);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -502,6 +550,7 @@ function GungapTab() {
   const handleReset = () => {
     setResult(null); setError(null);
     setP1(defaultPerson("male")); setP2(defaultPerson("female")); setP1FromProfile(false);
+    setSavedLoaded({}); setSavedPickerFor(null);
   };
 
   const handleShare = () => {
@@ -536,26 +585,63 @@ function GungapTab() {
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {[
-              { label: "첫 번째 사람", state: p1, setState: setP1, heartColor: "text-primary", isMe: true },
-              { label: "두 번째 사람", state: p2, setState: setP2, heartColor: "text-rose-600", isMe: false },
-            ].map(({ label, state, setState, heartColor, isMe }) => (
+              { key: "p1" as const, label: "첫 번째 사람", state: p1, setState: setP1, heartColor: "text-primary", isMe: true },
+              { key: "p2" as const, label: "두 번째 사람", state: p2, setState: setP2, heartColor: "text-rose-600", isMe: false },
+            ].map(({ key, label, state, setState, heartColor, isMe }) => (
               <Card key={label} className="glass-panel border-primary/30">
                 <CardHeader className="pb-4">
-                  <CardTitle className={`text-xl font-serif flex items-center gap-2 ${heartColor}`}>
+                  <CardTitle className={`text-xl font-serif flex flex-wrap items-center gap-2 ${heartColor}`}>
                     <Heart className="w-5 h-5 fill-current" />{label}
-                    {isMe && (
-                      profile ? (
-                        <button type="button" onClick={loadMyProfile}
-                          className={`ml-auto flex items-center gap-1 text-xs font-normal px-2.5 py-1 rounded-full border transition-colors ${p1FromProfile ? "text-primary bg-primary/15 border-primary/30 hover:bg-primary/25" : "text-primary/70 bg-primary/8 border-primary/20 hover:bg-primary/15 hover:text-primary"}`}>
-                          <UserCircle2 className="w-3 h-3" />{p1FromProfile ? "내 사주 ✓" : "내 사주 불러오기"}
+                    <span className="ml-auto flex items-center gap-1.5">
+                      {hasSavedItems && (
+                        <button
+                          type="button"
+                          aria-expanded={savedPickerFor === key}
+                          onClick={() => setSavedPickerFor((prev) => (prev === key ? null : key))}
+                          className={`flex items-center gap-1 text-xs font-normal px-2.5 py-1 rounded-full border transition-colors ${savedLoaded[key] ? "text-emerald-700 bg-emerald-500/15 border-emerald-500/30 hover:bg-emerald-500/25" : "text-foreground/70 bg-foreground/5 border-foreground/15 hover:bg-foreground/10 hover:text-foreground"}`}
+                        >
+                          <BookMarked className="w-3 h-3" />
+                          {savedLoaded[key] ? `${savedLoaded[key]} ✓` : "저장된 사주"}
                         </button>
-                      ) : (
-                        <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground/50 bg-foreground/5 border border-foreground/10 px-2.5 py-1 rounded-full cursor-default select-none">
-                          <UserCircle2 className="w-3 h-3" />사주 미등록
-                        </span>
-                      )
-                    )}
+                      )}
+                      {isMe && (
+                        profile ? (
+                          <button type="button" onClick={loadMyProfile}
+                            className={`flex items-center gap-1 text-xs font-normal px-2.5 py-1 rounded-full border transition-colors ${p1FromProfile ? "text-primary bg-primary/15 border-primary/30 hover:bg-primary/25" : "text-primary/70 bg-primary/8 border-primary/20 hover:bg-primary/15 hover:text-primary"}`}>
+                            <UserCircle2 className="w-3 h-3" />{p1FromProfile ? "내 사주 ✓" : "내 사주 불러오기"}
+                          </button>
+                        ) : (
+                          <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground/50 bg-foreground/5 border border-foreground/10 px-2.5 py-1 rounded-full cursor-default select-none">
+                            <UserCircle2 className="w-3 h-3" />사주 미등록
+                          </span>
+                        )
+                      )}
+                    </span>
                   </CardTitle>
+                  {savedPickerFor === key && savedItems && (
+                    <div className="mt-3 rounded-xl border border-foreground/10 bg-background/70 p-2">
+                      <div className="flex items-center justify-between px-1 pb-1">
+                        <span className="text-xs font-medium text-muted-foreground">저장된 사주 선택 ({savedItems.length}명)</span>
+                        <button type="button" aria-label="목록 닫기" onClick={() => setSavedPickerFor(null)} className="text-muted-foreground hover:text-foreground">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <ul className="max-h-48 space-y-1 overflow-y-auto">
+                        {savedItems.map((item) => (
+                          <li key={item.id}>
+                            <button
+                              type="button"
+                              onClick={() => loadSavedItem(key, item)}
+                              className="flex w-full flex-col items-start rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-primary/10"
+                            >
+                              <span className="text-sm font-medium text-foreground">{item.label}</span>
+                              <span className="text-[11px] text-muted-foreground">{formatSavedBirth(item)}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">

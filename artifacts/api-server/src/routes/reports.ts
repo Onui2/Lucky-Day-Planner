@@ -85,10 +85,13 @@ router.get("/reports/:id/download", async (req, res) => {
     }
 
     const buffer = Buffer.from(report.fileDataBase64, "base64");
+    // `inline=1` lets the in-app viewer (and browsers that render PDFs) show
+    // the file instead of forcing a download; the same auth/entitlement checks apply.
+    const disposition = req.query.inline === "1" ? "inline" : "attachment";
     res.setHeader("Content-Type", report.mimeType);
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename*=UTF-8''${encodeURIComponent(
+      `${disposition}; filename*=UTF-8''${encodeURIComponent(
         report.fileName ?? `report-${report.id}.pdf`,
       )}`,
     );

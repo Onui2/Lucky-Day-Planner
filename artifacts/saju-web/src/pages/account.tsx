@@ -24,7 +24,7 @@ import { ShareManagementCard } from "@/components/ShareManagementCard";
 import {
   UserCircle2, KeyRound, Trash2, Loader2,
   CheckCircle2, AlertTriangle, ShieldCheck, Mail,
-  CalendarDays, Crown, Sparkles, ChevronRight, BookmarkPlus, History,
+  CalendarDays, Crown, Sparkles, ChevronRight, BookmarkPlus, History, BookOpenText,
 } from "lucide-react";
 
 const ELEM_COLOR: Record<string, string> = {
@@ -320,14 +320,22 @@ export default function AccountPage() {
 
                 <div className="mt-3 flex flex-wrap gap-2">
                   {report.status === "ready" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void handleReportDownload(report.id, report.fileName ?? report.title)}
-                      disabled={downloadingReportId !== null}
-                    >
-                      {downloadingReportId === report.id ? "다운로드 중..." : "PDF 다운로드"}
-                    </Button>
+                    <>
+                      <Link href={`/reports/${report.id}/view`}>
+                        <Button size="sm" className="gap-1.5">
+                          <BookOpenText className="w-3.5 h-3.5" />
+                          웹에서 바로 읽기
+                        </Button>
+                      </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void handleReportDownload(report.id, report.fileName ?? report.title)}
+                        disabled={downloadingReportId !== null}
+                      >
+                        {downloadingReportId === report.id ? "다운로드 중..." : "PDF 다운로드"}
+                      </Button>
+                    </>
                   )}
                   {(report.status === "failed" || report.status === "pending") && (
                     <Button

@@ -34,6 +34,7 @@ function routeHarness(failure: "calculate" | "generate" | "finalize" | null = nu
     } },
     "../lib/commerce.js": {
       getActiveSubscription: async () => null, getPlanQuestionLimit: () => 3,
+      getReportQuestionBonus: async () => 0,
       getMonthlyBucket: () => "2026-10", getMonthlyQuestionUsage: async () => 0,
       parseBirthInfo: () => ({ year: 1990, month: 1, day: 1, hour: 12, gender: "male", calendarType: "solar" }),
       reserveQuestionSlot: async () => { state.reserved++; return { id: 7 }; },
@@ -173,7 +174,11 @@ function panelHarness() {
     wouter: {}, "lucide-react": {}, "framer-motion": { motion: { div: "div" } },
     "@/lib/auth-redirect": { buildAuthHref: () => "/login" },
     "@/lib/utils": { cn: () => "" },
-    "@/lib/ai-chat-sessions": { getAiChatBirthInfoKey: () => "birth-key" },
+    "@/lib/ai-chat-sessions": {
+      getAiChatBirthInfoKey: () => "birth-key",
+      loadHiddenAiQuestionIds: () => [],
+      hideAiQuestionIds: () => [],
+    },
   }, { setTimeout });
   const tree = panel.AiChatPanel({ isAuthenticated: true, externalOpen: true, birthInfo: { year: 1990 } });
   function find(node: any): any {

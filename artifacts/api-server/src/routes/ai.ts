@@ -8,6 +8,7 @@ import {
   getMonthlyBucket,
   getMonthlyQuestionUsage,
   getPlanQuestionLimit,
+  getReportQuestionBonus,
   parseBirthInfo,
   releaseQuestionSlot,
   reserveQuestionSlot,
@@ -70,7 +71,8 @@ async function getUsageSummary(userId: string, role?: string | null) {
   const subscription = await getActiveSubscription(userId);
   const planCode = subscription?.planCode ?? null;
   const unlimited = isPrivilegedRole(role);
-  const limit = unlimited ? 0 : getPlanQuestionLimit(planCode);
+  const bonus = unlimited ? 0 : await getReportQuestionBonus(userId);
+  const limit = unlimited ? 0 : getPlanQuestionLimit(planCode) + bonus;
   const monthlyBucket = getMonthlyBucket();
   const used = await getMonthlyQuestionUsage(userId, monthlyBucket);
   const remaining = unlimited ? 0 : Math.max(0, limit - used);
@@ -78,6 +80,7 @@ async function getUsageSummary(userId: string, role?: string | null) {
   return {
     planCode,
     limit: unlimited ? null : limit,
+    bonus,
     used,
     remaining: unlimited ? null : remaining,
     monthlyBucket,

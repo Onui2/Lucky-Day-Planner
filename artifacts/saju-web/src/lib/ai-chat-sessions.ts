@@ -188,3 +188,38 @@ export function saveAiChatSessions(userId: string, sessions: AiChatSessionRecord
     memoryFallback.set(userId, sorted);
   }
 }
+
+// Questions whose session the user deleted on this device. Server rows stay
+// (they still count toward the monthly quota), but they are not re-imported
+// into the "이전 상담 기록" session.
+const HIDDEN_STORAGE_PREFIX = "myeonghaewon-ai-chat-hidden:v1";
+const hiddenMemoryFallback = new Map<string, number[]>();
+
+function hiddenStorageKey(userId: string) {
+  return `${HIDDEN_STORAGE_PREFIX}:${userId}`;
+}
+
+export function loadHiddenAiQuestionIds(userId: string): number[] {
+  const fallback = hiddenMemoryFallback.get(userId);
+  if (fallback) return fallback;
+  if (!canUseStorage()) return [];
+
+  try {
+    const raw = window.localStorage.getItem(hiddenStorageKey(userId));
+    return raw ? normalizeQuestionIds(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function hideAiQuestionIds(userId: string, questionIds: number[]) {
+  const next = normalizeQuestionIds([...loadHiddenAiQuestionIds(userId), ...questionIds]);
+  try {
+    if (!canUseStorage()) throw new Error("Browser storage unavailable");
+    window.localStorage.setItem(hiddenStorageKey(userId), JSON.stringify(next));
+    hiddenMemoryFallback.delete(userId);
+  } catch {
+    hiddenMemoryFallback.set(userId, next);
+  }
+  return next;
+}

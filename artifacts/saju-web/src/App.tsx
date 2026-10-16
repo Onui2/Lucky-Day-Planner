@@ -41,6 +41,7 @@ const DayPillarAnalysisPage = lazy(() => import("@/pages/day-pillar-analysis"));
 const LoveFortunePage = lazy(() => import("@/pages/love-fortune"));
 const LegalPage = lazy(() => import("@/pages/legal"));
 const SharedSajuPage = lazy(() => import("@/pages/shared-saju"));
+const ReportViewerPage = lazy(() => import("@/pages/report-viewer"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -86,6 +87,11 @@ function Router() {
               <Route path="/account">
                 <RequireAuth>
                   <AccountPage />
+                </RequireAuth>
+              </Route>
+              <Route path="/reports/:id/view">
+                <RequireAuth>
+                  <ReportViewerPage />
                 </RequireAuth>
               </Route>
               <Route path="/gungap" component={GungapPage} />

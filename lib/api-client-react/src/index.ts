@@ -1152,6 +1152,8 @@ export interface AiQuestionItem {
 export interface AiQuestionsResponse {
   planCode?: string | null;
   limit: number | null;
+  /** Extra monthly questions granted by paid report purchases (0 when none). */
+  bonus?: number;
   used: number;
   remaining: number | null;
   monthlyBucket: string;

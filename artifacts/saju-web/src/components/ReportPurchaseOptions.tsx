@@ -4,7 +4,7 @@ import {
   useCreateCommerceOrder, useGetCommerceProducts, type MonetizationBirthInfo,
 } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
-import { FileText, Loader2, Sparkles } from "lucide-react";
+import { BookOpenText, FileText, Loader2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { buildAuthHref } from "@/lib/auth-redirect";
@@ -201,9 +201,18 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {busy ? "리포트 요청 중" : !available ? "판매 준비 중" : adminAccess ? "관리자 무료 발급" : freeTrial ? "기본형 첫 1회 무료로 받기" : `${selectedProduct!.amount.toLocaleString("ko-KR")}원 결제하기`}
           </Button>
-          {readyReport && <Button variant="outline" disabled={downloading || busy} className="h-auto min-h-10 w-full gap-2 whitespace-normal" onClick={() => void downloadReadyReport(readyReport)}>
-            {downloading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FileText className="h-4 w-4 shrink-0" />}방금 발급한 리포트 다운로드
-          </Button>}
+          {readyReport && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Link href={`/reports/${readyReport.id}/view`}>
+                <Button type="button" variant="outline" disabled={busy} className="h-auto min-h-10 w-full gap-2 whitespace-normal">
+                  <BookOpenText className="h-4 w-4 shrink-0" />웹에서 바로 읽기
+                </Button>
+              </Link>
+              <Button variant="outline" disabled={downloading || busy} className="h-auto min-h-10 w-full gap-2 whitespace-normal" onClick={() => void downloadReadyReport(readyReport)}>
+                {downloading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FileText className="h-4 w-4 shrink-0" />}방금 발급한 리포트 다운로드
+              </Button>
+            </div>
+          )}
           <Link href="/account" className="block py-1 text-center text-xs text-primary underline">마이페이지에서 구매·발급 내역 확인</Link>
         </div>
       )}

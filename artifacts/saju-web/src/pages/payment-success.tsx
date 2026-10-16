@@ -3,6 +3,7 @@ import { Link, useSearch } from "wouter";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
+  BookOpenText,
   CheckCircle2,
   CreditCard,
   FileText,
@@ -228,6 +229,14 @@ export default function PaymentSuccessPage() {
               {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
               {isDownloading ? "다운로드 중..." : "PDF 다운로드"}
             </Button>
+          )}
+          {state === "ready" && report && (
+            <Link href={`/reports/${report.id}/view`}>
+              <Button variant="secondary" className="gap-2">
+                <BookOpenText className="h-4 w-4" />
+                웹에서 바로 읽기
+              </Button>
+            </Link>
           )}
 
           <Link href="/account">
