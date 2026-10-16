@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BIRTH_HOURS } from "@/components/ProfileModal";
+import { BIRTH_HOURS } from "@/lib/birth-time";
 import {
   Loader2, TrendingUp, Heart, Briefcase, Activity,
   Star, ChevronDown, ChevronUp, CalendarDays, Sparkles, UserCircle2,

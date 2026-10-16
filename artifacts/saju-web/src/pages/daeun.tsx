@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
 import { customFetch } from "@workspace/api-client-react";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Loader2, Sparkles, ChevronDown, ChevronUp, Star, TrendingUp, Calendar } from "lucide-react";
-import ProfileModal from "@/components/ProfileModal";
+const ProfileModal = lazy(() => import("@/components/ProfileModal"));
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { useSeoulToday } from "@/hooks/use-seoul-today";
 import { isCalendarDate, isDaeunOnDate } from "@/lib/daeun-date";
@@ -366,7 +366,11 @@ export default function DaeunPage() {
         </motion.div>
       )}
 
-      {profileOpen && <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />}
+      {profileOpen && (
+        <Suspense fallback={null}>
+          <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

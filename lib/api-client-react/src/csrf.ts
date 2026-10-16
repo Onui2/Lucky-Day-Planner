@@ -32,8 +32,38 @@ function isSameOriginApiUrl(rawUrl: string) {
   }
 }
 
+const PUBLIC_MUTATION_PATHS = new Set([
+  "/api/saju/calculate",
+  "/api/gungap/compare",
+  "/api/year-fortune",
+  "/api/saju/monthly",
+  "/api/love-fortune",
+  "/api/dream/search",
+  "/api/name-analysis",
+  "/api/auth/register",
+  "/api/auth/login-local",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+]);
+
+function normalizeApiPath(pathname: string) {
+  if (BASE && pathname.startsWith(`${BASE}/api/`)) {
+    return pathname.slice(BASE.length);
+  }
+  return pathname;
+}
+
 function shouldAttachCsrf(method: string, rawUrl: string) {
-  return UNSAFE_METHODS.has(method.toUpperCase()) && isSameOriginApiUrl(rawUrl);
+  if (!UNSAFE_METHODS.has(method.toUpperCase()) || !isSameOriginApiUrl(rawUrl)) {
+    return false;
+  }
+
+  try {
+    const url = new URL(rawUrl, window.location.origin);
+    return !PUBLIC_MUTATION_PATHS.has(normalizeApiPath(url.pathname));
+  } catch {
+    return true;
+  }
 }
 
 export function clearCachedCsrfToken() {
@@ -79,7 +109,11 @@ export async function appendCsrfHeader(
   method: string,
   rawUrl: string,
 ) {
-  if (!shouldAttachCsrf(method, rawUrl) || headers.has(CSRF_HEADER)) {
+  if (
+    headers.has(CSRF_HEADER) ||
+    headers.has("authorization") ||
+    !shouldAttachCsrf(method, rawUrl)
+  ) {
     return false;
   }
 

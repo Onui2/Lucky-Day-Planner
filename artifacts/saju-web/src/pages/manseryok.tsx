@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { useGetManseryokMonth } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
-import { AdminPersonLookup, type AdminLookupTarget } from "@/components/AdminPersonLookup";
+import type { AdminLookupTarget } from "@/components/AdminPersonLookup";
+const AdminPersonLookup = lazy(() => import("@/components/AdminPersonLookup").then((m) => ({ default: m.AdminPersonLookup })));
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -815,12 +816,14 @@ export default function ManseryokPage() {
                 >
                   <X className="mx-auto h-4 w-4" />
                 </button>
+                <Suspense fallback={null}>
                 <AdminPersonLookup
                   active={activeAdminTarget}
                   onLoad={(target) => { setAdminTarget(target); setSelected(null); }}
                   onClear={() => { setAdminTarget(null); setSelected(null); }}
                   className="mb-0 !bg-white shadow-2xl"
                 />
+                </Suspense>
               </motion.div>
             )}
           </AnimatePresence>

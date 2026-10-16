@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { useSearch } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -14,7 +14,7 @@ import {
   Briefcase, Heart, FileText, BookOpen, Plane, Activity, TrendingUp, BookmarkPlus, Trash2, CheckCheck,
   Bell, BellOff, CalendarPlus, Clock3, ExternalLink,
 } from "lucide-react";
-import ProfileModal from "@/components/ProfileModal";
+const ProfileModal = lazy(() => import("@/components/ProfileModal"));
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import {
   addRecentActivity,
@@ -614,7 +614,11 @@ export default function LuckyCalendarPage() {
         </>
       )}
 
-      {profileOpen && <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />}
+      {profileOpen && (
+        <Suspense fallback={null}>
+          <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

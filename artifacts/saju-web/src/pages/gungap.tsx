@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { BIRTH_HOURS, normalizeBirthHour } from "@/components/ProfileModal";
 import {
   Heart, Loader2, RefreshCw, UserCircle2, Star, Flame, Sprout,
   AlertTriangle, Lightbulb, Share2, CheckCheck, MessageCircle,
@@ -15,10 +14,11 @@ import {
 import { useUser, type UserProfile } from "@/contexts/UserContext";
 import { useLoveFortune, type LoveFortuneResult } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
-import HomeInquiryModal from "@/components/HomeInquiryModal";
-import RelationshipTimingPanel from "@/components/RelationshipTimingPanel";
 import { parseBirthProfileSearch } from "@/lib/birth-profile-query";
-import { formatBirthMinute, parseBirthMinute } from "@/lib/birth-time";
+import { BIRTH_HOURS, formatBirthMinute, normalizeBirthHour, parseBirthMinute } from "@/lib/birth-time";
+
+const HomeInquiryModal = lazy(() => import("@/components/HomeInquiryModal"));
+const RelationshipTimingPanel = lazy(() => import("@/components/RelationshipTimingPanel"));
 import { precisionFromProfile, precisionToPayload, type BirthPrecisionValues } from "@/lib/birth-precision";
 import {
   clampBirthDayValue,
@@ -771,11 +771,13 @@ function GungapTab() {
       )}
 
       {result.timing && (
-        <RelationshipTimingPanel
-          timing={result.timing}
-          person1Name={p1.name || "첫 번째"}
-          person2Name={p2.name || "두 번째"}
-        />
+        <Suspense fallback={null}>
+          <RelationshipTimingPanel
+            timing={result.timing}
+            person1Name={p1.name || "첫 번째"}
+            person2Name={p2.name || "두 번째"}
+          />
+        </Suspense>
       )}
 
       {(result.p1Strengths?.length > 0 || result.p2Strengths?.length > 0) && (
@@ -876,7 +878,11 @@ function GungapTab() {
         </button>
       </motion.div>
 
-      <HomeInquiryModal open={inquiryOpen} type="gungap" onClose={() => setInquiryOpen(false)} />
+      {inquiryOpen && (
+        <Suspense fallback={null}>
+          <HomeInquiryModal open={inquiryOpen} type="gungap" onClose={() => setInquiryOpen(false)} />
+        </Suspense>
+      )}
     </motion.div>
   );
 }

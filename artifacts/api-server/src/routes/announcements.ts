@@ -1,9 +1,19 @@
 import { Router, type Request, type Response } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, announcementsTable } from "@workspace/db";
 import { requireDatabase } from "../lib/database-guard.js";
 
 const router = Router();
+
+const ANNOUNCEMENTS_CACHE_TTL_MS = 60_000;
+let activeAnnouncementsCache: {
+  rows: Array<typeof announcementsTable.$inferSelect>;
+  expiresAt: number;
+} | null = null;
+
+function invalidateAnnouncementsCache() {
+  activeAnnouncementsCache = null;
+}
 
 function parseAnnouncementId(value: string | string[]): number {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -28,6 +38,13 @@ function requireAdmin(
 
 // 공개: 활성 공지 목록
 router.get("/announcements", async (_req: Request, res: Response) => {
+  const now = Date.now();
+  if (activeAnnouncementsCache && activeAnnouncementsCache.expiresAt > now) {
+    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+    res.json(activeAnnouncementsCache.rows);
+    return;
+  }
+
   if (!(await requireDatabase(res))) return;
   try {
     const rows = await db
@@ -36,6 +53,11 @@ router.get("/announcements", async (_req: Request, res: Response) => {
       .where(eq(announcementsTable.isActive, true))
       .orderBy(desc(announcementsTable.isPinned), desc(announcementsTable.createdAt))
       .limit(10);
+    activeAnnouncementsCache = {
+      rows,
+      expiresAt: Date.now() + ANNOUNCEMENTS_CACHE_TTL_MS,
+    };
+    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
     res.json(rows);
   } catch (error) {
     console.error("announcements list error:", error);
@@ -83,6 +105,7 @@ router.post("/admin/announcements", async (req: Request, res: Response) => {
       isActive: Boolean(isActive),
       isPinned: Boolean(isPinned),
     }).returning();
+    invalidateAnnouncementsCache();
     res.status(201).json(row);
   } catch (error) {
     console.error("announcement create error:", error);
@@ -114,6 +137,7 @@ router.patch("/admin/announcements/:id", async (req: Request, res: Response) => 
       .where(eq(announcementsTable.id, id))
       .returning();
     if (!row) { res.status(404).json({ error: "공지사항을 찾을 수 없습니다." }); return; }
+    invalidateAnnouncementsCache();
     res.json(row);
   } catch (error) {
     console.error("announcement update error:", error);
@@ -132,6 +156,7 @@ router.delete("/admin/announcements/:id", async (req: Request, res: Response) =>
   try {
     const rows = await db.delete(announcementsTable).where(eq(announcementsTable.id, id)).returning({ id: announcementsTable.id });
     if (rows.length === 0) { res.status(404).json({ error: "공지사항을 찾을 수 없습니다." }); return; }
+    invalidateAnnouncementsCache();
     res.json({ ok: true });
   } catch (error) {
     console.error("announcement delete error:", error);

@@ -211,6 +211,10 @@ export function clearLuckyDayBookmarks(userId: string) {
   return [];
 }
 
+export function getLocalRecentActivities(userId?: string | null) {
+  return readScopedArray<RecentActivityItem>("recent-activities", userId);
+}
+
 export async function getRecentActivities(userId?: string | null) {
   const data = await loadInsights(userId);
   return data.recentActivities;

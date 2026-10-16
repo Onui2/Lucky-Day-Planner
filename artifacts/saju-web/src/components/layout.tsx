@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Suspense, lazy, useState, useEffect } from "react";
 import { flushSync } from "react-dom";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -33,12 +33,13 @@ import {
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@workspace/replit-auth-web";
-import ProfileModal from "@/components/ProfileModal";
 import {
   useMyUnreadCount,
   useAdminUnreadCount,
   useGetAnnouncements,
 } from "@workspace/api-client-react";
+
+const ProfileModal = lazy(() => import("@/components/ProfileModal"));
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -377,15 +378,14 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-primary/30 selection:text-primary">
       <div
-        className="fixed inset-0 z-[-1] opacity-40 mix-blend-screen pointer-events-none bg-layout-pattern"
+        className="fixed inset-0 z-[-1] opacity-25 pointer-events-none bg-layout-pattern"
         style={{
           backgroundSize: "cover",
           backgroundPosition: "center",
-          // 배경 이미지를 paint 이후 로드 (렌더 블로킹 방지)
-          contentVisibility: "auto",
+          transform: "translateZ(0)",
         }}
       />
-      <header className="sticky top-0 z-50 w-full border-b border-primary/10 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40">
+      <header className="sticky top-0 z-50 w-full border-b border-primary/10 bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
         <div className="container mx-auto px-4 h-16 md:h-20 flex items-center justify-between">
           {/* 로고 */}
           <Link
@@ -811,11 +811,13 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </footer>
 
-      {isAuthenticated && (
-        <ProfileModal
-          open={profileOpen}
-          onClose={() => setProfileOpen(false)}
-        />
+      {isAuthenticated && profileOpen && (
+        <Suspense fallback={null}>
+          <ProfileModal
+            open={profileOpen}
+            onClose={() => setProfileOpen(false)}
+          />
+        </Suspense>
       )}
 
       {showScrollTop && (

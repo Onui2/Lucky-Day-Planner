@@ -250,9 +250,13 @@ async function resolveProfile(profile: UserProfile) {
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const [profile, setProfileState] = useState<UserProfile | null>(null);
+  const [profile, setProfileState] = useState<UserProfile | null>(() =>
+    !authLoading && isAuthenticated && user?.id ? readLocalProfile(user.id) : null,
+  );
   const [isLoading, setIsLoading] = useState(false);
-  const [profileReady, setProfileReady] = useState(false);
+  const [profileReady, setProfileReady] = useState<boolean>(() =>
+    !authLoading && (!isAuthenticated || !user?.id || Boolean(readLocalProfile(user.id))),
+  );
 
   useEffect(() => {
     if (authLoading) {
@@ -272,13 +276,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setProfileState(null);
-      setProfileReady(false);
-
       const localProfile = readLocalProfile(user.id);
       if (localProfile && !cancelled) {
-        setProfileState(localProfile);
+        setProfileState((prev) =>
+          JSON.stringify(prev) === JSON.stringify(localProfile) ? prev : localProfile,
+        );
         setProfileReady(true);
+      } else if (!cancelled) {
+        setProfileState(null);
+        setProfileReady(false);
       }
 
       try {
@@ -295,7 +301,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         writeLocalProfile(user.id, baseProfile);
         if (!cancelled) {
-          setProfileState(baseProfile);
+          setProfileState((prev) =>
+            JSON.stringify(prev) === JSON.stringify(baseProfile) ? prev : baseProfile,
+          );
           setProfileReady(true);
         }
 
@@ -314,7 +322,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
 
           if (!cancelled) {
-            setProfileState(resolvedProfile);
+            setProfileState((prev) =>
+              JSON.stringify(prev) === JSON.stringify(resolvedProfile) ? prev : resolvedProfile,
+            );
           }
         });
       } catch {
@@ -334,7 +344,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           void resolveProfile(localProfile).then((resolvedProfile) => {
             writeLocalProfile(user.id, resolvedProfile);
             if (!cancelled) {
-              setProfileState(resolvedProfile);
+              setProfileState((prev) =>
+                JSON.stringify(prev) === JSON.stringify(resolvedProfile) ? prev : resolvedProfile,
+              );
             }
           });
         }

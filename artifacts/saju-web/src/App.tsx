@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MotionConfig } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -82,103 +83,70 @@ function Router() {
               <Route path="/daily-fortune" component={DailyFortunePage} />
               <Route path="/saju" component={SajuPage} />
               <Route path="/manseryok" component={ManseryokPage} />
-              <Route
-                path="/account"
-                component={() => (
-                  <RequireAuth>
-                    <AccountPage />
-                  </RequireAuth>
-                )}
-              />
+              <Route path="/account">
+                <RequireAuth>
+                  <AccountPage />
+                </RequireAuth>
+              </Route>
               <Route path="/gungap" component={GungapPage} />
               <Route path="/love-fortune" component={LoveFortunePage} />
-              <Route
-                path="/year-fortune"
-                component={() => (
-                  <RequireAuth>
-                    <YearFortunePage />
-                  </RequireAuth>
-                )}
-              />
-              <Route
-                path="/name-analysis"
-                component={() => (
-                  <RequireAuth>
-                    <NameAnalysisPage />
-                  </RequireAuth>
-                )}
-              />
-              <Route
-                path="/zodiac"
-                component={() => (
-                  <RequireAuth>
-                    <ZodiacPage />
-                  </RequireAuth>
-                )}
-              />
-              <Route
-                path="/dream"
-                component={() => (
-                  <RequireAuth>
-                    <DreamPage />
-                  </RequireAuth>
-                )}
-              />
+              <Route path="/year-fortune">
+                <RequireAuth>
+                  <YearFortunePage />
+                </RequireAuth>
+              </Route>
+              <Route path="/name-analysis">
+                <RequireAuth>
+                  <NameAnalysisPage />
+                </RequireAuth>
+              </Route>
+              <Route path="/zodiac">
+                <RequireAuth>
+                  <ZodiacPage />
+                </RequireAuth>
+              </Route>
+              <Route path="/dream">
+                <RequireAuth>
+                  <DreamPage />
+                </RequireAuth>
+              </Route>
               <Route path="/saved" component={SavedPage} />
-              <Route
-                path="/daeun"
-                component={() => (
-                  <RequireAuth>
-                    <DaeunPage />
-                  </RequireAuth>
-                )}
-              />
-              <Route
-                path="/monthly-fortune"
-                component={() => (
-                  <RequireAuth>
-                    <MonthlyFortunePage />
-                  </RequireAuth>
-                )}
-              />
-              <Route
-                path="/lucky-calendar"
-                component={() => (
-                  <RequireAuth>
-                    <LuckyCalendarPage />
-                  </RequireAuth>
-                )}
-              />
+              <Route path="/daeun">
+                <RequireAuth>
+                  <DaeunPage />
+                </RequireAuth>
+              </Route>
+              <Route path="/monthly-fortune">
+                <RequireAuth>
+                  <MonthlyFortunePage />
+                </RequireAuth>
+              </Route>
+              <Route path="/lucky-calendar">
+                <RequireAuth>
+                  <LuckyCalendarPage />
+                </RequireAuth>
+              </Route>
               <Route path="/sinsal-guide" component={SinsalGuidePage} />
               <Route path="/glossary" component={GlossaryPage} />
               <Route path="/terms" component={LegalPage} />
               <Route path="/privacy" component={LegalPage} />
               <Route path="/refund-policy" component={LegalPage} />
-              <Route
-                path="/saju-tables"
-                component={() => (
-                  <RequireAdmin>
-                    <SajuTablesPage />
-                  </RequireAdmin>
-                )}
-              />
-              <Route
-                path="/day-pillar-analysis"
-                component={() => (
-                  <RequireAdmin>
-                    <DayPillarAnalysisPage />
-                  </RequireAdmin>
-                )}
-              />
+              <Route path="/saju-tables">
+                <RequireAdmin>
+                  <SajuTablesPage />
+                </RequireAdmin>
+              </Route>
+              <Route path="/day-pillar-analysis">
+                <RequireAdmin>
+                  <DayPillarAnalysisPage />
+                </RequireAdmin>
+              </Route>
               <Route path="/inquiries" component={InquiriesPage} />
-              <Route
-                path="/admin"
-                component={() => (
-                  <RequireAdmin>
-                    <AdminPage />
-                  </RequireAdmin>
-                )}
-              />
+              <Route path="/admin">
+                <RequireAdmin>
+                  <AdminPage />
+                </RequireAdmin>
+              </Route>
               <Route component={NotFound} />
             </Switch>
           </Layout>
@@ -191,16 +159,18 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <UserProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-            <Toaster />
-          </UserProvider>
-        </AuthProvider>
-      </TooltipProvider>
+      <MotionConfig reducedMotion="user">
+        <TooltipProvider>
+          <AuthProvider>
+            <UserProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <Router />
+              </WouterRouter>
+              <Toaster />
+            </UserProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

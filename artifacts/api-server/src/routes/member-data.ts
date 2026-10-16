@@ -16,6 +16,32 @@ const router = Router();
 
 const BOOKMARKS_LIMIT = 30;
 const RECENTS_LIMIT = 12;
+const PROFILE_CACHE_TTL_MS = 60_000;
+const INSIGHTS_CACHE_TTL_MS = 30_000;
+const MAX_CACHE_ENTRIES = 500;
+
+const profileCache = new Map<
+  string,
+  { profile: StoredUserProfile | null; expiresAt: number }
+>();
+const insightsCache = new Map<
+  string,
+  {
+    bookmarks: StoredLuckyDayBookmark[];
+    recentActivities: StoredRecentActivityItem[];
+    expiresAt: number;
+  }
+>();
+
+function setBoundedCache<T>(map: Map<string, T>, key: string, value: T) {
+  if (map.size >= MAX_CACHE_ENTRIES && !map.has(key)) {
+    const oldestKey = map.keys().next().value;
+    if (oldestKey !== undefined) {
+      map.delete(oldestKey);
+    }
+  }
+  map.set(key, value);
+}
 
 function requireAuth(
   req: Request,
@@ -225,6 +251,7 @@ async function replaceBookmarks(userId: string, bookmarks: StoredLuckyDayBookmar
     );
   });
 
+  insightsCache.delete(userId);
   return normalized;
 }
 
@@ -253,20 +280,34 @@ async function replaceRecentActivities(
     );
   });
 
+  insightsCache.delete(userId);
   return normalized;
 }
 
 router.get("/profile", async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
-  if (!(await requireDatabase(res))) return;
 
   const userId = String(req.user.id);
+  const cached = profileCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    res.json({ profile: cached.profile });
+    return;
+  }
+
+  if (!(await requireDatabase(res))) return;
+
   const [row] = await db
     .select({ profile: userProfilesTable.profile })
     .from(userProfilesTable)
     .where(eq(userProfilesTable.userId, userId));
 
-  res.json({ profile: row?.profile ?? null });
+  const profile = row?.profile ?? null;
+  setBoundedCache(profileCache, userId, {
+    profile,
+    expiresAt: Date.now() + PROFILE_CACHE_TTL_MS,
+  });
+
+  res.json({ profile });
 });
 
 router.put("/profile", async (req: Request, res: Response) => {
@@ -281,19 +322,18 @@ router.put("/profile", async (req: Request, res: Response) => {
     return;
   }
 
-  const [existing] = await db
-    .select({ userId: userProfilesTable.userId })
-    .from(userProfilesTable)
-    .where(eq(userProfilesTable.userId, userId));
+  await db
+    .insert(userProfilesTable)
+    .values({ userId, profile })
+    .onConflictDoUpdate({
+      target: userProfilesTable.userId,
+      set: { profile, updatedAt: new Date() },
+    });
 
-  if (existing) {
-    await db
-      .update(userProfilesTable)
-      .set({ profile, updatedAt: new Date() })
-      .where(eq(userProfilesTable.userId, userId));
-  } else {
-    await db.insert(userProfilesTable).values({ userId, profile });
-  }
+  setBoundedCache(profileCache, userId, {
+    profile,
+    expiresAt: Date.now() + PROFILE_CACHE_TTL_MS,
+  });
 
   res.json({ profile });
 });
@@ -304,18 +344,35 @@ router.delete("/profile", async (req: Request, res: Response) => {
 
   const userId = String(req.user.id);
   await db.delete(userProfilesTable).where(eq(userProfilesTable.userId, userId));
+  profileCache.delete(userId);
   res.json({ ok: true });
 });
 
 router.get("/member-insights", async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
-  if (!(await requireDatabase(res))) return;
 
   const userId = String(req.user.id);
+  const cached = insightsCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    res.json({
+      bookmarks: cached.bookmarks,
+      recentActivities: cached.recentActivities,
+    });
+    return;
+  }
+
+  if (!(await requireDatabase(res))) return;
+
   const [bookmarks, recentActivities] = await Promise.all([
     readBookmarks(userId),
     readRecentActivities(userId),
   ]);
+
+  setBoundedCache(insightsCache, userId, {
+    bookmarks,
+    recentActivities,
+    expiresAt: Date.now() + INSIGHTS_CACHE_TTL_MS,
+  });
 
   res.json({ bookmarks, recentActivities });
 });
@@ -412,9 +469,17 @@ router.post("/member-insights/sync", async (req: Request, res: Response) => {
     ? currentRecentActivities
     : await replaceRecentActivities(userId, incomingRecentActivities);
 
+  const resolvedBookmarks = bookmarks ?? [];
+  const resolvedRecentActivities = recentActivities ?? [];
+  setBoundedCache(insightsCache, userId, {
+    bookmarks: resolvedBookmarks,
+    recentActivities: resolvedRecentActivities,
+    expiresAt: Date.now() + INSIGHTS_CACHE_TTL_MS,
+  });
+
   res.json({
-    bookmarks: bookmarks ?? [],
-    recentActivities: recentActivities ?? [],
+    bookmarks: resolvedBookmarks,
+    recentActivities: resolvedRecentActivities,
   });
 });
 

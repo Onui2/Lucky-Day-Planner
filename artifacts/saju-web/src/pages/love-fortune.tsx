@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BIRTH_HOURS, normalizeBirthHour } from "@/components/ProfileModal";
+import { BIRTH_HOURS, normalizeBirthHour } from "@/lib/birth-time";
 import { Loader2, Heart, UserCircle2, Sparkles, ChevronDown, ChevronUp, Star, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";

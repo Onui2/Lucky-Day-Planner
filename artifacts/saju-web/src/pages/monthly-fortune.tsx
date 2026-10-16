@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import {
   Loader2, Sparkles, CalendarDays, TrendingUp, Heart, Briefcase, Activity,
   ChevronLeft, ChevronRight, Star, Info
 } from "lucide-react";
-import ProfileModal from "@/components/ProfileModal";
+const ProfileModal = lazy(() => import("@/components/ProfileModal"));
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { fetchMonthlyFortune } from "@/lib/monthly-fortune";
 
@@ -268,7 +268,11 @@ export default function MonthlyFortunePage() {
         </>
       )}
 
-      {profileOpen && <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />}
+      {profileOpen && (
+        <Suspense fallback={null}>
+          <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

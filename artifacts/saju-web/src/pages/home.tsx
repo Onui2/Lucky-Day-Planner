@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import {
@@ -46,17 +46,19 @@ import {
   useGetMyReports,
   useRegenerateReport,
 } from "@workspace/api-client-react";
-import HomeInquiryModal from "@/components/HomeInquiryModal";
 import HomeStartGuide from "@/components/HomeStartGuide";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
 import {
   clearRecentActivities,
   formatBookmarkDate,
+  getLocalRecentActivities,
   getRecentActivities,
   type LuckyDayBookmark,
   type RecentActivityItem,
 } from "@/lib/member-insights";
+
+const HomeInquiryModal = lazy(() => import("@/components/HomeInquiryModal"));
 import { getSeoulTodayString } from "@/lib/seoul-date";
 import { useLuckyDayBookmarks } from "@/hooks/use-lucky-day-bookmarks";
 import { getElementRelation } from "@/lib/saju-relation";
@@ -484,11 +486,11 @@ export default function Home() {
   const [bookmarksClearing, setBookmarksClearing] = useState(false);
   const [recentActivitiesClearing, setRecentActivitiesClearing] =
     useState(false);
-  const [recentActivities, setRecentActivities] = useState<
-    RecentActivityItem[]
-  >([]);
   const [todayDate, setTodayDate] = useState(() => getSeoulTodayString());
   const { user, isAuthenticated } = useAuth();
+  const [recentActivities, setRecentActivities] = useState<
+    RecentActivityItem[]
+  >(() => getLocalRecentActivities(user?.id));
   const { profile } = useResolvedProfile();
   const { bookmarks, removeBookmark } = useLuckyDayBookmarks();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
@@ -511,7 +513,7 @@ export default function Home() {
             "home-dashboard",
           ],
           staleTime: 5 * 60_000,
-          enabled: true,
+          enabled: isAuthenticated,
         },
       },
     );
@@ -587,17 +589,17 @@ export default function Home() {
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08,
+        staggerChildren: 0.035,
       },
     },
   };
 
   const item = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 14 },
     show: {
       opacity: 1,
       y: 0,
-      transition: { type: "spring" as const, stiffness: 300, damping: 24 },
+      transition: { duration: 0.22, ease: "easeOut" as const },
     },
   };
 
@@ -608,6 +610,8 @@ export default function Home() {
       setRecentActivities([]);
       return;
     }
+
+    setRecentActivities(getLocalRecentActivities(user.id));
 
     void (async () => {
       const nextRecentActivities = await getRecentActivities(user.id);
@@ -2756,17 +2760,21 @@ export default function Home() {
         </div>
       </motion.div>
 
-      <HomeInquiryModal
-        open={inquiryOpen}
-        type={inquiryType}
-        initialMessage={inquiryDraft.message}
-        initialPerson1={inquiryDraft.person1}
-        initialPerson2={inquiryDraft.person2}
-        onClose={() => {
-          setInquiryOpen(false);
-          setInquiryDraft({});
-        }}
-      />
+      {inquiryOpen && (
+        <Suspense fallback={null}>
+          <HomeInquiryModal
+            open={inquiryOpen}
+            type={inquiryType}
+            initialMessage={inquiryDraft.message}
+            initialPerson1={inquiryDraft.person1}
+            initialPerson2={inquiryDraft.person2}
+            onClose={() => {
+              setInquiryOpen(false);
+              setInquiryDraft({});
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -155,11 +155,19 @@ export function createRateLimiter({
 
     const key = keyGenerator(req);
 
-    // Shared across all serverless instances via Postgres; falls back to a
-    // per-instance in-memory bucket only when no database is configured, and
-    // fails open (allows the request) if the database is unreachable, so
-    // rate limiting itself never becomes an outage.
-    const bucket = hasDatabaseConfig()
+    const isLocalSingleProcessDev =
+      !process.env.VERCEL && process.env.NODE_ENV === "development";
+    const isGeneralReadRequest =
+      name === "api-general" &&
+      (req.method === "GET" || req.method === "HEAD");
+    const shouldUseSharedDbStore =
+      hasDatabaseConfig() && !isLocalSingleProcessDev && !isGeneralReadRequest;
+
+    // Shared across all serverless instances via Postgres for sensitive/write
+    // endpoints; uses fast in-memory buckets for local single-process dev or
+    // high-frequency general GET requests, and fails open if the database is
+    // unreachable so rate limiting itself never becomes an outage.
+    const bucket = shouldUseSharedDbStore
       ? (await incrementDbBucket(name, key, windowMs)) ?? incrementMemoryBucket(name, key, windowMs)
       : incrementMemoryBucket(name, key, windowMs);
 

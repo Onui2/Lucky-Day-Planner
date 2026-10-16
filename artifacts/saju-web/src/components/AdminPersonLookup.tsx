@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ShieldCheck, X } from "lucide-react";
-import { BIRTH_HOURS } from "@/components/ProfileModal";
+import { BIRTH_HOURS } from "@/lib/birth-time";
 import { sajuResultToProfile } from "@/lib/resolved-profile";
 import type { UserProfile } from "@/contexts/UserContext";
 import { cn } from "@/lib/utils";

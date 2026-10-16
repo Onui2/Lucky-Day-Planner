@@ -67,7 +67,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getBirthHourLabel } from "@/components/ProfileModal";
+import { getBirthHourLabel } from "@/lib/birth-time";
 import { useLocation } from "wouter";
 
 /* ─── 헬퍼 ───────────────────────────────────── */

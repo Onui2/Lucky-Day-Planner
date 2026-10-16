@@ -128,30 +128,30 @@ export function ensureDatabaseSchema(): Promise<void> {
             password_reset_expiry timestamptz,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
+          );
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name varchar;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name varchar;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url varchar;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS role varchar(20) DEFAULT 'user';
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_version integer NOT NULL DEFAULT 0;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_valid_after timestamptz;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash varchar;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token varchar;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expiry timestamptz;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+          UPDATE users SET role = 'user' WHERE role IS NULL;
+          UPDATE users SET created_at = now() WHERE created_at IS NULL;
+          UPDATE users SET updated_at = now() WHERE updated_at IS NULL;
+          ALTER TABLE users ALTER COLUMN role SET DEFAULT 'user';
+          ALTER TABLE users ALTER COLUMN role SET NOT NULL;
+          ALTER TABLE users ALTER COLUMN created_at SET DEFAULT now();
+          ALTER TABLE users ALTER COLUMN created_at SET NOT NULL;
+          ALTER TABLE users ALTER COLUMN updated_at SET DEFAULT now();
+          ALTER TABLE users ALTER COLUMN updated_at SET NOT NULL;
+          CREATE INDEX IF NOT EXISTS users_email_lookup_idx ON users ((lower(email)));
+          CREATE INDEX IF NOT EXISTS users_password_reset_token_idx ON users (password_reset_token);
         `);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name varchar`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name varchar`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url varchar`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role varchar(20) DEFAULT 'user'`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_version integer NOT NULL DEFAULT 0`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_valid_after timestamptz`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash varchar`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token varchar`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expiry timestamptz`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
-        await client.query(`UPDATE users SET role = 'user' WHERE role IS NULL`);
-        await client.query(`UPDATE users SET created_at = now() WHERE created_at IS NULL`);
-        await client.query(`UPDATE users SET updated_at = now() WHERE updated_at IS NULL`);
-        await client.query(`ALTER TABLE users ALTER COLUMN role SET DEFAULT 'user'`);
-        await client.query(`ALTER TABLE users ALTER COLUMN role SET NOT NULL`);
-        await client.query(`ALTER TABLE users ALTER COLUMN created_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE users ALTER COLUMN created_at SET NOT NULL`);
-        await client.query(`ALTER TABLE users ALTER COLUMN updated_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE users ALTER COLUMN updated_at SET NOT NULL`);
-        await client.query(`CREATE INDEX IF NOT EXISTS users_email_lookup_idx ON users ((lower(email)))`);
-        await client.query(`CREATE INDEX IF NOT EXISTS users_password_reset_token_idx ON users (password_reset_token)`);
 
         await client.query(`
           CREATE TABLE IF NOT EXISTS auth_identities (
@@ -160,39 +160,33 @@ export function ensureDatabaseSchema(): Promise<void> {
             user_id varchar REFERENCES users(id) ON DELETE SET NULL,
             created_at timestamptz NOT NULL DEFAULT now(),
             PRIMARY KEY (provider, subject)
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS auth_identities_user_idx ON auth_identities (user_id)`);
+          );
+          CREATE INDEX IF NOT EXISTS auth_identities_user_idx ON auth_identities (user_id);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS sessions (
             sid varchar PRIMARY KEY,
             sess jsonb NOT NULL,
             expire timestamp NOT NULL
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON sessions (expire)`);
+          );
+          CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON sessions (expire);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS saved_saju (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             label varchar(50) NOT NULL DEFAULT '내 사주',
             birth_info jsonb NOT NULL,
             created_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`ALTER TABLE saved_saju ADD COLUMN IF NOT EXISTS label varchar(50) DEFAULT '내 사주'`);
-        await client.query(`ALTER TABLE saved_saju ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
-        await client.query(`UPDATE saved_saju SET label = '내 사주' WHERE label IS NULL`);
-        await client.query(`UPDATE saved_saju SET created_at = now() WHERE created_at IS NULL`);
-        await client.query(`ALTER TABLE saved_saju ALTER COLUMN label SET DEFAULT '내 사주'`);
-        await client.query(`ALTER TABLE saved_saju ALTER COLUMN label SET NOT NULL`);
-        await client.query(`ALTER TABLE saved_saju ALTER COLUMN created_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE saved_saju ALTER COLUMN created_at SET NOT NULL`);
-        await client.query(`CREATE INDEX IF NOT EXISTS saved_saju_user_created_idx ON saved_saju (user_id, created_at DESC)`);
+          );
+          ALTER TABLE saved_saju ADD COLUMN IF NOT EXISTS label varchar(50) DEFAULT '내 사주';
+          ALTER TABLE saved_saju ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+          UPDATE saved_saju SET label = '내 사주' WHERE label IS NULL;
+          UPDATE saved_saju SET created_at = now() WHERE created_at IS NULL;
+          ALTER TABLE saved_saju ALTER COLUMN label SET DEFAULT '내 사주';
+          ALTER TABLE saved_saju ALTER COLUMN label SET NOT NULL;
+          ALTER TABLE saved_saju ALTER COLUMN created_at SET DEFAULT now();
+          ALTER TABLE saved_saju ALTER COLUMN created_at SET NOT NULL;
+          CREATE INDEX IF NOT EXISTS saved_saju_user_created_idx ON saved_saju (user_id, created_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS lucky_day_bookmarks (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -212,12 +206,10 @@ export function ensureDatabaseSchema(): Promise<void> {
             href varchar(255) NOT NULL,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS lucky_day_bookmarks_user_entry_key_uidx ON lucky_day_bookmarks (user_id, entry_key)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS lucky_day_bookmarks_user_updated_idx ON lucky_day_bookmarks (user_id, updated_at DESC)`);
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS lucky_day_bookmarks_user_entry_key_uidx ON lucky_day_bookmarks (user_id, entry_key);
+          CREATE INDEX IF NOT EXISTS lucky_day_bookmarks_user_updated_idx ON lucky_day_bookmarks (user_id, updated_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS inquiries (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -232,63 +224,59 @@ export function ensureDatabaseSchema(): Promise<void> {
             read_by_user boolean NOT NULL DEFAULT false,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS user_label varchar(100)`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS saju_snapshot jsonb`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS status varchar(20) DEFAULT 'pending'`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS admin_reply text`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS replied_at timestamptz`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS read_by_admin boolean DEFAULT false`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS inquiry_type varchar(20) DEFAULT 'general'`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS read_by_user boolean DEFAULT false`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
-        await client.query(`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
-        await client.query(`UPDATE inquiries SET status = 'pending' WHERE status IS NULL`);
-        await client.query(`UPDATE inquiries SET read_by_admin = false WHERE read_by_admin IS NULL`);
-        await client.query(`UPDATE inquiries SET inquiry_type = 'general' WHERE inquiry_type IS NULL`);
-        await client.query(`UPDATE inquiries SET read_by_user = false WHERE read_by_user IS NULL`);
-        await client.query(`UPDATE inquiries SET created_at = now() WHERE created_at IS NULL`);
-        await client.query(`UPDATE inquiries SET updated_at = now() WHERE updated_at IS NULL`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN status SET DEFAULT 'pending'`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN status SET NOT NULL`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN read_by_admin SET DEFAULT false`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN read_by_admin SET NOT NULL`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN inquiry_type SET DEFAULT 'general'`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN inquiry_type SET NOT NULL`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN read_by_user SET DEFAULT false`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN read_by_user SET NOT NULL`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN created_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN created_at SET NOT NULL`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN updated_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE inquiries ALTER COLUMN updated_at SET NOT NULL`);
-        await client.query(`CREATE INDEX IF NOT EXISTS inquiries_user_created_idx ON inquiries (user_id, created_at DESC)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS inquiries_status_created_idx ON inquiries (status, created_at DESC)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS inquiries_admin_unread_idx ON inquiries (read_by_admin, created_at DESC)`);
+          );
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS user_label varchar(100);
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS saju_snapshot jsonb;
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS status varchar(20) DEFAULT 'pending';
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS admin_reply text;
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS replied_at timestamptz;
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS read_by_admin boolean DEFAULT false;
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS inquiry_type varchar(20) DEFAULT 'general';
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS read_by_user boolean DEFAULT false;
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+          ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+          UPDATE inquiries SET status = 'pending' WHERE status IS NULL;
+          UPDATE inquiries SET read_by_admin = false WHERE read_by_admin IS NULL;
+          UPDATE inquiries SET inquiry_type = 'general' WHERE inquiry_type IS NULL;
+          UPDATE inquiries SET read_by_user = false WHERE read_by_user IS NULL;
+          UPDATE inquiries SET created_at = now() WHERE created_at IS NULL;
+          UPDATE inquiries SET updated_at = now() WHERE updated_at IS NULL;
+          ALTER TABLE inquiries ALTER COLUMN status SET DEFAULT 'pending';
+          ALTER TABLE inquiries ALTER COLUMN status SET NOT NULL;
+          ALTER TABLE inquiries ALTER COLUMN read_by_admin SET DEFAULT false;
+          ALTER TABLE inquiries ALTER COLUMN read_by_admin SET NOT NULL;
+          ALTER TABLE inquiries ALTER COLUMN inquiry_type SET DEFAULT 'general';
+          ALTER TABLE inquiries ALTER COLUMN inquiry_type SET NOT NULL;
+          ALTER TABLE inquiries ALTER COLUMN read_by_user SET DEFAULT false;
+          ALTER TABLE inquiries ALTER COLUMN read_by_user SET NOT NULL;
+          ALTER TABLE inquiries ALTER COLUMN created_at SET DEFAULT now();
+          ALTER TABLE inquiries ALTER COLUMN created_at SET NOT NULL;
+          ALTER TABLE inquiries ALTER COLUMN updated_at SET DEFAULT now();
+          ALTER TABLE inquiries ALTER COLUMN updated_at SET NOT NULL;
+          CREATE INDEX IF NOT EXISTS inquiries_user_created_idx ON inquiries (user_id, created_at DESC);
+          CREATE INDEX IF NOT EXISTS inquiries_status_created_idx ON inquiries (status, created_at DESC);
+          CREATE INDEX IF NOT EXISTS inquiries_admin_unread_idx ON inquiries (read_by_admin, created_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS user_profiles (
             user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
             profile jsonb NOT NULL DEFAULT '{}'::jsonb,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS profile jsonb DEFAULT '{}'::jsonb`);
-        await client.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
-        await client.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
-        await client.query(`UPDATE user_profiles SET profile = '{}'::jsonb WHERE profile IS NULL`);
-        await client.query(`UPDATE user_profiles SET created_at = now() WHERE created_at IS NULL`);
-        await client.query(`UPDATE user_profiles SET updated_at = now() WHERE updated_at IS NULL`);
-        await client.query(`ALTER TABLE user_profiles ALTER COLUMN profile SET DEFAULT '{}'::jsonb`);
-        await client.query(`ALTER TABLE user_profiles ALTER COLUMN profile SET NOT NULL`);
-        await client.query(`ALTER TABLE user_profiles ALTER COLUMN created_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE user_profiles ALTER COLUMN created_at SET NOT NULL`);
-        await client.query(`ALTER TABLE user_profiles ALTER COLUMN updated_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE user_profiles ALTER COLUMN updated_at SET NOT NULL`);
-        await client.query(`CREATE INDEX IF NOT EXISTS user_profiles_updated_idx ON user_profiles (updated_at DESC)`);
+          );
+          ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS profile jsonb DEFAULT '{}'::jsonb;
+          ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+          ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+          UPDATE user_profiles SET profile = '{}'::jsonb WHERE profile IS NULL;
+          UPDATE user_profiles SET created_at = now() WHERE created_at IS NULL;
+          UPDATE user_profiles SET updated_at = now() WHERE updated_at IS NULL;
+          ALTER TABLE user_profiles ALTER COLUMN profile SET DEFAULT '{}'::jsonb;
+          ALTER TABLE user_profiles ALTER COLUMN profile SET NOT NULL;
+          ALTER TABLE user_profiles ALTER COLUMN created_at SET DEFAULT now();
+          ALTER TABLE user_profiles ALTER COLUMN created_at SET NOT NULL;
+          ALTER TABLE user_profiles ALTER COLUMN updated_at SET DEFAULT now();
+          ALTER TABLE user_profiles ALTER COLUMN updated_at SET NOT NULL;
+          CREATE INDEX IF NOT EXISTS user_profiles_updated_idx ON user_profiles (updated_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS member_bookmarks (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -296,26 +284,24 @@ export function ensureDatabaseSchema(): Promise<void> {
             payload jsonb NOT NULL DEFAULT '{}'::jsonb,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS bookmark_id varchar(160)`);
-        await client.query(`ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS payload jsonb DEFAULT '{}'::jsonb`);
-        await client.query(`ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
-        await client.query(`ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
-        await client.query(`UPDATE member_bookmarks SET payload = '{}'::jsonb WHERE payload IS NULL`);
-        await client.query(`UPDATE member_bookmarks SET created_at = now() WHERE created_at IS NULL`);
-        await client.query(`UPDATE member_bookmarks SET updated_at = now() WHERE updated_at IS NULL`);
-        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN bookmark_id SET NOT NULL`);
-        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN payload SET DEFAULT '{}'::jsonb`);
-        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN payload SET NOT NULL`);
-        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN created_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN created_at SET NOT NULL`);
-        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN updated_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE member_bookmarks ALTER COLUMN updated_at SET NOT NULL`);
-        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS member_bookmarks_user_bookmark_idx ON member_bookmarks (user_id, bookmark_id)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS member_bookmarks_user_updated_idx ON member_bookmarks (user_id, updated_at DESC)`);
+          );
+          ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS bookmark_id varchar(160);
+          ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS payload jsonb DEFAULT '{}'::jsonb;
+          ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+          ALTER TABLE member_bookmarks ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+          UPDATE member_bookmarks SET payload = '{}'::jsonb WHERE payload IS NULL;
+          UPDATE member_bookmarks SET created_at = now() WHERE created_at IS NULL;
+          UPDATE member_bookmarks SET updated_at = now() WHERE updated_at IS NULL;
+          ALTER TABLE member_bookmarks ALTER COLUMN bookmark_id SET NOT NULL;
+          ALTER TABLE member_bookmarks ALTER COLUMN payload SET DEFAULT '{}'::jsonb;
+          ALTER TABLE member_bookmarks ALTER COLUMN payload SET NOT NULL;
+          ALTER TABLE member_bookmarks ALTER COLUMN created_at SET DEFAULT now();
+          ALTER TABLE member_bookmarks ALTER COLUMN created_at SET NOT NULL;
+          ALTER TABLE member_bookmarks ALTER COLUMN updated_at SET DEFAULT now();
+          ALTER TABLE member_bookmarks ALTER COLUMN updated_at SET NOT NULL;
+          CREATE UNIQUE INDEX IF NOT EXISTS member_bookmarks_user_bookmark_idx ON member_bookmarks (user_id, bookmark_id);
+          CREATE INDEX IF NOT EXISTS member_bookmarks_user_updated_idx ON member_bookmarks (user_id, updated_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS recent_activities (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -324,31 +310,29 @@ export function ensureDatabaseSchema(): Promise<void> {
             payload jsonb NOT NULL DEFAULT '{}'::jsonb,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS activity_id varchar(200)`);
-        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS kind varchar(30) DEFAULT 'saju'`);
-        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS payload jsonb DEFAULT '{}'::jsonb`);
-        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`);
-        await client.query(`ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
-        await client.query(`UPDATE recent_activities SET kind = 'saju' WHERE kind IS NULL`);
-        await client.query(`UPDATE recent_activities SET payload = '{}'::jsonb WHERE payload IS NULL`);
-        await client.query(`UPDATE recent_activities SET created_at = now() WHERE created_at IS NULL`);
-        await client.query(`UPDATE recent_activities SET updated_at = now() WHERE updated_at IS NULL`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN activity_id SET NOT NULL`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN kind SET DEFAULT 'saju'`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN kind SET NOT NULL`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN payload SET DEFAULT '{}'::jsonb`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN payload SET NOT NULL`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN created_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN created_at SET NOT NULL`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN updated_at SET DEFAULT now()`);
-        await client.query(`ALTER TABLE recent_activities ALTER COLUMN updated_at SET NOT NULL`);
-        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS recent_activities_user_activity_idx ON recent_activities (user_id, activity_id)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS recent_activities_user_updated_idx ON recent_activities (user_id, updated_at DESC)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS recent_activities_kind_updated_idx ON recent_activities (kind, updated_at DESC)`);
+          );
+          ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS activity_id varchar(200);
+          ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS kind varchar(30) DEFAULT 'saju';
+          ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS payload jsonb DEFAULT '{}'::jsonb;
+          ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+          ALTER TABLE recent_activities ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+          UPDATE recent_activities SET kind = 'saju' WHERE kind IS NULL;
+          UPDATE recent_activities SET payload = '{}'::jsonb WHERE payload IS NULL;
+          UPDATE recent_activities SET created_at = now() WHERE created_at IS NULL;
+          UPDATE recent_activities SET updated_at = now() WHERE updated_at IS NULL;
+          ALTER TABLE recent_activities ALTER COLUMN activity_id SET NOT NULL;
+          ALTER TABLE recent_activities ALTER COLUMN kind SET DEFAULT 'saju';
+          ALTER TABLE recent_activities ALTER COLUMN kind SET NOT NULL;
+          ALTER TABLE recent_activities ALTER COLUMN payload SET DEFAULT '{}'::jsonb;
+          ALTER TABLE recent_activities ALTER COLUMN payload SET NOT NULL;
+          ALTER TABLE recent_activities ALTER COLUMN created_at SET DEFAULT now();
+          ALTER TABLE recent_activities ALTER COLUMN created_at SET NOT NULL;
+          ALTER TABLE recent_activities ALTER COLUMN updated_at SET DEFAULT now();
+          ALTER TABLE recent_activities ALTER COLUMN updated_at SET NOT NULL;
+          CREATE UNIQUE INDEX IF NOT EXISTS recent_activities_user_activity_idx ON recent_activities (user_id, activity_id);
+          CREATE INDEX IF NOT EXISTS recent_activities_user_updated_idx ON recent_activities (user_id, updated_at DESC);
+          CREATE INDEX IF NOT EXISTS recent_activities_kind_updated_idx ON recent_activities (kind, updated_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS announcements (
             id serial PRIMARY KEY,
             title varchar(100) NOT NULL,
@@ -358,17 +342,15 @@ export function ensureDatabaseSchema(): Promise<void> {
             is_pinned boolean NOT NULL DEFAULT false,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS type varchar(20) DEFAULT 'info'`);
-        await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true`);
-        await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_pinned boolean DEFAULT false`);
-        await client.query(`UPDATE announcements SET type = 'info' WHERE type IS NULL`);
-        await client.query(`UPDATE announcements SET is_active = true WHERE is_active IS NULL`);
-        await client.query(`UPDATE announcements SET is_pinned = false WHERE is_pinned IS NULL`);
-        await client.query(`CREATE INDEX IF NOT EXISTS announcements_active_pinned_idx ON announcements (is_active, is_pinned)`);
+          );
+          ALTER TABLE announcements ADD COLUMN IF NOT EXISTS type varchar(20) DEFAULT 'info';
+          ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+          ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_pinned boolean DEFAULT false;
+          UPDATE announcements SET type = 'info' WHERE type IS NULL;
+          UPDATE announcements SET is_active = true WHERE is_active IS NULL;
+          UPDATE announcements SET is_pinned = false WHERE is_pinned IS NULL;
+          CREATE INDEX IF NOT EXISTS announcements_active_pinned_idx ON announcements (is_active, is_pinned);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS analysis_snapshots (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -377,12 +359,10 @@ export function ensureDatabaseSchema(): Promise<void> {
             birth_info jsonb NOT NULL,
             saju_result jsonb NOT NULL,
             created_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS analysis_snapshots_user_created_idx ON analysis_snapshots (user_id, created_at DESC)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS analysis_snapshots_kind_created_idx ON analysis_snapshots (kind, created_at DESC)`);
+          );
+          CREATE INDEX IF NOT EXISTS analysis_snapshots_user_created_idx ON analysis_snapshots (user_id, created_at DESC);
+          CREATE INDEX IF NOT EXISTS analysis_snapshots_kind_created_idx ON analysis_snapshots (kind, created_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS orders (
             id serial PRIMARY KEY,
             order_id varchar(80) NOT NULL UNIQUE,
@@ -395,12 +375,10 @@ export function ensureDatabaseSchema(): Promise<void> {
             metadata jsonb,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS orders_user_created_idx ON orders (user_id, created_at DESC)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS orders_status_created_idx ON orders (status, created_at DESC)`);
+          );
+          CREATE INDEX IF NOT EXISTS orders_user_created_idx ON orders (user_id, created_at DESC);
+          CREATE INDEX IF NOT EXISTS orders_status_created_idx ON orders (status, created_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS payments (
             id serial PRIMARY KEY,
             order_id integer NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
@@ -413,11 +391,9 @@ export function ensureDatabaseSchema(): Promise<void> {
             approved_at timestamptz,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS payments_status_created_idx ON payments (status, created_at DESC)`);
+          );
+          CREATE INDEX IF NOT EXISTS payments_status_created_idx ON payments (status, created_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS purchase_entitlements (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -428,12 +404,10 @@ export function ensureDatabaseSchema(): Promise<void> {
             status varchar(20) NOT NULL DEFAULT 'active',
             expires_at timestamptz,
             created_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS purchase_entitlements_order_product_uidx ON purchase_entitlements (order_id, product_type)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS purchase_entitlements_user_status_idx ON purchase_entitlements (user_id, status)`);
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS purchase_entitlements_order_product_uidx ON purchase_entitlements (order_id, product_type);
+          CREATE INDEX IF NOT EXISTS purchase_entitlements_user_status_idx ON purchase_entitlements (user_id, status);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS pdf_reports (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -452,12 +426,10 @@ export function ensureDatabaseSchema(): Promise<void> {
             generated_at timestamptz,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS pdf_reports_user_status_idx ON pdf_reports (user_id, status)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS pdf_reports_snapshot_idx ON pdf_reports (snapshot_id)`);
+          );
+          CREATE INDEX IF NOT EXISTS pdf_reports_user_status_idx ON pdf_reports (user_id, status);
+          CREATE INDEX IF NOT EXISTS pdf_reports_snapshot_idx ON pdf_reports (snapshot_id);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS share_snapshots (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -466,13 +438,11 @@ export function ensureDatabaseSchema(): Promise<void> {
             expires_at timestamptz NOT NULL,
             deleted_at timestamptz,
             created_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS share_snapshots_token_hash_uidx ON share_snapshots (token_hash)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS share_snapshots_user_created_idx ON share_snapshots (user_id, created_at DESC)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS share_snapshots_expires_idx ON share_snapshots (expires_at)`);
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS share_snapshots_token_hash_uidx ON share_snapshots (token_hash);
+          CREATE INDEX IF NOT EXISTS share_snapshots_user_created_idx ON share_snapshots (user_id, created_at DESC);
+          CREATE INDEX IF NOT EXISTS share_snapshots_expires_idx ON share_snapshots (expires_at);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS user_subscriptions (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -484,12 +454,10 @@ export function ensureDatabaseSchema(): Promise<void> {
             metadata jsonb,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS user_subscriptions_user_status_idx ON user_subscriptions (user_id, status)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS user_subscriptions_period_end_idx ON user_subscriptions (current_period_end)`);
+          );
+          CREATE INDEX IF NOT EXISTS user_subscriptions_user_status_idx ON user_subscriptions (user_id, status);
+          CREATE INDEX IF NOT EXISTS user_subscriptions_period_end_idx ON user_subscriptions (current_period_end);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS ai_questions (
             id serial PRIMARY KEY,
             user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -506,33 +474,29 @@ export function ensureDatabaseSchema(): Promise<void> {
             request_metadata jsonb,
             prompt_guard_version varchar(40),
             created_at timestamptz NOT NULL DEFAULT now()
-          )
-        `);
-        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS blocked_by_guard boolean NOT NULL DEFAULT false`);
-        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS risk_level varchar(20) NOT NULL DEFAULT 'none'`);
-        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS risk_reasons jsonb`);
-        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS conversation_history jsonb`);
-        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS request_metadata jsonb`);
-        await client.query(`ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS prompt_guard_version varchar(40)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_user_bucket_idx ON ai_questions (user_id, monthly_bucket)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_user_created_idx ON ai_questions (user_id, created_at DESC)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS ai_questions_guard_created_idx ON ai_questions (blocked_by_guard, created_at DESC)`);
+          );
+          ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS blocked_by_guard boolean NOT NULL DEFAULT false;
+          ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS risk_level varchar(20) NOT NULL DEFAULT 'none';
+          ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS risk_reasons jsonb;
+          ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS conversation_history jsonb;
+          ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS request_metadata jsonb;
+          ALTER TABLE ai_questions ADD COLUMN IF NOT EXISTS prompt_guard_version varchar(40);
+          CREATE INDEX IF NOT EXISTS ai_questions_user_bucket_idx ON ai_questions (user_id, monthly_bucket);
+          CREATE INDEX IF NOT EXISTS ai_questions_user_created_idx ON ai_questions (user_id, created_at DESC);
+          CREATE INDEX IF NOT EXISTS ai_questions_guard_created_idx ON ai_questions (blocked_by_guard, created_at DESC);
 
-        await client.query(`
           CREATE TABLE IF NOT EXISTS rate_limit_buckets (
             bucket_name varchar(60) NOT NULL,
             key varchar(200) NOT NULL,
             count integer NOT NULL DEFAULT 0,
             reset_at timestamptz NOT NULL,
             PRIMARY KEY (bucket_name, key)
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS rate_limit_buckets_reset_idx ON rate_limit_buckets (reset_at)`);
+          );
+          CREATE INDEX IF NOT EXISTS rate_limit_buckets_reset_idx ON rate_limit_buckets (reset_at);
 
-        // These tables are accessed only through the server. Supabase exposes
-        // public tables through its Data API and may grant anon/authenticated
-        // privileges by default, including on tables created in raw SQL.
-        await client.query(`
+          -- These tables are accessed only through the server. Supabase exposes
+          -- public tables through its Data API and may grant anon/authenticated
+          -- privileges by default, including on tables created in raw SQL.
           DO $private_tables$
           DECLARE
             private_tables text[] := ARRAY[

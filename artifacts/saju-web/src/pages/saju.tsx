@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { Suspense, lazy, useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCalculateSaju, useSaveSaju, useGetSavedSaju, useSubmitInquiry } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -13,19 +13,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BIRTH_HOURS, getBirthHourLabel } from "@/components/ProfileModal";
-import { ReportPurchaseButton } from "@/components/ReportPurchaseButton";
+import { BIRTH_HOURS, getBirthHourLabel } from "@/lib/birth-time";
 import { parseReportFocus, REPORT_FOCUS_LABELS } from "@/lib/report-focus";
-import { AiChatPanel } from "@/components/AiChatPanel";
-import { SharedSajuView } from "@/components/SharedSajuView";
 import {
   createShareSnapshot,
   DEFAULT_SHARE_VISIBILITY,
   type ShareVisibility,
 } from "@/lib/share-snapshot";
 import BirthPrecisionFields from "@/components/BirthPrecisionFields";
-import AdvancedSajuAnalysis from "@/components/AdvancedSajuAnalysis";
-import AdminSajuHistory from "@/components/AdminSajuHistory";
 import {
   DEFAULT_BIRTH_PRECISION,
   precisionToPayload,
@@ -47,9 +42,21 @@ import {
   sanitizeBirthMonthInput,
   sanitizeBirthYearInput,
 } from "@/lib/birth-date";
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 import { Download, Loader2, ArrowLeft, Eye, EyeOff, ChevronRight, Sparkles, UserCircle2, Copy, CheckCheck, Share2, AlertTriangle, Shield, ShieldOff, BookMarked, Check, X, MessageCircleQuestion, Send, ImageDown, Info, CalendarDays, Briefcase, Heart, Activity, Compass } from "lucide-react";
 import { getDayPillarAnalysis } from "@/data/dayPillarAnalysis";
+
+const ReportPurchaseButton = lazy(() =>
+  import("@/components/ReportPurchaseButton").then((m) => ({ default: m.ReportPurchaseButton })),
+);
+const AiChatPanel = lazy(() =>
+  import("@/components/AiChatPanel").then((m) => ({ default: m.AiChatPanel })),
+);
+const SharedSajuView = lazy(() =>
+  import("@/components/SharedSajuView").then((m) => ({ default: m.SharedSajuView })),
+);
+const AdvancedSajuAnalysis = lazy(() => import("@/components/AdvancedSajuAnalysis"));
+const AdminSajuHistory = lazy(() => import("@/components/AdminSajuHistory"));
+const SajuElementRadarChart = lazy(() => import("@/components/SajuElementRadarChart"));
 
 // ─── 한자 변환 ───────────────────────────────────────────
 const STEM_HANJA: Record<string, string> = {
@@ -609,7 +616,7 @@ export default function SajuPage() {
       href,
       createdAt: new Date().toISOString(),
     });
-  }, [compactMode, displayResult, user?.id, visibleSections]);
+  }, [displayResult, user?.id]);
 
   const r = displayResult as any;
   const hiddenElementScores = getHiddenElementScores(r?.hiddenStemAnalysis);
@@ -1749,7 +1756,11 @@ export default function SajuPage() {
     <div className="max-w-6xl mx-auto">
       {/* 공유 카드 — 화면 밖에 숨겨두고 캡처 시 사용 */}
       <div aria-hidden="true" style={{ position: "fixed", left: -9999, top: 0, zIndex: -1, pointerEvents: "none" }}>
-        {sharePreviewPayload && <SharedSajuView ref={shareCardRef} payload={sharePreviewPayload} />}
+        {shareOptionsOpen && sharePreviewPayload && (
+          <Suspense fallback={null}>
+            <SharedSajuView ref={shareCardRef} payload={sharePreviewPayload} />
+          </Suspense>
+        )}
       </div>
 
       <motion.div key="result" className="saju-analysis-flow" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
@@ -1879,22 +1890,24 @@ export default function SajuPage() {
 
         {/* 플로팅 액션 버튼 — 우하단 고정 */}
         <div className="mb-4 flex items-center justify-end gap-2 sm:fixed sm:bottom-6 sm:right-20 sm:z-40 sm:mb-0 sm:flex-col sm:items-end">
-          <AiChatPanel
-            birthInfo={monetizationBirthInfo}
-            isAuthenticated={isAuthenticated}
-            isAdmin={isAdmin}
-            externalOpen={floatingPanel === "ai"}
-            onOpenChange={handleAiPanelOpenChange}
-            initialQuestion={effectiveInitialAiQuestion}
-          />
-          <ReportPurchaseButton
-            birthInfo={monetizationBirthInfo}
-            initialFocus={reportFocus}
-            isAuthenticated={isAuthenticated}
-            isAdmin={isAdmin}
-            externalOpen={floatingPanel === "report"}
-            onOpenChange={handleReportPanelOpenChange}
-          />
+          <Suspense fallback={null}>
+            <AiChatPanel
+              birthInfo={monetizationBirthInfo}
+              isAuthenticated={isAuthenticated}
+              isAdmin={isAdmin}
+              externalOpen={floatingPanel === "ai"}
+              onOpenChange={handleAiPanelOpenChange}
+              initialQuestion={effectiveInitialAiQuestion}
+            />
+            <ReportPurchaseButton
+              birthInfo={monetizationBirthInfo}
+              initialFocus={reportFocus}
+              isAuthenticated={isAuthenticated}
+              isAdmin={isAdmin}
+              externalOpen={floatingPanel === "report"}
+              onOpenChange={handleReportPanelOpenChange}
+            />
+          </Suspense>
         </div>
 
         {/* 섹션 토글 버튼 */}
@@ -1951,7 +1964,9 @@ export default function SajuPage() {
         </div>
 
         {isAdmin && r.birthInfo && (
-          <AdminSajuHistory key={user?.id} birthInfo={r.birthInfo} />
+          <Suspense fallback={null}>
+            <AdminSajuHistory key={user?.id} birthInfo={r.birthInfo} />
+          </Suspense>
         )}
 
         <Card className="mb-8 glass-panel border-primary/25 bg-background/25">
@@ -2208,20 +2223,9 @@ export default function SajuPage() {
                 <Card className="glass-panel border-primary/30 p-6 flex flex-col">
                   <h3 className="text-lg font-serif mb-3 text-primary text-center">오행 분석 (五行)</h3>
                   <div className="flex-1 min-h-52">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={[
-                        { subject:'목(木)', A: r.elementBalance.wood,  fullMark:4 },
-                        { subject:'화(火)', A: r.elementBalance.fire,  fullMark:4 },
-                        { subject:'토(土)', A: r.elementBalance.earth, fullMark:4 },
-                        { subject:'금(金)', A: r.elementBalance.metal, fullMark:4 },
-                        { subject:'수(水)', A: r.elementBalance.water, fullMark:4 },
-                      ]}>
-                        <PolarGrid stroke="rgba(212,175,55,0.2)" />
-                        <PolarAngleAxis dataKey="subject" tick={{ fill:'hsl(var(--foreground))', fontSize:11 }} />
-                        <PolarRadiusAxis angle={30} domain={[0,4]} tick={false} axisLine={false} />
-                        <Radar dataKey="A" stroke="#D4AF37" fill="#D4AF37" fillOpacity={0.4} />
-                      </RadarChart>
-                    </ResponsiveContainer>
+                    <Suspense fallback={<div className="h-52 w-full rounded-xl bg-muted/20 animate-pulse" />}>
+                      <SajuElementRadarChart elementBalance={r.elementBalance} />
+                    </Suspense>
                   </div>
                   <div className="flex flex-col gap-2 mt-3">
                     <div className="flex items-center justify-between text-sm">
@@ -2279,7 +2283,11 @@ export default function SajuPage() {
             </motion.div>
           )}
 
-          {visibleSections.advanced && <AdvancedSajuAnalysis result={r} />}
+          {visibleSections.advanced && (
+            <Suspense fallback={null}>
+              <AdvancedSajuAnalysis result={r} />
+            </Suspense>
+          )}
 
           {/* ── 일주 심층 분석 카드 (사주팔자 바로 아래) ── */}
           {r?.dayPillar && (() => {
