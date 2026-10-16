@@ -22,7 +22,7 @@
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
     "korean-lunar-calendar": "0.4.0",
-    "nodemailer": "9.1.1",
+    "nodemailer": "10.0.9",
     "openid-client": "^6.8.2",
     "pdfkit": "^0.18.0"
   },
