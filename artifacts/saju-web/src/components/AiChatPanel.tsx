@@ -126,18 +126,7 @@ export function AiChatPanel({
       birthInfo.calendarType,
     ],
   );
-  const currentBirthInfoKey = useMemo(
-    () => getAiChatBirthInfoKey(birthInfo),
-    [
-      birthInfo.year,
-      birthInfo.month,
-      birthInfo.day,
-      birthInfo.hour,
-      birthInfo.minute,
-      birthInfo.gender,
-      birthInfo.calendarType,
-    ],
-  );
+  const currentBirthInfoKey = getAiChatBirthInfoKey(birthInfo);
   const importedSessionId = `imported:${currentBirthInfoKey}`;
 
   const questionHistory = useMemo(
@@ -491,13 +480,15 @@ export function AiChatPanel({
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 200);
     } catch {
-      // mutation error message is rendered below
+      // Keep any new draft the user typed while waiting; otherwise restore retry text.
+      setQuestion((draft) => draft || nextQuestion);
     } finally {
       setPendingQuestion(null);
     }
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       void handleAsk();

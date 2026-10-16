@@ -19,6 +19,7 @@ import {
   buildPromptGuardAnswer,
 } from "../lib/prompt-injection-guard.js";
 import { buildSajuResult } from "../lib/saju-result.js";
+import { birthOptionsFromRecord } from "../lib/birth-resolution.js";
 
 const router = Router();
 
@@ -264,6 +265,7 @@ router.post("/ai/questions", async (req, res) => {
     return;
   }
 
+  let reservedQuestionId: number | null = null;
   try {
     const usage = await getUsageSummary(req.user.id, req.user.role);
     const promptAssessment = assessPromptInjection(question);
@@ -299,10 +301,13 @@ router.post("/ai/questions", async (req, res) => {
       });
       return;
     }
+    reservedQuestionId = reserved.id;
 
     if (promptAssessment.blocked) {
       const answer = buildPromptGuardAnswer(promptAssessment);
       const saved = await finalizeQuestionAnswer(reserved.id, answer, {});
+      if (!saved) throw new Error("AI 답변을 저장하지 못했습니다.");
+      reservedQuestionId = null;
 
       res.json({
         question: saved,
@@ -323,22 +328,18 @@ router.post("/ai/questions", async (req, res) => {
       birthMinute: birthInfo.minute ?? 0,
       gender: birthInfo.gender,
       calendarType: birthInfo.calendarType,
+      ...birthOptionsFromRecord({ ...birthInfo }),
     });
 
-    let answer: string;
-    try {
-      answer = await buildSajuQuestionAnswer(
-        question,
-        sajuResult as Record<string, any>,
-        history,
-      );
-    } catch (error) {
-      // Refund the reserved slot — a failed generation must not consume quota.
-      await releaseQuestionSlot(reserved.id);
-      throw error;
-    }
+    const answer = await buildSajuQuestionAnswer(
+      question,
+      sajuResult as Record<string, any>,
+      history,
+    );
 
     const saved = await finalizeQuestionAnswer(reserved.id, answer, sajuResult as JsonObject);
+    if (!saved) throw new Error("AI 답변을 저장하지 못했습니다.");
+    reservedQuestionId = null;
 
     res.json({
       question: saved,
@@ -349,6 +350,14 @@ router.post("/ai/questions", async (req, res) => {
       unlimited: usage.unlimited,
     });
   } catch (error) {
+    // Calculation, generation, and persistence must all succeed before charging.
+    if (reservedQuestionId !== null) {
+      try {
+        await releaseQuestionSlot(reservedQuestionId);
+      } catch (releaseError) {
+        console.error("ai question reservation release error:", releaseError);
+      }
+    }
     console.error("ai question create error:", error);
     const message = error instanceof Error ? error.message : "AI 질문 답변 생성에 실패했습니다.";
     res.status(500).json({ error: message });

@@ -247,7 +247,11 @@ export async function buildSajuQuestionAnswer(
         systemInstruction: SYSTEM_PROMPT,
       });
       const response = await model.generateContent(prompt);
-      return response.response.text();
+      const answer = response.response.text().trim();
+      if (!answer) {
+        throw new Error("AI 답변이 비어 있습니다. 잠시 후 다시 질문해주세요.");
+      }
+      return answer;
     } catch (error) {
       lastError = error;
       if (!isTransientAiError(error)) throw error;

@@ -17,8 +17,14 @@ interface AiChatSessionStore {
   sessions: AiChatSessionRecord[];
 }
 
+const memoryFallback = new Map<string, AiChatSessionRecord[]>();
+
 function canUseStorage() {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  try {
+    return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  } catch {
+    return false;
+  }
 }
 
 function storageKey(userId: string) {
@@ -83,7 +89,7 @@ function generateSessionId() {
 }
 
 export function getAiChatBirthInfoKey(birthInfo: MonetizationBirthInfo) {
-  return [
+  const baseKey = [
     birthInfo.year,
     birthInfo.month,
     birthInfo.day,
@@ -92,6 +98,19 @@ export function getAiChatBirthInfoKey(birthInfo: MonetizationBirthInfo) {
     birthInfo.gender,
     birthInfo.calendarType,
   ].join(":");
+  const precision = [
+    birthInfo.calendarType === "lunar" && birthInfo.isLeapMonth === true,
+    birthInfo.timeZone?.trim() || "Asia/Seoul",
+    birthInfo.longitude ?? 126.978,
+    birthInfo.latitude ?? 37.5665,
+    birthInfo.applyTrueSolarTime === true,
+    birthInfo.dayBoundary ?? "midnight",
+  ];
+  // Keep default-option sessions readable; distinguish different calculation bases.
+  const defaults = [false, "Asia/Seoul", 126.978, 37.5665, false, "midnight"];
+  return precision.every((value, index) => value === defaults[index])
+    ? baseKey
+    : `${baseKey}:precision:${JSON.stringify(precision)}`;
 }
 
 export function buildAiChatSessionTitle(question: string) {
@@ -127,6 +146,8 @@ export function createAiChatSessionRecord(
 }
 
 export function loadAiChatSessions(userId: string) {
+  const fallback = memoryFallback.get(userId);
+  if (fallback) return fallback;
   if (!canUseStorage()) {
     return [];
   }
@@ -153,16 +174,17 @@ export function loadAiChatSessions(userId: string) {
 }
 
 export function saveAiChatSessions(userId: string, sessions: AiChatSessionRecord[]) {
-  if (!canUseStorage()) {
-    return;
-  }
-
   const normalized = sessions
     .map((session) => normalizeSession(session))
     .filter((session): session is AiChatSessionRecord => Boolean(session));
 
-  window.localStorage.setItem(
-    storageKey(userId),
-    JSON.stringify({ sessions: sortAiChatSessions(normalized) }),
-  );
+  const sorted = sortAiChatSessions(normalized);
+  try {
+    if (!canUseStorage()) throw new Error("Browser storage unavailable");
+    window.localStorage.setItem(storageKey(userId), JSON.stringify({ sessions: sorted }));
+    memoryFallback.delete(userId);
+  } catch {
+    // Keep the current tab usable even when storage is blocked or full.
+    memoryFallback.set(userId, sorted);
+  }
 }
