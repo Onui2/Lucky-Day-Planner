@@ -64,8 +64,9 @@ export function getPlanQuestionLimit(planCode?: string | null): number {
 }
 
 // Paid report purchases add bonus AI questions to the monthly plan limit while
-// the report entitlement stays active. Zero-amount grants (free trial, admin)
-// do not count. The total bonus is capped so stacked purchases stay bounded.
+// the report entitlement stays active. Zero-amount administrator grants and
+// historical trial grants do not count. The total bonus is capped so stacked
+// purchases stay bounded.
 const REPORT_QUESTION_BONUS: Record<string, number> = {
   saju_basic: 2,
   saju_detail: 5,

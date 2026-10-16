@@ -1120,7 +1120,7 @@ export interface OrderListItem {
 
 export interface CreateCommerceOrderResponse {
   product: CommerceProduct;
-  checkoutMode: "admin" | "trial" | "dev" | "provider" | "toss_pay" | "disabled";
+  checkoutMode: "admin" | "dev" | "provider" | "toss_pay" | "disabled";
   order: CommerceOrderSummary;
   report: {
     id: number;
@@ -1248,7 +1248,6 @@ export function useCreateCommerceOrder() {
       label?: string;
       reportFocus?: "career" | "money" | "relationship";
       expectedAmount?: number;
-      expectFreeTrial?: boolean;
       reportEdition?: "new-year-2027";
       campaignVisitId?: string;
     }) =>

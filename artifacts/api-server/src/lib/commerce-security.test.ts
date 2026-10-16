@@ -157,8 +157,7 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
       } }; } };
     },
     async transaction(run: (transaction: any) => Promise<unknown>) {
-      // Emulate serialized transactions for concurrent same-account trial claims.
-      // Tests also assert that the route actually requests its advisory lock.
+      // Emulate serialized database transactions.
       const previous = transactionTail;
       let release!: () => void;
       transactionTail = new Promise<void>((resolve) => { release = resolve; });
@@ -465,6 +464,7 @@ test(`admin ${productType} grant remains usable in production without payment co
   });
   assert.equal(h.state.providerCalls.length, 0);
   assert.deepEqual(h.state.generatedTiers, [tier, tier]);
+  assert.deepEqual(h.state.orderStatusesAtGeneration, ["paid", "paid"]);
 });
 }
 
@@ -749,7 +749,6 @@ test("cancelled orders cannot be reactivated by confirmation", async () => {
 
 test("paid sales stay closed by default even when a real payment provider is configured", async () => {
   const h = createHarness({ TOSS_SECRET_KEY: "synthetic-test-secret", REPORT_SALES_ENABLED: undefined });
-  h.state.records.orders.push({ id: 1, userId: "owner", metadata: { freeTrial: true } });
   await withServer(h, async (url) => {
     const catalog = await (await fetch(`${url}/commerce/products`)).json() as Row;
     assert.equal(catalog.salesEnabled, false);
@@ -777,7 +776,6 @@ for (const productType of ["saju_pdf", "gungap_premium", "year_fortune_report", 
 for (const [productType, amount] of [["saju_basic", 4900], ["saju_detail", 9900], ["saju_full", 19900]] as const) {
   test(`${productType} uses server price and stores the chosen focus and correct history scope`, async () => {
     const h = createHarness();
-    if (productType === "saju_basic") h.state.records.orders.push({ id: 1, userId: "owner", metadata: { freeTrial: true } });
     await withServer(h, async (url) => {
       const response = await post(`${url}/commerce/orders`, { ...orderBody, productType, amount: 1, currency: "USD", reportFocus: "money", adminFreeAccess: true });
       assert.equal(response.status, 200);
@@ -945,59 +943,61 @@ for (const [reason, reply] of [
   });
 }
 
-test("first basic report is free per account with paid sales closed and no provider configured", async () => {
+test("public report trials stay closed for anonymous and authenticated users", async () => {
   const h = createHarness({ NODE_ENV: "production", REPORT_SALES_ENABLED: undefined });
   await withServer(h, async (url) => {
     const anonymous = await (await fetch(`${url}/commerce/products`, { headers: { "x-test-user": "anonymous" } })).json() as Row;
-    assert.equal(anonymous.freeTrialAvailable, null);
-    assert.equal((await (await fetch(`${url}/commerce/products`)).json() as Row).freeTrialAvailable, true);
-    const first = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" });
-    assert.equal(first.status, 200);
-    const created = await first.json() as Row;
-    assert.equal(created.checkoutMode, "trial");
-    assert.equal(created.order.amount, 0);
-    assert.equal(created.order.status, "paid");
-    assert.equal((await fetch(`${url}/reports/${created.report.id}/download`)).status, 200);
+    assert.equal(anonymous.freeTrialAvailable, false);
     assert.equal((await (await fetch(`${url}/commerce/products`)).json() as Row).freeTrialAvailable, false);
     assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" })).status, 503);
-    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_detail", freeTrial: true })).status, 503);
-    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_full", amount: 0 })).status, 503);
-    const other = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" }, { "x-test-user": "another-account" });
-    assert.equal(other.status, 200);
-    assert.equal((await other.json() as Row).checkoutMode, "trial");
+    const retired = await post(`${url}/commerce/orders`, {
+      ...orderBody, productType: "saju_basic", expectFreeTrial: true, expectedAmount: 0,
+    });
+    assert.equal(retired.status, 409);
+    assert.equal((await retired.json() as Row).code, "FREE_TRIAL_CLOSED");
   });
-  assert.equal(h.state.records.orders.length, 2);
-  assert.equal(h.state.records.purchaseEntitlements.length, 2);
-  assert.equal(h.state.records.payments.every((payment) => payment.provider === "trial" && payment.amount === 0), true);
+  assert.equal(h.state.records.orders.length, 0);
+  assert.equal(h.state.records.purchaseEntitlements.length, 0);
   assert.equal(h.state.tossCalls.length + h.state.providerCalls.length, 0);
-  assert.equal(h.state.advisoryLocks, 2);
+  assert.equal(h.state.generated, 0);
 });
 
-test("a used free trial switches the next basic purchase to the server price", async () => {
+test("retired free-trial payloads cannot create a zero-amount order", async () => {
   const h = createHarness();
   await withServer(h, async (url) => {
-    const first = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" });
-    assert.equal(first.status, 200);
-    const next = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic", freeTrial: true, amount: 0 });
+    assert.equal((await post(`${url}/commerce/orders`, {
+      ...orderBody, productType: "saju_basic", expectFreeTrial: true, expectedAmount: 0,
+    })).status, 409);
+    assert.equal((await post(`${url}/commerce/orders`, {
+      ...orderBody, productType: "saju_basic", expectedAmount: 0,
+    })).status, 409);
+    const next = await post(`${url}/commerce/orders`, {
+      ...orderBody, productType: "saju_basic", expectedAmount: 4900,
+    });
     assert.equal(next.status, 200);
     const created = await next.json() as Row;
     assert.equal(created.checkoutMode, "provider");
     assert.equal(created.order.amount, 4900);
     assert.equal(created.order.status, "pending");
   });
-  assert.equal(h.state.records.orders.filter((order) => order.metadata?.freeTrial).length, 1);
-  assert.equal(h.state.records.purchaseEntitlements.length, 1);
+  assert.equal(h.state.records.orders.length, 1);
+  assert.equal(h.state.records.purchaseEntitlements.length, 0);
+  assert.equal(h.state.generated, 0);
 });
 
-test("a stale free-trial screen cannot silently create a paid order", async () => {
-  const h = createHarness();
+test("concurrent retired free-trial requests are rejected before PDF rendering", async () => {
+  const h = createHarness({ NODE_ENV: "production", REPORT_SALES_ENABLED: undefined });
   await withServer(h, async (url) => {
-    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic", expectFreeTrial: true, expectedAmount: 0 })).status, 200);
-    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic", expectFreeTrial: true, expectedAmount: 0 })).status, 409);
+    const results = await Promise.all(Array.from({ length: 10 }, () => post(`${url}/commerce/orders`, {
+      ...orderBody, productType: "saju_basic", expectFreeTrial: true, expectedAmount: 0,
+    })));
+    assert.equal(results.every((response) => response.status === 409), true);
   });
-  assert.equal(h.state.records.orders.length, 1);
-  assert.equal(h.state.records.orders[0].amount, 0);
-  assert.equal(h.state.tossCalls.length + h.state.providerCalls.length, 0);
+  assert.equal(h.state.generated, 0);
+  assert.equal(h.state.records.orders.length, 0);
+  assert.equal(h.state.records.pdfReports.length, 0);
+  assert.equal(h.state.records.payments.length, 0);
+  assert.equal(h.state.records.purchaseEntitlements.length, 0);
 });
 
 test("a changed displayed price blocks order creation before payment", async () => {
@@ -1009,45 +1009,18 @@ test("a changed displayed price blocks order creation before payment", async () 
   assert.equal(h.state.tossCalls.length + h.state.providerCalls.length, 0);
 });
 
-test("concurrent first-trial requests claim exactly one free order under the account lock", async () => {
-  const h = createHarness({ NODE_ENV: "production", REPORT_SALES_ENABLED: undefined });
-  let release!: () => void;
-  const bothGenerating = new Promise<void>((resolve) => { release = resolve; });
-  h.state.beforeGeneration = async () => {
-    if (h.state.generated === 2) release();
-    await bothGenerating;
-  };
+test("an existing retired free-trial entitlement remains usable", async () => {
+  const h = createHarness();
+  const { order, report, entitlement } = h.seed(true);
+  Object.assign(order, { productType: "saju_basic", amount: 0, metadata: { freeTrial: true } });
+  Object.assign(report, { productType: "saju_basic", status: "ready", fileDataBase64: Buffer.from("existing PDF").toString("base64") });
+  Object.assign(entitlement, { productType: "saju_basic" });
   await withServer(h, async (url) => {
-    const results = await Promise.all([
-      post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" }),
-      post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" }),
-    ]);
-    assert.equal(results.filter((response) => response.status === 200).length, 1);
-    assert.equal(results.filter((response) => response.status === 409).length, 1);
-  });
-  assert.equal(h.state.advisoryLocks, 2);
-  assert.equal(h.state.records.orders.length, 1);
-  assert.equal(h.state.records.pdfReports.length, 1);
-  assert.equal(h.state.records.payments.length, 1);
-  assert.equal(h.state.records.purchaseEntitlements.length, 1);
-});
-
-test("a failed free PDF can regenerate the same granted report without issuing another trial", async () => {
-  const h = createHarness({ NODE_ENV: "production", REPORT_SALES_ENABLED: undefined });
-  h.state.generationFails = true;
-  await withServer(h, async (url) => {
-    const first = await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" });
-    assert.equal(first.status, 200);
-    const created = await first.json() as Row;
-    assert.equal(created.report.status, "failed");
-    assert.equal(created.order.status, "paid");
-    assert.equal((await post(`${url}/commerce/orders`, { ...orderBody, productType: "saju_basic" })).status, 503);
-    h.state.generationFails = false;
-    assert.equal((await post(`${url}/reports/${created.report.id}/regenerate`)).status, 200);
-    assert.equal((await fetch(`${url}/reports/${created.report.id}/download`)).status, 200);
+    assert.equal((await fetch(`${url}/reports/${report.id}/download`)).status, 200);
+    assert.equal((await post(`${url}/reports/${report.id}/regenerate`)).status, 200);
   });
   assert.equal(h.state.records.orders.length, 1);
   assert.equal(h.state.records.pdfReports.length, 1);
   assert.equal(h.state.records.purchaseEntitlements.length, 1);
-  assert.deepEqual(h.state.generatedTiers, ["basic", "basic"]);
+  assert.deepEqual(h.state.generatedTiers, ["basic"]);
 });

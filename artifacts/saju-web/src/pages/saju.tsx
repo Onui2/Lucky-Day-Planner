@@ -1289,7 +1289,7 @@ export default function SajuPage() {
             <p className="mb-3 text-sm font-medium text-primary">1. 생년월일 입력 → 2. 결과 확인 → 3. PDF로 보관</p>
             <h1 className="text-4xl md:text-5xl font-serif font-bold text-gradient-gold mb-4">{reportFocus ? `${REPORT_FOCUS_LABELS[reportFocus]} 고민, 내 성향부터 살펴봐요` : "내 사주, 쉽게 시작해요"}</h1>
             <p className="text-muted-foreground text-lg">생년월일을 입력하면 핵심 풀이부터 보여드려요. 태어난 시간은 몰라도 괜찮습니다.</p>
-            <p className="mt-3 text-sm text-muted-foreground">웹 분석은 무료 · 기본 PDF는 로그인 후 계정당 첫 1회 무료 · 자동 결제 없음</p>
+            <p className="mt-3 text-sm text-muted-foreground">웹 분석은 무료 · 기본 PDF는 4,900원 · 자동 결제 없음</p>
           </div>
 
           {/* 이전 분석 결과 캐시 배너 */}
@@ -1779,7 +1779,7 @@ export default function SajuPage() {
             <p className="text-sm font-semibold text-primary">2. 결과 확인</p>
             <h1 className="mt-2 text-xl font-serif">{reportFocus ? `${REPORT_FOCUS_LABELS[reportFocus]} 고민을 이해할 단서부터` : "처음이라면 핵심 풀이부터 읽어보세요"}</h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">내 성향과 일·관계 풀이를 먼저 보고, 자세한 계산은 ‘전체 보기’에서 확인하세요.</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">기본 PDF는 계정당 첫 1회 무료입니다. 이미 받았다면 마이페이지에서 다시 내려받을 수 있어요.</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">기본 PDF는 4,900원입니다. 구매한 리포트는 마이페이지에서 다시 내려받을 수 있어요.</p>
           </div>
           <Button className="mt-4 shrink-0 gap-2 sm:mt-0" onClick={() => setFloatingPanel("report")}><Download className="h-4 w-4" />3. PDF로 받기</Button>
         </section>

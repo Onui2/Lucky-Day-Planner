@@ -64,9 +64,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
   const purchaseLock = useRef(false);
   const selectedProduct = catalog.data?.products.find((product) => product.type === tier);
   const adminAccess = isAdmin || catalog.data?.checkoutMode === "admin";
-  const freeTrial = tier === "saju_basic" && catalog.data?.freeTrialAvailable === true;
-  const guestTrial = !isAuthenticated && tier === "saju_basic" && catalog.data?.freeTrialAvailable !== false;
-  const available = Boolean(selectedProduct && (!isNewYear || birthInfo.hour >= 0) && (!isNewYear || selectedProduct.amount === catalog.data?.campaign.amount) && (!isNewYear || adminAccess || catalog.data?.campaign.salesEnabled) && (adminAccess || freeTrial
+  const available = Boolean(selectedProduct && (!isNewYear || birthInfo.hour >= 0) && (!isNewYear || selectedProduct.amount === catalog.data?.campaign.amount) && (!isNewYear || adminAccess || catalog.data?.campaign.salesEnabled) && (adminAccess
     || (catalog.data?.salesEnabled && catalog.data.checkoutMode !== "disabled")));
   const details = DETAILS[tier];
   const focusLabel = FOCUSES.find((item) => item.value === focus)!.label;
@@ -101,11 +99,10 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
       const created = await createOrder.mutateAsync({
         productType: tier, birthInfo, reportFocus: focus,
         ...(isNewYear ? { reportEdition, campaignVisitId: catalog.data?.campaign.analyticsEnabled ? getCampaignVisit()?.visitId : undefined } : {}),
-        expectedAmount: adminAccess || freeTrial ? 0 : selectedProduct.amount,
-        expectFreeTrial: !adminAccess && freeTrial,
+        expectedAmount: adminAccess ? 0 : selectedProduct.amount,
         label: isNewYear ? catalog.data?.campaign.title : `${birthDate} ${selectedProduct.title} · ${focusLabel}`,
       });
-      if (created.checkoutMode === "admin" || created.checkoutMode === "trial" || created.checkoutMode === "dev") {
+      if (created.checkoutMode === "admin" || created.checkoutMode === "dev") {
         const report = created.checkoutMode !== "dev" ? created.report
           : (await confirmPayment.mutateAsync({ orderId: created.order.orderId })).report;
         if (report.status !== "ready") {
@@ -115,8 +112,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
           return;
         }
         setReadyReport(report);
-        setMessage(created.checkoutMode === "admin" ? "관리자 무료 리포트가 생성되었습니다."
-          : created.checkoutMode === "trial" ? "첫 무료 리포트가 생성되었습니다." : "리포트가 생성되었습니다.");
+        setMessage(created.checkoutMode === "admin" ? "관리자 무료 리포트가 생성되었습니다." : "리포트가 생성되었습니다.");
         if (!isNewYear) await downloadReadyReport(report);
         return;
       }
@@ -174,7 +170,6 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
                 <span className="shrink-0 font-semibold text-amber-800">{adminAccess ? "관리자 무료" : `${product.amount.toLocaleString("ko-KR")}원`}</span>
               </span>
               <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">{isNewYear ? "성향·관계·직업·재물과 2027 연간·월별 요약을 함께 확인할 분" : DETAILS[value].audience}</span>
-              {value === "saju_basic" && !adminAccess && catalog.data?.freeTrialAvailable !== false && <span className="mt-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">첫 1회 무료</span>}
             </label>
           );
         })}
@@ -199,14 +194,14 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
         {birthInfo.hour === -1 && <p className="mt-1 text-xs text-muted-foreground">시주 관련 해석은 제한됩니다.</p>}
         <p className="mt-1 text-xs text-muted-foreground">입력이 다르면 사주 입력 화면에서 수정한 뒤 다시 분석해 주세요.</p>
       </div>
-      {!available && !guestTrial && !catalog.isPending && !catalog.isError && <p className="rounded-xl bg-foreground/5 p-3 font-medium">판매 준비 중</p>}
+      {!available && !catalog.isPending && !catalog.isError && <p className="rounded-xl bg-foreground/5 p-3 font-medium">판매 준비 중</p>}
       {!isAuthenticated ? (
-        <p className="text-muted-foreground">리포트 발급과 보관은 로그인 후 이용할 수 있습니다. <Link href={buildAuthHref("/login")} className="text-primary underline">{isNewYear ? "로그인 후 상품 확인" : "로그인하고 기본형 첫 1회 무료"}</Link></p>
+        <p className="text-muted-foreground">리포트 발급과 보관은 로그인 후 이용할 수 있습니다. <Link href={buildAuthHref("/login")} className="text-primary underline">로그인 후 상품 확인</Link></p>
       ) : (
         <div className="space-y-2">
           <Button onClick={handlePurchase} disabled={!available || busy || downloading} className="w-full gap-2">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {busy ? "리포트 요청 중" : !available ? "판매 준비 중" : adminAccess ? "관리자 무료 발급" : freeTrial ? "기본형 첫 1회 무료로 받기" : `${selectedProduct!.amount.toLocaleString("ko-KR")}원 결제하기`}
+            {busy ? "리포트 요청 중" : !available ? "판매 준비 중" : adminAccess ? "관리자 무료 발급" : `${selectedProduct!.amount.toLocaleString("ko-KR")}원 결제하기`}
           </Button>
           {readyReport && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

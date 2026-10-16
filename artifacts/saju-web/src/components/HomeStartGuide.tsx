@@ -41,8 +41,8 @@ export default function HomeStartGuide({ isAdmin, isAuthenticated }: { isAdmin: 
         <li><span className="font-semibold text-primary">3.</span> 결과 확인 · PDF 받기</li>
       </ol>
       <div className="mt-5 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-4">
-        <p className="text-sm font-semibold text-foreground">{isAdmin ? "관리자는 모든 PDF 리포트 무료" : "4,900원 기본 PDF, 계정당 첫 1회 무료"}</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{isAdmin ? "분석 결과 화면에서 원하는 리포트를 선택하세요." : "로그인 후 결과 화면에서 받으세요. 기존 회원도 미사용 시 가능하며, 자동 결제되지 않습니다."}</p>
+        <p className="text-sm font-semibold text-foreground">{isAdmin ? "관리자는 모든 PDF 리포트 무료" : "기본 PDF 4,900원부터"}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{isAdmin ? "분석 결과 화면에서 원하는 리포트를 선택하세요." : "로그인 후 결과 화면에서 상품을 선택해 결제하세요. 자동 정기결제는 없습니다."}</p>
         <a href={`${import.meta.env.BASE_URL}report-samples/saju-basic.pdf`} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary underline underline-offset-4">기본 PDF 샘플 보기 <ArrowRight className="h-3 w-3" aria-hidden="true" /></a>
       </div>
       <div className="mt-5 flex flex-wrap justify-center gap-2">

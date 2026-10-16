@@ -113,7 +113,7 @@ export default function RegisterPage() {
         <div className="glass-panel rounded-3xl border border-primary/25 p-6 shadow-2xl sm:p-8">
           <div className="mb-7 text-center">
             <h1 className="mb-2 font-serif text-2xl font-bold text-primary">{social ? "가입 전 마지막 확인" : "회원가입"}</h1>
-            <p className="text-sm leading-6 text-muted-foreground">{social ? "처음 이용하시는 경우, 아래 안내 확인 후 가입을 완료합니다." : "풀이를 저장하고, 기본 리포트를 처음 1회 무료로 받아보세요."}</p>
+            <p className="text-sm leading-6 text-muted-foreground">{social ? "처음 이용하시는 경우, 아래 안내 확인 후 가입을 완료합니다." : "풀이를 저장하고, 필요할 때 PDF 리포트로 보관하세요."}</p>
           </div>
           {!social && <SocialLoginButtons returnTo={returnTo} disabled={submitting} onError={setError} />}
           {!social && signupUnavailable && <p role="alert" className="mb-4 text-sm text-rose-700">현재 이메일 가입을 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.</p>}

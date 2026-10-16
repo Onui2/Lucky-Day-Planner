@@ -18,11 +18,10 @@ import {
   recoverPaymentByOrderId,
 } from "../lib/commerce.js";
 import { isPrivilegedRole } from "../lib/date-access.js";
-import { generateSajuReportPdf } from "../lib/report-generator.js";
 import { buildSajuResult } from "../lib/saju-result.js";
 import { hasReportAccess } from "../lib/report-access.js";
 import { birthOptionsFromRecord } from "../lib/birth-resolution.js";
-import { REPORT_PRODUCTS, getReportTier } from "../lib/product-config.js";
+import { REPORT_PRODUCTS } from "../lib/product-config.js";
 import { buildSajuHistory } from "../lib/saju-history.js";
 import { createTossPayCheckout, confirmTossPayPayment, getTossPayConfig } from "../lib/toss-pay.js";
 import { getSeoulDateString } from "../lib/daeun-date.js";
@@ -35,23 +34,15 @@ import { renderStoredReport } from "../lib/report-rendering.js";
 
 const router = Router();
 
-function trialClaim(userId: string) {
-  return and(eq(ordersTable.userId, userId), sql`${ordersTable.metadata}->>'freeTrial' = 'true'`);
-}
-
-router.get("/commerce/products", async (req, res) => {
-  let freeTrialAvailable: boolean | null = null;
-  if (req.isAuthenticated()) {
-    if (!(await requireDatabase(res))) return;
-    try {
-      const used = await db.select({ id: ordersTable.id }).from(ordersTable).where(trialClaim(req.user.id)).limit(1);
-      freeTrialAvailable = used.length === 0;
-    } catch {
-      res.status(503).json({ error: "무료 체험 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요." });
-      return;
-    }
-  }
-  res.json({ campaign: { ...getNewYearCampaign(), analyticsEnabled: process.env.CAMPAIGN_ANALYTICS_ENABLED === "true" }, products: REPORT_PRODUCTS, checkoutMode: getCheckoutMode(), salesEnabled: process.env.REPORT_SALES_ENABLED === "true", freeTrialAvailable });
+router.get("/commerce/products", (_req, res) => {
+  res.json({
+    campaign: { ...getNewYearCampaign(), analyticsEnabled: process.env.CAMPAIGN_ANALYTICS_ENABLED === "true" },
+    products: REPORT_PRODUCTS,
+    checkoutMode: getCheckoutMode(),
+    salesEnabled: process.env.REPORT_SALES_ENABLED === "true",
+    // Keep the field for older clients, but fail closed: public report trials are disabled.
+    freeTrialAvailable: false,
+  });
 });
 
 function requireAuth(req: Request, res: Response): req is Request & { user: Express.User } {
@@ -146,32 +137,25 @@ router.post("/commerce/orders", async (req, res) => {
     } catch { /* Tracking failure must not prevent a valid order. */ }
   }
   const hasAdminFreeAccess = isPrivilegedRole(req.user.role);
-  let hasFreeTrial = false;
-  if (!hasAdminFreeAccess && product.type === "saju_basic") {
-    try {
-      const used = await db.select({ id: ordersTable.id }).from(ordersTable).where(trialClaim(req.user.id)).limit(1);
-      hasFreeTrial = used.length === 0;
-    } catch {
-      res.status(503).json({ error: "무료 체험 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요." });
-      return;
-    }
-  }
   const expectedAmount = body.expectedAmount;
   if (expectedAmount !== undefined && (!Number.isSafeInteger(expectedAmount) || Number(expectedAmount) < 0)) {
     res.status(400).json({ error: "결제 예정 금액이 유효하지 않습니다." });
     return;
   }
-  if ((body.expectFreeTrial === true && !hasFreeTrial)
-    || (expectedAmount !== undefined && expectedAmount !== (hasAdminFreeAccess || hasFreeTrial ? 0 : product.amount))) {
-    res.status(409).json({ error: "무료 체험 또는 가격 정보가 변경되었습니다. 상품을 다시 확인해주세요." });
+  if (body.expectFreeTrial === true) {
+    res.status(409).json({ error: "무료 리포트 체험이 종료되었습니다. 상품 가격을 다시 확인해주세요.", code: "FREE_TRIAL_CLOSED" });
     return;
   }
-  if (!hasAdminFreeAccess && !hasFreeTrial && process.env.REPORT_SALES_ENABLED !== "true") {
+  if (expectedAmount !== undefined && expectedAmount !== (hasAdminFreeAccess ? 0 : product.amount)) {
+    res.status(409).json({ error: "가격 정보가 변경되었습니다. 상품을 다시 확인해주세요." });
+    return;
+  }
+  if (!hasAdminFreeAccess && process.env.REPORT_SALES_ENABLED !== "true") {
     res.status(503).json({ error: "리포트 판매를 준비 중입니다. 샘플을 먼저 확인해주세요." });
     return;
   }
 
-  if (!hasAdminFreeAccess && !hasFreeTrial && getCheckoutMode() === "disabled") {
+  if (!hasAdminFreeAccess && getCheckoutMode() === "disabled") {
     res.status(503).json({ error: "결제 설정이 준비되지 않았습니다." });
     return;
   }
@@ -199,23 +183,8 @@ router.post("/commerce/orders", async (req, res) => {
       label ??
       `${birthInfo.year}년 ${birthInfo.month}월 ${birthInfo.day}일 ${isNewYear ? NEW_YEAR_CAMPAIGN.title : product.title}`;
 
-    // Free trial is claimed atomically per account; regeneration reuses this order.
-    if (hasAdminFreeAccess || hasFreeTrial) {
-      const generated = await generateSajuReportPdf(
-        title,
-        sajuResult as Record<string, any>,
-        getReportTier(product.type),
-      ).catch((error: unknown) => {
-        console.error("admin report generation error:", error);
-        return null;
-      });
-
+    if (hasAdminFreeAccess) {
       const payload = await db.transaction(async (tx) => {
-        if (hasFreeTrial) {
-          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`report-trial:${req.user.id}`}, 0))`);
-          const used = await tx.select({ id: ordersTable.id }).from(ordersTable).where(trialClaim(req.user.id)).limit(1);
-          if (used.length) throw new Error("무료 체험은 이미 발급되었습니다. 마이페이지에서 리포트를 확인해주세요.");
-        }
         const [snapshot] = await tx
           .insert(analysisSnapshotsTable)
           .values({ userId: req.user.id, kind: "saju", title, birthInfo, sajuResult })
@@ -234,8 +203,7 @@ router.post("/commerce/orders", async (req, res) => {
               productTitle: isNewYear ? NEW_YEAR_CAMPAIGN.title : product.title,
               ...(isNewYear ? { reportEdition: NEW_YEAR_CAMPAIGN.id, campaignVisitId } : {}),
               productDescription: product.description,
-              adminFreeAccess: hasAdminFreeAccess,
-              freeTrial: hasFreeTrial,
+              adminFreeAccess: true,
               grantedByRole: req.user.role ?? "user",
             },
           })
@@ -248,28 +216,19 @@ router.post("/commerce/orders", async (req, res) => {
             snapshotId: snapshot.id,
             productType: product.type,
             title,
-            status: generated ? "ready" : "failed",
-            previewText: generated?.previewText,
-            htmlContent: generated?.htmlContent,
-            fileName: generated?.fileName,
-            fileDataBase64: generated?.fileDataBase64,
-            failedReason: generated
-              ? null
-              : "무료 리포트 생성에 실패했습니다. 마이페이지에서 같은 주문을 재생성해주세요.",
-            generatedAt: generated ? new Date() : null,
+            status: "pending",
           })
           .returning();
 
         await tx.insert(paymentsTable).values({
           orderId: order.id,
-          provider: hasFreeTrial ? "trial" : "admin",
-          paymentKey: `${hasFreeTrial ? "trial" : "admin"}_${order.orderId}`,
-          method: hasFreeTrial ? "FREE_TRIAL" : "ADMIN_GRANT",
+          provider: "admin",
+          paymentKey: `admin_${order.orderId}`,
+          method: "ADMIN_GRANT",
           status: "paid",
           amount: 0,
           rawResponse: {
-            adminFreeAccess: hasAdminFreeAccess,
-            freeTrial: hasFreeTrial,
+            adminFreeAccess: true,
             role: req.user.role ?? "admin",
           },
           approvedAt: new Date(),
@@ -286,16 +245,17 @@ router.post("/commerce/orders", async (req, res) => {
 
         return { order, report, snapshot, sajuResult };
       });
+      const report = await renderStoredReport(payload.report, payload.sajuResult as Record<string, any>);
 
       res.json({
         product,
-        checkoutMode: hasFreeTrial ? "trial" : "admin",
+        checkoutMode: "admin",
         order: { id: payload.order.id, orderId: payload.order.orderId, status: "paid", amount: 0, currency: "KRW" },
         report: {
-          id: payload.report.id,
-          status: payload.report.status,
-          title: payload.report.title,
-          fileName: payload.report.fileName,
+          id: report.id,
+          status: report.status,
+          title: report.title,
+          fileName: report.fileName,
         },
       });
       return;
@@ -370,10 +330,6 @@ router.post("/commerce/orders", async (req, res) => {
     return;
   } catch (error) {
     console.error("commerce order create error:", error);
-    if (error instanceof Error && error.message.startsWith("무료 체험은 이미")) {
-      res.status(409).json({ error: error.message });
-      return;
-    }
     res.status(500).json({ error: "주문 생성에 실패했습니다." });
     return;
   }
