@@ -9,12 +9,12 @@ const CONCERNS = [
 
 export default function HomeStartGuide({ isAdmin, isAuthenticated }: { isAdmin: boolean; isAuthenticated: boolean }) {
   return (
-    <section className="text-center w-full max-w-5xl mx-auto mb-8" aria-labelledby="home-start-title">
+    <section className="home-start-guide text-center w-full max-w-5xl mx-auto mb-8" aria-labelledby="home-start-title">
       <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 mb-5">
         <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
         <span className="text-sm font-medium text-primary">내 고민에서 시작하는 사주</span>
       </div>
-      <h1 id="home-start-title" className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold mb-4 text-gradient-gold break-keep">지금, 어떤 고민이 있으세요?</h1>
+      <h1 id="home-start-title" className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold mb-4 text-foreground break-keep">지금, 어떤 고민이 있으세요?</h1>
       <p className="text-sm sm:text-base text-muted-foreground leading-relaxed break-keep">
         궁금한 주제를 고르고 생년월일을 입력해 보세요.<br />어려운 사주 용어를 몰라도 시작할 수 있습니다.
       </p>
@@ -22,7 +22,7 @@ export default function HomeStartGuide({ isAdmin, isAuthenticated }: { isAdmin: 
         {CONCERNS.map((entry) => {
           const Icon = entry.icon;
           return (
-            <Link key={entry.focus} href={`/saju?focus=${entry.focus}`} className="group rounded-2xl border border-primary/20 bg-card/60 p-4 sm:p-5 transition-colors hover:bg-card hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <Link key={entry.focus} href={`/saju?focus=${entry.focus}`} className="group rounded-2xl border border-primary/15 bg-card p-4 sm:p-5 shadow-sm shadow-primary/5 transition-colors hover:bg-secondary/50 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               <div className="flex items-center gap-3">
                 <div className={`rounded-xl border p-2.5 ${entry.tone}`}><Icon className="h-5 w-5" aria-hidden="true" /></div>
                 <h2 className="text-lg font-semibold text-foreground">{entry.title}</h2>

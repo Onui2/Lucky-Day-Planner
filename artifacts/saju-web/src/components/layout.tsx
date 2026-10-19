@@ -381,10 +381,9 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className={cn("min-h-screen flex flex-col font-sans selection:bg-primary/30 selection:text-primary", isReadingPage && "bg-background")}>
       {!isReadingPage && <div
-        className="fixed inset-0 z-[-1] opacity-25 pointer-events-none bg-layout-pattern"
+        className={cn("fixed inset-0 z-[-1] pointer-events-none bg-layout-pattern", location === "/" ? "home-celestial-background" : "opacity-25")}
+        aria-hidden="true"
         style={{
-          backgroundSize: "cover",
-          backgroundPosition: "center",
           transform: "translateZ(0)",
         }}
       />}

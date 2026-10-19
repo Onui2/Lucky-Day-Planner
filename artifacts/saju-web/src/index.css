@@ -133,6 +133,25 @@
 
   .bg-layout-pattern {
     background-image: url('/images/mystical-bg.webp');
+    background-size: cover;
+    background-position: center;
+  }
+
+  .home-celestial-background {
+    /* Keep the stars and corner motifs without a dark wash over the paper. */
+    filter: grayscale(1) invert(1) sepia(1);
+    opacity: 0.24;
+    background-size: 100% auto;
+    background-position: center top;
+    background-repeat: no-repeat;
+    bottom: auto;
+    aspect-ratio: 11 / 6;
+    mask-image: linear-gradient(to bottom, black 45%, transparent 100%);
+  }
+
+  .home-start-guide {
+    /* Small gold labels need stronger contrast on the light home surface. */
+    --primary: 42 65% 32%;
   }
 
   .saju-analysis-flow > .glass-panel {
