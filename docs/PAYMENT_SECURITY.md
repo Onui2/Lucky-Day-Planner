@@ -64,17 +64,21 @@ cannot be recalled. This change does not enable the report sales flag or alter p
 
 ## Merchant review checkout
 
-The public `/reports` page can expose a separate, explicitly labeled TEST checkout
+The public `/reports` page and normal report purchase dialog can expose a separate,
+explicitly labeled TEST checkout
 when `TOSS_PAY_REVIEW_ENABLED`, a TEST-only `TOSS_PAY_REVIEW_API_KEY`, a dedicated
 64-hex `TOSS_PAY_REVIEW_COOKIE_SECRET`, and a valid root `APP_URL` are configured.
 The ordinary production checkout still rejects TEST keys. Review checkout never
 creates commerce orders, payments, snapshots or entitlements and cannot issue PDFs.
 
-The server fixes the basic product and price, validates the provider checkout URL,
-and binds the TEST order/token to an AES-256-GCM HttpOnly cookie for 20 minutes.
+The server accepts the basic, detail and full report products from `REPORT_PRODUCTS`
+and uses their server-side prices (4,900, 9,900 and 19,900 KRW). Client-supplied amounts
+and titles are ignored. It validates the provider checkout URL and binds the product
+type and TEST order/token to an AES-256-GCM HttpOnly cookie for 20 minutes.
 Mutations require the exact configured Origin and fail-closed shared IP/global
 rate limits. Confirmation validates the cookie, order ID and provider status,
 amount, currency, token, mode and approval timestamp before displaying completion.
+The confirmed product type and title come from the encrypted cookie and server catalog.
 Existing completed test payments are read without another execute request.
 
 This route demonstrates the hosted payment flow before a live merchant contract.
