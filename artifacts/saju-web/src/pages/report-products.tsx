@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { customFetch, useGetCommerceProducts, type CommerceProduct } from "@workspace/api-client-react";
-import { FileText, Loader2 } from "lucide-react";
+import { customFetch, useGetCommerceProducts } from "@workspace/api-client-react";
+import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReviewCheckout, useReviewCatalog } from "@/components/ReviewCheckout";
 import { REPORT_ACCESS_NOTICE, REPORT_DELIVERY_NOTICE, REPORT_STORAGE_NOTICE } from "@/lib/report-policy";
-
-type ReviewCatalog = { enabled: boolean; product: CommerceProduct };
 
 export default function ReportProductsPage() {
   const search = useSearch();
-  const catalog = useQuery({ queryKey: ["commerce", "review"], queryFn: () => customFetch<ReviewCatalog>("/api/commerce/review") });
+  const catalog = useReviewCatalog();
   const commerce = useGetCommerceProducts();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -32,23 +30,6 @@ export default function ReportProductsPage() {
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
   }, [search]);
-
-  async function openReviewCheckout() {
-    if (busy || !product || !catalog.data?.enabled) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      const result = await customFetch<{ checkoutPage: string }>("/api/commerce/review/checkout", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productType: product.type }),
-      });
-      const url = new URL(result.checkoutPage);
-      if (url.origin !== "https://pay.toss.im" || url.username || url.password) throw new Error("결제창 주소를 확인하지 못했습니다.");
-      window.location.assign(url.href);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "테스트 결제창을 열지 못했습니다.");
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -76,17 +57,8 @@ export default function ReportProductsPage() {
             <p>1회 결제 · 자동 결제 없음</p>
             <Link href="/refund-policy" className="inline-flex min-h-11 items-center underline">환불 및 취소 정책</Link>
           </div>
-          {catalog.data.enabled && <div className="mt-5 space-y-4">
-            <div role="note" className="rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-              <p className="font-semibold">입점 심사용 테스트 결제</p>
-              <p>토스페이 결제창과 인증 흐름을 확인할 수 있습니다. 실제 금액은 청구되지 않으며, 유료 리포트는 발급되지 않습니다.</p>
-            </div>
-            <fieldset disabled={busy}>
-              <legend className="mb-2 text-sm font-medium">결제수단</legend>
-              <label className="flex min-h-12 items-center gap-3 rounded-xl border p-3"><input type="radio" name="review-payment" value="toss_pay" defaultChecked />토스페이</label>
-            </fieldset>
-            <Button className="min-h-12 w-full" disabled={busy} onClick={() => void openReviewCheckout()}>{busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />결제창 연결 중</> : `${product.amount.toLocaleString("ko-KR")}원 토스페이 테스트 결제`}</Button>
-          </div>}
+          {catalog.data.enabled && !live && !commerce.isPending && !commerce.isError && <div className="mt-5"><ReviewCheckout product={product} disabled={busy} /></div>}
+          {commerce.isError && <p role="alert" className="mt-5">결제수단을 불러오지 못했습니다. <button type="button" className="underline" onClick={() => void commerce.refetch()}>다시 불러오기</button></p>}
           {live ? <Link href="/saju" className="mt-5 flex min-h-12 items-center justify-center rounded-xl bg-primary px-4 font-medium text-primary-foreground">내 사주 입력하고 구매하기</Link>
             : !catalog.data.enabled && <p className="mt-5 text-sm text-muted-foreground">결제 서비스를 준비 중입니다. 무료 요약과 PDF 샘플을 먼저 확인해 주세요.</p>}
         </>}

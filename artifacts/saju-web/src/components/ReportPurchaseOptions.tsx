@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import { startCommercePayment, type TossCheckoutUser } from "@/lib/toss-payments";
 import { NewYearOffer } from "./NewYearOffer";
+import { ReviewCheckout, useReviewCatalog } from "./ReviewCheckout";
 import { getCampaignVisit } from "@/lib/campaign-tracking";
 import type { ReportFocus } from "@/lib/report-focus";
 import { REPORT_ACCESS_NOTICE, REPORT_DELIVERY_NOTICE } from "@/lib/report-policy";
@@ -65,6 +66,14 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
   const purchaseLock = useRef(false);
   const selectedProduct = catalog.data?.products.find((product) => product.type === tier);
   const adminAccess = isAdmin || catalog.data?.checkoutMode === "admin";
+  const liveCheckout = Boolean(catalog.data?.salesEnabled && catalog.data.checkoutMode !== "disabled");
+  const reviewEligible = !adminAccess && !isNewYear && tier === "saju_basic" && !liveCheckout;
+  const review = useReviewCatalog(reviewEligible);
+  const reviewPending = reviewEligible && !catalog.isError && (catalog.isPending || review.isPending);
+  const reviewError = reviewEligible && !catalog.isPending && !catalog.isError && review.isError;
+  const reviewAvailable = Boolean(reviewEligible && !catalog.isPending && !catalog.isError && !review.isError
+    && review.data?.enabled && selectedProduct && review.data.product.type === selectedProduct.type
+    && review.data.product.amount === selectedProduct.amount);
   const available = Boolean(selectedProduct && (!isNewYear || birthInfo.hour >= 0) && (!isNewYear || selectedProduct.amount === catalog.data?.campaign.amount) && (!isNewYear || adminAccess || catalog.data?.campaign.salesEnabled) && (adminAccess
     || (catalog.data?.salesEnabled && catalog.data.checkoutMode !== "disabled")));
   const details = DETAILS[tier];
@@ -196,7 +205,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
         {birthInfo.hour === -1 && <p className="mt-1 text-xs text-muted-foreground">시주 관련 해석은 제한됩니다.</p>}
         <p className="mt-1 text-xs text-muted-foreground">입력이 다르면 사주 입력 화면에서 수정한 뒤 다시 분석해 주세요.</p>
       </div>
-      {!available && !catalog.isPending && !catalog.isError && <p className="rounded-xl bg-foreground/5 p-3 font-medium">판매 준비 중</p>}
+      {!available && !reviewAvailable && !reviewPending && !reviewError && !catalog.isPending && !catalog.isError && <p className="rounded-xl bg-foreground/5 p-3 font-medium">판매 준비 중</p>}
       <section aria-label="상품 제공 안내" className="space-y-1.5 rounded-xl border border-foreground/10 p-3 text-xs leading-6 text-muted-foreground">
         <p className="text-sm font-medium text-foreground">제공 방식 · 이용 기간</p>
         <p>{REPORT_DELIVERY_NOTICE}</p>
@@ -214,7 +223,11 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
           <p className="text-xs leading-5 text-muted-foreground">1회 결제 · 자동 결제 없음</p>
         </fieldset>
       )}
-      {!isAuthenticated ? (
+      {reviewAvailable ? <ReviewCheckout product={review.data!.product} /> : reviewPending ? (
+        <p role="status" className="text-muted-foreground">결제수단을 확인하고 있습니다.</p>
+      ) : reviewError ? (
+        <div role="alert" className="rounded-xl border p-3">결제수단을 불러오지 못했습니다. <button type="button" className="text-primary underline" onClick={() => void review.refetch()}>다시 불러오기</button></div>
+      ) : !isAuthenticated ? (
         <p className="text-muted-foreground">리포트 발급과 보관은 로그인 후 이용할 수 있습니다. <Link href={buildAuthHref("/login")} className="text-primary underline">로그인 후 상품 확인</Link></p>
       ) : (
         <div className="space-y-2">
