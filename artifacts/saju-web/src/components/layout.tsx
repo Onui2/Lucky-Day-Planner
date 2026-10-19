@@ -4,6 +4,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import { BUSINESS_INFO } from "@/lib/business-info";
+import HomeStars from "@/components/HomeStars";
 import {
   Moon,
   Sun,
@@ -379,9 +380,9 @@ export function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className={cn("min-h-screen flex flex-col font-sans selection:bg-primary/30 selection:text-primary", isReadingPage && "bg-background")}>
-      {!isReadingPage && <div
-        className={cn("fixed inset-0 z-[-1] pointer-events-none bg-layout-pattern", location === "/" ? "home-celestial-background" : "opacity-25")}
+    <div className={cn("min-h-screen flex flex-col font-sans selection:bg-primary/30 selection:text-primary", location === "/" && "relative isolate", isReadingPage && "bg-background")}>
+      {location === "/" ? <HomeStars /> : !isReadingPage && <div
+        className="fixed inset-0 z-[-1] pointer-events-none bg-layout-pattern opacity-25"
         aria-hidden="true"
         style={{
           transform: "translateZ(0)",

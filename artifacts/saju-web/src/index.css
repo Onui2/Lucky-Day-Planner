@@ -138,18 +138,12 @@
   }
 
   .home-celestial-background {
-    /* Keep the stars and corner motifs without a dark wash over the paper. */
-    filter: grayscale(1) invert(1) sepia(1);
-    opacity: 0.24;
-    background-size: 100% auto;
-    background-position: center top;
-    background-repeat: no-repeat;
-    bottom: auto;
-    aspect-ratio: 11 / 6;
-    mask-image: linear-gradient(to bottom, black 45%, transparent 100%);
+    background: radial-gradient(ellipse 70% 65% at 50% 0%, hsl(42 65% 90% / 0.25), transparent 75%);
   }
 
-  .home-start-guide {
+  .home-start-guide,
+  .home-report-guide,
+  .home-faq {
     /* Small gold labels need stronger contrast on the light home surface. */
     --primary: 42 65% 32%;
   }

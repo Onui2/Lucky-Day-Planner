@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { ArrowRight, Briefcase, Heart, Sparkles, TrendingUp } from "lucide-react";
+import { useGetCommerceProducts } from "@workspace/api-client-react";
 
 const CONCERNS = [
   { focus: "career", title: "이직·일", question: "지금 하는 일, 나에게 맞을까요?", description: "일할 때의 강점과 선택할 때 살펴볼 점", icon: Briefcase, tone: "border-sky-500/25 bg-sky-500/10 text-sky-700" },
@@ -8,6 +9,9 @@ const CONCERNS = [
 ] as const;
 
 export default function HomeStartGuide({ isAdmin, isAuthenticated }: { isAdmin: boolean; isAuthenticated: boolean }) {
+  const catalog = useGetCommerceProducts();
+  const amounts = catalog.data?.products.map(product => product.amount).filter(amount => Number.isFinite(amount) && amount > 0) ?? [];
+  const priceNotice = amounts.length ? `맞춤 해석 ${Math.min(...amounts).toLocaleString("ko-KR")}원부터` : "맞춤 해석은 유료";
   return (
     <section className="home-start-guide text-center w-full max-w-5xl mx-auto mb-8" aria-labelledby="home-start-title">
       <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 mb-5">
@@ -41,9 +45,12 @@ export default function HomeStartGuide({ isAdmin, isAuthenticated }: { isAdmin: 
         <li><span className="font-semibold text-primary">3.</span> 무료 요약 · 맞춤 해석 선택</li>
       </ol>
       <div className="mt-5 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-4">
-        <p className="text-sm font-semibold text-foreground">{isAdmin ? "관리자는 모든 PDF 리포트 무료" : "핵심 요약 무료 · 맞춤 해석 4,900원부터"}</p>
+        <p className="text-sm font-semibold text-foreground">{isAdmin ? "관리자는 모든 PDF 리포트 무료" : `핵심 요약 무료 · ${priceNotice}`}</p>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{isAdmin ? "분석 결과 화면에서 원하는 리포트를 선택하세요." : "구매한 해석은 웹에서 읽고 PDF로 보관하세요. 자동 정기결제는 없습니다."}</p>
-        <a href={`${import.meta.env.BASE_URL}report-samples/saju-basic.pdf`} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary underline underline-offset-4">기본 PDF 샘플 보기 <ArrowRight className="h-3 w-3" aria-hidden="true" /></a>
+        <div className="mt-2 flex flex-wrap justify-center gap-x-5">
+          <a href="#report-preview" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary underline underline-offset-4">리포트 미리보기 <ArrowRight className="h-3 w-3" aria-hidden="true" /></a>
+          <a href="#report-comparison" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary underline underline-offset-4">가격별 구성 비교 <ArrowRight className="h-3 w-3" aria-hidden="true" /></a>
+        </div>
       </div>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         <Link href="/reports" className="rounded-xl border border-foreground/15 px-4 py-2.5 text-sm text-foreground hover:bg-foreground/5">리포트 상품 · 결제</Link>

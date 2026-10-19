@@ -7,7 +7,6 @@ import {
   Calendar,
   ArrowRight,
   Heart,
-  FileQuestion,
   CalendarDays,
   Type,
   Orbit,
@@ -48,6 +47,8 @@ import {
   useRegenerateReport,
 } from "@workspace/api-client-react";
 import HomeStartGuide from "@/components/HomeStartGuide";
+import HomeReportGuide from "@/components/HomeReportGuide";
+import HomeFaq from "@/components/HomeFaq";
 import { useResolvedProfile } from "@/lib/resolved-profile";
 import { getCurrentAge } from "@/lib/age";
 import {
@@ -2133,6 +2134,8 @@ export default function Home() {
         </details>
       )}
 
+      <HomeReportGuide />
+
       <details id="all-features" className="group/features w-full max-w-5xl rounded-2xl border border-primary/15 bg-card/30">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 [&::-webkit-details-marker]:hidden">
           <div>
@@ -2682,25 +2685,17 @@ export default function Home() {
         </div>
       </details>
 
-      {/* 문의하기 섹션 */}
-      <motion.div
-        className="w-full max-w-5xl mt-16"
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
-      >
-        <div className="text-center mb-8">
-          <p className="text-xs tracking-widest text-primary/60 uppercase mb-2">
-            consultation
-          </p>
-          <h2 className="font-serif text-3xl font-bold text-foreground mb-2">
-            상담 문의
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            궁금하신 사항을 문의해 주시면 정성껏 답변해 드립니다
-          </p>
-        </div>
+      <HomeFaq />
 
+      <section aria-label="추가 문의" className="mt-8 w-full max-w-5xl border-t border-foreground/10 pt-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">더 궁금한 점이 있으신가요?</p>
+          <div className="flex flex-wrap gap-x-5">
+            <button type="button" onClick={() => openInquiry("saju", inquiryProfileDraft ? { person1: inquiryProfileDraft } : undefined)} className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4">사주 문의</button>
+            <button type="button" onClick={() => openInquiry("gungap")} className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4">궁합 문의</button>
+            <button type="button" onClick={() => openInquiry("general")} className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4">이용 문의</button>
+          </div>
+        </div>
         {suggestedInquiry && (
           <button
             type="button"
@@ -2735,73 +2730,7 @@ export default function Home() {
           </button>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* 사주 문의 */}
-          <button
-            onClick={() =>
-              openInquiry(
-                "saju",
-                inquiryProfileDraft ? { person1: inquiryProfileDraft } : undefined,
-              )
-            }
-            className="group text-left rounded-2xl border border-primary/25 bg-card/30 backdrop-blur-xl p-6 transition-all duration-400 hover:bg-card/50 hover:border-primary/50 hover:shadow-[0_0_30px_rgba(212,175,55,0.12)] hover:-translate-y-1 relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/8 rounded-full blur-2xl group-hover:bg-primary/15 transition-colors" />
-            <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center mb-4 border border-primary/25 group-hover:scale-110 transition-transform">
-              <Sparkles className="w-5 h-5 text-primary" />
-            </div>
-            <h3 className="font-semibold text-base mb-1.5 text-foreground">
-              사주 문의
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              생년월일시를 바탕으로 사주·운세·적성 등 궁금한 점을 상담하세요.
-            </p>
-            <div className="flex items-center gap-1 mt-4 text-primary text-xs font-medium group-hover:gap-2 transition-all">
-              문의하기 <ArrowRight className="w-3 h-3" />
-            </div>
-          </button>
-
-          {/* 궁합 문의 */}
-          <button
-            onClick={() => openInquiry("gungap")}
-            className="group text-left rounded-2xl border border-rose-400/25 bg-card/30 backdrop-blur-xl p-6 transition-all duration-400 hover:bg-card/50 hover:border-rose-400/50 hover:shadow-[0_0_30px_rgba(251,113,133,0.12)] hover:-translate-y-1 relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-400/8 rounded-full blur-2xl group-hover:bg-rose-400/15 transition-colors" />
-            <div className="w-11 h-11 rounded-xl bg-rose-400/15 flex items-center justify-center mb-4 border border-rose-400/25 group-hover:scale-110 transition-transform">
-              <Heart className="w-5 h-5 text-rose-600" />
-            </div>
-            <h3 className="font-semibold text-base mb-1.5 text-foreground">
-              궁합 문의
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              연인·배우자·비즈니스 파트너와의 궁합을 전문가에게 직접 물어보세요.
-            </p>
-            <div className="flex items-center gap-1 mt-4 text-rose-600 text-xs font-medium group-hover:gap-2 transition-all">
-              문의하기 <ArrowRight className="w-3 h-3" />
-            </div>
-          </button>
-
-          {/* 일반 문의 */}
-          <button
-            onClick={() => openInquiry("general")}
-            className="group text-left rounded-2xl border border-sky-400/25 bg-card/30 backdrop-blur-xl p-6 transition-all duration-400 hover:bg-card/50 hover:border-sky-400/50 hover:shadow-[0_0_30px_rgba(56,189,248,0.12)] hover:-translate-y-1 relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-sky-400/8 rounded-full blur-2xl group-hover:bg-sky-400/15 transition-colors" />
-            <div className="w-11 h-11 rounded-xl bg-sky-400/15 flex items-center justify-center mb-4 border border-sky-400/25 group-hover:scale-110 transition-transform">
-              <FileQuestion className="w-5 h-5 text-sky-600" />
-            </div>
-            <h3 className="font-semibold text-base mb-1.5 text-foreground">
-              일반 문의
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              서비스 이용이나 기타 궁금한 점을 자유롭게 남겨주세요.
-            </p>
-            <div className="flex items-center gap-1 mt-4 text-sky-600 text-xs font-medium group-hover:gap-2 transition-all">
-              문의하기 <ArrowRight className="w-3 h-3" />
-            </div>
-          </button>
-        </div>
-      </motion.div>
+      </section>
 
       {inquiryOpen && (
         <Suspense fallback={null}>
