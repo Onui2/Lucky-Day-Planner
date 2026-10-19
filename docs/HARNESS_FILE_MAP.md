@@ -21,7 +21,7 @@
 ## Action Harness
 
 - Pages: `home.tsx`, `saved.tsx`, `lucky-calendar.tsx`, `inquiries.tsx`
-- Components: `HomeInquiryModal.tsx`
+- Components: `HomeStartGuide.tsx`, `HomeReportGuide.tsx`, `HomeFaq.tsx`, `HomeStars.tsx`, `HomeInquiryModal.tsx`
 - Hooks/Lib: `use-lucky-day-bookmarks.ts`, `member-insights.ts`
 
 ## Ops Harness
