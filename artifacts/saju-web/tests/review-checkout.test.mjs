@@ -21,7 +21,7 @@ const text = node => node == null || typeof node === "boolean" ? ""
 
 // Execute the real components with HTTP and query boundaries mocked. Keep hook
 // state so selection changes, rapid duplicate clicks, and failed retries run.
-function setup({ authenticated = false, admin = false, live = false, newYear = false } = {}) {
+function setup({ authenticated = false, admin = false, live = false, newYear = false, search = "" } = {}) {
   let cursor = 0;
   const slots = [];
   const cleanups = [];
@@ -29,21 +29,21 @@ function setup({ authenticated = false, admin = false, live = false, newYear = f
   const navigations = [];
   const queryOptions = [];
   const catalog = { data: { products, salesEnabled: live, checkoutMode: admin ? "admin" : live ? "toss_pay" : "disabled", campaign: { amount: 9900, salesEnabled: false } }, isPending: false, isError: false };
-  const review = { data: { enabled: true, product: products[0] }, isPending: false, isError: false };
+  const review = { data: { enabled: true, product: products[0], products }, isPending: false, isError: false };
   const react = {
     useId: () => "checkout",
     useState(initial) { const index = cursor++; if (!(index in slots)) slots[index] = initial; return [slots[index], value => { slots[index] = value; }]; },
     useRef(initial) { return slots[cursor++] ??= { current: initial }; },
     useEffect(effect) { const index = cursor++; if (!(index in slots)) { slots[index] = true; cleanups.push(effect()); } },
   };
-  const jsx = (type, props) => ({ type, props });
+  const jsx = (type, props, key) => ({ type, props, key });
   const cache = {};
   function load(file) {
     if (cache[file]) return cache[file];
     const source = readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8").replaceAll("import.meta.env.BASE_URL", '"/"');
     const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
-    runInNewContext(compiled, { module, exports: module.exports, URL, Error, AbortController, window: { location: { assign: url => navigations.push(url) } },
+    runInNewContext(compiled, { module, exports: module.exports, URL, URLSearchParams, Error, AbortController, window: { location: { assign: url => navigations.push(url) } },
       require(name) {
         if (name === "react") return react;
         if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "fragment" };
@@ -55,11 +55,11 @@ function setup({ authenticated = false, admin = false, live = false, newYear = f
           customFetch: (url, options) => new Promise((resolve, reject) => requests.push({ url, options, resolve, reject })),
         };
         if (name === "@workspace/replit-auth-web") return { useAuth: () => ({ user: authenticated ? { id: "member" } : null }) };
-        if (name === "wouter") return { Link: "link" };
+        if (name === "wouter") return { Link: "link", useSearch: () => search };
         if (name === "lucide-react") return {};
         if (name === "@/components/ui/button") return { Button: "button" };
         if (name === "@/lib/auth-redirect") return { buildAuthHref: url => url };
-        if (name === "./ReviewCheckout") return load("components/ReviewCheckout.tsx");
+        if (["./ReviewCheckout", "@/components/ReviewCheckout"].includes(name)) return load("components/ReviewCheckout.tsx");
         if (["@/lib/toss-payments", "./NewYearOffer", "@/lib/campaign-tracking", "@/lib/report-policy"].includes(name)) return {};
         throw new Error(`Unexpected dependency: ${name}`);
       },
@@ -69,6 +69,7 @@ function setup({ authenticated = false, admin = false, live = false, newYear = f
   return { catalog, review, requests, navigations, queryOptions,
     unmount() { for (const cleanup of cleanups) cleanup?.(); },
     renderOptions() { cursor = 0; return load("components/ReportPurchaseOptions.tsx").ReportPurchaseOptions({ birthInfo, isAuthenticated: authenticated, isAdmin: admin, reportEdition: newYear ? "new-year-2027" : undefined }); },
+    renderProducts() { cursor = 0; return load("pages/report-products.tsx").default(); },
     renderCheckout(props = {}) { cursor = 0; return load("components/ReviewCheckout.tsx").ReviewCheckout({ product: products[0], ...props }); },
   };
 }
@@ -84,15 +85,50 @@ for (const authenticated of [false, true]) {
   });
 }
 
-test("other report tiers and the new-year edition cannot use the basic test checkout", () => {
+test("all three report tiers use their own test checkout while the new-year edition stays excluded", () => {
   const h = setup({ authenticated: true });
   for (const type of ["saju_detail", "saju_full", "saju_basic"]) {
     nodes(h.renderOptions()).find(node => node.type === "input" && node.props.value === type).props.onChange();
     const tree = h.renderOptions();
-    assert.equal(Boolean(reviewControl(tree)), type === "saju_basic");
-    if (type !== "saju_basic") assert.match(text(tree), /판매 준비 중/);
+    assert.equal(reviewControl(tree)?.props.product.type, type);
+    assert.equal(reviewControl(tree)?.key, type, "Product changes must remount checkout and abort its old request");
+    assert.equal(reviewControl(tree)?.props.product.amount, products.find(product => product.type === type).amount);
+    assert.doesNotMatch(text(tree), /판매 준비 중/);
   }
   assert.equal(reviewControl(setup({ newYear: true }).renderOptions()), undefined);
+});
+
+test("public product page selects matching price, checkout and PDF sample for every tier", () => {
+  const h = setup();
+  for (const product of products) {
+    nodes(h.renderProducts()).find(node => node.type === "input" && node.props.value === product.type).props.onChange();
+    const tree = h.renderProducts();
+    assert.equal(reviewControl(tree).props.product.type, product.type);
+    assert.equal(reviewControl(tree).props.product.amount, product.amount);
+    assert.equal(reviewControl(tree).key, product.type);
+    const sample = nodes(tree).find(node => node.type === "a" && /PDF 샘플/.test(text(node)));
+    assert.equal(sample.props.href, `/report-samples/${product.type.replaceAll("_", "-")}.pdf`);
+  }
+});
+
+test("older catalog responses only expose their basic product during deployment", () => {
+  const h = setup();
+  delete h.review.data.products;
+  assert.equal(reviewControl(h.renderOptions()).props.product.type, "saju_basic");
+  nodes(h.renderOptions()).find(node => node.type === "input" && node.props.value === "saju_detail").props.onChange();
+  assert.equal(reviewControl(h.renderOptions()), undefined);
+});
+
+test("confirmation result displays and selects the product verified by the server", async () => {
+  const h = setup({ search: "review=return&orderId=MHW_REVIEW_test" });
+  h.renderProducts();
+  assert.equal(h.requests[0].url, "/api/commerce/review/confirm");
+  h.requests[0].resolve({ status: "test_complete", productType: "saju_full", title: "사주 종합 리포트", amount: 19900 });
+  await tick();
+  const tree = h.renderProducts();
+  assert.equal(reviewControl(tree).props.product.type, "saju_full");
+  assert.match(text(tree), /사주 종합 리포트 19,900원 테스트 결제가 완료/);
+  assert.match(text(tree), /실제 청구와 유료 리포트 발급은 없으며/);
 });
 
 test("live checkout and administrator issuance take priority over cached review configuration", () => {
@@ -113,8 +149,8 @@ test("disabled, failed, loading, or mismatched catalogs never expose test checko
     h => { h.review.isError = true; },
     h => { h.catalog.isError = true; },
     h => { h.catalog.isPending = true; },
-    h => { h.review.data.product = { ...products[0], amount: 100 }; },
-    h => { h.review.data.product = { ...products[0], type: "saju_full" }; },
+    h => { h.review.data.products = [{ ...products[0], amount: 100 }]; },
+    h => { h.review.data.products = [products[2]]; },
   ]) {
     const h = setup();
     configure(h);

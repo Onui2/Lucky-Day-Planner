@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { buildAuthHref } from "@/lib/auth-redirect";
 import { startCommercePayment, type TossCheckoutUser } from "@/lib/toss-payments";
 import { NewYearOffer } from "./NewYearOffer";
-import { ReviewCheckout, useReviewCatalog } from "./ReviewCheckout";
+import { getReviewProducts, ReviewCheckout, useReviewCatalog } from "./ReviewCheckout";
 import { getCampaignVisit } from "@/lib/campaign-tracking";
 import type { ReportFocus } from "@/lib/report-focus";
 import { REPORT_ACCESS_NOTICE, REPORT_DELIVERY_NOTICE } from "@/lib/report-policy";
@@ -67,13 +67,14 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
   const selectedProduct = catalog.data?.products.find((product) => product.type === tier);
   const adminAccess = isAdmin || catalog.data?.checkoutMode === "admin";
   const liveCheckout = Boolean(catalog.data?.salesEnabled && catalog.data.checkoutMode !== "disabled");
-  const reviewEligible = !adminAccess && !isNewYear && tier === "saju_basic" && !liveCheckout;
+  const reviewEligible = !adminAccess && !isNewYear && !liveCheckout;
   const review = useReviewCatalog(reviewEligible);
+  const reviewProduct = getReviewProducts(review.data).find(product => product.type === tier);
   const reviewPending = reviewEligible && !catalog.isError && (catalog.isPending || review.isPending);
   const reviewError = reviewEligible && !catalog.isPending && !catalog.isError && review.isError;
   const reviewAvailable = Boolean(reviewEligible && !catalog.isPending && !catalog.isError && !review.isError
-    && review.data?.enabled && selectedProduct && review.data.product.type === selectedProduct.type
-    && review.data.product.amount === selectedProduct.amount);
+    && review.data?.enabled && selectedProduct && reviewProduct
+    && reviewProduct.amount === selectedProduct.amount);
   const available = Boolean(selectedProduct && (!isNewYear || birthInfo.hour >= 0) && (!isNewYear || selectedProduct.amount === catalog.data?.campaign.amount) && (!isNewYear || adminAccess || catalog.data?.campaign.salesEnabled) && (adminAccess
     || (catalog.data?.salesEnabled && catalog.data.checkoutMode !== "disabled")));
   const details = DETAILS[tier];
@@ -223,7 +224,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
           <p className="text-xs leading-5 text-muted-foreground">1회 결제 · 자동 결제 없음</p>
         </fieldset>
       )}
-      {reviewAvailable ? <ReviewCheckout product={review.data!.product} /> : reviewPending ? (
+      {reviewAvailable ? <ReviewCheckout key={reviewProduct!.type} product={reviewProduct!} /> : reviewPending ? (
         <p role="status" className="text-muted-foreground">결제수단을 확인하고 있습니다.</p>
       ) : reviewError ? (
         <div role="alert" className="rounded-xl border p-3">결제수단을 불러오지 못했습니다. <button type="button" className="text-primary underline" onClick={() => void review.refetch()}>다시 불러오기</button></div>

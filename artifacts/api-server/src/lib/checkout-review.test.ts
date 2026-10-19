@@ -60,26 +60,32 @@ async function harness(run: (h: any) => Promise<void>) {
   finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
 }
 
-test("review opens the real provider flow with server price, browser binding and no paid fulfillment", () => harness(async ({ url, post, calls, limits }: any) => {
+for (const [productType, amount, title] of [
+  ["saju_basic", 4900, "사주 기본 리포트"],
+  ["saju_detail", 9900, "사주 상세 리포트"],
+  ["saju_full", 19900, "사주 종합 리포트"],
+] as const) test(`review opens ${productType} with server price, browser binding and no paid fulfillment`, () => harness(async ({ url, post, calls, limits }: any) => {
   const catalog: any = await (await fetch(url + "/commerce/review")).json();
   assert.equal(catalog.enabled, true);
   assert.equal(catalog.product.amount, 4900);
-  const created = await post("/commerce/review/checkout", { productType: "saju_basic", amount: 1, currency: "USD" });
+  assert.deepEqual(catalog.products.map((product: any) => [product.type, product.amount]), [["saju_basic", 4900], ["saju_detail", 9900], ["saju_full", 19900]]);
+  const created = await post("/commerce/review/checkout", { productType, amount: 1, currency: "USD", title: "Tampered title" });
   assert.equal(created.status, 200);
   const cookie = created.headers.get("set-cookie").split(";")[0];
   assert.match(created.headers.get("set-cookie"), /HttpOnly/);
   assert.match(created.headers.get("set-cookie"), /Secure/);
   assert.match(created.headers.get("set-cookie"), /SameSite=Lax/);
   assert.doesNotMatch(cookie, /test-token|sk_test_/);
-  assert.equal(calls[0].body.amount, 4900);
+  assert.equal(calls[0].body.amount, amount);
   assert.equal(calls[0].body.autoExecute, false);
   assert.match(calls[0].body.productDesc, /테스트/);
+  assert.ok(calls[0].body.productDesc.includes(title));
   assert.equal(new URL(calls[0].body.retUrl).pathname, "/reports");
   const orderId = calls[0].body.orderNo;
   assert.match(orderId, /^MHW_REVIEW_[a-f\d]{32}$/);
-  const confirmation = await post("/commerce/review/confirm", { orderId }, cookie);
+  const confirmation = await post("/commerce/review/confirm", { orderId, productType: "tampered", amount: 1 }, cookie);
   assert.equal(confirmation.status, 200);
-  assert.deepEqual(await confirmation.json(), { status: "test_complete", amount: 4900, title: "사주 기본 리포트" });
+  assert.deepEqual(await confirmation.json(), { status: "test_complete", productType, amount, title });
   assert.equal((await post("/commerce/review/confirm", { orderId }, cookie)).status, 200);
   assert.equal(calls.filter((call: any) => call.url.endsWith("/execute")).length, 1);
   assert.equal(limits.length, 2);
@@ -93,7 +99,9 @@ test("review fails closed for disabled, live-key, missing-secret and bad-origin 
     env[key] = previous;
   }
   assert.equal((await post("/commerce/review/checkout", { productType: "saju_basic" }, "", "https://evil.example")).status, 403);
-  assert.equal((await post("/commerce/review/checkout", { productType: "saju_full" })).status, 400);
+  for (const productType of ["unknown", "saju", "new-year-2027", "__proto__", null, ["saju_basic"]]) {
+    assert.equal((await post("/commerce/review/checkout", { productType })).status, 400);
+  }
   assert.equal(calls.length, 0);
 }));
 

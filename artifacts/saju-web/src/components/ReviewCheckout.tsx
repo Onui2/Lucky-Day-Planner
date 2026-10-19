@@ -4,7 +4,11 @@ import { customFetch, type CommerceProduct } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type ReviewCatalog = { enabled: boolean; product: CommerceProduct };
+type ReviewCatalog = { enabled: boolean; product: CommerceProduct; products?: CommerceProduct[] };
+
+export function getReviewProducts(catalog: ReviewCatalog | undefined): CommerceProduct[] {
+  return catalog?.products ?? (catalog?.product ? [catalog.product] : []);
+}
 
 export function useReviewCatalog(enabled = true) {
   return useQuery({
