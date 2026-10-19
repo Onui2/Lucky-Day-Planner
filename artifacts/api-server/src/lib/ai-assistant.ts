@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { enforceSharedRateLimit, getConfiguredRateLimitMax } from "../middlewares/rateLimit.js";
 
 function oneLine(value: unknown) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
@@ -259,11 +260,22 @@ export async function buildSajuQuestionAnswer(
     if (attempt.delayMs > 0 && unavailableModels.size === 0) {
       await wait(attempt.delayMs);
     }
+    // Count every provider attempt, including fallback and retries. Never refund
+    // this budget: failed/unfinished responses can still incur provider costs.
+    // Outside the retry catch so a denied budget cannot itself trigger retries.
+    await enforceSharedRateLimit({
+      name: "ai-provider-daily", key: "global", windowMs: 24 * 60 * 60_000,
+      max: getConfiguredRateLimitMax("AI_PROVIDER_DAILY_LIMIT", 500),
+      code: "AI_SERVICE_CAPACITY_REACHED",
+      message: "AI 서비스의 일일 이용 한도에 도달했습니다. 잠시 후 다시 시도해주세요.",
+      warnAtThreshold: true,
+    });
     let streamedAnyChunk = false;
     try {
       const model = genAI.getGenerativeModel({
         model: attempt.modelName,
         systemInstruction: SYSTEM_PROMPT,
+        generationConfig: { maxOutputTokens: 2048 },
       });
 
       if (onChunk && typeof (model as any).generateContentStream === "function") {

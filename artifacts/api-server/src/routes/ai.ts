@@ -21,6 +21,12 @@ import {
 } from "../lib/prompt-injection-guard.js";
 import { buildSajuResult } from "../lib/saju-result.js";
 import { birthOptionsFromRecord } from "../lib/birth-resolution.js";
+import {
+  enforceSharedRateLimit,
+  getConfiguredRateLimitMax,
+  rateLimitKeyByIp,
+  RateLimitError,
+} from "../middlewares/rateLimit.js";
 
 const router = Router();
 
@@ -263,6 +269,11 @@ router.post("/ai/questions", async (req, res) => {
     return;
   }
 
+  if (question.length > 2000) {
+    res.status(400).json({ error: "질문은 2,000자 이내로 입력해주세요." });
+    return;
+  }
+
   if (!birthInfo) {
     res.status(400).json({ error: "질문할 사주 정보가 필요합니다." });
     return;
@@ -321,6 +332,16 @@ router.post("/ai/questions", async (req, res) => {
         unlimited: usage.unlimited,
       });
       return;
+    }
+
+    if (!usage.unlimited && usage.bonus === 0
+      && getPlanQuestionLimit(usage.planCode) === getPlanQuestionLimit(null)) {
+      await enforceSharedRateLimit({
+        name: "ai-free-ip-daily", key: rateLimitKeyByIp(req), windowMs: 24 * 60 * 60_000,
+        max: getConfiguredRateLimitMax("AI_FREE_IP_DAILY_LIMIT", 12),
+        code: "AI_FREE_NETWORK_LIMIT",
+        message: "현재 네트워크의 무료 AI 이용 한도에 도달했습니다. 잠시 후 다시 시도해주세요.",
+      });
     }
 
     const sajuResult = buildSajuResult({
@@ -399,14 +420,17 @@ router.post("/ai/questions", async (req, res) => {
         console.error("ai question reservation release error:", releaseError);
       }
     }
-    console.error("ai question create error:", error);
+    if (!(error instanceof RateLimitError)) console.error("ai question create error:", error);
     const message = error instanceof Error ? error.message : "AI 질문 답변 생성에 실패했습니다.";
+    const limitError = error instanceof RateLimitError ? error : null;
+    const payload = { error: message, ...(limitError ? { code: limitError.code, retryAfterSeconds: limitError.retryAfterSeconds } : {}) };
     if (res.headersSent && typeof res.write === "function" && typeof res.end === "function") {
-      res.write(`data: ${JSON.stringify({ type: "error", error: message })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: "error", ...payload })}\n\n`);
       res.end();
       return;
     }
-    res.status(500).json({ error: message });
+    if (limitError) res.setHeader("Retry-After", String(limitError.retryAfterSeconds));
+    res.status(limitError?.statusCode ?? 500).json(payload);
   }
 });
 

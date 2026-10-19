@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 import type { Request, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { db, hasDatabaseConfig } from "@workspace/db";
@@ -15,6 +16,7 @@ interface RateLimitOptions {
   methods?: string[];
   keyGenerator?: (req: Request) => string;
   skip?: (req: Request) => boolean;
+  failClosed?: boolean;
 }
 
 // In-memory fallback, only used when no database is configured (e.g. local
@@ -92,7 +94,9 @@ async function incrementDbBucket(
     const row = (result as unknown as { rows: Array<{ count: number; reset_at: string }> }).rows[0];
     if (!row) return null;
 
-    return { count: Number(row.count), resetAt: new Date(row.reset_at).getTime() };
+    const bucket = { count: Number(row.count), resetAt: new Date(row.reset_at).getTime() };
+    return Number.isSafeInteger(bucket.count) && bucket.count > 0 && Number.isFinite(bucket.resetAt)
+      ? bucket : null;
   } catch (error) {
     console.error(`[rateLimit:${name}]`, error);
     return null;
@@ -100,21 +104,81 @@ async function incrementDbBucket(
 }
 
 function getClientIp(req: Request) {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  const firstForwardedFor = Array.isArray(forwardedFor)
-    ? forwardedFor[0]
-    : forwardedFor?.split(",")[0];
-
-  return (
-    firstForwardedFor?.trim() ||
-    req.ip ||
-    req.socket.remoteAddress ||
-    "unknown"
-  );
+  // Express resolves the trusted proxy chain. Do not re-trust a client-supplied
+  // leftmost X-Forwarded-For entry here.
+  return req.ip || req.socket?.remoteAddress || "unknown";
 }
 
 function defaultKeyGenerator(req: Request) {
   return `ip:${getClientIp(req)}`;
+}
+
+export function rateLimitKeyByIp(req: Request) {
+  let network = getClientIp(req).split("%")[0];
+  if (isIP(network) === 6) {
+    network = new URL(`http://[${network}]`).hostname.slice(1, -1);
+    const mapped = /^::ffff:([\da-f]+):([\da-f]+)$/.exec(network);
+    if (mapped) {
+      const high = parseInt(mapped[1], 16);
+      const low = parseInt(mapped[2], 16);
+      network = `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
+    } else {
+      const [head, tail] = network.split("::");
+      const left = head ? head.split(":") : [];
+      const right = tail ? tail.split(":") : [];
+      const groups = [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+      // One IPv6 /64 shares a budget; rotating interface addresses cannot reset it.
+      network = `${groups.slice(0, 4).join(":")}::/64`;
+    }
+  } else if (isIP(network) !== 4) {
+    network = "unknown";
+  }
+  return `network:${createHash("sha256").update(network).digest("hex")}`;
+}
+
+export function getConfiguredRateLimitMax(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim() ?? "";
+  const value = Number(raw);
+  return /^\d+$/.test(raw) && Number.isSafeInteger(value) && value <= 1_000_000
+    ? value : fallback;
+}
+
+export class RateLimitError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    public readonly code: string,
+    message: string,
+    public readonly retryAfterSeconds: number,
+  ) { super(message); }
+}
+
+function unavailableError() {
+  return new RateLimitError(503, "RATE_LIMIT_UNAVAILABLE", "요청 제한을 확인할 수 없습니다. 잠시 후 다시 시도해주세요.", 60);
+}
+
+async function incrementSharedBucket(name: string, key: string, windowMs: number) {
+  if (!process.env.VERCEL && process.env.NODE_ENV === "development") {
+    return incrementMemoryBucket(name, key, windowMs);
+  }
+  // Production must never turn a database outage into per-instance allowances.
+  return hasDatabaseConfig() ? incrementDbBucket(name, key, windowMs) : null;
+}
+
+export async function enforceSharedRateLimit(options: {
+  name: string; key: string; windowMs: number; max: number;
+  code: string; message: string; warnAtThreshold?: boolean;
+}): Promise<void> {
+  const { name, key, windowMs, max, code, message, warnAtThreshold } = options;
+  const bucket = await incrementSharedBucket(name, key, windowMs);
+  if (!bucket) throw unavailableError();
+  const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - Date.now()) / 1000));
+  if (warnAtThreshold && (bucket.count === Math.ceil(max * 0.8) || bucket.count === max + 1)) {
+    console.warn("[ai-budget]", {
+      event: bucket.count > max ? "exhausted" : "warning",
+      bucket: name, count: bucket.count, limit: max, retryAfterSeconds,
+    });
+  }
+  if (bucket.count > max) throw new RateLimitError(429, code, message, retryAfterSeconds);
 }
 
 function matchesMethod(req: Request, methods?: string[]) {
@@ -146,6 +210,7 @@ export function createRateLimiter({
   methods,
   keyGenerator = defaultKeyGenerator,
   skip,
+  failClosed = false,
 }: RateLimitOptions): RequestHandler {
   return async (req, res, next) => {
     if (!matchesMethod(req, methods) || skip?.(req)) {
@@ -166,10 +231,20 @@ export function createRateLimiter({
     // Shared across all serverless instances via Postgres for sensitive/write
     // endpoints; uses fast in-memory buckets for local single-process dev or
     // high-frequency general GET requests, and fails open if the database is
-    // unreachable so rate limiting itself never becomes an outage.
-    const bucket = shouldUseSharedDbStore
-      ? (await incrementDbBucket(name, key, windowMs)) ?? incrementMemoryBucket(name, key, windowMs)
-      : incrementMemoryBucket(name, key, windowMs);
+    // unreachable for ordinary endpoints. Abuse-sensitive limits opt into
+    // failClosed so storage failure never expands their allowance.
+    const bucket = failClosed
+      ? await incrementSharedBucket(name, key, windowMs)
+      : shouldUseSharedDbStore
+        ? (await incrementDbBucket(name, key, windowMs)) ?? incrementMemoryBucket(name, key, windowMs)
+        : incrementMemoryBucket(name, key, windowMs);
+
+    if (!bucket) {
+      const error = unavailableError();
+      res.setHeader("Retry-After", String(error.retryAfterSeconds));
+      res.status(error.statusCode).json({ error: error.message, code: error.code });
+      return;
+    }
 
     const now = Date.now();
     const remaining = Math.max(0, max - bucket.count);

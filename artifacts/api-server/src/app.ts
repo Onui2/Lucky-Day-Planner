@@ -8,6 +8,8 @@ import { authMiddleware } from "./middlewares/authMiddleware.js";
 import { csrfProtection } from "./middlewares/csrf.js";
 import {
   createRateLimiter,
+  getConfiguredRateLimitMax,
+  rateLimitKeyByIp,
   rateLimitKeyByEmailAndIp,
   rateLimitKeyByUserOrIp,
 } from "./middlewares/rateLimit.js";
@@ -141,6 +143,14 @@ app.use(
 );
 app.use(
   "/api/auth/register",
+  createRateLimiter({
+    name: "auth-register-ip",
+    windowMs: 60 * 60_000,
+    max: getConfiguredRateLimitMax("AUTH_REGISTER_IP_HOURLY_LIMIT", 8),
+    methods: ["POST"],
+    keyGenerator: rateLimitKeyByIp,
+    failClosed: true,
+  }),
   createRateLimiter({
     name: "auth-register",
     windowMs: 60 * 60_000,
