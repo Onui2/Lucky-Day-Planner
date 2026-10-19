@@ -805,6 +805,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex gap-2"><dt>상호명</dt><dd className="text-foreground/80">{BUSINESS_INFO.name}</dd></div>
             <div className="flex gap-2"><dt>대표자명</dt><dd className="text-foreground/80">{BUSINESS_INFO.representative}</dd></div>
             <div className="flex gap-2"><dt>사업자등록번호</dt><dd className="text-foreground/80">{BUSINESS_INFO.registrationNumber}</dd></div>
+            <div className="flex items-center gap-2"><dt>고객센터</dt><dd><a href={`tel:${BUSINESS_INFO.phone.replaceAll("-", "")}`} className="inline-flex min-h-11 items-center text-foreground/80 underline underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{BUSINESS_INFO.phone}</a></dd></div>
             <div className="flex w-full justify-center gap-2"><dt className="shrink-0">사업장 주소</dt><dd className="break-keep text-left text-foreground/80">{BUSINESS_INFO.address}</dd></div>
           </dl>
           <p className="font-serif tracking-widest">
