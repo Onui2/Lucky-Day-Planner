@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCalculateSaju, useSaveSaju, useGetSavedSaju, useSubmitInquiry } from "@workspace/api-client-react";
+import { useCalculateSaju, useSaveSaju, useGetSavedSaju, useSubmitInquiry, type SajuRequest, type SajuResult } from "@workspace/api-client-react";
+import SajuPreview from "@/components/SajuPreview";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Link, useSearch } from "wouter";
 import { useUser } from "@/contexts/UserContext";
@@ -510,19 +511,38 @@ export default function SajuPage() {
   const campaignCatalog = useGetCommerceProducts(user?.id);
   const measureCampaign = isNewYear && !isAdmin && campaignCatalog.data?.campaign.analyticsEnabled === true;
   const { profile } = useUser();
-  const { mutate: calculateSaju, data: result, isPending, error } = useCalculateSaju();
+  const { mutate: calculateMutation, isPending, error } = useCalculateSaju();
+  const viewerKey = `${user?.id ?? "guest"}:${isAdmin ? "admin" : "member"}`;
+  const viewerKeyRef = useRef(viewerKey);
+  viewerKeyRef.current = viewerKey;
+  const [resultContext, setResultContext] = useState<{ data: SajuResult; viewerKey: string } | null>(null);
+  const result = resultContext?.viewerKey === viewerKey ? resultContext.data : undefined;
+  const calculateSaju = useCallback((variables: { data: SajuRequest }) => {
+    const owner = viewerKey;
+    calculateMutation(variables, { onSuccess: (data) => {
+      if (viewerKeyRef.current === owner) setResultContext({ data, viewerKey: owner });
+    } });
+  }, [calculateMutation, viewerKey]);
   const saveMut = useSaveSaju();
   const { data: savedList } = useGetSavedSaju(isAuthenticated);
   const inquiryMut = useSubmitInquiry();
 
   const sajuCacheKey = user?.id ? getSajuCacheStorageKey(user.id) : null;
   const makeCacheKey = (p: typeof profile) =>
-    p ? `v5/${p.birthYear}/${p.birthMonth}/${p.birthDay}/${p.birthHour}/${p.birthMinute ?? 0}/${p.gender}/${p.calendarType}/${p.isLeapMonth ?? false}/${p.timeZone ?? "Asia/Seoul"}/${p.longitude ?? 126.978}/${p.applyTrueSolarTime ?? false}/${p.dayBoundary ?? "midnight"}` : null;
+    p ? `v6-preview/${p.birthYear}/${p.birthMonth}/${p.birthDay}/${p.birthHour}/${p.birthMinute ?? 0}/${p.gender}/${p.calendarType}/${p.isLeapMonth ?? false}/${p.timeZone ?? "Asia/Seoul"}/${p.longitude ?? 126.978}/${p.applyTrueSolarTime ?? false}/${p.dayBoundary ?? "midnight"}` : null;
 
   const [displayResult, setDisplayResult] = useState<any>(null);
+  const [displayOwner, setDisplayOwner] = useState(viewerKey);
   const [cachedTs, setCachedTs] = useState<number | null>(null);
   const [displaySource, setDisplaySource] = useState<ResultSource | null>(null);
   const pendingResultSourceRef = useRef<ResultSource | null>(null);
+
+  useEffect(() => {
+    setDisplayResult(null);
+    setCachedTs(null);
+    setDisplaySource(null);
+    setDisplayOwner(viewerKey);
+  }, [viewerKey]);
 
   useEffect(() => {
     if (!profile || displayResult || !isAuthenticated || !sajuCacheKey) return;
@@ -534,23 +554,25 @@ export default function SajuPage() {
       }
       localStorage.removeItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
       const saved = JSON.parse(raw);
-      if (saved.key === makeCacheKey(profile)) setCachedTs(saved.ts);
+      if (saved.key === makeCacheKey(profile) && saved.result?.accessLevel === "preview") setCachedTs(saved.ts);
+      else localStorage.removeItem(sajuCacheKey);
     } catch {}
   }, [displayResult, isAuthenticated, profile, sajuCacheKey]);
 
   useEffect(() => {
     if (!result) return;
     setDisplayResult(result);
+    setDisplayOwner(viewerKey);
     setDisplaySource(pendingResultSourceRef.current ?? "manual");
     pendingResultSourceRef.current = null;
 
-    if (!isAuthenticated || !sajuCacheKey) return;
+    if (!isAuthenticated || !sajuCacheKey || result.accessLevel !== "preview") return;
 
     try {
       const bi = result.birthInfo;
       if (!bi) return;
 
-      const fallbackKey = `v5/${bi.year}/${bi.month}/${bi.day}/${bi.hour ?? -1}/${bi.minute ?? 0}/${bi.gender ?? "male"}/${bi.calendarType ?? "solar"}/${bi.isLeapMonth ?? false}/${bi.timeZone ?? "Asia/Seoul"}/${bi.longitude ?? 126.978}/${bi.applyTrueSolarTime ?? false}/${bi.dayBoundary ?? "midnight"}`;
+      const fallbackKey = `v6-preview/${bi.year}/${bi.month}/${bi.day}/${bi.hour ?? -1}/${bi.minute ?? 0}/${bi.gender ?? "male"}/${bi.calendarType ?? "solar"}/${bi.isLeapMonth ?? false}/${bi.timeZone ?? "Asia/Seoul"}/${bi.longitude ?? 126.978}/${bi.applyTrueSolarTime ?? false}/${bi.dayBoundary ?? "midnight"}`;
       localStorage.setItem(sajuCacheKey, JSON.stringify({ key: fallbackKey, result, ts: Date.now() }));
       localStorage.removeItem(LEGACY_SAJU_CACHE_STORAGE_KEY);
 
@@ -566,14 +588,15 @@ export default function SajuPage() {
         setCachedTs(null);
       }
     } catch {}
-  }, [isAuthenticated, profile, result, sajuCacheKey]);
+  }, [isAuthenticated, profile, result, sajuCacheKey, viewerKey]);
 
   const loadCached = () => {
     if (!isAuthenticated || !sajuCacheKey) return;
     try {
       const saved = JSON.parse(localStorage.getItem(sajuCacheKey) ?? "{}");
-      if (saved.result) {
+      if (saved.result?.accessLevel === "preview" && saved.key === makeCacheKey(profile)) {
         setDisplayResult(saved.result);
+        setDisplayOwner(viewerKey);
         setCachedTs(null);
         setDisplaySource("cache");
       }
@@ -589,7 +612,7 @@ export default function SajuPage() {
   }, [displaySource, isAuthenticated]);
 
   useEffect(() => {
-    if (!user?.id || !displayResult?.birthInfo) return;
+    if (!user?.id || displayOwner !== viewerKey || !displayResult?.birthInfo) return;
 
     const bi = displayResult.birthInfo;
     const stem = displayResult.dayPillar?.heavenlyStem ?? "";
@@ -622,9 +645,9 @@ export default function SajuPage() {
       href,
       createdAt: new Date().toISOString(),
     });
-  }, [displayResult, user?.id]);
+  }, [displayResult, displayOwner, viewerKey, user?.id]);
 
-  const r = displayResult as any;
+  const r = displayOwner === viewerKey ? displayResult as any : null;
   const hiddenElementScores = getHiddenElementScores(r?.hiddenStemAnalysis);
   const hiddenElementStats = getElementExtremes(hiddenElementScores);
   const showAccountActions = isAuthenticated;
@@ -1281,15 +1304,14 @@ export default function SajuPage() {
 
   // ─── 입력 폼 ───────────────────────────────────────
   if (!r) return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-2xl mx-auto">
       {isNewYear && <NewYearOffer />}
       <AnimatePresence mode="wait">
         <motion.div key="form" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }}>
-          <div className="text-center mb-12">
-            <p className="mb-3 text-sm font-medium text-primary">1. 생년월일 입력 → 2. 결과 확인 → 3. PDF로 보관</p>
-            <h1 className="text-4xl md:text-5xl font-serif font-bold text-gradient-gold mb-4">{reportFocus ? `${REPORT_FOCUS_LABELS[reportFocus]} 고민, 내 성향부터 살펴봐요` : "내 사주, 쉽게 시작해요"}</h1>
-            <p className="text-muted-foreground text-lg">생년월일을 입력하면 핵심 풀이부터 보여드려요. 태어난 시간은 몰라도 괜찮습니다.</p>
-            <p className="mt-3 text-sm text-muted-foreground">웹 분석은 무료 · 기본 PDF는 4,900원 · 자동 결제 없음</p>
+          <div className="mb-8 break-keep">
+            <p className="mb-3 text-sm font-medium text-muted-foreground">사주팔자 · 무료 핵심 요약</p>
+            <h1 className="font-serif text-3xl leading-tight text-foreground sm:text-4xl">{reportFocus ? `${REPORT_FOCUS_LABELS[reportFocus]} 고민, 내 성향부터 살펴봐요` : "생년월일로 보는 나의 사주"}</h1>
+            <p className="mt-4 text-base leading-7 text-muted-foreground">원국과 오행, 핵심 성향을 확인하세요.<br className="sm:hidden" /> 태어난 시간은 몰라도 괜찮습니다.</p>
           </div>
 
           {/* 이전 분석 결과 캐시 배너 */}
@@ -1318,14 +1340,11 @@ export default function SajuPage() {
               transition={{ duration: 0.4 }}
               className="max-w-2xl mx-auto mb-6"
             >
-              <div className="glass-panel border border-primary/40 rounded-2xl p-5 flex items-center justify-between gap-4">
+              <div className="flex flex-col justify-between gap-4 rounded-xl border border-foreground/10 bg-card p-5 sm:flex-row sm:items-center">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <UserCircle2 className="w-5 h-5 text-primary" />
-                  </div>
                   <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground mb-0.5">등록된 사주</p>
-                    <p className="font-medium text-foreground truncate">
+                    <p className="mb-1 text-xs text-muted-foreground">등록된 사주</p>
+                    <p className="break-keep text-sm font-medium leading-6 text-foreground">
                       {profile.name ? `${profile.name} · ` : ""}
                       {profile.birthYear}년 {profile.birthMonth}월 {profile.birthDay}일
                       {profile.birthHour >= 0 ? ` ${getBirthHourLabel(profile.birthHour).split(' ')[0]}` : ""}
@@ -1336,7 +1355,8 @@ export default function SajuPage() {
                 <Button
                   onClick={handleProfileAnalyze}
                   disabled={isPending}
-                  className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+                  variant="outline"
+                  className="shrink-0 gap-2 rounded-lg border-foreground/15 bg-card"
                 >
                   {isPending
                     ? <><Loader2 className="w-4 h-4 animate-spin" />분석 중...</>
@@ -1347,47 +1367,33 @@ export default function SajuPage() {
           )}
 
           {/* 직접 입력 폼 */}
-          {!profile && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl mx-auto mb-6"
-            >
-              <div className="glass-panel border border-primary/20 rounded-2xl p-5 text-center">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  가입하거나 프로필을 저장하지 않아도 바로 분석할 수 있어요.
-                  결과를 본 뒤 필요한 경우 저장하거나 PDF로 받아보세요.
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          <Card className="max-w-2xl mx-auto glass-panel border-primary/30">
-            <CardHeader>
-              <CardTitle className="text-center text-3xl font-serif text-primary mb-2">
-                {profile ? "다른 사주 직접 입력" : "정보 입력"}
-              </CardTitle>
-              <CardDescription className="text-center">
-                정각을 모르면 시간은 비워둔 채로도 분석할 수 있습니다.
+          <Card className="rounded-2xl border-foreground/10 bg-card shadow-none">
+            <CardHeader className="p-5 pb-6 sm:p-7 sm:pb-6">
+              <h2 className="font-sans text-lg font-semibold text-foreground">
+                {profile ? "다른 사주 직접 입력" : "출생정보"}
+              </h2>
+              <CardDescription className="text-sm">
+                {profile ? "아래 정보를 입력해 새로 분석합니다." : "회원가입 없이 무료로 확인할 수 있습니다."}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="px-5 pb-5 sm:px-7 sm:pb-7">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4 sm:gap-6">
                   {[{ label:"달력 종류", name:"calendarType", opts:[{v:"solar",l:"양력"},{v:"lunar",l:"음력"}], val:inputForm.calendarType },
                     { label:"성별", name:"gender", opts:[{v:"male",l:"남성"},{v:"female",l:"여성"}], val:inputForm.gender }
                   ].map(({ label, name, opts, val }) => (
                     <div key={name} className="space-y-3">
                       <label className="text-sm font-medium text-foreground/80 block">{label}</label>
-                      <div className="flex bg-background/50 rounded-xl p-1 border border-primary/20">
+                      <div className="flex rounded-lg bg-muted/60 p-1">
                         {opts.map(o => (
                           <button key={o.v} type="button"
+                            aria-pressed={val === o.v}
                             onClick={() => setInputForm(prev => {
                               const next = { ...prev, [name]: o.v as any };
                               next.birthDay = clampBirthDayValue(next.birthDay, next.birthYear, next.birthMonth, next.calendarType);
                               return next;
                             })}
-                            className={`flex-1 min-h-11 text-sm font-medium rounded-lg transition-all ${val === o.v ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}>
+                            className={`flex-1 min-h-11 text-sm font-medium rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-primary ${val === o.v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                             {o.l}
                           </button>
                         ))}
@@ -1395,23 +1401,23 @@ export default function SajuPage() {
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  {[{name:"birthYear",label:"년 (Year)",ph:"예) 1990",min:1900,max:2100},
-                    {name:"birthMonth",label:"월 (Month)",ph:"1~12",min:1,max:12},
-                    {name:"birthDay",label:"일 (Day)",ph:"1~31",min:1,max:31}
+                <div className="grid grid-cols-[1.3fr_1fr_1fr] gap-3 sm:gap-4">
+                  {[{name:"birthYear",label:"태어난 연도",ph:"1990",min:1900,max:2100},
+                    {name:"birthMonth",label:"월",ph:"1~12",min:1,max:12},
+                    {name:"birthDay",label:"일",ph:"1~31",min:1,max:31}
                   ].map(f => (
                     <div key={f.name} className="space-y-2">
-                      <label className="text-sm font-medium text-foreground/80">{f.label}</label>
-                      <Input type="number" name={f.name} value={(inputForm as any)[f.name]} onChange={handleChange}
-                        placeholder={f.ph} min={f.min} max={f.name === "birthDay" ? maxBirthDay : f.max} inputMode="numeric" className="placeholder:text-muted-foreground/40" />
+                      <label htmlFor={`saju-${f.name}`} className="text-sm font-medium text-foreground/80">{f.label}</label>
+                      <Input id={`saju-${f.name}`} type="number" name={f.name} value={(inputForm as any)[f.name]} onChange={handleChange}
+                        placeholder={f.ph} min={f.min} max={f.name === "birthDay" ? maxBirthDay : f.max} inputMode="numeric" className="rounded-lg border-foreground/15 bg-card px-3 placeholder:text-muted-foreground/60" />
                     </div>
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground/80">시 (Hour)</label>
+                    <label htmlFor="saju-birthHour" className="text-sm font-medium text-foreground/80">태어난 시간</label>
                     <Select value={String(inputForm.birthHour)} onValueChange={v => setInputForm(prev => ({ ...prev, birthHour: Number(v) }))}>
-                      <SelectTrigger className="h-12 rounded-xl border-primary/20 bg-input text-foreground focus:ring-primary">
+                      <SelectTrigger id="saju-birthHour" className="h-12 rounded-lg border-foreground/15 bg-card text-foreground focus:ring-primary">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1422,13 +1428,13 @@ export default function SajuPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground/80">분 (Minute)</label>
-                    <Input type="number" name="birthMinute" value={inputForm.birthMinute} onChange={handleChange}
-                      placeholder="0~59" min={0} max={59} disabled={inputForm.birthHour === -1} className="placeholder:text-muted-foreground/40" />
+                    <label htmlFor="saju-birthMinute" className="text-sm font-medium text-foreground/80">분</label>
+                    <Input id="saju-birthMinute" type="number" name="birthMinute" value={inputForm.birthMinute} onChange={handleChange}
+                      placeholder="0~59" min={0} max={59} disabled={inputForm.birthHour === -1} className="rounded-lg border-foreground/15 bg-card placeholder:text-muted-foreground/60" />
                   </div>
                 </div>
-                <details open={inputForm.calendarType === "lunar" || inputForm.precision.applyTrueSolarTime || inputForm.precision.dayBoundary === "late-zi" ? true : undefined} className="rounded-xl border border-primary/15">
-                  <summary className="cursor-pointer p-4 text-sm font-medium">추가 계산 설정 · 음력 윤달 / 출생지 / 시간 보정</summary>
+                <details open={inputForm.calendarType === "lunar" || inputForm.precision.applyTrueSolarTime || inputForm.precision.dayBoundary === "late-zi" ? true : undefined} className="rounded-lg border border-foreground/10">
+                  <summary className="cursor-pointer p-4 text-sm font-medium">추가 설정 <span className="ml-1 text-xs font-normal text-muted-foreground">윤달 · 출생지 · 시간 보정</span></summary>
                   <div className="px-3 pb-3">
                     <p className="mb-3 text-xs leading-5 text-muted-foreground">기본은 서울 시각·자정 기준입니다. 음력 윤달이거나 별도 보정이 필요할 때 확인하세요.</p>
                     <BirthPrecisionFields
@@ -1443,12 +1449,13 @@ export default function SajuPage() {
                     {formError || "분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
                   </div>
                 )}
-                <Button type="submit" size="lg" className="w-full text-lg mt-4" disabled={isPending}>
-                  {isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> 분석 중입니다...</> : "무료로 결과 보기"}
+                <Button type="submit" size="lg" className="w-full rounded-xl bg-foreground bg-none text-base text-background shadow-none hover:translate-y-0 hover:bg-foreground/85 hover:shadow-none" disabled={isPending}>
+                  {isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> 분석 중…</> : "무료 요약 보기"}
                 </Button>
               </form>
             </CardContent>
           </Card>
+          <p className="mt-5 text-center text-xs leading-6 text-muted-foreground">맞춤 해석 4,900원부터 · 구매 후 웹·PDF 제공 · 자동 결제 없음</p>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -1477,6 +1484,11 @@ export default function SajuPage() {
     applyTrueSolarTime: bi.applyTrueSolarTime === true,
     dayBoundary: bi.dayBoundary === "late-zi" ? "late-zi" as const : "midnight" as const,
   };
+  if (!isAdmin || r.accessLevel !== "admin") {
+    return <SajuPreview result={r} birthInfo={monetizationBirthInfo} isAuthenticated={isAuthenticated}
+      onReset={() => { setDisplayResult(null); setResultContext(null); }}
+      initialFocus={reportFocus ?? undefined} reportEdition={isNewYear ? "new-year-2027" : undefined} />;
+  }
   const buildProfileAwareHref = (
     pathname: string,
     configure?: (params: URLSearchParams) => void,

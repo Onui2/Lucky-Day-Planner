@@ -277,7 +277,9 @@ export default function AccountPage() {
           </div>
 
           <div className="space-y-3">
-            {(reportsData?.reports ?? []).slice(0, 5).map((report) => (
+            {(reportsData?.reports ?? []).slice(0, 5).map((report) => {
+              const expired = Boolean(report.expiresAt && new Date(report.expiresAt).getTime() <= Date.now());
+              return (
               <div
                 key={report.id}
                 className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4"
@@ -292,23 +294,28 @@ export default function AccountPage() {
                         ? new Date(report.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })
                         : ""}
                       {" · "}
-                      {report.status === "ready"
+                      {expired ? "이용 기간 만료" : report.status === "ready"
                         ? "다운로드 가능"
                         : report.status === "failed"
                           ? "생성 실패"
                           : "생성 대기 중"}
                     </div>
+                    {report.expiresAt && (
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        이용 만료: {new Date(report.expiresAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })} (한국 시간)
+                      </p>
+                    )}
                   </div>
                   <div
                     className={`shrink-0 px-2 py-1 rounded-full text-[11px] border ${
-                      report.status === "ready"
+                      expired ? "border-foreground/15 bg-foreground/5 text-muted-foreground" : report.status === "ready"
                         ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-700"
                         : report.status === "failed"
                           ? "border-destructive/30 bg-destructive/10 text-destructive"
                           : "border-amber-400/30 bg-amber-400/10 text-amber-700"
                     }`}
                   >
-                    {report.status === "ready" ? "완료" : report.status === "failed" ? "실패" : "대기"}
+                    {expired ? "기간 만료" : report.status === "ready" ? "완료" : report.status === "failed" ? "실패" : "대기"}
                   </div>
                 </div>
 
@@ -319,7 +326,7 @@ export default function AccountPage() {
                 )}
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {report.status === "ready" && (
+                  {!expired && report.status === "ready" && (
                     <>
                       <Link href={`/reports/${report.id}/view`}>
                         <Button size="sm" className="gap-1.5">
@@ -337,7 +344,7 @@ export default function AccountPage() {
                       </Button>
                     </>
                   )}
-                  {(report.status === "failed" || report.status === "pending" || report.status === "processing") && (
+                  {!expired && (report.status === "failed" || report.status === "pending" || report.status === "processing") && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -351,7 +358,7 @@ export default function AccountPage() {
                   )}
                 </div>
               </div>
-            ))}
+            ); })}
 
             {regenerateReport.isError && <div role="alert"><ErrorMsg msg={regenerateReport.error instanceof Error ? regenerateReport.error.message : "재생성에 실패했습니다. 잠시 후 다시 시도해 주세요."} /></div>}
             {reportDownloadError && <div role="alert"><ErrorMsg msg={reportDownloadError} /></div>}

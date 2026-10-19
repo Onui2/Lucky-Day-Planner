@@ -56,7 +56,7 @@ function routeHarness(failure: "calculate" | "generate" | "finalize" | null = nu
       releaseQuestionSlot: async (id: number) => { state.released.push(id); },
       finalizeQuestionAnswer: async () => {
         if (failure === "finalize") throw new Error("storage failure");
-        state.saved++; return { id: 7, answer: "상담 답변" };
+        state.saved++; return { id: 7, answer: "상담 답변", sajuResult: { career: "PRIVATE_FULL_READING" }, requestMetadata: { referer: "PRIVATE_METADATA" } };
       },
     },
     "../lib/database-guard.js": { requireDatabase: async () => true },
@@ -262,6 +262,18 @@ test("successful answer keeps its reservation", async () => {
   assert.equal((await harness.run()).statusCode, 200);
   assert.equal(harness.state.saved, 1);
   assert.deepEqual(harness.state.released, []);
+});
+
+test("AI JSON and SSE replies never expose the stored full reading or request metadata", async () => {
+  for (const stream of [false, true]) {
+    const h = routeHarness(null, false, { stream });
+    const response = await h.run();
+    const payload = stream ? JSON.parse(h.state.events.at(-1)!.slice(6)).payload : response.body;
+    assert.equal(payload.question.answer, "상담 답변");
+    assert.equal(payload.question.sajuResult, undefined);
+    assert.equal(payload.question.requestMetadata, undefined);
+    assert.ok(!JSON.stringify(payload).includes("PRIVATE_"));
+  }
 });
 
 test("empty AI output cannot become a charged successful answer", async () => {

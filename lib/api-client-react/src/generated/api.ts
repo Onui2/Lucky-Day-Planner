@@ -132,7 +132,7 @@ export const getCalculateSajuUrl = () => {
 }
 
 /**
- * Calculate the four pillars of destiny based on birth date and time
+ * Returns original pillars, element counts and a short preview. Full calculation fields are returned only for administrators. Purchased readings are accessed through their authorized report.
  * @summary Calculate Saju (Four Pillars)
  */
 export const calculateSaju = async (sajuRequest: SajuRequest, options?: RequestInit): Promise<SajuResult> => {

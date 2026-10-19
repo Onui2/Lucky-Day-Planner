@@ -5,6 +5,7 @@ import {
   getSajuYear,
 } from "../lib/saju-calculator.js";
 import { buildSajuResult } from "../lib/saju-result.js";
+import { buildSajuPreview } from "../lib/saju-preview.js";
 import { buildSajuHistory } from "../lib/saju-history.js";
 import {
   BirthResolutionError,
@@ -64,7 +65,9 @@ router.post("/saju/calculate", (req, res) => {
       ...birthOptionsFromRecord(req.body),
     });
 
-    return res.json(result);
+    const isAdmin = req.isAuthenticated() && (req.user?.role === "admin" || req.user?.role === "superadmin");
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.json(isAdmin ? { ...result, accessLevel: "admin" } : buildSajuPreview(result));
   } catch (error) {
     if (error instanceof BirthResolutionError) {
       return res.status(400).json({ error: error.message });

@@ -12,6 +12,7 @@ import { startCommercePayment, type TossCheckoutUser } from "@/lib/toss-payments
 import { NewYearOffer } from "./NewYearOffer";
 import { getCampaignVisit } from "@/lib/campaign-tracking";
 import type { ReportFocus } from "@/lib/report-focus";
+import { REPORT_ACCESS_NOTICE, REPORT_DELIVERY_NOTICE } from "@/lib/report-policy";
 
 type Tier = "saju_basic" | "saju_detail" | "saju_full";
 type Focus = "career" | "money" | "relationship";
@@ -143,6 +144,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
 
   return (
     <div className="space-y-4 text-sm">
+      <p className="rounded-xl bg-primary/5 p-3 leading-6 text-muted-foreground">무료 요약에서 이어지는 맞춤 해석입니다. 선택한 리포트의 내용을 웹에서 읽고 PDF로 보관할 수 있습니다.</p>
       <fieldset disabled={busy} className="space-y-2">
         <legend className="mb-2 font-medium">1. 지금 가장 궁금한 고민</legend>
         <div className="grid grid-cols-3 gap-2">
@@ -187,7 +189,7 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
         </div>
       )}
 
-      <p className="text-xs leading-5 text-muted-foreground">{isNewYear ? "무료 성향 분석에 기존 연간 계산 엔진의 2027 결과를 더해 저장합니다. 웹과 PDF는 같은 저장 리포트입니다. 선택한 주제는 기존 고민별 점검에 사용하며 개별 질문 상담은 제공하지 않습니다." : "무료 웹 분석과 같은 사주 계산을 바탕으로, 읽고 보관하기 쉽게 PDF로 정리합니다. 고민별 점검이 포함되며, 종합 리포트는 과거 회고와 앞으로의 연도별 흐름을 더합니다."} 실제 사건이나 결과를 보장하지 않습니다.</p>
+      <p className="text-xs leading-5 text-muted-foreground">{isNewYear ? "무료 핵심 요약에 상세 해석과 2027년 흐름을 더합니다. 구매한 내용은 웹과 PDF에서 확인할 수 있습니다. 선택한 주제는 고민별 점검에 사용하며 개별 질문 상담은 제공하지 않습니다." : "무료 핵심 요약에 전체 성격 풀이와 고민별 점검을 더합니다. 상품에 따라 직업·관계·대운, 과거 회고와 앞으로의 연도별 흐름이 포함됩니다. 구매한 내용은 웹에서 읽고 PDF로 보관할 수 있습니다."} 실제 사건이나 결과를 보장하지 않습니다.</p>
       <div className="rounded-xl border border-foreground/10 p-3">
         <p className="font-medium">발급 전 출생정보를 확인해 주세요</p>
         <p className="mt-1.5 leading-6">{birthDate} · {birthInfo.calendarType === "lunar" ? `음력 ${birthInfo.isLeapMonth ? "윤달" : "평달"}` : "양력"}<br />{timeLabel} · {birthInfo.gender === "male" ? "남성" : "여성"}</p>
@@ -195,6 +197,23 @@ export function ReportPurchaseOptions({ birthInfo, isAuthenticated, isAdmin = fa
         <p className="mt-1 text-xs text-muted-foreground">입력이 다르면 사주 입력 화면에서 수정한 뒤 다시 분석해 주세요.</p>
       </div>
       {!available && !catalog.isPending && !catalog.isError && <p className="rounded-xl bg-foreground/5 p-3 font-medium">판매 준비 중</p>}
+      <section aria-label="상품 제공 안내" className="space-y-1.5 rounded-xl border border-foreground/10 p-3 text-xs leading-6 text-muted-foreground">
+        <p className="text-sm font-medium text-foreground">제공 방식 · 이용 기간</p>
+        <p>{REPORT_DELIVERY_NOTICE}</p>
+        <p>{REPORT_ACCESS_NOTICE}</p>
+        <p>생성에 실패하면 구매 내역에서 다시 생성하거나 문의하기로 재제공·환불을 요청할 수 있습니다.</p>
+        <Link href="/refund-policy" className="inline-flex min-h-10 items-center text-primary underline underline-offset-4">환불 및 취소 정책</Link>
+      </section>
+      {!adminAccess && available && (
+        <fieldset className="rounded-xl border border-foreground/10 p-3" disabled={busy}>
+          <legend className="px-1 font-medium">3. 결제수단</legend>
+          <label className="flex min-h-11 cursor-pointer items-center gap-2">
+            <input type="radio" name={`${id}-payment`} value={catalog.data?.checkoutMode} defaultChecked className="accent-primary" />
+            {catalog.data?.checkoutMode === "toss_pay" ? "토스페이" : catalog.data?.checkoutMode === "dev" ? "개발 테스트 결제" : "카드 · 간편결제"}
+          </label>
+          <p className="text-xs leading-5 text-muted-foreground">1회 결제 · 자동 결제 없음</p>
+        </fieldset>
+      )}
       {!isAuthenticated ? (
         <p className="text-muted-foreground">리포트 발급과 보관은 로그인 후 이용할 수 있습니다. <Link href={buildAuthHref("/login")} className="text-primary underline">로그인 후 상품 확인</Link></p>
       ) : (

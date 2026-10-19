@@ -43,6 +43,7 @@ const LoveFortunePage = lazy(() => import("@/pages/love-fortune"));
 const LegalPage = lazy(() => import("@/pages/legal"));
 const SharedSajuPage = lazy(() => import("@/pages/shared-saju"));
 const ReportViewerPage = lazy(() => import("@/pages/report-viewer"));
+const ReportProductsPage = lazy(() => import("@/pages/report-products"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -84,6 +85,7 @@ function Router() {
               <Route path="/" component={Home} />
               <Route path="/daily-fortune" component={DailyFortunePage} />
               <Route path="/saju" component={SajuPage} />
+              <Route path="/reports" component={ReportProductsPage} />
               <Route path="/manseryok" component={ManseryokPage} />
               <Route path="/account">
                 <RequireAuth>

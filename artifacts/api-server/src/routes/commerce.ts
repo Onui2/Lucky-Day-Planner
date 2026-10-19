@@ -504,6 +504,9 @@ router.post("/commerce/payments/confirm", async (req, res) => {
           resourceType: "pdf_report",
           resourceId: row.report.id,
           status: "active",
+          // Start at the provider's original approval time; recovery must not
+          // extend the disclosed one-year service period. Existing grants stay unchanged.
+          expiresAt: new Date(confirmed.approvedAt.getTime() + 365 * 24 * 60 * 60 * 1000),
         })
         .onConflictDoNothing({
           target: [
@@ -515,6 +518,12 @@ router.post("/commerce/payments/confirm", async (req, res) => {
       return updatedOrder;
     });
 
+    // Recovering an old provider payment records the original payment without
+    // delivering content after its service period (or after access was revoked).
+    if (!(await hasReportAccess(req.user.id, row.report))) {
+      res.status(403).json({ error: "리포트 이용 기간이 만료되었거나 이용 권한이 없습니다." });
+      return;
+    }
     const report = await renderStoredReport(row.report, row.snapshot.sajuResult as Record<string, any>);
 
     res.json({

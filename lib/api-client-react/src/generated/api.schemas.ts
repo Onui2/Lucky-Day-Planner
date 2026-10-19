@@ -221,6 +221,17 @@ export interface SajuSpecialSummary {
 }
 
 /**
+ * Server-selected calculation visibility. Paid report access is checked separately.
+ */
+export type SajuResultAccessLevel = typeof SajuResultAccessLevel[keyof typeof SajuResultAccessLevel];
+
+
+export const SajuResultAccessLevel = {
+  preview: 'preview',
+  admin: 'admin',
+} as const;
+
+/**
  * Calendar conversion, historical time-zone, true-solar-time, and day-boundary calculation evidence
  */
 export type SajuResultCalculationBasis = { [key: string]: unknown };
@@ -261,6 +272,13 @@ export type SajuResultIntegratedLuckTimeline = { [key: string]: unknown };
 export type SajuResultBirthTimeCandidateAnalysis = { [key: string]: unknown } | null;
 
 export interface SajuResult {
+  /** Server-selected calculation visibility. Paid report access is checked separately. */
+  accessLevel: SajuResultAccessLevel;
+  /**
+     * Short public interpretation excerpt
+     * @maxLength 140
+     */
+  previewSummary?: string;
   birthInfo?: SajuBirthInfo;
   /** Calendar conversion, historical time-zone, true-solar-time, and day-boundary calculation evidence */
   calculationBasis?: SajuResultCalculationBasis;
@@ -269,7 +287,7 @@ export interface SajuResult {
   dayPillar: SajuPillar;
   hourPillar?: SajuPillar;
   elementBalance: ElementCount;
-  specialSummary: SajuSpecialSummary;
+  specialSummary?: SajuSpecialSummary;
   /** The strongest element in the chart */
   dominantElement: string;
   /** The weakest element in the chart */
@@ -277,19 +295,19 @@ export interface SajuResult {
   /** The day master element */
   dayMasterElement: string;
   /** Personality description based on saju */
-  personality: string;
+  personality?: string;
   /** Overall fortune description */
-  fortune: string;
-  shadowReading: SajuShadowReading;
+  fortune?: string;
+  shadowReading?: SajuShadowReading;
   /** Career fortune */
-  career: string;
+  career?: string;
   /** Love and relationship fortune */
-  love: string;
+  love?: string;
   /** Health fortune */
-  health: string;
-  luckyNumbers: number[];
-  luckyColors: string[];
-  luckyDirections: string[];
+  health?: string;
+  luckyNumbers?: number[];
+  luckyColors?: string[];
+  luckyDirections?: string[];
   zodiac: string;
   /** Lunar calendar date if input was solar */
   lunarBirthDate?: string;

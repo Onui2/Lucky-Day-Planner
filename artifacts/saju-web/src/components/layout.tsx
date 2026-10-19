@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { buildAuthHref } from "@/lib/auth-redirect";
+import { BUSINESS_INFO } from "@/lib/business-info";
 import {
   Moon,
   Sun,
@@ -54,6 +55,7 @@ const ELEM_COLOR: Record<string, string> = {
 };
 
 const footerLinks = [
+  { href: "/reports", label: "리포트 상품 · 결제" },
   { href: "/terms", label: "이용약관" },
   { href: "/privacy", label: "개인정보처리방침" },
   { href: "/refund-policy", label: "환불 및 취소 정책" },
@@ -71,6 +73,7 @@ function UnreadBadge({ count }: { count: number }) {
 
 export function Layout({ children }: LayoutProps) {
   const [location, navigate] = useLocation();
+  const isReadingPage = location === "/saju" || location === "/reports" || /^\/reports\/\d+\/view$/.test(location);
   const { profile } = useUser();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
@@ -376,15 +379,15 @@ export function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-primary/30 selection:text-primary">
-      <div
+    <div className={cn("min-h-screen flex flex-col font-sans selection:bg-primary/30 selection:text-primary", isReadingPage && "bg-background")}>
+      {!isReadingPage && <div
         className="fixed inset-0 z-[-1] opacity-25 pointer-events-none bg-layout-pattern"
         style={{
           backgroundSize: "cover",
           backgroundPosition: "center",
           transform: "translateZ(0)",
         }}
-      />
+      />}
       <header className="sticky top-0 z-50 w-full border-b border-primary/10 bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
         <div className="container mx-auto px-4 h-16 md:h-20 flex items-center justify-between">
           {/* 로고 */}
@@ -798,6 +801,12 @@ export function Layout({ children }: LayoutProps) {
               </Link>
             ))}
           </div>
+          <dl className="mx-auto mb-5 flex max-w-3xl flex-wrap justify-center gap-x-5 gap-y-2 text-xs leading-6 text-muted-foreground">
+            <div className="flex gap-2"><dt>상호명</dt><dd className="text-foreground/80">{BUSINESS_INFO.name}</dd></div>
+            <div className="flex gap-2"><dt>대표자명</dt><dd className="text-foreground/80">{BUSINESS_INFO.representative}</dd></div>
+            <div className="flex gap-2"><dt>사업자등록번호</dt><dd className="text-foreground/80">{BUSINESS_INFO.registrationNumber}</dd></div>
+            <div className="flex w-full justify-center gap-2"><dt className="shrink-0">사업장 주소</dt><dd className="break-keep text-left text-foreground/80">{BUSINESS_INFO.address}</dd></div>
+          </dl>
           <p className="font-serif tracking-widest">
             Copyright © {new Date().getFullYear()} 명해원(命海苑). All rights reserved.
           </p>

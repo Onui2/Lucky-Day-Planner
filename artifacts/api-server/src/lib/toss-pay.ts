@@ -86,7 +86,7 @@ async function request(
   }
 }
 
-function returnUrl(page: "success" | "fail", orderId: string): string {
+function returnUrl(page: "success" | "fail", orderId: string, review = false): string {
   let url: URL;
   try {
     url = new URL(process.env.APP_URL?.trim() || "");
@@ -108,9 +108,10 @@ function returnUrl(page: "success" | "fail", orderId: string): string {
   if (existingPath && configuredPath && existingPath !== configuredPath) {
     throw new Error("토스페이 APP_URL과 BASE_PATH 경로가 일치하지 않습니다.");
   }
-  url.pathname = `${existingPath || configuredPath}/payments/${page}`;
+  url.pathname = review ? `${existingPath || configuredPath}/reports` : `${existingPath || configuredPath}/payments/${page}`;
   url.searchParams.set("provider", "toss_pay");
   url.searchParams.set("orderId", orderId);
+  if (review) url.searchParams.set("review", page === "success" ? "return" : "cancelled");
   if (page === "fail") url.searchParams.set("code", "USER_CANCEL");
   if (url.href.length > 255) throw new Error("토스페이 결제 복귀 주소가 너무 깁니다.");
   return url.href;
@@ -132,13 +133,12 @@ function validToken(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 50 && !/\s/.test(value);
 }
 
-export async function createTossPayCheckout(order: TossPayOrder, title: string): Promise<{
+async function createCheckout(order: TossPayOrder, title: string, config: TossPayConfig, review = false): Promise<{
   payToken: string;
   checkoutPage: string;
   mode: TossPayMode;
 }> {
   validateOrder(order);
-  const config = requireConfig();
   if (!title.trim() || title.length > 255 || /[\\"']/.test(title)) {
     throw new Error("토스페이 상품 설명을 확인해 주세요.");
   }
@@ -148,11 +148,27 @@ export async function createTossPayCheckout(order: TossPayOrder, title: string):
     amount: order.amount,
     amountTaxFree: 0,
     autoExecute: false,
-    retUrl: returnUrl("success", order.orderId),
-    retCancelUrl: returnUrl("fail", order.orderId),
+    retUrl: returnUrl("success", order.orderId, review),
+    retCancelUrl: returnUrl("fail", order.orderId, review),
   });
   if (!validToken(data.payToken)) throw new Error("토스페이 결제 토큰을 확인하지 못했습니다.");
   return { payToken: data.payToken, checkoutPage: checkoutUrl(data.checkoutPage), mode: config.mode };
+}
+
+export function createTossPayCheckout(order: TossPayOrder, title: string) {
+  return createCheckout(order, title, requireConfig());
+}
+
+function reviewConfig(): TossPayConfig {
+  const apiKey = process.env.TOSS_PAY_REVIEW_API_KEY?.trim() ?? "";
+  if (process.env.TOSS_PAY_REVIEW_ENABLED !== "true" || !/^sk_test_[A-Za-z0-9]{1,22}$/.test(apiKey)) {
+    throw new Error("심사용 테스트 결제가 설정되지 않았습니다.");
+  }
+  return { apiKey, mode: "TEST" };
+}
+
+export function createTossPayReviewCheckout(order: TossPayOrder, title: string) {
+  return createCheckout(order, `[테스트] ${title}`, reviewConfig(), true);
 }
 
 function verifyIdentity(order: TossPayOrder, config: TossPayConfig, data: Record<string, unknown>) {
@@ -209,12 +225,12 @@ function paidPayment(order: TossPayOrder, data: Record<string, unknown>): TossPa
   };
 }
 
-export async function confirmTossPayPayment(
+async function confirmPayment(
   order: TossPayOrder,
   allowExecute: boolean,
+  config: TossPayConfig,
 ): Promise<TossPayConfirmedPayment> {
   validateOrder(order);
-  const config = requireConfig();
   // Check the stored checkout binding before making any provider request.
   verifyIdentity(order, config, {
     orderNo: order.orderId, amount: order.amount, mode: config.mode,
@@ -236,4 +252,12 @@ export async function confirmTossPayPayment(
     verifyIdentity(order, config, status);
   }
   return paidPayment(order, status);
+}
+
+export function confirmTossPayPayment(order: TossPayOrder, allowExecute: boolean) {
+  return confirmPayment(order, allowExecute, requireConfig());
+}
+
+export function confirmTossPayReviewPayment(order: TossPayOrder) {
+  return confirmPayment(order, true, reviewConfig());
 }

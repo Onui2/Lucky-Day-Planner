@@ -1,4 +1,6 @@
 import { Link, useLocation } from "wouter";
+import { BUSINESS_INFO } from "@/lib/business-info";
+import { REPORT_ACCESS_NOTICE, REPORT_DELIVERY_NOTICE, REPORT_STORAGE_NOTICE } from "@/lib/report-policy";
 
 type LegalSection = {
   title: string;
@@ -16,7 +18,7 @@ const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
   "/terms": {
     title: "이용약관",
     description: "명해원 서비스 이용 조건과 회원의 기본 책임을 안내합니다.",
-    updatedAt: "2026년 10월 16일",
+    updatedAt: "2026년 10월 19일",
     sections: [
       {
         title: "서비스 성격",
@@ -40,6 +42,9 @@ const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
         title: "유료 콘텐츠",
         items: [
           "유료 리포트, PDF, 추가 분석 등 결제 상품은 결제 전 화면에 표시된 조건에 따릅니다.",
+          REPORT_DELIVERY_NOTICE,
+          REPORT_ACCESS_NOTICE,
+          REPORT_STORAGE_NOTICE,
           "결제 완료 후 제공되는 디지털 콘텐츠는 생성, 열람, 다운로드 상태에 따라 취소나 환불이 제한될 수 있습니다.",
           "중복 결제, 시스템 오류, 제공 실패가 확인되면 환불정책과 관련 법령에 따라 처리합니다.",
         ],
@@ -64,7 +69,7 @@ const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
   "/privacy": {
     title: "개인정보처리방침",
     description: "명해원이 처리하는 개인정보 항목과 이용 목적을 안내합니다.",
-    updatedAt: "2026년 10월 16일",
+    updatedAt: "2026년 10월 19일",
     sections: [
       {
         title: "처리하는 개인정보",
@@ -114,7 +119,7 @@ const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
       {
         title: "개인정보 보호 담당자",
         items: [
-          "서비스 운영 상호: 명해원. 개인정보 보호 담당자: 이현우.",
+          `서비스 운영 상호: ${BUSINESS_INFO.name}. 개인정보 보호 담당자: ${BUSINESS_INFO.representative}.`,
           "개인정보 열람·정정·삭제·처리정지 요청과 문의는 아래 문의하기에서 접수할 수 있습니다. 회원 탈퇴는 내 계정에서 신청할 수 있습니다.",
         ],
       },
@@ -123,8 +128,12 @@ const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
   "/refund-policy": {
     title: "환불 및 취소 정책",
     description: "유료 리포트와 디지털 콘텐츠의 결제 취소 기준을 안내합니다.",
-    updatedAt: "2026년 7월 7일",
+    updatedAt: "2026년 10월 19일",
     sections: [
+      {
+        title: "제공 방식과 이용 기간",
+        items: [REPORT_DELIVERY_NOTICE, REPORT_ACCESS_NOTICE, REPORT_STORAGE_NOTICE],
+      },
       {
         title: "환불 가능 기준",
         items: [

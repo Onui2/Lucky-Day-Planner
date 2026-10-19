@@ -1102,6 +1102,7 @@ export interface ReportSummary {
   previewText?: string | null;
   fileName?: string | null;
   generatedAt?: string | null;
+  expiresAt?: string | null;
   createdAt: string;
 }
 

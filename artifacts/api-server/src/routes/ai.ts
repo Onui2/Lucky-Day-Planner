@@ -30,6 +30,17 @@ import {
 
 const router = Router();
 
+function publicQuestion(question: Record<string, unknown>) {
+  // The stored row also contains the complete internal saju calculation and
+  // request metadata. Returning it would bypass the purchased-reading boundary.
+  return {
+    id: question.id, question: question.question, answer: question.answer,
+    birthInfo: question.birthInfo, createdAt: question.createdAt,
+    blockedByGuard: question.blockedByGuard, riskLevel: question.riskLevel,
+    riskReasons: question.riskReasons,
+  };
+}
+
 function requireAuth(req: Request, res: Response): req is Request & { user: Express.User } {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "로그인이 필요합니다." });
@@ -324,7 +335,7 @@ router.post("/ai/questions", async (req, res) => {
       reservedQuestionId = null;
 
       res.json({
-        question: saved,
+        question: publicQuestion(saved),
         limit: usage.limit,
         used: usage.used + 1,
         remaining: getRemainingAfterQuestion(usage),
@@ -380,7 +391,7 @@ router.post("/ai/questions", async (req, res) => {
         `data: ${JSON.stringify({
           type: "done",
           payload: {
-            question: saved,
+            question: publicQuestion(saved),
             limit: usage.limit,
             used: usage.used + 1,
             remaining: getRemainingAfterQuestion(usage),
@@ -404,7 +415,7 @@ router.post("/ai/questions", async (req, res) => {
     reservedQuestionId = null;
 
     res.json({
-      question: saved,
+      question: publicQuestion(saved),
       limit: usage.limit,
       used: usage.used + 1,
       remaining: getRemainingAfterQuestion(usage),

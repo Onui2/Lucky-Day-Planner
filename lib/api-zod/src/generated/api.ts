@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * Calculate the four pillars of destiny based on birth date and time
+ * Returns original pillars, element counts and a short preview. Full calculation fields are returned only for administrators. Purchased readings are accessed through their authorized report.
  * @summary Calculate Saju (Four Pillars)
  */
 export const CalculateSajuBody = zod.object({
@@ -38,7 +38,13 @@ export const CalculateSajuBody = zod.object({
   "dayBoundary": zod.enum(['midnight', 'late-zi']).optional().describe('Day-pillar boundary rule for the late Zi hour')
 })
 
+export const calculateSajuResponsePreviewSummaryMax = 140;
+
+
+
 export const CalculateSajuResponse = zod.object({
+  "accessLevel": zod.enum(['preview', 'admin']).describe('Server-selected calculation visibility. Paid report access is checked separately.'),
+  "previewSummary": zod.string().max(calculateSajuResponsePreviewSummaryMax).optional().describe('Short public interpretation excerpt'),
   "birthInfo": zod.object({
   "year": zod.number(),
   "month": zod.number(),
@@ -130,24 +136,24 @@ export const CalculateSajuResponse = zod.object({
   "elapsedDays": zod.number(),
   "label": zod.string()
 })
-}),
+}).optional(),
   "dominantElement": zod.string().describe('The strongest element in the chart'),
   "lackingElement": zod.string().describe('The weakest element in the chart'),
   "dayMasterElement": zod.string().describe('The day master element'),
-  "personality": zod.string().describe('Personality description based on saju'),
-  "fortune": zod.string().describe('Overall fortune description'),
+  "personality": zod.string().optional().describe('Personality description based on saju'),
+  "fortune": zod.string().optional().describe('Overall fortune description'),
   "shadowReading": zod.object({
   "title": zod.string().describe('Balanced section title for difficult patterns and cautions'),
   "summary": zod.string().describe('Concise summary of negative patterns when strengths are overused'),
   "pitfalls": zod.array(zod.string()).describe('Specific caution points and repeated failure patterns'),
   "advice": zod.string().describe('Practical balancing advice')
-}),
-  "career": zod.string().describe('Career fortune'),
-  "love": zod.string().describe('Love and relationship fortune'),
-  "health": zod.string().describe('Health fortune'),
-  "luckyNumbers": zod.array(zod.number()),
-  "luckyColors": zod.array(zod.string()),
-  "luckyDirections": zod.array(zod.string()),
+}).optional(),
+  "career": zod.string().optional().describe('Career fortune'),
+  "love": zod.string().optional().describe('Love and relationship fortune'),
+  "health": zod.string().optional().describe('Health fortune'),
+  "luckyNumbers": zod.array(zod.number()).optional(),
+  "luckyColors": zod.array(zod.string()).optional(),
+  "luckyDirections": zod.array(zod.string()).optional(),
   "zodiac": zod.string(),
   "lunarBirthDate": zod.string().optional().describe('Lunar calendar date if input was solar'),
   "hiddenStemAnalysis": zod.record(zod.string(), zod.unknown()).optional().describe('Weighted hidden stems, rooting, penetration, and day-master strength evidence'),

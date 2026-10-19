@@ -37,7 +37,7 @@ paths:
       operationId: calculateSaju
       tags: [saju]
       summary: Calculate Saju (Four Pillars)
-      description: Calculate the four pillars of destiny based on birth date and time
+      description: Returns original pillars, element counts and a short preview. Full calculation fields are returned only for administrators. Purchased readings are accessed through their authorized report.
       requestBody:
         required: true
         content:
@@ -661,6 +661,14 @@ components:
     SajuResult:
       type: object
       properties:
+        accessLevel:
+          type: string
+          enum: [preview, admin]
+          description: Server-selected calculation visibility. Paid report access is checked separately.
+        previewSummary:
+          type: string
+          maxLength: 140
+          description: Short public interpretation excerpt
         birthInfo:
           $ref: "#/components/schemas/SajuBirthInfo"
         calculationBasis:
@@ -757,20 +765,11 @@ components:
         - monthPillar
         - dayPillar
         - elementBalance
-        - specialSummary
         - dominantElement
         - lackingElement
         - dayMasterElement
-        - personality
-        - fortune
-        - shadowReading
-        - career
-        - love
-        - health
-        - luckyNumbers
-        - luckyColors
-        - luckyDirections
         - zodiac
+        - accessLevel
 
     DailyFortune:
       type: object

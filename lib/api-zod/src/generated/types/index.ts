@@ -34,6 +34,7 @@ export * from './sajuRequestCalendarType';
 export * from './sajuRequestDayBoundary';
 export * from './sajuRequestGender';
 export * from './sajuResult';
+export * from './sajuResultAccessLevel';
 export * from './sajuResultBirthTimeCandidateAnalysis';
 export * from './sajuResultCalculationBasis';
 export * from './sajuResultDaeunTransitionAnalysis';

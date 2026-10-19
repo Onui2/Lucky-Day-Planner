@@ -68,6 +68,7 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
     generatedTiers: [] as unknown[],
     beforeGeneration: null as (() => Promise<void>) | null,
     nextId: 100,
+    deliveryTrackingFails: false,
   };
   const conditions = {
     eq: (left: any, right: any): Predicate => (context) => value(left, context) === value(right, context),
@@ -79,6 +80,16 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
     desc: (input: any) => input,
     sql: (strings: TemplateStringsArray, ...args: any[]) => {
       const text = strings.join("?");
+      if (text.startsWith("jsonb_set")) {
+        if (state.deliveryTrackingFails) throw new Error("synthetic analytics outage");
+        return (context: Context) => ({ ...value(args[0], context), firstDeliveredAt: args[1] });
+      }
+      if (text.includes("->>'reportEdition'")) {
+        return (context: Context) => value(args[0], context)?.reportEdition === "new-year-2027";
+      }
+      if (text.includes("->>'firstDeliveredAt'")) {
+        return (context: Context) => value(args[0], context)?.firstDeliveredAt == null;
+      }
       if (/->>\s*'freeTrial'/.test(text)) {
         return (context: Context) => String(value(args[0], context)?.freeTrial) === "true";
       }
@@ -152,7 +163,11 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
     update(input: Table) {
       return { set(values: Row) { return { where(predicate: Predicate) {
         const rows = records[input.tableName].filter((row) => predicate({ [input.tableName]: row }));
-        for (const row of rows) { Object.assign(row, values); state.writes++; }
+        for (const row of rows) {
+          Object.assign(row, Object.fromEntries(Object.entries(values).map(([key, datum]) =>
+            [key, typeof datum === "function" ? datum({ [input.tableName]: row }) : datum])));
+          state.writes++;
+        }
         return { returning: async () => rows };
       } }; } };
     },
@@ -227,6 +242,7 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
         if (specifier === "drizzle-orm") return conditions;
         if (specifier.endsWith("/database-guard.js")) return { requireDatabase: async () => true };
         if (specifier.endsWith("/report-generator.js")) return {
+          getSajuReportSections: (_result: Row, tier = "full") => [{ title: `tier:${tier}`, body: "authorized reading" }],
           generateSajuReportPdf: async (_title: string, _result: Row, tier: unknown) => {
             state.generated++;
             state.generatedTiers.push(tier);
@@ -299,6 +315,57 @@ function post(url: string, body: Row = {}, headers: Record<string, string> = {})
 const orderBody = { productType: "saju_detail", birthInfo: { year: 1990, month: 1, day: 1, hour: 12, gender: "male", calendarType: "solar" } };
 const confirmationBody = { orderId: "synthetic-order", paymentKey: "synthetic-payment-key" };
 
+test("paid access expires 365 days after provider approval and retries do not extend it", async () => {
+  const h = createHarness();
+  h.seed();
+  const approvedAt = new Date(Date.now() - 2 * 86_400_000).toISOString();
+  h.state.providerReply = { approvedAt };
+  const expectedExpiry = new Date(new Date(approvedAt).getTime() + 365 * 86_400_000).toISOString();
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/commerce/payments/confirm`, confirmationBody)).status, 200);
+    const grant = h.state.records.purchaseEntitlements[0];
+    assert.equal(grant.expiresAt.toISOString(), expectedExpiry);
+    const listed = await (await fetch(`${url}/reports`)).json() as Row;
+    assert.equal(listed.reports[0].expiresAt, expectedExpiry);
+    assert.equal((await post(`${url}/commerce/payments/confirm`, confirmationBody)).status, 200);
+    assert.equal(grant.expiresAt.toISOString(), expectedExpiry);
+    assert.equal(h.state.records.purchaseEntitlements.length, 1);
+    grant.expiresAt = new Date(Date.now() - 1);
+    for (const endpoint of ["download", "content"]) {
+      assert.equal((await fetch(`${url}/reports/21/${endpoint}`)).status, 403);
+    }
+    assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403);
+    assert.equal((await post(`${url}/commerce/payments/confirm`, confirmationBody)).status, 403);
+  });
+});
+
+test("recovery of a payment older than 365 days records payment without delivering expired content", async () => {
+  const h = createHarness();
+  const { order } = h.seed();
+  h.state.providerReply = { approvedAt: new Date(Date.now() - 366 * 86_400_000).toISOString() };
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/commerce/payments/confirm`, confirmationBody)).status, 403);
+    assert.equal(order.status, "paid");
+    assert.equal(h.state.records.payments.length, 1);
+    assert.equal(h.state.generated, 0);
+    assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403);
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 403);
+    assert.equal((await fetch(`${url}/reports/21/content`)).status, 403);
+  });
+});
+
+test("legacy unbounded report grants remain unchanged when listed", async () => {
+  const h = createHarness();
+  const { entitlement } = h.seed(true);
+  await withServer(h, async (url) => {
+    const listed = await (await fetch(`${url}/reports`)).json() as Row;
+    assert.equal(listed.reports[0].expiresAt, null);
+    assert.equal((await post(`${url}/reports/21/regenerate`)).status, 200);
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+  });
+  assert.equal(entitlement.expiresAt, null);
+});
+
 test("an order cancelled during provider confirmation cannot be paid or fulfilled", async () => {
   const h = createHarness();
   const { order } = h.seed();
@@ -320,6 +387,7 @@ test("an unpaid order cannot generate or download a report, including legacy rea
     assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403);
     Object.assign(report, { status: "ready", fileDataBase64: Buffer.from("legacy unpaid PDF").toString("base64") });
     assert.equal((await fetch(`${url}/reports/21/download`)).status, 403);
+    assert.equal((await fetch(`${url}/reports/21/content`)).status, 403);
   });
   assert.equal(h.state.generated, 0);
   assert.equal(h.state.writes, 0);
@@ -329,7 +397,10 @@ test("paid report without an entitlement stays inaccessible", async () => {
   const h = createHarness();
   h.seed(true);
   h.state.records.purchaseEntitlements.length = 0;
-  await withServer(h, async (url) => assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403));
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403);
+    assert.equal((await fetch(`${url}/reports/21/content`)).status, 403);
+  });
   assert.equal(h.state.generated, 0);
 });
 
@@ -349,6 +420,7 @@ for (const [name, override] of [
     await withServer(h, async (url) => {
       assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403);
       assert.equal((await fetch(`${url}/reports/21/download`)).status, 403);
+      assert.equal((await fetch(`${url}/reports/21/content`)).status, 403);
       const confirmation = await post(`${url}/commerce/payments/confirm`, confirmationBody);
       assert.equal(confirmation.status, 403);
       assert.equal((await confirmation.json() as Row).report, undefined);
@@ -366,6 +438,7 @@ test("report/order ownership is enforced for regeneration, download and confirma
   await withServer(h, async (url) => {
     assert.equal((await post(`${url}/reports/21/regenerate`, {}, headers)).status, 404);
     assert.equal((await fetch(`${url}/reports/21/download`, { headers })).status, 404);
+    assert.equal((await fetch(`${url}/reports/21/content`, { headers })).status, 404);
     assert.equal((await post(`${url}/commerce/payments/confirm`, confirmationBody, headers)).status, 404);
   });
   assert.equal(h.state.generated, 0);
@@ -376,7 +449,10 @@ test("owned report cannot reuse an order belonging to another user", async () =>
   const h = createHarness();
   const { order } = h.seed(true);
   order.userId = "someone-else";
-  await withServer(h, async (url) => assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403));
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403);
+    assert.equal((await fetch(`${url}/reports/21/content`)).status, 403);
+  });
   assert.equal(h.state.generated, 0);
 });
 
@@ -388,8 +464,65 @@ test("paid report with an active entitlement can be regenerated and downloaded",
     const download = await fetch(`${url}/reports/21/download`);
     assert.equal(download.status, 200);
     assert.equal(await download.text(), "test PDF");
+    const reading = await fetch(`${url}/reports/21/content`);
+    assert.equal(reading.status, 200);
+    assert.equal(reading.headers.get("cache-control"), "private, no-store");
   });
   assert.equal(h.state.generated, 1);
+});
+
+test("web reading uses the purchased tier and never returns the raw snapshot", async () => {
+  const h = createHarness();
+  const { order, report, entitlement } = h.seed(true);
+  for (const row of [order, report, entitlement]) row.productType = "saju_basic";
+  report.status = "ready";
+  h.state.records.analysisSnapshots[0].sajuResult = { career: "PRIVATE_DETAIL", historyAnalysis: { secret: "PRIVATE_FULL" } };
+  await withServer(h, async (url) => {
+    const response = await fetch(`${url}/reports/21/content?tier=full`);
+    assert.equal(response.status, 200);
+    const body = await response.json() as Row;
+    assert.equal(body.sections[0].title, "tier:basic");
+    assert.ok(!JSON.stringify(body).includes("PRIVATE_"));
+    assert.equal(body.snapshot, undefined);
+    assert.equal((await fetch(`${url}/reports/21/content`, { headers: { "x-test-user": "anonymous" } })).status, 401);
+    assert.equal((await fetch(`${url}/reports/invalid/content`)).status, 400);
+    report.status = "pending";
+    assert.equal((await fetch(`${url}/reports/21/content`)).status, 409);
+    report.status = "ready";
+    order.status = "cancelled";
+    assert.equal((await fetch(`${url}/reports/21/content`)).status, 403);
+  });
+});
+
+for (const first of ["content", "download"]) {
+  test(`campaign first delivery is recorded once when ${first} is opened first`, async () => {
+    const h = createHarness({ CAMPAIGN_ANALYTICS_ENABLED: "true" });
+    const { order, report } = h.seed(true);
+    order.metadata = { reportEdition: "new-year-2027", preserved: true };
+    Object.assign(report, { status: "ready", fileDataBase64: Buffer.from("PDF").toString("base64") });
+    await withServer(h, async (url) => {
+      assert.equal((await fetch(`${url}/reports/21/${first}`, { headers: { "x-test-user": "intruder" } })).status, 404);
+      assert.equal(order.metadata.firstDeliveredAt, undefined);
+      assert.equal((await fetch(`${url}/reports/21/${first}`)).status, 200);
+      const timestamp = order.metadata.firstDeliveredAt;
+      assert.ok(Number.isFinite(Date.parse(timestamp)));
+      assert.equal(order.metadata.preserved, true);
+      assert.equal((await fetch(`${url}/reports/21/${first === "content" ? "download" : "content"}`)).status, 200);
+      assert.equal(order.metadata.firstDeliveredAt, timestamp);
+      assert.equal(h.state.writes, 1);
+    });
+  });
+}
+
+test("analytics outage does not block purchased web or PDF reading", async () => {
+  const h = createHarness({ CAMPAIGN_ANALYTICS_ENABLED: "true" });
+  const { report } = h.seed(true);
+  h.state.deliveryTrackingFails = true;
+  Object.assign(report, { status: "ready", fileDataBase64: Buffer.from("PDF").toString("base64") });
+  await withServer(h, async (url) => {
+    assert.equal((await fetch(`${url}/reports/21/content`)).status, 200);
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+  });
 });
 
 test("concurrent explicit regeneration renders a ready report once", async () => {
@@ -881,6 +1014,10 @@ test("direct Toss authorization records paid status before PDF work and cannot c
   assert.deepEqual(h.state.orderStatusesAtGeneration, ["paid"]);
   assert.equal(h.state.records.payments[0].amount, 9900);
   assert.equal(h.state.records.purchaseEntitlements.length, 1);
+  assert.equal(
+    h.state.records.purchaseEntitlements[0].expiresAt.getTime(),
+    h.state.records.payments[0].approvedAt.getTime() + 365 * 86_400_000,
+  );
 });
 
 test("direct Toss lookup alone never executes an approved but unpaid purchase", async () => {
