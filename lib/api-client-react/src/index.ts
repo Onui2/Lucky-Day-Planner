@@ -1332,10 +1332,21 @@ export interface AskSajuQuestionResponse {
   unlimited?: boolean;
 }
 
+export interface SajuConsultationInput {
+  topic: "career" | "money" | "relationship";
+  mode: "concern" | "compare";
+  situation: string;
+  concern: string;
+  priority: string;
+  optionA?: string;
+  optionB?: string;
+}
+
 async function askSajuQuestionRequest(body: {
   question: string;
   birthInfo: MonetizationBirthInfo;
   history?: AiQuestionHistoryTurn[];
+  consultation?: SajuConsultationInput;
   onChunk?: (textSoFar: string, delta: string) => void;
 }): Promise<AskSajuQuestionResponse> {
   const { onChunk, ...payload } = body;
@@ -1412,6 +1423,7 @@ export function useAskSajuQuestion() {
       question: string;
       birthInfo: MonetizationBirthInfo;
       history?: AiQuestionHistoryTurn[];
+      consultation?: SajuConsultationInput;
       onChunk?: (textSoFar: string, delta: string) => void;
     }) => body.onChunk ? askSajuQuestionRequest(body) :
       customFetch<{
