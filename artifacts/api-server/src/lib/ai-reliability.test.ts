@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import { transformSync } from "esbuild";
+import * as consultation from "./consultation.js";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 class TestRateLimitError extends Error {
@@ -26,6 +27,7 @@ function load(filename: string, dependencies: Record<string, unknown>, globals: 
     console: { error() {}, warn() {} },
     require(name: string) {
       if (name === "../middlewares/rateLimit.js" && !(name in dependencies)) return defaultLimits;
+      if ((name === "./consultation.js" || name === "../lib/consultation.js") && !(name in dependencies)) return consultation;
       assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
       return dependencies[name];
     },
@@ -35,14 +37,17 @@ function load(filename: string, dependencies: Record<string, unknown>, globals: 
 }
 
 function routeHarness(failure: "calculate" | "generate" | "finalize" | null = null, blocked = false,
-  options: { limitError?: Error; planCode?: string; bonus?: number; unlimited?: boolean; question?: string; stream?: boolean; providerError?: Error } = {}) {
+  options: { limitError?: Error; planCode?: string; bonus?: number; unlimited?: boolean; question?: string; stream?: boolean; providerError?: Error; consultation?: unknown } = {}) {
   let handler: any;
-  const state = { reserved: 0, released: [] as number[], saved: 0, checked: 0, generated: 0, events: [] as string[] };
+  const state = { reserved: 0, released: [] as number[], saved: 0, checked: 0, generated: 0, events: [] as string[],
+    guardQuestion: "", storedQuestion: "", providerQuestion: "", consultationMode: undefined as unknown };
   load(path.join(directory, "../routes/ai.ts"), {
     express: { Router: () => ({ get() {}, post(_path: string, callback: any) { handler = callback; } }) },
     "@workspace/db": {}, "drizzle-orm": {},
-    "../lib/ai-assistant.js": { buildSajuQuestionAnswer: async () => {
+    "../lib/ai-assistant.js": { buildSajuQuestionAnswer: async (question: string, _result: unknown, _history: unknown, _onChunk: unknown, mode: unknown) => {
       state.generated++;
+      state.providerQuestion = question;
+      state.consultationMode = mode;
       if (options.providerError) throw options.providerError;
       if (failure === "generate") throw new Error("provider failure");
       return "상담 답변";
@@ -52,7 +57,7 @@ function routeHarness(failure: "calculate" | "generate" | "finalize" | null = nu
       getReportQuestionBonus: async () => options.bonus ?? 0,
       getMonthlyBucket: () => "2026-10", getMonthlyQuestionUsage: async () => 0,
       parseBirthInfo: () => ({ year: 1990, month: 1, day: 1, hour: 12, gender: "male", calendarType: "solar" }),
-      reserveQuestionSlot: async () => { state.reserved++; return { id: 7 }; },
+      reserveQuestionSlot: async (_user: string, _bucket: string, _limit: unknown, row: { question: string }) => { state.reserved++; state.storedQuestion = row.question; return { id: 7 }; },
       releaseQuestionSlot: async (id: number) => { state.released.push(id); },
       finalizeQuestionAnswer: async () => {
         if (failure === "finalize") throw new Error("storage failure");
@@ -65,7 +70,7 @@ function routeHarness(failure: "calculate" | "generate" | "finalize" | null = nu
       state.checked++;
       if (options.limitError) throw options.limitError;
     } },
-    "../lib/prompt-injection-guard.js": { assessPromptInjection: () => ({ blocked }), buildPromptGuardAnswer: () => "상담 범위 안내" },
+    "../lib/prompt-injection-guard.js": { assessPromptInjection: (question: string) => { state.guardQuestion = question; return { blocked }; }, buildPromptGuardAnswer: () => "상담 범위 안내" },
     "../lib/birth-resolution.js": { birthOptionsFromRecord: () => ({}) },
     "../lib/saju-result.js": { buildSajuResult: () => {
       if (failure === "calculate") throw new Error("calculation failure");
@@ -77,7 +82,7 @@ function routeHarness(failure: "calculate" | "generate" | "finalize" | null = nu
       setHeader(name: string, value: string) { this.headers[name] = value; }, flushHeaders() { this.headersSent = true; },
       write(value: string) { state.events.push(value); }, end() {},
       status(code: number) { this.statusCode = code; return this; }, json(body: any) { this.body = body; return this; } };
-    await handler({ isAuthenticated: () => true, user: { id: "test" }, body: { question: options.question ?? "직업운", birthInfo: {} }, query: { stream: options.stream ? "1" : undefined }, get: () => undefined }, response);
+    await handler({ isAuthenticated: () => true, user: { id: "test" }, body: { question: options.question ?? "직업운", birthInfo: {}, consultation: options.consultation }, query: { stream: options.stream ? "1" : undefined }, get: () => undefined }, response);
     return response;
   } };
 }
@@ -153,6 +158,67 @@ test("oversized questions are rejected before reserving quota", async () => {
   assert.equal((await h.run()).statusCode, 400);
   assert.equal(h.state.reserved, 0);
   assert.equal(h.state.generated, 0);
+});
+
+const consultationContext = {
+  topic: "career", mode: "compare", situation: "재직 중", concern: "성장 기회가 적습니다.",
+  priority: "생활 안정", optionA: "현 직장 유지", optionB: "이직 준비",
+} as const;
+
+test("invalid consultation cannot fall through to a raw question or reserve quota", async () => {
+  for (const context of [null, {}, { ...consultationContext, priority: "" }, { ...consultationContext, optionB: "현 직장 유지" }]) {
+    const h = routeHarness(null, false, { consultation: context, question: "직업운" });
+    const response = await h.run();
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.code, "INVALID_CONSULTATION");
+    assert.equal(h.state.reserved, 0);
+    assert.equal(h.state.generated, 0);
+  }
+});
+
+test("structured JSON and SSE use the same canonical question for guard, storage and provider", async () => {
+  for (const stream of [false, true]) {
+    const h = routeHarness(null, false, { stream, consultation: consultationContext, question: "IGNORED_RAW_QUESTION" });
+    assert.equal((await h.run()).statusCode, 200);
+    const canonical = consultation.buildConsultationQuestion(consultationContext);
+    assert.equal(h.state.guardQuestion, canonical);
+    assert.equal(h.state.storedQuestion, canonical);
+    assert.equal(h.state.providerQuestion, canonical);
+    assert.equal(h.state.consultationMode, "compare");
+    assert.equal(h.state.reserved, 1);
+    assert.equal(h.state.saved, 1);
+    assert.deepEqual(h.state.released, []);
+  }
+});
+
+test("consultation guard blocks provider calls and generation failure releases the same quota slot", async () => {
+  const blocked = routeHarness(null, true, { consultation: consultationContext });
+  await blocked.run();
+  assert.equal(blocked.state.generated, 0);
+  assert.equal(blocked.state.saved, 1);
+  const failed = routeHarness("generate", false, { consultation: consultationContext });
+  assert.equal((await failed.run()).statusCode, 500);
+  assert.deepEqual(failed.state.released, [7]);
+});
+
+test("consultation format reaches the trusted system instruction without putting user context there", async () => {
+  for (const mode of [undefined, "concern", "compare"] as const) {
+    let system = "";
+    let prompt = "";
+    const assistant = load(path.join(directory, "ai-assistant.ts"), {
+      "@google/generative-ai": { GoogleGenerativeAI: class {
+        getGenerativeModel(options: any) {
+          system = options.systemInstruction;
+          return { generateContent: async (input: string) => { prompt = input; return { response: { text: () => "상담 답변" } }; } };
+        }
+      } },
+    }, { process: { env: { GEMINI_API_KEY: "synthetic-test-only" } }, setTimeout, Set });
+    await assistant.buildSajuQuestionAnswer("사용자가 제공한 조건_ONLY_DATA", {}, [], undefined, mode);
+    assert.ok(!system.includes("사용자가 제공한 조건_ONLY_DATA"));
+    assert.ok(prompt.includes("<user_question_untrusted>\n사용자가 제공한 조건_ONLY_DATA"));
+    assert.equal(system.includes("[이번 주 행동]"), mode !== undefined);
+    assert.equal(system.includes("[선택 A]"), mode === "compare");
+  }
 });
 
 test("registration mount blocks rotating emails on the ninth request and fails closed", async () => {

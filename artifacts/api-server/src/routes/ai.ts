@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { aiQuestionsTable, db, type JsonObject, usersTable } from "@workspace/db";
 import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
 import { buildSajuQuestionAnswer } from "../lib/ai-assistant.js";
+import { buildConsultationQuestion, parseConsultationInput, type ConsultationInput } from "../lib/consultation.js";
 import {
   finalizeQuestionAnswer,
   getActiveSubscription,
@@ -270,7 +271,16 @@ router.post("/ai/questions", async (req, res) => {
   if (!(await requireDatabase(res))) return;
 
   const body = req.body as Record<string, unknown>;
-  const question =
+  let consultation: ConsultationInput | undefined;
+  if (body.consultation !== undefined) {
+    const parsed = parseConsultationInput(body.consultation);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error, code: "INVALID_CONSULTATION" });
+      return;
+    }
+    consultation = parsed.value;
+  }
+  const question = consultation ? buildConsultationQuestion(consultation) :
     typeof body.question === "string" ? body.question.trim() : "";
   const birthInfo = parseBirthInfo(body.birthInfo);
   const history = parseConversationHistory(body.history);
@@ -381,6 +391,7 @@ router.post("/ai/questions", async (req, res) => {
         (delta, text) => {
           res.write(`data: ${JSON.stringify({ type: "chunk", delta, text })}\n\n`);
         },
+        consultation?.mode,
       );
 
       const saved = await finalizeQuestionAnswer(reserved.id, answer, sajuResult as JsonObject);
@@ -408,6 +419,8 @@ router.post("/ai/questions", async (req, res) => {
       question,
       sajuResult as Record<string, any>,
       history,
+      undefined,
+      consultation?.mode,
     );
 
     const saved = await finalizeQuestionAnswer(reserved.id, answer, sajuResult as JsonObject);

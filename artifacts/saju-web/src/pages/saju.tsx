@@ -55,6 +55,7 @@ const ReportPurchaseButton = lazy(() =>
 const AiChatPanel = lazy(() =>
   import("@/components/AiChatPanel").then((m) => ({ default: m.AiChatPanel })),
 );
+const ConcernConsultation = lazy(() => import("@/components/ConcernConsultation"));
 const SharedSajuView = lazy(() =>
   import("@/components/SharedSajuView").then((m) => ({ default: m.SharedSajuView })),
 );
@@ -1484,9 +1485,21 @@ export default function SajuPage() {
     applyTrueSolarTime: bi.applyTrueSolarTime === true,
     dayBoundary: bi.dayBoundary === "late-zi" ? "late-zi" as const : "midnight" as const,
   };
+  const consultationPanel = (
+    <Suspense fallback={null}>
+      <ConcernConsultation
+        key={`${user?.id ?? "guest"}:${JSON.stringify(monetizationBirthInfo)}`}
+        birthInfo={monetizationBirthInfo}
+        isAuthenticated={isAuthenticated}
+        isAdmin={isAdmin}
+        initialFocus={reportFocus}
+      />
+    </Suspense>
+  );
   if (!isAdmin || r.accessLevel !== "admin") {
     return <SajuPreview result={r} birthInfo={monetizationBirthInfo} isAuthenticated={isAuthenticated}
       onReset={() => { setDisplayResult(null); setResultContext(null); }}
+      consultation={consultationPanel}
       initialFocus={reportFocus ?? undefined} reportEdition={isNewYear ? "new-year-2027" : undefined} />;
   }
   const buildProfileAwareHref = (
@@ -1795,6 +1808,8 @@ export default function SajuPage() {
           </div>
           <Button className="mt-4 shrink-0 gap-2 sm:mt-0" onClick={() => setFloatingPanel("report")}><Download className="h-4 w-4" />3. PDF로 받기</Button>
         </section>
+
+        {consultationPanel}
 
         {/* 헤더 */}
         <div className="flex flex-wrap justify-between items-start gap-3 mb-6">

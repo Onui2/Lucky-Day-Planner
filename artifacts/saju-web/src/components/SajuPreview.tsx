@@ -1,9 +1,10 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, type ReactNode } from "react";
 import { Link } from "wouter";
 import type { MonetizationBirthInfo, SajuResult } from "@workspace/api-client-react";
 import { ArrowRight, BookOpenText, FileText, RotateCcw } from "lucide-react";
 import { Button } from "./ui/button";
 import { ReportPurchaseButton } from "./ReportPurchaseButton";
+import { NewYearFreeSummary } from "./NewYearFreeSummary";
 import type { ReportFocus } from "@/lib/report-focus";
 
 const AiChatPanel = lazy(() => import("./AiChatPanel").then((module) => ({ default: module.AiChatPanel })));
@@ -56,9 +57,10 @@ export function SajuCoreChart({ result }: { result: SajuResult }) {
   </div>;
 }
 
-export default function SajuPreview({ result, birthInfo, isAuthenticated, onReset, initialFocus, reportEdition }: {
+export default function SajuPreview({ result, birthInfo, isAuthenticated, onReset, initialFocus, reportEdition, consultation }: {
   result: SajuResult; birthInfo: MonetizationBirthInfo; isAuthenticated: boolean;
   onReset: () => void; initialFocus?: ReportFocus; reportEdition?: "new-year-2027";
+  consultation?: ReactNode;
 }) {
   return <div className="mx-auto max-w-4xl space-y-8 break-keep sm:space-y-10">
     <header className="border-b border-foreground/10 pb-7">
@@ -77,16 +79,20 @@ export default function SajuPreview({ result, birthInfo, isAuthenticated, onRese
       <h2 id="preview-summary-title" className="font-sans text-sm font-medium text-muted-foreground">핵심 성향</h2>
       <p className="mt-3 max-w-3xl whitespace-pre-line font-serif text-xl leading-relaxed sm:text-2xl">{result.previewSummary || `일간은 ${result.dayMasterElement}입니다. 원국과 오행을 바탕으로 나의 성향을 살펴보세요.`}</p>
     </section>
+    {reportEdition === "new-year-2027" && <NewYearFreeSummary birthInfo={birthInfo} />}
+    {consultation}
     <SajuCoreChart result={result} />
     <section className="grid gap-7 rounded-2xl border border-foreground/10 bg-card p-5 sm:p-7 md:grid-cols-[1fr_auto] md:gap-10" aria-labelledby="reading-upgrade-title">
       <div>
         <p className="text-xs font-medium text-muted-foreground">구매 후 웹 · PDF 제공</p>
         <h2 id="reading-upgrade-title" className="mt-2 font-serif text-2xl">더 자세한 해석이 궁금하다면</h2>
         <p className="mt-3 text-base leading-7 text-muted-foreground">성격 전체 풀이부터 직업·관계·앞으로의 흐름까지.<br className="hidden sm:block" />필요한 범위의 리포트를 선택하세요.</p>
-        <a className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded text-sm font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-primary" href={`${import.meta.env.BASE_URL}report-samples/saju-basic.pdf`} target="_blank" rel="noreferrer"><FileText className="h-4 w-4" aria-hidden="true" />샘플 먼저 보기<span className="sr-only"> (새 탭)</span></a>
+        {reportEdition !== "new-year-2027" && <a className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded text-sm font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-primary" href={`${import.meta.env.BASE_URL}report-samples/saju-basic.pdf`} target="_blank" rel="noreferrer"><FileText className="h-4 w-4" aria-hidden="true" />샘플 먼저 보기<span className="sr-only"> (새 탭)</span></a>}
       </div>
       <div className="flex flex-col justify-center border-t border-foreground/10 pt-5 md:min-w-48 md:border-t-0 md:pt-0">
-        <p className="mb-3 text-sm text-muted-foreground"><strong className="text-2xl font-semibold tabular-nums text-foreground">4,900원</strong>부터</p>
+        <p className="mb-3 text-sm text-muted-foreground">{reportEdition === "new-year-2027"
+          ? <strong className="text-2xl font-semibold tabular-nums text-foreground">9,900원</strong>
+          : <><strong className="text-2xl font-semibold tabular-nums text-foreground">4,900원</strong>부터</>}</p>
         <ReportPurchaseButton birthInfo={birthInfo} isAuthenticated={isAuthenticated} initialFocus={initialFocus} reportEdition={reportEdition} className="w-full justify-center" />
         <p className="mt-2.5 text-xs text-muted-foreground">1회 결제 · 자동 결제 없음</p>
       </div>

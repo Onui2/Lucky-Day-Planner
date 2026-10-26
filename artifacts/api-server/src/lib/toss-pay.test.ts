@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createTossPayCheckout, confirmTossPayPayment, getTossPayConfig, type TossPayOrder } from "./toss-pay.js";
+import { checkTossPayRefundStatus, createTossPayCheckout, confirmTossPayPayment, getTossPayConfig, type TossPayOrder } from "./toss-pay.js";
 
 const order: TossPayOrder = {
   orderId: "MHW_123", amount: 4900, currency: "KRW",
@@ -160,6 +160,68 @@ test("direct Toss Pay adapter with isolated provider responses (no live payments
         return true;
       });
       assert.equal(calls.length, 1);
+    });
+    await t.test("refund sync classifies only consistent full refunds as revocable", async () => {
+      const refund = (amount: number) => ({ stepType: "REFUND", transactionAmount: -amount, paidAmount: amount });
+      for (const payStatus of ["REFUND_SUCCESS", "SETTLEMENT_REFUND_COMPLETE"]) {
+        setup([providerStatus({ payStatus, refundableAmount: 0, transactions: [{ stepType: "PAY", transactionAmount: 4900 }, refund(4900)] })]);
+        const result = await checkTossPayRefundStatus(order);
+        assert.equal(result.outcome, "full_refund");
+        assert.equal(result.refundedAmount, 4900);
+        assert.equal(result.payStatus, payStatus);
+        assert.deepEqual(calls.map((call) => call.url.split("/").pop()), ["status"]);
+      }
+      // Two partial refunds that add up to the full amount are a full refund.
+      setup([providerStatus({ payStatus: "REFUND_SUCCESS", refundableAmount: 0, transactions: [{ stepType: "PAY", transactionAmount: 4900 }, refund(900), refund(4000)] })]);
+      assert.equal((await checkTossPayRefundStatus(order)).outcome, "full_refund");
+    });
+    await t.test("refund sync flags partial refunds and pending refunds without revoking", async () => {
+      setup([providerStatus({ payStatus: "PAY_COMPLETE", refundableAmount: 3900, transactions: [{ stepType: "PAY", transactionAmount: 4900 }, { stepType: "REFUND", transactionAmount: -1000 }] })]);
+      const partial = await checkTossPayRefundStatus(order);
+      assert.equal(partial.outcome, "partial_refund");
+      assert.equal(partial.refundedAmount, 1000);
+      for (const payStatus of ["REFUND_PROGRESS", "REFUND_PENDING"]) {
+        setup([providerStatus({ payStatus })]);
+        assert.equal((await checkTossPayRefundStatus(order)).outcome, "refund_pending");
+      }
+      setup([providerStatus({ refundableAmount: 4900 })]);
+      const kept = await checkTossPayRefundStatus(order);
+      assert.equal(kept.outcome, "not_refunded");
+      assert.equal(kept.refundedAmount, 0);
+    });
+    await t.test("refund sync treats contradictory or unknown provider data as unknown", async () => {
+      const pay = { stepType: "PAY", transactionAmount: 4900 };
+      for (const overrides of [
+        { payStatus: "REFUND_SUCCESS", refundableAmount: 0, transactions: [pay] },
+        { payStatus: "REFUND_SUCCESS", refundableAmount: 100, transactions: [pay, { stepType: "REFUND", transactionAmount: -4900 }] },
+        { payStatus: "REFUND_SUCCESS", refundableAmount: 0, transactions: [pay, { stepType: "REFUND" }] },
+        { payStatus: "REFUND_SUCCESS", refundableAmount: 0, transactions: [pay, { stepType: "REFUND", transactionAmount: 4900 }] },
+        { payStatus: "REFUND_SUCCESS", refundableAmount: 0, transactions: [pay, { stepType: "REFUND", transactionAmount: -9900 }] },
+        { payStatus: "PAY_COMPLETE", transactions: [pay, { stepType: "REFUND", transactionAmount: -4900 }] },
+        { payStatus: "PAY_CANCEL" },
+        { payStatus: "PAY_STANDBY" },
+        { payStatus: "SOMETHING_NEW" },
+        { payStatus: undefined },
+        { transactions: undefined },
+        { transactions: ["bad"] },
+      ]) {
+        setup([providerStatus(overrides)]);
+        assert.equal((await checkTossPayRefundStatus(order)).outcome, "unknown", JSON.stringify(overrides));
+      }
+    });
+    await t.test("refund sync never classifies on identity mismatch or provider failure", async () => {
+      setup([providerStatus({ payStatus: "REFUND_SUCCESS", amount: 1 })]);
+      await assert.rejects(checkTossPayRefundStatus(order), /일치하지/);
+      setup([new Error("network down sk_test_syntheticFixture")]);
+      await assert.rejects(checkTossPayRefundStatus(order), (error: Error) => {
+        assert.equal(error.message.includes("sk_test_"), false);
+        return true;
+      });
+      setup([{ code: -1, msg: "failure" }]);
+      await assert.rejects(checkTossPayRefundStatus(order), /확인하지 못했습니다/);
+      setup([]);
+      await assert.rejects(checkTossPayRefundStatus({ ...order, metadata: { ...order.metadata, tossPayMode: "LIVE" } }), /일치하지/);
+      assert.equal(calls.length, 0);
     });
   } finally {
     globalThis.fetch = originalFetch;

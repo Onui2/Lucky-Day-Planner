@@ -22,7 +22,7 @@ router.post("/year-fortune", (req, res) => {
     const result = getYearFortune(
       basis.adjusted.year, basis.adjusted.month, basis.adjusted.day,
       basis.adjusted.hour, targetYear ? Number(targetYear) : undefined,
-      basis.dayPillarDate,
+      basis.dayPillarDate, basis.adjusted.minute,
     );
     return res.json({ ...result, calculationBasis: basis });
   } catch (e: any) {

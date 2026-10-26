@@ -30,3 +30,41 @@ export function applyCampaignCosts(grossKrw: number, visitors: number, value: un
   return { costs, missingCosts: missing, contributionKrw,
     perVisitorKrw: contributionKrw === null || visitors === 0 ? null : contributionKrw / visitors };
 }
+
+// Conclusive outcomes recorded by the admin Toss refund re-sync.
+export const CONCLUSIVE_REFUND_OUTCOMES = ["not_refunded", "partial_refund", "full_refund"] as const;
+
+/**
+ * Aggregates per-content refund columns. Verified means every approved order
+ * in the cohort has at least one conclusive Toss re-check; refunds made after
+ * the oldest check time are still not reflected.
+ */
+export function summarizeRefundVerification(rows: Array<Record<string, unknown>>) {
+  let approvedOrders = 0, refundCheckedOrders = 0, refundedOrders = 0, partiallyRefundedOrders = 0, syncedRefundKrw = 0;
+  let malformed = false;
+  let oldestRefundCheckAt: string | null = null;
+  const count = (input: unknown) => {
+    const parsed = input === null || input === undefined ? 0 : Number(input);
+    if (!Number.isSafeInteger(parsed) || parsed < 0) { malformed = true; return 0; }
+    return parsed;
+  };
+  for (const row of rows) {
+    const approved = count(row.approved);
+    const checked = count(row.refund_checked);
+    if (checked > approved) malformed = true;
+    approvedOrders += approved;
+    refundCheckedOrders += checked;
+    refundedOrders += count(row.refunded_orders);
+    partiallyRefundedOrders += count(row.partially_refunded_orders);
+    syncedRefundKrw += count(row.refund_synced_krw);
+    const at = row.oldest_refund_check_at;
+    const iso = at instanceof Date ? at.toISOString() : typeof at === "string" && Number.isFinite(Date.parse(at)) ? new Date(at).toISOString() : null;
+    if (iso && (!oldestRefundCheckAt || iso < oldestRefundCheckAt)) oldestRefundCheckAt = iso;
+  }
+  return {
+    refundStatusVerified: !malformed && approvedOrders === refundCheckedOrders,
+    approvedOrders, refundCheckedOrders,
+    uncheckedApprovedOrders: Math.max(0, approvedOrders - refundCheckedOrders),
+    refundedOrders, partiallyRefundedOrders, syncedRefundKrw, oldestRefundCheckAt,
+  };
+}

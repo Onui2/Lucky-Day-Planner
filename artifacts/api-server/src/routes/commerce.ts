@@ -23,7 +23,7 @@ import { hasReportAccess } from "../lib/report-access.js";
 import { birthOptionsFromRecord } from "../lib/birth-resolution.js";
 import { REPORT_PRODUCTS } from "../lib/product-config.js";
 import { buildSajuHistory } from "../lib/saju-history.js";
-import { createTossPayCheckout, confirmTossPayPayment, getTossPayConfig } from "../lib/toss-pay.js";
+import { checkTossPayRefundStatus, createTossPayCheckout, confirmTossPayPayment, getTossPayConfig } from "../lib/toss-pay.js";
 import { getSeoulDateString } from "../lib/daeun-date.js";
 
 import { buildNewYearAnalysis, getNewYearCampaign, NEW_YEAR_CAMPAIGN } from "../lib/new-year-campaign.js";
@@ -33,6 +33,7 @@ import { UUID_PATTERN } from "../lib/campaign-metrics.js";
 import { renderStoredReport } from "../lib/report-rendering.js";
 
 const router = Router();
+type CommerceTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 router.get("/commerce/products", (_req, res) => {
   res.json({
@@ -543,6 +544,109 @@ router.post("/commerce/payments/confirm", async (req, res) => {
           ? error.message
           : "결제 승인에 실패했습니다.",
     });
+  }
+});
+
+// Admin-only refund re-sync for refunds made outside the app (e.g. Toss Pay
+// Partners). Reads canonical Toss status; only a consistent full refund revokes
+// access. Partial refunds are flagged; pending/unknown states and failures never
+// change access. There is no public provider webhook for this flow.
+router.post("/admin/commerce/orders/:orderId/refund-sync", async (req, res) => {
+  if (!req.isAuthenticated()) { res.sendStatus(401); return; }
+  if (!isPrivilegedRole(req.user.role)) { res.sendStatus(403); return; }
+  const note = req.body?.note;
+  if (note !== undefined && (typeof note !== "string" || note.length > 200)) {
+    res.status(400).json({ error: "메모는 200자 이하 문자열이어야 합니다." }); return;
+  }
+  if (!(await requireDatabase(res))) return;
+  const actor = { actorUserId: req.user.id, actorRole: req.user.role ?? "admin", ...(note ? { note: note.trim() } : {}) };
+  const publicOrderId = String(req.params.orderId);
+
+  // Revoke any entitlement still active for an order already marked refunded.
+  async function revokeActive(tx: CommerceTransaction, orderRowId: number): Promise<number[]> {
+    const revoked = await tx.update(purchaseEntitlementsTable).set({ status: "revoked" }).where(and(
+      eq(purchaseEntitlementsTable.orderId, orderRowId),
+      eq(purchaseEntitlementsTable.status, "active"),
+    )).returning();
+    return revoked.map((item) => item.id);
+  }
+
+  try {
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.orderId, publicOrderId)).limit(1);
+    if (!order) { res.status(404).json({ error: "주문을 찾을 수 없습니다." }); return; }
+    if (order.metadata?.checkoutProvider !== "toss_pay") {
+      res.status(409).json({ error: "토스페이 직접 결제 주문만 환불 상태를 동기화할 수 있습니다." }); return;
+    }
+    if (order.status === "refunded") {
+      const revokedEntitlementIds = await db.transaction((tx) => revokeActive(tx, order.id));
+      res.json({ orderId: order.orderId, outcome: "already_revoked", revoked: false, revokedEntitlementIds });
+      return;
+    }
+    if (order.status !== "paid") {
+      res.status(409).json({ error: "결제 완료 주문만 환불 상태를 동기화할 수 있습니다." }); return;
+    }
+
+    let check: Awaited<ReturnType<typeof checkTossPayRefundStatus>>;
+    try {
+      check = await checkTossPayRefundStatus(order);
+    } catch {
+      // Network, provider or identity failure: never infer a refund.
+      console.error("toss refund sync unverified");
+      res.status(502).json({ outcome: "unverified", revoked: false, error: "토스페이 환불 상태를 확인하지 못했습니다. 권한은 변경하지 않았습니다." });
+      return;
+    }
+
+    const result = await db.transaction(async (tx) => {
+      const [locked] = await tx.select().from(ordersTable).where(eq(ordersTable.id, order.id)).for("update");
+      if (!locked) throw new Error("주문을 찾을 수 없습니다.");
+      if (locked.status === "refunded") {
+        return { outcome: "already_revoked", revoked: false, revokedEntitlementIds: await revokeActive(tx, locked.id) };
+      }
+      if (locked.status !== "paid") throw new Error("주문 상태가 변경되었습니다. 다시 확인해주세요.");
+      const now = new Date().toISOString();
+      const previous = (locked.metadata?.refundSync ?? {}) as Record<string, unknown>;
+      const refundSync = {
+        checkedAt: now, outcome: check.outcome, payStatus: check.payStatus,
+        refundedAmount: check.refundedAmount, refundableAmount: check.refundableAmount, ...actor,
+        ...(check.outcome === "partial_refund"
+          ? { partialRefundFlaggedAt: typeof previous.partialRefundFlaggedAt === "string" ? previous.partialRefundFlaggedAt : now }
+          : {}),
+      };
+      if (check.outcome === "full_refund") {
+        const revokedEntitlementIds = await revokeActive(tx, locked.id);
+        await tx.update(paymentsTable).set({ status: "refunded", updatedAt: new Date() })
+          .where(eq(paymentsTable.orderId, locked.id));
+        await tx.update(ordersTable).set({
+          status: "refunded",
+          metadata: {
+            ...locked.metadata, refundSync,
+            refundRevocation: {
+              revokedAt: now, reason: "toss_pay_full_refund", payStatus: check.payStatus,
+              refundedAmount: check.refundedAmount, entitlementIds: revokedEntitlementIds, ...actor,
+            },
+          },
+          updatedAt: new Date(),
+        }).where(and(eq(ordersTable.id, locked.id), eq(ordersTable.status, "paid")));
+        return { outcome: check.outcome, revoked: true, revokedEntitlementIds };
+      }
+      if (check.outcome === "partial_refund") {
+        await tx.update(paymentsTable).set({ status: "partially_refunded", updatedAt: new Date() })
+          .where(eq(paymentsTable.orderId, locked.id));
+      }
+      await tx.update(ordersTable).set({ metadata: { ...locked.metadata, refundSync }, updatedAt: new Date() })
+        .where(eq(ordersTable.id, locked.id));
+      return { outcome: check.outcome, revoked: false, revokedEntitlementIds: [] as number[] };
+    });
+
+    res.json({
+      orderId: order.orderId, ...result,
+      payStatus: check.payStatus, refundedAmount: check.refundedAmount,
+      requiresManualReview: result.outcome === "partial_refund" || result.outcome === "unknown",
+    });
+  } catch (error) {
+    console.error("toss refund sync error");
+    const changed = error instanceof Error && /^주문/.test(error.message);
+    res.status(changed ? 409 : 500).json({ error: changed ? (error as Error).message : "환불 상태를 저장하지 못했습니다. 권한은 변경되지 않았을 수 있으니 다시 확인해주세요." });
   }
 });
 
