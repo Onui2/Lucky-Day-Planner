@@ -62,6 +62,7 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
     tossStatus: "PAY_APPROVED",
     tossReply: {} as Row,
     tossExecuteTimeout: false,
+    tossNetworkError: false,
     locks: 0,
     advisoryLocks: 0,
     historyInputs: [] as Row[],
@@ -205,6 +206,7 @@ function createHarness(overrides: Record<string, string | undefined> = { TOSS_SE
           const endpoint = url.split("/").at(-1)!;
           const body = JSON.parse(options.body!);
           state.tossCalls.push({ endpoint, body });
+          if (state.tossNetworkError) throw new Error("synthetic network failure sk_test_synthetic");
           assert.equal(body.apiKey, env.TOSS_PAY_API_KEY);
           if (endpoint === "payments") return { ok: true, json: async () => ({ code: 0, payToken: "synthetic-toss-token", checkoutPage: "https://pay.toss.im/checkout/synthetic" }) };
           const order = records.orders.find((item) => item.orderId === body.orderNo)!;
@@ -1160,4 +1162,181 @@ test("an existing retired free-trial entitlement remains usable", async () => {
   assert.equal(h.state.records.pdfReports.length, 1);
   assert.equal(h.state.records.purchaseEntitlements.length, 1);
   assert.deepEqual(h.state.generatedTiers, ["basic"]);
+});
+
+// Refund sync: an admin re-reads Toss status; only a consistent full refund revokes access.
+function seedPaidDirectToss(h: Harness) {
+  const seeded = seedDirectToss(h);
+  seeded.order.status = "paid";
+  Object.assign(seeded.report, { status: "ready", fileDataBase64: Buffer.from("paid PDF").toString("base64") });
+  h.state.records.purchaseEntitlements.push(seeded.entitlement);
+  const payment: Row = { id: 41, orderId: 11, provider: "toss_pay", paymentKey: "synthetic-toss-token", method: "CARD", status: "paid", amount: 9900, approvedAt: new Date() };
+  h.state.records.payments.push(payment);
+  return { ...seeded, payment };
+}
+const adminHeaders = { "x-test-user": "admin-1", "x-test-role": "admin" };
+const refundSyncPath = "/admin/commerce/orders/synthetic-order/refund-sync";
+const fullRefundReply = {
+  refundableAmount: 0,
+  transactions: [{ stepType: "PAY", transactionAmount: 9900 }, { stepType: "REFUND", transactionAmount: -9900, paidAmount: 9900 }],
+};
+
+test("refund sync requires an authenticated admin before provider access", async () => {
+  const h = createHarness(directTossEnv);
+  const { entitlement } = seedPaidDirectToss(h);
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}${refundSyncPath}`, {}, { "x-test-user": "anonymous" })).status, 401);
+    assert.equal((await post(`${url}${refundSyncPath}`)).status, 403);
+    assert.equal((await post(`${url}${refundSyncPath}`, {}, { "x-test-user": "owner", "x-test-role": "user" })).status, 403);
+  });
+  assert.equal(h.state.tossCalls.length, 0);
+  assert.equal(entitlement.status, "active");
+});
+
+test("full Toss refund revokes the entitlement once with an audit record and blocks access", async () => {
+  const h = createHarness(directTossEnv);
+  const { order, entitlement, payment } = seedPaidDirectToss(h);
+  h.state.tossStatus = "REFUND_SUCCESS";
+  h.state.tossReply = fullRefundReply;
+  await withServer(h, async (url) => {
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+    const response = await post(`${url}${refundSyncPath}`, { note: "파트너스 환불 #123" }, adminHeaders);
+    assert.equal(response.status, 200);
+    const result = await response.json() as Row;
+    assert.equal(result.outcome, "full_refund");
+    assert.equal(result.revoked, true);
+    assert.deepEqual(result.revokedEntitlementIds, [31]);
+    assert.equal(order.status, "refunded");
+    assert.equal(entitlement.status, "revoked");
+    assert.equal(payment.status, "refunded");
+    const audit = order.metadata.refundRevocation;
+    assert.equal(audit.reason, "toss_pay_full_refund");
+    assert.equal(audit.payStatus, "REFUND_SUCCESS");
+    assert.equal(audit.refundedAmount, 9900);
+    assert.equal(audit.actorUserId, "admin-1");
+    assert.equal(audit.actorRole, "admin");
+    assert.equal(audit.note, "파트너스 환불 #123");
+    assert.deepEqual(audit.entitlementIds, [31]);
+    assert.ok(!Number.isNaN(Date.parse(audit.revokedAt)));
+    assert.equal(order.metadata.refundSync.outcome, "full_refund");
+    assert.equal(order.metadata.tossPayToken, "synthetic-toss-token");
+    for (const endpoint of ["download", "content"]) {
+      assert.equal((await fetch(`${url}/reports/21/${endpoint}`)).status, 403);
+    }
+    assert.equal((await post(`${url}/reports/21/regenerate`)).status, 403);
+    // Owner re-confirmation cannot restore a refunded purchase.
+    assert.equal((await post(`${url}/commerce/payments/confirm`, { orderId: "synthetic-order", authorize: true })).status, 409);
+    const revokedAt = audit.revokedAt;
+    const repeated = await post(`${url}${refundSyncPath}`, {}, adminHeaders);
+    assert.equal(repeated.status, 200);
+    const again = await repeated.json() as Row;
+    assert.equal(again.outcome, "already_revoked");
+    assert.equal(again.revoked, false);
+    assert.equal(order.metadata.refundRevocation.revokedAt, revokedAt);
+  });
+  assert.deepEqual(h.state.tossCalls.map((call) => call.endpoint), ["status"]);
+});
+
+test("partial Toss refund is flagged without revoking access", async () => {
+  const h = createHarness(directTossEnv);
+  const { order, entitlement, payment } = seedPaidDirectToss(h);
+  h.state.tossStatus = "PAY_COMPLETE";
+  h.state.tossReply = { refundableAmount: 8900, transactions: [{ stepType: "PAY", transactionAmount: 9900 }, { stepType: "REFUND", transactionAmount: -1000 }] };
+  await withServer(h, async (url) => {
+    const response = await post(`${url}${refundSyncPath}`, {}, adminHeaders);
+    assert.equal(response.status, 200);
+    const result = await response.json() as Row;
+    assert.equal(result.outcome, "partial_refund");
+    assert.equal(result.revoked, false);
+    assert.equal(result.requiresManualReview, true);
+    assert.equal(order.status, "paid");
+    assert.equal(entitlement.status, "active");
+    assert.equal(payment.status, "partially_refunded");
+    assert.equal(order.metadata.refundSync.outcome, "partial_refund");
+    assert.equal(order.metadata.refundSync.refundedAmount, 1000);
+    assert.ok(order.metadata.refundSync.partialRefundFlaggedAt);
+    assert.equal(order.metadata.refundRevocation, undefined);
+    assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+  });
+});
+
+for (const [reason, status, reply, outcome] of [
+  ["unrefunded", "PAY_COMPLETE", {}, "not_refunded"],
+  ["pending refund", "REFUND_PROGRESS", {}, "refund_pending"],
+  ["contradictory refund", "REFUND_SUCCESS", { refundableAmount: 0 }, "unknown"],
+  ["cancelled-before-payment status", "PAY_CANCEL", {}, "unknown"],
+] as const) {
+  test(`${reason} Toss status records the check but never revokes`, async () => {
+    const h = createHarness(directTossEnv);
+    const { order, entitlement, payment } = seedPaidDirectToss(h);
+    h.state.tossStatus = status;
+    h.state.tossReply = reply;
+    await withServer(h, async (url) => {
+      const response = await post(`${url}${refundSyncPath}`, {}, adminHeaders);
+      assert.equal(response.status, 200);
+      const result = await response.json() as Row;
+      assert.equal(result.outcome, outcome);
+      assert.equal(result.revoked, false);
+      assert.equal((await fetch(`${url}/reports/21/download`)).status, 200);
+    });
+    assert.equal(order.status, "paid");
+    assert.equal(entitlement.status, "active");
+    assert.equal(payment.status, "paid");
+    assert.equal(order.metadata.refundSync.outcome, outcome);
+    assert.equal(order.metadata.refundRevocation, undefined);
+  });
+}
+
+test("network failure or identity mismatch during refund sync writes nothing", async () => {
+  for (const setup of [
+    (h: Harness) => { h.state.tossNetworkError = true; },
+    (h: Harness) => { h.state.tossStatus = "REFUND_SUCCESS"; h.state.tossReply = { ...fullRefundReply, amount: 1 }; },
+  ]) {
+    const h = createHarness(directTossEnv);
+    const { order, entitlement } = seedPaidDirectToss(h);
+    setup(h);
+    const writes = h.state.writes;
+    await withServer(h, async (url) => {
+      const response = await post(`${url}${refundSyncPath}`, {}, adminHeaders);
+      assert.equal(response.status, 502);
+      const body = await response.json() as Row;
+      assert.equal(body.outcome, "unverified");
+      assert.equal(JSON.stringify(body).includes("sk_test_"), false);
+    });
+    assert.equal(h.state.writes, writes);
+    assert.equal(order.status, "paid");
+    assert.equal(entitlement.status, "active");
+    assert.equal(order.metadata.refundSync, undefined);
+  }
+});
+
+test("refund sync rejects non-Toss-Pay, unpaid and unknown orders without provider access", async () => {
+  const h = createHarness(directTossEnv);
+  const { order } = seedPaidDirectToss(h);
+  await withServer(h, async (url) => {
+    assert.equal((await post(`${url}/admin/commerce/orders/missing-order/refund-sync`, {}, adminHeaders)).status, 404);
+    order.status = "pending";
+    assert.equal((await post(`${url}${refundSyncPath}`, {}, adminHeaders)).status, 409);
+    order.status = "paid";
+    order.metadata = { ...order.metadata, checkoutProvider: "toss" };
+    assert.equal((await post(`${url}${refundSyncPath}`, {}, adminHeaders)).status, 409);
+    order.metadata = { ...order.metadata, checkoutProvider: "toss_pay" };
+    assert.equal((await post(`${url}${refundSyncPath}`, { note: "x".repeat(201) }, adminHeaders)).status, 400);
+  });
+  assert.equal(h.state.tossCalls.length, 0);
+});
+
+test("refund sync of an already refunded order revokes a lingering active entitlement without provider access", async () => {
+  const h = createHarness(directTossEnv);
+  const { order, entitlement } = seedPaidDirectToss(h);
+  order.status = "refunded";
+  await withServer(h, async (url) => {
+    const response = await post(`${url}${refundSyncPath}`, {}, adminHeaders);
+    assert.equal(response.status, 200);
+    const result = await response.json() as Row;
+    assert.equal(result.outcome, "already_revoked");
+    assert.deepEqual(result.revokedEntitlementIds, [31]);
+  });
+  assert.equal(entitlement.status, "revoked");
+  assert.equal(h.state.tossCalls.length, 0);
 });

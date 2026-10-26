@@ -261,3 +261,81 @@ export function confirmTossPayPayment(order: TossPayOrder, allowExecute: boolean
 export function confirmTossPayReviewPayment(order: TossPayOrder) {
   return confirmPayment(order, true, reviewConfig());
 }
+
+export type TossPayRefundOutcome =
+  | "full_refund"
+  | "partial_refund"
+  | "refund_pending"
+  | "not_refunded"
+  | "unknown";
+
+export interface TossPayRefundCheck {
+  outcome: TossPayRefundOutcome;
+  /** Provider payStatus, only when it is a short uppercase token. */
+  payStatus: string | null;
+  /** Sum of REFUND transaction amounts; null when the provider data is unusable. */
+  refundedAmount: number | null;
+  refundableAmount: number | null;
+}
+
+const FULL_REFUND_STATUSES = new Set(["REFUND_SUCCESS", "SETTLEMENT_REFUND_COMPLETE"]);
+const PENDING_REFUND_STATUSES = new Set(["REFUND_PROGRESS", "REFUND_PENDING"]);
+const PAID_STATUSES = new Set(["PAY_COMPLETE", "SETTLEMENT_COMPLETE"]);
+
+// Classifies a canonical /status response. Anything not provably consistent is
+// "unknown": callers must never revoke access on that outcome.
+function classifyRefund(order: TossPayOrder, data: Record<string, unknown>): TossPayRefundCheck {
+  const payStatus = typeof data.payStatus === "string" && /^[A-Z_]{1,40}$/.test(data.payStatus)
+    ? data.payStatus : null;
+  const refundableAmount = Number.isSafeInteger(data.refundableAmount) ? data.refundableAmount as number : null;
+  const unknown = (refundedAmount: number | null = null): TossPayRefundCheck =>
+    ({ outcome: "unknown", payStatus, refundedAmount, refundableAmount });
+  if (!payStatus || !Array.isArray(data.transactions) || data.transactions.length === 0
+    || data.transactions.some((item) => !isRecord(item))
+    || !data.transactions.some((item) => item.stepType === "PAY")) {
+    return unknown();
+  }
+  let refundedAmount = 0;
+  for (const item of data.transactions as Record<string, unknown>[]) {
+    if (item.stepType !== "REFUND") continue;
+    // Toss returns refund transactionAmount as a negative merchant amount.
+    const amount = item.transactionAmount;
+    if (!Number.isSafeInteger(amount) || (amount as number) >= 0) return unknown();
+    refundedAmount -= amount as number;
+  }
+  if (refundedAmount > order.amount) return unknown(refundedAmount);
+  if (PENDING_REFUND_STATUSES.has(payStatus)) {
+    return { outcome: "refund_pending", payStatus, refundedAmount, refundableAmount };
+  }
+  if (refundedAmount === 0) {
+    return PAID_STATUSES.has(payStatus)
+      ? { outcome: "not_refunded", payStatus, refundedAmount, refundableAmount }
+      : unknown(0);
+  }
+  if (refundedAmount === order.amount) {
+    // Status, transaction total and remaining refundable balance must all agree.
+    return FULL_REFUND_STATUSES.has(payStatus) && refundableAmount === 0
+      ? { outcome: "full_refund", payStatus, refundedAmount, refundableAmount }
+      : unknown(refundedAmount);
+  }
+  return FULL_REFUND_STATUSES.has(payStatus) || PAID_STATUSES.has(payStatus)
+    ? { outcome: "partial_refund", payStatus, refundedAmount, refundableAmount }
+    : unknown(refundedAmount);
+}
+
+/**
+ * Read-only refund re-sync for a stored direct Toss Pay order. Only calls the
+ * status endpoint; never executes or refunds. Network/provider/identity
+ * failures throw sanitized errors so callers cannot mistake them for a refund.
+ */
+export async function checkTossPayRefundStatus(order: TossPayOrder): Promise<TossPayRefundCheck> {
+  const config = requireConfig();
+  validateOrder(order);
+  verifyIdentity(order, config, {
+    orderNo: order.orderId, amount: order.amount, mode: config.mode,
+    payToken: order.metadata?.tossPayToken,
+  });
+  const status = await request("status", config, { orderNo: order.orderId });
+  verifyIdentity(order, config, status);
+  return classifyRefund(order, status);
+}

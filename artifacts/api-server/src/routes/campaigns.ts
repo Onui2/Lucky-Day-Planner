@@ -4,7 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { requireDatabase } from "../lib/database-guard.js";
 import { isPrivilegedRole } from "../lib/date-access.js";
 import { createRateLimiter } from "../middlewares/rateLimit.js";
-import { applyCampaignCosts, parseCampaignVisit } from "../lib/campaign-metrics.js";
+import { applyCampaignCosts, parseCampaignVisit, summarizeRefundVerification } from "../lib/campaign-metrics.js";
 
 const router = Router();
 router.post("/campaign/events", createRateLimiter({ name: "campaign-events", windowMs: 60_000, max: 30, methods: ["POST"] }), async (req, res) => {
@@ -69,7 +69,12 @@ router.post("/admin/campaigns/new-year-2027/metrics", async (req, res) => {
         SELECT o.id, o.metadata->>'campaignVisitId' AS visit_id,
           p.approved_at, p.amount, p.status AS payment_status, o.status AS order_status,
           EXISTS (SELECT 1 FROM pdf_reports r WHERE r.order_id = o.id AND r.status = 'ready') AS ready,
-          o.metadata->>'firstDeliveredAt' AS delivered_at
+          o.metadata->>'firstDeliveredAt' AS delivered_at,
+          o.metadata->'refundSync'->>'outcome' AS refund_outcome,
+          CASE WHEN o.metadata->'refundSync'->>'checkedAt' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
+            THEN (o.metadata->'refundSync'->>'checkedAt')::timestamptz END AS refund_checked_at,
+          CASE WHEN o.metadata->'refundSync'->>'refundedAmount' ~ '^[0-9]{1,12}$'
+            THEN (o.metadata->'refundSync'->>'refundedAmount')::bigint END AS refund_synced_amount
         FROM orders o LEFT JOIN payments p ON p.order_id = o.id
         WHERE o.product_type = 'saju_detail' AND o.metadata->>'reportEdition' = 'new-year-2027'
           AND o.amount > 0 AND o.metadata->>'paymentEnvironment' = 'live'
@@ -83,6 +88,14 @@ router.post("/admin/campaigns/new-year-2027/metrics", async (req, res) => {
         count(DISTINCT o.id) FILTER (WHERE o.approved_at IS NOT NULL AND o.ready)::int AS ready,
         count(DISTINCT o.id) FILTER (WHERE o.approved_at IS NOT NULL AND o.delivered_at IS NOT NULL)::int AS provided,
         count(DISTINCT o.id) FILTER (WHERE o.order_status IN ('refunded','partially_refunded') OR o.payment_status IN ('refunded','partially_refunded','canceled'))::int AS refund_status_orders,
+        count(DISTINCT o.id) FILTER (WHERE o.approved_at IS NOT NULL AND o.refund_checked_at IS NOT NULL
+          AND o.refund_outcome IN ('not_refunded','partial_refund','full_refund'))::int AS refund_checked,
+        count(DISTINCT o.id) FILTER (WHERE o.approved_at IS NOT NULL AND o.order_status = 'refunded')::int AS refunded_orders,
+        count(DISTINCT o.id) FILTER (WHERE o.approved_at IS NOT NULL AND o.order_status = 'paid' AND o.payment_status = 'partially_refunded')::int AS partially_refunded_orders,
+        coalesce(sum(o.refund_synced_amount) FILTER (WHERE o.approved_at IS NOT NULL
+          AND o.refund_outcome IN ('partial_refund','full_refund')),0)::bigint AS refund_synced_krw,
+        min(o.refund_checked_at) FILTER (WHERE o.approved_at IS NOT NULL
+          AND o.refund_outcome IN ('not_refunded','partial_refund','full_refund')) AS oldest_refund_check_at,
         coalesce(sum(o.amount) FILTER (WHERE o.approved_at IS NOT NULL),0)::bigint AS gross_krw
       FROM cohort c LEFT JOIN measured_orders o ON o.visit_id = c.visit_id::text
       GROUP BY c.source, c.creative ORDER BY c.source, c.creative
@@ -93,8 +106,15 @@ router.post("/admin/campaigns/new-year-2027/metrics", async (req, res) => {
       return { ...row, key, grossKrw,
         ...applyCampaignCosts(grossKrw, Number(row.visits), costsByContent[key]) };
     });
-    res.json({ from, to, rows, refundStatusVerified: false,
-      note: "방문일 기준 코호트입니다. 구매·제공은 서버 기록, 초기 단계는 브라우저 기록입니다. 환불 상태 동기화는 미확인입니다. 같은 코호트의 실제 환불액과 모든 비용을 입력해야 손익이 계산됩니다. 관리자·무료·개발·테스트·결제 환경 미확인 주문은 매출에서 제외합니다." });
+    const refund = summarizeRefundVerification(data.rows as Array<Record<string, unknown>>);
+    // Refund status comes only from the admin Toss re-sync; there is no provider webhook.
+    const refundNote = refund.refundStatusVerified
+      ? refund.approvedOrders === 0
+        ? "승인 주문이 없어 확인할 환불 상태가 없습니다."
+        : `승인 주문 ${refund.approvedOrders}건 모두 토스페이 환불 상태를 재조회했습니다(가장 오래된 조회 ${refund.oldestRefundCheckAt}). 조회 이후의 환불은 반영되지 않습니다.`
+      : `승인 주문 ${refund.approvedOrders}건 중 ${refund.uncheckedApprovedOrders}건은 환불 상태를 재조회하지 않았거나 결과가 불확실해 환불 상태는 미확인입니다.`;
+    res.json({ from, to, rows, refundStatusVerified: refund.refundStatusVerified, refundVerification: refund,
+      note: `방문일 기준 코호트입니다. 구매·제공은 서버 기록, 초기 단계는 브라우저 기록입니다. ${refundNote} 집계된 환불액은 재조회로 확인된 금액이며 비용 입력의 실제 환불액을 대체하지 않습니다. 같은 코호트의 실제 환불액과 모든 비용을 입력해야 손익이 계산됩니다. 관리자·무료·개발·테스트·결제 환경 미확인 주문은 매출에서 제외합니다.` });
   } catch (error) {
     res.status(400).json({ error: error instanceof Error && error.message.startsWith("비용")
       ? error.message : "측정 저장소와 입력한 비용·기간을 확인해주세요." });
